@@ -507,6 +507,10 @@ export const KNOWN_MODELS = {
   'flux2-vae.safetensors': { folder: 'vae', url: 'https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/vae/flux2-vae.safetensors' },
   'tryon-klein-4b.safetensors': { folder: 'loras', url: 'https://huggingface.co/xocialize/tryon-FLUX.2-klein-4B-lora/resolve/main/tryon-klein-4b.safetensors' },
   'krea2_turbo_int8_convrot.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_int8_convrot.safetensors', variants: ['krea2_turbo_fp8_scaled.safetensors', 'krea2_turbo_bf16.safetensors'] },
+  // The two quantizations krea2-turbo-local-t2i can also load (the files the owner keeps on their own ComfyUI): comfyanonymous'
+  // ConvRot int4 (the build ComfyUI-INT4-Fast links) and vantagewithai's GGUF Q4_K_M (what ComfyUI-GGUF's loader reads).
+  'krea2_turbo_convrot_int4_fast.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/comfyanonymous/int4_tests/resolve/main/split_files/diffusion_models/krea2_turbo_convrot_int4_fast.safetensors' },
+  'krea2_turbo-Q4_K_M.gguf': { folder: 'diffusion_models', url: 'https://huggingface.co/vantagewithai/Krea-2-Turbo-GGUF/resolve/main/krea2_turbo-Q4_K_M.gguf' },
   'qwen3vl_4b_fp8_scaled.safetensors': { folder: 'text_encoders', url: 'https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors', variants: ['qwen3vl_4b_int8_convrot.safetensors', 'qwen3vl_4b_bf16.safetensors'] },
   'krea2_style_reference.safetensors': { folder: 'loras', url: 'https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_style_reference.safetensors' },
   'flux1-dev-fp8.safetensors': { folder: 'checkpoints', url: 'https://huggingface.co/Comfy-Org/flux1-dev/resolve/main/flux1-dev-fp8.safetensors' },
@@ -3926,6 +3930,8 @@ export const SPEC = [
     capability: 't2i',
     handBuilt: 'hand-built/krea2-turbo-local-t2i.json',
     bindings: { prompt: [b('6', 'text')], width: [b('5', 'width')], height: [b('5', 'height')], seed: [b('3', 'seed')], steps: [b('3', 'steps')], unet: [b('10', 'model_name')] },
+    defaults: { unet: 'krea2_turbo-Q4_K_M.gguf' },
+    optionalModels: ['krea2_turbo_int8_convrot.safetensors', 'krea2_turbo_convrot_int4_fast.safetensors'],
     outputs: [{ node: '29', kind: 'image' }],
     limits: { maxWidth: 2048, maxHeight: 2048, dimensionMultiple: 16 },
     vramGb: 20,
@@ -3934,8 +3940,12 @@ export const SPEC = [
     notes:
       'Krea 2 Turbo text-to-image on the krea2-model-router UnifiedModelLoader: the model control picks one file and the router routes it to the right loader ' +
       '(.gguf -> UnetLoaderGGUF, convrot_w4a4 -> UNetLoaderINT4ConvRot, int8_tensorwise -> OTUNetLoaderW8A8; the loaders are the installed ones, not re-implemented). ' +
-      'The same graph as krea2-turbo-t2i (euler / simple, 8 steps, cfg 1 with ConditioningZeroOut), the core UNETLoader swapped for the router; the router defaults to ' +
-      'krea2_turbo_fp8_scaled so the graph stays pinned, and the model control always overwrites it with a file you already have on your ComfyUI (the int8 / int4 / GGUF Q4_K_M copies), never a download.',
+      'The same graph as krea2-turbo-t2i (euler / simple, 8 steps, cfg 1 with ConditioningZeroOut), the core UNETLoader swapped for the router. ' +
+      'The graph is pinned to the GGUF Q4_K_M file the control loads by default (vantagewithai\'s Q4_K_M build, what ComfyUI-GGUF\'s UnetLoaderGGUF reads); the int8 ConvRot ' +
+      '(Comfy-Org\'s Krea-2 build) and the int4 ConvRot (comfyanonymous\'s int4_tests, the build ComfyUI-INT4-Fast links) are optional, needed only when the control picks them. ' +
+      'The graph never loads krea2_turbo_fp8_scaled: this entry runs quantized files, so a ComfyUI with none of the three is asked for the GGUF only. Naming the GGUF in the ' +
+      'graph is also how a .gguf is checked at all - folder listings never show one - so the loaders\' combo lists decide whether it is there, and an int8 or int4 pick asks ' +
+      'for its own file and nothing else.',
   },
   {
     id: 'krea2-edit-general',

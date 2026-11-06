@@ -3528,6 +3528,7 @@
             "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
             "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
             "qwen3vl_4b_fp8_scaled.safetensors",
+            "qwen3vl_8b_fp8_scaled.safetensors",
             "qwen_0.6b_ace15.safetensors",
             "qwen_1.7b_ace15.safetensors",
             "qwen_2.5_vl_7b_fp8_scaled.safetensors"
@@ -6051,6 +6052,7 @@
             "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
             "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
             "qwen3vl_4b_fp8_scaled.safetensors",
+            "qwen3vl_8b_fp8_scaled.safetensors",
             "qwen_0.6b_ace15.safetensors",
             "qwen_1.7b_ace15.safetensors",
             "qwen_2.5_vl_7b_fp8_scaled.safetensors"
@@ -6068,6 +6070,7 @@
             "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
             "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
             "qwen3vl_4b_fp8_scaled.safetensors",
+            "qwen3vl_8b_fp8_scaled.safetensors",
             "qwen_0.6b_ace15.safetensors",
             "qwen_1.7b_ace15.safetensors",
             "qwen_2.5_vl_7b_fp8_scaled.safetensors"
@@ -14197,6 +14200,7 @@
               "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
               "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
               "qwen3vl_4b_fp8_scaled.safetensors",
+              "qwen3vl_8b_fp8_scaled.safetensors",
               "qwen_0.6b_ace15.safetensors",
               "qwen_1.7b_ace15.safetensors",
               "qwen_2.5_vl_7b_fp8_scaled.safetensors"
@@ -15856,7 +15860,10 @@
           "COMBO",
           {
             "multiselect": false,
-            "options": [],
+            "options": [
+              "fuobe_validate.mp4",
+              "fuobe_validate.wav"
+            ],
             "audio_upload": true
           }
         ]
@@ -16011,7 +16018,10 @@
     "input": {
       "required": {
         "image": [
-          [],
+          [
+            "fuobe_validate.png",
+            "fuobe_validate_mask.png"
+          ],
           {
             "image_upload": true
           }
@@ -16059,7 +16069,10 @@
     "input": {
       "required": {
         "image": [
-          [],
+          [
+            "fuobe_validate.png",
+            "fuobe_validate_mask.png"
+          ],
           {
             "image_upload": true
           }
@@ -16157,7 +16170,9 @@
           "COMBO",
           {
             "multiselect": false,
-            "options": [],
+            "options": [
+              "fuobe_validate.mp4"
+            ],
             "video_upload": true
           }
         ]
@@ -20143,6 +20158,7 @@
               "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
               "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
               "qwen3vl_4b_fp8_scaled.safetensors",
+              "qwen3vl_8b_fp8_scaled.safetensors",
               "qwen_0.6b_ace15.safetensors",
               "qwen_1.7b_ace15.safetensors",
               "qwen_2.5_vl_7b_fp8_scaled.safetensors"
@@ -20164,6 +20180,7 @@
               "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
               "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
               "qwen3vl_4b_fp8_scaled.safetensors",
+              "qwen3vl_8b_fp8_scaled.safetensors",
               "qwen_0.6b_ace15.safetensors",
               "qwen_1.7b_ace15.safetensors",
               "qwen_2.5_vl_7b_fp8_scaled.safetensors"
@@ -20185,6 +20202,7 @@
               "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
               "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
               "qwen3vl_4b_fp8_scaled.safetensors",
+              "qwen3vl_8b_fp8_scaled.safetensors",
               "qwen_0.6b_ace15.safetensors",
               "qwen_1.7b_ace15.safetensors",
               "qwen_2.5_vl_7b_fp8_scaled.safetensors"
@@ -20206,6 +20224,7 @@
               "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
               "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
               "qwen3vl_4b_fp8_scaled.safetensors",
+              "qwen3vl_8b_fp8_scaled.safetensors",
               "qwen_0.6b_ace15.safetensors",
               "qwen_1.7b_ace15.safetensors",
               "qwen_2.5_vl_7b_fp8_scaled.safetensors"
@@ -28824,6 +28843,7 @@
             "Wan2_1_VAE_fp32.safetensors",
             "ace_1.5_vae.safetensors",
             "drama3_codec.safetensors",
+            "flux2-vae.safetensors",
             "flux2-vae_small.safetensors",
             "krea2RealVae_v10.safetensors",
             "ltx-2.5-audio-vae-bf16.safetensors",
@@ -28923,7 +28943,10 @@
     "input": {
       "required": {
         "audio": [
-          []
+          [
+            "fuobe_validate.mp4",
+            "fuobe_validate.wav"
+          ]
         ]
       },
       "optional": {
@@ -28984,7 +29007,9 @@
     "input": {
       "required": {
         "video": [
-          []
+          [
+            "fuobe_validate.mp4"
+          ]
         ],
         "force_rate": [
           "FLOAT",

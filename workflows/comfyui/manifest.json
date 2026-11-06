@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-06T18:26:31.103Z",
+  "generatedAt": "2026-11-06T19:32:01.754Z",
   "comfyuiCommit": "5841c187a76ffdb565c14d9565aacbdb9a54b056",
   "comfyuiVersion": "0.42.0",
   "workflowTemplatesVersion": "0.11.98",
@@ -16154,7 +16154,8 @@
       "defaults": {
         "width": 1024,
         "height": 1024,
-        "steps": 8
+        "steps": 8,
+        "unet": "krea2_turbo-Q4_K_M.gguf"
       },
       "limits": {
         "maxWidth": 2048,
@@ -16163,10 +16164,10 @@
       },
       "models": [
         {
-          "file": "krea2_turbo_fp8_scaled.safetensors",
+          "file": "krea2_turbo-Q4_K_M.gguf",
           "folder": "diffusion_models",
-          "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_fp8_scaled.safetensors",
-          "sizeGb": 13.14
+          "url": "https://huggingface.co/vantagewithai/Krea-2-Turbo-GGUF/resolve/main/krea2_turbo-Q4_K_M.gguf",
+          "sizeGb": 7.49
         },
         {
           "file": "qwen3vl_4b_fp8_scaled.safetensors",
@@ -16179,6 +16180,20 @@
           "folder": "vae",
           "url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors",
           "sizeGb": 0.25
+        },
+        {
+          "file": "krea2_turbo_int8_convrot.safetensors",
+          "folder": "diffusion_models",
+          "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_int8_convrot.safetensors",
+          "sizeGb": 13.49,
+          "optional": true
+        },
+        {
+          "file": "krea2_turbo_convrot_int4_fast.safetensors",
+          "folder": "diffusion_models",
+          "url": "https://huggingface.co/comfyanonymous/int4_tests/resolve/main/split_files/diffusion_models/krea2_turbo_convrot_int4_fast.safetensors",
+          "sizeGb": 6.43,
+          "optional": true
         }
       ],
       "customNodes": [
@@ -16190,7 +16205,7 @@
       "vramGb": 20,
       "license": "Krea 2 Community License (free under US$1M yearly revenue; enterprise terms above it)",
       "validated": true,
-      "notes": "Krea 2 Turbo text-to-image on the krea2-model-router UnifiedModelLoader: the model control picks one file and the router routes it to the right loader (.gguf -> UnetLoaderGGUF, convrot_w4a4 -> UNetLoaderINT4ConvRot, int8_tensorwise -> OTUNetLoaderW8A8; the loaders are the installed ones, not re-implemented). The same graph as krea2-turbo-t2i (euler / simple, 8 steps, cfg 1 with ConditioningZeroOut), the core UNETLoader swapped for the router; the router defaults to krea2_turbo_fp8_scaled so the graph stays pinned, and the model control always overwrites it with a file you already have on your ComfyUI (the int8 / int4 / GGUF Q4_K_M copies), never a download."
+      "notes": "Krea 2 Turbo text-to-image on the krea2-model-router UnifiedModelLoader: the model control picks one file and the router routes it to the right loader (.gguf -> UnetLoaderGGUF, convrot_w4a4 -> UNetLoaderINT4ConvRot, int8_tensorwise -> OTUNetLoaderW8A8; the loaders are the installed ones, not re-implemented). The same graph as krea2-turbo-t2i (euler / simple, 8 steps, cfg 1 with ConditioningZeroOut), the core UNETLoader swapped for the router. The graph is pinned to the GGUF Q4_K_M file the control loads by default (vantagewithai's Q4_K_M build, what ComfyUI-GGUF's UnetLoaderGGUF reads); the int8 ConvRot (Comfy-Org's Krea-2 build) and the int4 ConvRot (comfyanonymous's int4_tests, the build ComfyUI-INT4-Fast links) are optional, needed only when the control picks them. The graph never loads krea2_turbo_fp8_scaled: this entry runs quantized files, so a ComfyUI with none of the three is asked for the GGUF only. Naming the GGUF in the graph is also how a .gguf is checked at all - folder listings never show one - so the loaders' combo lists decide whether it is there, and an int8 or int4 pick asks for its own file and nothing else."
     },
     {
       "id": "krea2-edit-general",

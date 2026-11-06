@@ -1039,6 +1039,11 @@
   "sizeBytes": 5157348688,
   "sha256": "a498f0485dc9536735258018417c3fd7758dc3bccc0a645feaa472b34955557a"
  },
+ "https://huggingface.co/comfyanonymous/int4_tests/resolve/main/split_files/diffusion_models/krea2_turbo_convrot_int4_fast.safetensors": {
+  "revision": "96f84d3e9fa14bf0997f44102d666c8ef3462e23",
+  "sizeBytes": 6427972219,
+  "sha256": "f6cf4321496e4ac2496a0e4f9e5171fdd7349a5b16083897ba7fcb991f94fa63"
+ },
  "https://huggingface.co/conradlocke/krea2-identity-edit/resolve/main/krea2_general_edit_v2.safetensors": {
   "revision": "f33b26291c640e8ec50b0da420bfee3c9a660daa",
   "sizeBytes": 1828285656,
@@ -1133,6 +1138,11 @@
   "revision": "462165984030d82259a11f4367a4eed129e94a7b",
   "sizeBytes": 6938078334,
   "sha256": "31e35c80fc4829d14f90153f4c74cd59c90b779f6afe05a74cd6120b893f7e5b"
+ },
+ "https://huggingface.co/vantagewithai/Krea-2-Turbo-GGUF/resolve/main/krea2_turbo-Q4_K_M.gguf": {
+  "revision": "390847e2835c16bdf82303731e3d35b874760d89",
+  "sizeBytes": 7486289184,
+  "sha256": "bc12f539de7a7a6ddf9bac17ec6e5bfecd42c3517190f491131d8464a1034b40"
  },
  "https://huggingface.co/vrgamedevgirl84/Wan14BT2VFusioniX/resolve/b9793a1f84727f2f69bdffecc2f50f0abfa746a6/FusionX_LoRa/Wan2.1_I2V_14B_FusionX_LoRA.safetensors": {
   "revision": "b9793a1f84727f2f69bdffecc2f50f0abfa746a6",

@@ -117,8 +117,8 @@ const MOSS_QUALITY: NonNullable<ModelOptions["controls"]>[number] = {
 const KREA2_TURBO_LOCAL_FILE: NonNullable<ModelOptions["controls"]>[number] = {
   param: "model",
   label: "Model file",
-  values: ["int8", "int4", "gguf"],
-  default: "int8",
+  values: ["gguf", "int8", "int4"],
+  default: "gguf",
   labels: { int8: "int8 ConvRot · W8A8", int4: "int4 ConvRot · fast", gguf: "Q4_K_M GGUF" },
   sets: {
     int8: { unet: "krea2_turbo_int8_convrot.safetensors" },

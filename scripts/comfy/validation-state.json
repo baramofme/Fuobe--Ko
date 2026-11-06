@@ -414,10 +414,10 @@
     "at": "2026-11-04T19:55:00.096Z"
   },
   "krea2-turbo-local-t2i": {
-    "sha256": "0505f8ad2f44b3285b7dd72f0abfa5033192a7b5670333860f3614703b4cff7e",
+    "sha256": "ea9f4c7c6023690a440f43fac6662021fa390f50ad8dc709fe1548939005d393",
     "validated": true,
     "error": null,
-    "at": "2026-11-06T18:26:36.895Z"
+    "at": "2026-11-06T19:39:51.357Z"
   },
   "krea2-turbo-t2i": {
     "sha256": "3a39cd2708654be5a4ddeb85445d73fdca23ef8c5c96d7a1ab06a3eaaac40734",

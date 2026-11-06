@@ -72,7 +72,7 @@
   "10": {
     "class_type": "UnifiedModelLoader",
     "inputs": {
-      "model_name": "krea2_turbo_fp8_scaled.safetensors"
+      "model_name": "krea2_turbo-Q4_K_M.gguf"
     },
     "_meta": {
       "title": "Krea 2 Turbo (your file: GGUF, int4 or int8 ConvRot)"
