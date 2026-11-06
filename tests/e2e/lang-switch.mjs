@@ -13,7 +13,6 @@
 // 5. A reload keeps Korean (the saved choice), with the cookie mirrored for the server's next render.
 // 6. No "[i18n]" warning and no page error during all of it.
 // 7. A phone: its header's search button and its five tabs switch with the same selector.
-import assert from "node:assert/strict";
 import { DESKTOP, PHONE, launch, openRoute } from "./_browser.mjs";
 
 const app = (
@@ -37,6 +36,8 @@ async function barWords(page) {
     const text = (el) => (el ? el.textContent.trim() : null);
     const nav = bar.querySelector("nav");
     const search = bar.querySelector('button[aria-keyshortcuts="/ Meta+K Control+K"]');
+    const leaf = (s) => s.children.length === 0 && !!s.textContent.trim() && getComputedStyle(s).display !== "none";
+    const visibleWord = (el) => (el ? [...el.querySelectorAll("span")].filter(leaf).map((s) => s.textContent.trim())[0] ?? null : null);
     const creation = bar.querySelector('a[href="/?new"]') ?? bar.querySelector('a[href*="new"]');
     const items = [...bar.querySelectorAll('[data-bar-item], a[data-bar-item]')].map((el) => ({
       text: text(el),
@@ -45,8 +46,8 @@ async function barWords(page) {
     return {
       wordmarkAria: bar.querySelector('a[aria-label]')?.getAttribute("aria-label") ?? null,
       navAria: nav?.getAttribute("aria-label") ?? null,
-      searchWords: search ? text(search.querySelector("span")) : null,
-      creationWords: creation ? text(creation.querySelector("span")) : null,
+      searchWords: visibleWord(search),
+      creationWords: visibleWord(creation),
       items,
       lang: document.documentElement.lang,
       stored: (() => {
@@ -61,13 +62,15 @@ async function barWords(page) {
   });
 }
 
-// The words of the header's language selector's own menu, by the language each option leads to.
-async function openSelector(page, desktop) {
-  const trigger = desktop
-    ? page.getByRole("button", { name: /Language|언어/i }).first()
-    : page.locator("[data-top-bar] button:has(svg), header button:has(svg)").filter({ has: page.locator("svg.lucide-globe, svg[class*=globe]") }).first();
+// The header's own selector: the only button with a globe in it, whichever bar this viewport shows.
+// A leftover open menu or dialog would make the trigger toggle it shut instead of open, so clear the way first.
+async function openSelector(page) {
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(250);
+  const trigger = page.locator('button:has(svg.lucide-globe)').locator("visible=true").first();
   await trigger.waitFor({ timeout: 15_000 });
   await trigger.click();
+  await page.getByRole("menuitem").first().waitFor({ timeout: 8_000 });
   return page;
 }
 
@@ -125,17 +128,19 @@ step("desktop: English by default");
 
   step("desktop: 한국어 in one render");
   {
-    const menu = await openSelector(page, true);
+    const menu = await openSelector(page);
     await menu.getByRole("menuitem", { name: "한국어" }).click();
     // The same commit: read straight away, with no settling wait, so a reload could not be the reason it changed.
     const after = await page.evaluate(() => {
       const bar = document.querySelector("[data-top-bar]");
       const nav = bar?.querySelector("nav");
       const search = bar?.querySelector('button[aria-keyshortcuts="/ Meta+K Control+K"]');
+      const leaf = (s) => s.children.length === 0 && !!s.textContent.trim() && getComputedStyle(s).display !== "none";
+      const visibleWord = (el) => (el ? [...el.querySelectorAll("span")].filter(leaf).map((s) => s.textContent.trim())[0] ?? null : null);
       return {
         lang: document.documentElement.lang,
         navAria: nav?.getAttribute("aria-label") ?? null,
-        searchWords: search ? search.querySelector("span").textContent.trim() : null,
+        searchWords: visibleWord(search),
         itemTexts: [...bar.querySelectorAll("[data-bar-item]")].map((el) => el.textContent.trim()),
         itemArias: [...bar.querySelectorAll("[data-bar-item]")].map((el) => el.getAttribute("aria-label")),
         wordmarkAria: bar.querySelector("nav a[aria-label]")?.getAttribute("aria-label"),
@@ -152,6 +157,9 @@ step("desktop: English by default");
 
     step("desktop: the search element speaks Korean");
     {
+      // The language menu's own content holds "/" until it leaves the DOM (slashOpens ignores a menu); let it go.
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(600);
       await page.keyboard.press("/");
       const dialog = page.getByRole("dialog", { name: KO.search });
       await dialog.waitFor({ timeout: 15_000 });
@@ -167,7 +175,7 @@ step("desktop: English by default");
 
     step("desktop: English back");
     {
-      const menu = await openSelector(page, true);
+      const menu = await openSelector(page);
       await menu.getByRole("menuitem", { name: "English" }).click();
       const back = await barWords(page);
       check('<html lang="en" again', back.lang === "en", `lang=${back.lang}`);
@@ -178,7 +186,7 @@ step("desktop: English by default");
 
     step("desktop: a reload keeps the choice");
     {
-      const menu = await openSelector(page, true);
+      const menu = await openSelector(page);
       await menu.getByRole("menuitem", { name: "한국어" }).click();
       await page.waitForTimeout(200);
       const saved = await page.evaluate(() => ({ stored: localStorage.getItem("fuobe.lang"), cookie: /fuobe_lang=([^;]*)/.exec(document.cookie)?.[1] }));
@@ -201,7 +209,7 @@ step("phone: the header and the tabs switch the same way");
   const page = await browser.newPage({ ...PHONE });
   listen(page, "phone");
   await openRoute(page, `${app}/`);
-  const globe = page.locator("button:has(svg.lucide-globe)").first();
+  const globe = page.locator("button:has(svg.lucide-globe)").locator("visible=true").first();
   check("the phone header has the selector", await globe.isVisible().catch(() => false), "");
   const tabsBefore = await page.evaluate(() => [...document.querySelectorAll("[data-phone-tabs] [data-tab]")].map((el) => el.textContent.trim()));
   check("its tabs start in English", tabsBefore.includes("Home") && tabsBefore.includes("You"), JSON.stringify(tabsBefore));
@@ -210,8 +218,14 @@ step("phone: the header and the tabs switch the same way");
   await page.waitForTimeout(400);
   const tabsAfter = await page.evaluate(() => [...document.querySelectorAll("[data-phone-tabs] [data-tab]")].map((el) => el.textContent.trim()));
   check("its tabs are Korean after one click", ["홈", "만들기", "스튜디오", "라이브러리", "내 계정"].every((w) => tabsAfter.includes(w)), JSON.stringify(tabsAfter));
-  const searchAria = await page.locator('button[aria-label="검색"]').first().count();
-  check("the phone's search button is named 검색", searchAria > 0, `count=${searchAria}`);
+  // The phone has no keyboard shortcut: search lives behind a sheet. Open its studios sheet and read the field's word.
+  await page.locator("[data-phone-tabs] [data-tab]").filter({ hasText: "스튜디오" }).first().click();
+  await page.waitForTimeout(400);
+  const fieldWord = await page.evaluate(() => {
+    const b = [...document.querySelectorAll("button")].find((el) => /Fuobe에서 검색|스튜디오, 앱, 효과 검색/.test(el.textContent));
+    return b ? b.textContent.trim() : null;
+  });
+  check("the phone's search field is Korean too", /Fuobe에서 검색/.test(fieldWord || ""), `word=${fieldWord}`);
   await page.close();
 }
 
