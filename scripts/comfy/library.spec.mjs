@@ -220,6 +220,9 @@ export const CUSTOM_NODE_REPOS = {
   // Krea 2 Inpaint needs (not installed on the validation server: krea2-inpaint / krea2-outpaint list it with `packs`).
   'comfyui-krea2edit': 'https://github.com/lbouaraba/comfyui-krea2edit',
   'ComfyUI-Krea2-Ostris-Edit': 'https://github.com/ostris/ComfyUI-Krea2-Ostris-Edit',
+  // Krea 2 Turbo unified router (the owner's own loaders entry, t_6793d57b): the in-house UnifiedModelLoader the owner
+  // deploys on their ComfyUI; it delegates to the installed GGUF / INT4 / W8A8 loaders (no loader re-implemented).
+  'krea2-model-router': '/mnt/nvmedata/comfy/custom_nodes/krea2-model-router',
   // MiniMax H3 video (minimax-h3-t2v / i2v / flf2v): larryvrh's turbo LoRA loader and sampler (Apache-2.0, v1.2.3) and
   // PlagueKind's SLA attention and AdaLN LoRA fix (MIT, v1.5.6; the SLA kernel needs Triton). Pinned in install-comfyui.sh.
   'ComfyUI-MiniMax-H3-Turbo': 'https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo/tree/77bfa67575b14e3be6214f1747732e540c68b5dd',
@@ -298,6 +301,8 @@ export const PACK_CLASSES = {
   // Installed on the validation server, but a ComfyUI with comfyui-workflow-encrypt names that pack as these classes' module.
   'comfyui-krea2edit': /^Krea2Edit(ModelPatch|GroundedEncode)$/,
   'ComfyUI-Krea2-Ostris-Edit': /^(TextEncodeKrea2OstrisEdit|Krea2OstrisEditModelPatch)$/,
+  // The owner's own Krea 2 Turbo router (krea2-model-router): one entry that routes to the installed GGUF / INT4 / W8A8 loaders.
+  'krea2-model-router': /^UnifiedModelLoader$/,
   // MiniMax H3 video. The turbo classes need naming here: a ComfyUI with comfyui-workflow-encrypt reports that pack as their module.
   'ComfyUI-MiniMax-H3-Turbo': /^MiniMaxH3Turbo(LoRA|Sampler)$/,
   'plaguekind-nodes': /^H3(SLAAttention|AdaLNLoRAFix)$/,
@@ -3914,6 +3919,23 @@ export const SPEC = [
     notes:
       'The official Krea 2 Turbo text-to-image graph: euler / simple, 8 steps, cfg 1 with ConditioningZeroOut, 1024x1024 by default. Removed: the style-LoRA and Refine-prompt switches ' +
       '(your own LoRAs attach after the UNET as on every graph), the ResolutionSelector (explicit width/height, multiple of 16).',
+  },
+  {
+    id: 'krea2-turbo-local-t2i',
+    title: 'Krea 2 Turbo from a file on your ComfyUI (the unified router picks the loader)',
+    capability: 't2i',
+    handBuilt: 'hand-built/krea2-turbo-local-t2i.json',
+    bindings: { prompt: [b('6', 'text')], width: [b('5', 'width')], height: [b('5', 'height')], seed: [b('3', 'seed')], steps: [b('3', 'steps')], unet: [b('10', 'model_name')] },
+    outputs: [{ node: '29', kind: 'image' }],
+    limits: { maxWidth: 2048, maxHeight: 2048, dimensionMultiple: 16 },
+    vramGb: 20,
+    packs: ['krea2-model-router'],
+    license: 'Krea 2 Community License (free under US$1M yearly revenue; enterprise terms above it)',
+    notes:
+      'Krea 2 Turbo text-to-image on the krea2-model-router UnifiedModelLoader: the model control picks one file and the router routes it to the right loader ' +
+      '(.gguf -> UnetLoaderGGUF, convrot_w4a4 -> UNetLoaderINT4ConvRot, int8_tensorwise -> OTUNetLoaderW8A8; the loaders are the installed ones, not re-implemented). ' +
+      'The same graph as krea2-turbo-t2i (euler / simple, 8 steps, cfg 1 with ConditioningZeroOut), the core UNETLoader swapped for the router; the router defaults to ' +
+      'krea2_turbo_fp8_scaled so the graph stays pinned, and the model control always overwrites it with a file you already have on your ComfyUI (the int8 / int4 / GGUF Q4_K_M copies), never a download.',
   },
   {
     id: 'krea2-edit-general',

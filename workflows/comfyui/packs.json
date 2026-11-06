@@ -588,5 +588,14 @@
     "folders": [
       "sams"
     ]
+  },
+  "krea2-model-router": {
+    "repo": "/mnt/nvmedata/comfy/custom_nodes/krea2-model-router",
+    "commit": "",
+    "registry": null,
+    "requirementsTxt": false,
+    "isolated": false,
+    "subdir": null,
+    "folders": []
   }
 }

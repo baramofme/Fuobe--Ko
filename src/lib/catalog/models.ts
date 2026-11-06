@@ -111,6 +111,23 @@ const MOSS_QUALITY: NonNullable<ModelOptions["controls"]>[number] = {
 };
 
 /**
+ * Krea 2 Turbo, the quantized builds the owner keeps on their own ComfyUI: which file the unified router loads
+ * (params.extra.unet). The router routes each by its format — int8 ConvRot -> W8A8, int4 ConvRot -> INT4, GGUF -> GGUF.
+ */
+const KREA2_TURBO_LOCAL_FILE: NonNullable<ModelOptions["controls"]>[number] = {
+  param: "model",
+  label: "Model file",
+  values: ["int8", "int4", "gguf"],
+  default: "int8",
+  labels: { int8: "int8 ConvRot · W8A8", int4: "int4 ConvRot · fast", gguf: "Q4_K_M GGUF" },
+  sets: {
+    int8: { unet: "krea2_turbo_int8_convrot.safetensors" },
+    int4: { unet: "krea2_turbo_convrot_int4_fast.safetensors" },
+    gguf: { unet: "krea2_turbo-Q4_K_M.gguf" },
+  },
+};
+
+/**
  * FLUX 3 Image Klein's Prompt helper on your GPU: BFL's upsampler (a 6.7 GB Qwen3.5 9B file) turns the words into the full
  * caption Klein is made for (BFL: short prompts give generic pictures); off sends them as typed. A layout that places boxes
  * always goes as typed, which the "on" label says. The cloud's flux-3-klein carries the same control (fal's prompt expansion).
@@ -311,6 +328,18 @@ const open: ModelDef[] = [
     badges: ["new", "fast"],
     routes: [comfy("t2i", "krea2-turbo-t2i", "8 steps")],
     options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K", "2K"], seed: true },
+    defaults: { aspectRatio: "1:1", resolution: "1K" },
+  }),
+  o({
+    id: "oss-krea2-turbo-local",
+    name: "Krea 2 Turbo · Your Model",
+    vendor: "Krea",
+    family: "krea",
+    kind: "image",
+    tagline: "Krea 2 Turbo from the files on your own ComfyUI: int8, int4 ConvRot or Q4_K_M GGUF · 20 GB GPU",
+    badges: ["fast"],
+    routes: [comfy("t2i", "krea2-turbo-local-t2i", "8 steps; the unified router loads the file you pick")],
+    options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K", "2K"], seed: true, controls: [KREA2_TURBO_LOCAL_FILE] },
     defaults: { aspectRatio: "1:1", resolution: "1K" },
   }),
 

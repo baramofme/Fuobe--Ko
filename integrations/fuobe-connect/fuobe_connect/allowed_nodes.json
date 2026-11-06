@@ -393,6 +393,7 @@
   "TripoSplatPreprocessImage",
   "UNETLoader",
   "USOStyleReference",
+  "UnifiedModelLoader",
   "UnwrapMesh",
   "UpscaleModelLoader",
   "VAEDecode",

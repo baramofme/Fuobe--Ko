@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-03T05:21:42.050Z",
+  "generatedAt": "2026-11-06T18:26:31.103Z",
   "comfyuiCommit": "5841c187a76ffdb565c14d9565aacbdb9a54b056",
   "comfyuiVersion": "0.42.0",
-  "workflowTemplatesVersion": "0.11.93",
-  "frontendVersion": "1.57.1",
+  "workflowTemplatesVersion": "0.11.98",
+  "frontendVersion": "1.57.4",
   "workflows": [
     {
       "id": "flux1-dev-t2i",
@@ -15556,6 +15556,91 @@
       ]
     },
     {
+      "id": "steam-it-qwen-image-21",
+      "title": "Steam It: the clothes pressed, everything else kept (SAM 3.1 clothing mask + Qwen-Image 2.1 inpaint)",
+      "capability": "edit",
+      "file": "steam-it-qwen-image-21.json",
+      "source": "hand-built (scripts/comfy/hand-built/steam-it-qwen-image-21.json)",
+      "bindings": {
+        "prompt": [
+          {
+            "node": "23",
+            "input": "prompt"
+          }
+        ],
+        "image": [
+          {
+            "node": "10",
+            "input": "image"
+          }
+        ],
+        "seed": [
+          {
+            "node": "27",
+            "input": "seed"
+          }
+        ],
+        "steps": [
+          {
+            "node": "27",
+            "input": "steps"
+          }
+        ],
+        "filenamePrefix": [
+          {
+            "node": "90",
+            "input": "filename_prefix"
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "node": "90",
+          "kind": "image"
+        }
+      ],
+      "defaults": {
+        "steps": 25
+      },
+      "limits": {},
+      "models": [
+        {
+          "file": "qwen_image_2.1_int8_convrot.safetensors",
+          "folder": "diffusion_models",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
+          "sizeGb": 7.26
+        },
+        {
+          "file": "qwen3vl_8b_int8_convrot.safetensors",
+          "folder": "text_encoders",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+          "sizeGb": 9.35
+        },
+        {
+          "file": "qwen_image_2.1_vae_bf16.safetensors",
+          "folder": "vae",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
+          "sizeGb": 0.68
+        },
+        {
+          "file": "sam3.1_multiplex_fp16.safetensors",
+          "folder": "checkpoints",
+          "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/7bb8374780a725b4353ed31f3a9395c9742b5621/checkpoints/sam3.1_multiplex_fp16.safetensors",
+          "sizeGb": 1.75
+        }
+      ],
+      "customNodes": [
+        {
+          "name": "ausboss-nodes",
+          "repo": "https://github.com/ausboss/ComfyUI-AusBoss"
+        }
+      ],
+      "vramGb": 20,
+      "license": "Qwen Research License Agreement (Qwen-Image 2.1): NON-COMMERCIAL, research and evaluation only; SAM 3.1 under Meta's SAM License (commercial use allowed under its terms); AusBoss nodes MIT",
+      "validated": true,
+      "notes": "The Steam It app's graph: qwen-image-21-inpaint with the mask found instead of painted. SAM3_Detect with the word \"clothing\" (threshold 0.4, 2 refine passes, every garment in one mask; works on a worn outfit and on a flat-lay or a hanger) -> GrowMask 16 px on the full picture, so a hem or a sleeve can settle past its old outline and the paste-back follows the same mask -> Crop For Inpaint (context 1.3, blend 8 px, multiple 32, 2 MP, bicubic) -> TextEncodeQwenImage21 with the crop as image 1 (resolution 0) and the app's instruction as the prompt -> VAEEncode of the crop + SetLatentNoiseMask -> QwenImage21Cache -> KSampler 25 steps, cfg 1, euler, simple -> SplitImageWithAlpha -> Stitch Inpaint (classic, no colour match): every pixel outside the grown mask and its 8 px blend is the upload's own. No clothing found: the empty mask selects the whole picture and the stitch gives it back unchanged. The prompt names only the finished state (smooth, pressed fabric) and what stays the same. RTX 5090: about 75 s a photo at 2048x1536 (25 steps), peak 26.5 GB."
+    },
+    {
       "id": "outfit-swap-qwen-image-21",
       "title": "Qwen-Image 2.1 Outfit Swap (outfit photo; Outfit Swap LoRA, Qwen3-VL describes the outfit)",
       "capability": "edit",
@@ -15732,91 +15817,6 @@
       "license": "Qwen Research License Agreement (Qwen-Image 2.1 and the Outfit Swap LoRA by AusBoss, a derivative): NON-COMMERCIAL, research and evaluation only",
       "validated": true,
       "notes": "Outfit Swap with no outfit photo (Fuobe runs it when the request has one picture): outfit-swap-qwen-image-21 without image 2 and the describer. prompt = the outfit in words (\"a black velvet tuxedo with satin lapels\"), set into \"Dress the person in image 1 in <prompt>. Keep their face, hair, hands, pose and the background exactly the same. <request>\". The LoRA was trained with an outfit picture as image 2: with one picture, loraStrength 1 and 0 (the plain 25-step edit) both dress the person as asked and keep the picture in place. RTX 5090: about 65 s a photo."
-    },
-    {
-      "id": "steam-it-qwen-image-21",
-      "title": "Steam It: the clothes pressed, everything else kept (SAM 3.1 clothing mask + Qwen-Image 2.1 inpaint)",
-      "capability": "edit",
-      "file": "steam-it-qwen-image-21.json",
-      "source": "hand-built (scripts/comfy/hand-built/steam-it-qwen-image-21.json)",
-      "bindings": {
-        "prompt": [
-          {
-            "node": "23",
-            "input": "prompt"
-          }
-        ],
-        "image": [
-          {
-            "node": "10",
-            "input": "image"
-          }
-        ],
-        "seed": [
-          {
-            "node": "27",
-            "input": "seed"
-          }
-        ],
-        "steps": [
-          {
-            "node": "27",
-            "input": "steps"
-          }
-        ],
-        "filenamePrefix": [
-          {
-            "node": "90",
-            "input": "filename_prefix"
-          }
-        ]
-      },
-      "outputs": [
-        {
-          "node": "90",
-          "kind": "image"
-        }
-      ],
-      "defaults": {
-        "steps": 25
-      },
-      "limits": {},
-      "models": [
-        {
-          "file": "qwen_image_2.1_int8_convrot.safetensors",
-          "folder": "diffusion_models",
-          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
-          "sizeGb": 7.26
-        },
-        {
-          "file": "qwen3vl_8b_int8_convrot.safetensors",
-          "folder": "text_encoders",
-          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
-          "sizeGb": 9.35
-        },
-        {
-          "file": "qwen_image_2.1_vae_bf16.safetensors",
-          "folder": "vae",
-          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
-          "sizeGb": 0.68
-        },
-        {
-          "file": "sam3.1_multiplex_fp16.safetensors",
-          "folder": "checkpoints",
-          "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/7bb8374780a725b4353ed31f3a9395c9742b5621/checkpoints/sam3.1_multiplex_fp16.safetensors",
-          "sizeGb": 1.75
-        }
-      ],
-      "customNodes": [
-        {
-          "name": "ausboss-nodes",
-          "repo": "https://github.com/ausboss/ComfyUI-AusBoss"
-        }
-      ],
-      "vramGb": 20,
-      "license": "Qwen Research License Agreement (Qwen-Image 2.1): NON-COMMERCIAL, research and evaluation only; SAM 3.1 under Meta's SAM License (commercial use allowed under its terms); AusBoss nodes MIT",
-      "validated": true,
-      "notes": "The Steam It app's graph: qwen-image-21-inpaint with the mask found instead of painted. SAM3_Detect with the word \"clothing\" (threshold 0.4, 2 refine passes, every garment in one mask; works on a worn outfit and on a flat-lay or a hanger) -> GrowMask 16 px on the full picture, so a hem or a sleeve can settle past its old outline and the paste-back follows the same mask -> Crop For Inpaint (context 1.3, blend 8 px, multiple 32, 2 MP, bicubic) -> TextEncodeQwenImage21 with the crop as image 1 (resolution 0) and the app's instruction as the prompt -> VAEEncode of the crop + SetLatentNoiseMask -> QwenImage21Cache -> KSampler 25 steps, cfg 1, euler, simple -> SplitImageWithAlpha -> Stitch Inpaint (classic, no colour match): every pixel outside the grown mask and its 8 px blend is the upload's own. No clothing found: the empty mask selects the whole picture and the stitch gives it back unchanged. The prompt names only the finished state (smooth, pressed fabric) and what stays the same. RTX 5090: about 75 s a photo at 2048x1536 (25 steps), peak 26.5 GB."
     },
     {
       "id": "ideogram4-t2i",
@@ -16094,6 +16094,103 @@
       "license": "Krea 2 Community License (free under US$1M yearly revenue; enterprise terms above it)",
       "validated": true,
       "notes": "The official Krea 2 Turbo text-to-image graph: euler / simple, 8 steps, cfg 1 with ConditioningZeroOut, 1024x1024 by default. Removed: the style-LoRA and Refine-prompt switches (your own LoRAs attach after the UNET as on every graph), the ResolutionSelector (explicit width/height, multiple of 16)."
+    },
+    {
+      "id": "krea2-turbo-local-t2i",
+      "title": "Krea 2 Turbo from a file on your ComfyUI (the unified router picks the loader)",
+      "capability": "t2i",
+      "file": "krea2-turbo-local-t2i.json",
+      "source": "hand-built (scripts/comfy/hand-built/krea2-turbo-local-t2i.json)",
+      "bindings": {
+        "prompt": [
+          {
+            "node": "6",
+            "input": "text"
+          }
+        ],
+        "width": [
+          {
+            "node": "5",
+            "input": "width"
+          }
+        ],
+        "height": [
+          {
+            "node": "5",
+            "input": "height"
+          }
+        ],
+        "seed": [
+          {
+            "node": "3",
+            "input": "seed"
+          }
+        ],
+        "steps": [
+          {
+            "node": "3",
+            "input": "steps"
+          }
+        ],
+        "unet": [
+          {
+            "node": "10",
+            "input": "model_name"
+          }
+        ],
+        "filenamePrefix": [
+          {
+            "node": "29",
+            "input": "filename_prefix"
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "node": "29",
+          "kind": "image"
+        }
+      ],
+      "defaults": {
+        "width": 1024,
+        "height": 1024,
+        "steps": 8
+      },
+      "limits": {
+        "maxWidth": 2048,
+        "maxHeight": 2048,
+        "dimensionMultiple": 16
+      },
+      "models": [
+        {
+          "file": "krea2_turbo_fp8_scaled.safetensors",
+          "folder": "diffusion_models",
+          "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_fp8_scaled.safetensors",
+          "sizeGb": 13.14
+        },
+        {
+          "file": "qwen3vl_4b_fp8_scaled.safetensors",
+          "folder": "text_encoders",
+          "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors",
+          "sizeGb": 5.24
+        },
+        {
+          "file": "qwen_image_vae.safetensors",
+          "folder": "vae",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors",
+          "sizeGb": 0.25
+        }
+      ],
+      "customNodes": [
+        {
+          "name": "krea2-model-router",
+          "repo": "/mnt/nvmedata/comfy/custom_nodes/krea2-model-router"
+        }
+      ],
+      "vramGb": 20,
+      "license": "Krea 2 Community License (free under US$1M yearly revenue; enterprise terms above it)",
+      "validated": true,
+      "notes": "Krea 2 Turbo text-to-image on the krea2-model-router UnifiedModelLoader: the model control picks one file and the router routes it to the right loader (.gguf -> UnetLoaderGGUF, convrot_w4a4 -> UNetLoaderINT4ConvRot, int8_tensorwise -> OTUNetLoaderW8A8; the loaders are the installed ones, not re-implemented). The same graph as krea2-turbo-t2i (euler / simple, 8 steps, cfg 1 with ConditioningZeroOut), the core UNETLoader swapped for the router; the router defaults to krea2_turbo_fp8_scaled so the graph stays pinned, and the model control always overwrites it with a file you already have on your ComfyUI (the int8 / int4 / GGUF Q4_K_M copies), never a download."
     },
     {
       "id": "krea2-edit-general",
@@ -24506,146 +24603,86 @@
       "notes": "Subject or product splat (3D Angles, 3D Jutsu props, a splat alternative to TRELLIS.2 spins). The official template 3d_triposplat_image_to_gaussian_splat (2026-06-02) with the UI-only live-preview patch removed and a 75-frame H.264 orbit (RenderSplat + CreateCameraInfo orbit yaw 35, pitch 30, distance 2.5; role turntable, 25 fps). Subject only: BiRefNet cuts it out first (cutout false = use the image's own alpha). Output 1 (role splat): splatFormat spz (Niantic, gzip, ~10x smaller, base colour), ply (full spherical harmonics) or ksplat, saved by SaveGLB under that extension. ComfyUI serves all three as application/octet-stream, so Fuobe goes by the extension: spz and ply are saved as 3D models (model/x-spz, model/ply), ksplat as a .bin file, and each output records its format. cutout is true by default (manifest defaults). numGaussians up to 1,048,576 (262,144 by default); seed drives both the sampler and the decoder. RenderSplat also takes a look_at camera, so a view picked in the browser can be rendered on the server. 3.78 GB of weights (TripoSplat 0.74, DINOv3 ViT-H 1.68, TripoSplat VAE decoder 0.58, FLUX.2 VAE 0.34, BiRefNet 0.44)."
     },
     {
-      "id": "image-to-3d-idol",
-      "title": "Image to a 3D model (.glb) + its Gaussian splat + an orbit video (Idol on core TripoSplat nodes, SplatToMesh)",
-      "capability": "image-to-3d",
-      "file": "image-to-3d-idol.json",
-      "source": "hand-built (scripts/comfy/hand-built/image-to-3d-idol.json)",
+      "id": "any-angle-3d",
+      "title": "Any Angle: a photo to a 3D view of its subject (TripoSplat), with a turntable, the sweep its front view is measured on and a GLB",
+      "capability": "splat",
+      "file": "any-angle-3d.json",
+      "source": "hand-built (scripts/comfy/hand-built/any-angle-3d.json)",
       "bindings": {
         "image": [
           {
-            "node": "99",
+            "node": "1",
             "input": "image"
-          }
-        ],
-        "cutout": [
-          {
-            "node": "88:35",
-            "input": "switch"
-          }
-        ],
-        "photoCrop": [
-          {
-            "node": "88:104",
-            "input": "switch"
-          }
-        ],
-        "seed": [
-          {
-            "node": "88:6",
-            "input": "seed"
-          },
-          {
-            "node": "88:55",
-            "input": "seed"
-          }
-        ],
-        "steps": [
-          {
-            "node": "88:6",
-            "input": "steps"
-          }
-        ],
-        "cfg": [
-          {
-            "node": "88:6",
-            "input": "cfg"
-          }
-        ],
-        "sampler": [
-          {
-            "node": "88:6",
-            "input": "sampler_name"
-          }
-        ],
-        "numGaussians": [
-          {
-            "node": "88:55",
-            "input": "num_gaussians"
-          }
-        ],
-        "splatFormat": [
-          {
-            "node": "92",
-            "input": "format"
-          }
-        ],
-        "orbitFrames": [
-          {
-            "node": "75",
-            "input": "frames"
-          }
-        ],
-        "meshDetail": [
-          {
-            "node": "60",
-            "input": "resolution"
-          }
-        ],
-        "frontYaw": [
-          {
-            "node": "79",
-            "input": "mode.yaw"
-          },
-          {
-            "node": "80",
-            "input": "mode.yaw"
           }
         ],
         "filenamePrefix": [
           {
-            "node": "61",
+            "node": "16",
             "input": "filename_prefix"
           },
           {
-            "node": "51",
+            "node": "83",
             "input": "filename_prefix"
           },
           {
-            "node": "42",
+            "node": "85",
             "input": "filename_prefix"
           },
           {
-            "node": "77",
+            "node": "88",
+            "input": "filename_prefix"
+          },
+          {
+            "node": "21",
+            "input": "filename_prefix"
+          },
+          {
+            "node": "91",
             "input": "filename_prefix"
           }
         ]
       },
       "outputs": [
         {
-          "node": "61",
-          "kind": "model3d"
-        },
-        {
-          "node": "51",
+          "node": "16",
           "kind": "model3d",
           "role": "splat"
         },
         {
-          "node": "42",
+          "node": "83",
           "kind": "video",
-          "role": "orbit"
+          "role": "turntable"
         },
         {
-          "node": "77",
-          "kind": "image"
+          "node": "85",
+          "kind": "image",
+          "role": "sweep"
+        },
+        {
+          "node": "88",
+          "kind": "image",
+          "role": "sweep-mask"
+        },
+        {
+          "node": "21",
+          "kind": "image",
+          "role": "matte"
+        },
+        {
+          "node": "91",
+          "kind": "model3d",
+          "role": "mesh"
         }
       ],
-      "defaults": {
-        "steps": 50,
-        "cfg": 4,
-        "numGaussians": 262144,
-        "orbitFrames": 96,
-        "meshDetail": 384,
-        "frontYaw": 90,
-        "splatFormat": "spz",
-        "cutout": true,
-        "photoCrop": false
-      },
-      "limits": {
-        "maxGaussians": 1048576
-      },
+      "defaults": {},
+      "limits": {},
       "models": [
+        {
+          "file": "birefnet.safetensors",
+          "folder": "background_removal",
+          "url": "https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors",
+          "sizeGb": 0.44
+        },
         {
           "file": "dino_v3_vit_h.safetensors",
           "folder": "clip_vision",
@@ -24659,29 +24696,170 @@
           "sizeGb": 0.34
         },
         {
-          "file": "idol_decoder_fp16.safetensors",
+          "file": "triposplat_vae_decoder_fp16.safetensors",
           "folder": "vae",
-          "url": "https://huggingface.co/nynxz/Idol/resolve/c718f2b1b95b353edd07d17e845719fc10880a44/vae/idol_decoder_fp16.safetensors",
+          "url": "https://huggingface.co/VAST-AI/TripoSplat/resolve/main/vae/triposplat_vae_decoder_fp16.safetensors",
           "sizeGb": 0.58
         },
         {
-          "file": "idol_fp16.safetensors",
+          "file": "triposplat_fp16.safetensors",
           "folder": "diffusion_models",
-          "url": "https://huggingface.co/nynxz/Idol/resolve/c718f2b1b95b353edd07d17e845719fc10880a44/diffusion_models/idol_fp16.safetensors",
+          "url": "https://huggingface.co/VAST-AI/TripoSplat/resolve/main/diffusion_models/triposplat_fp16.safetensors",
           "sizeGb": 0.74
-        },
-        {
-          "file": "birefnet.safetensors",
-          "folder": "background_removal",
-          "url": "https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors",
-          "sizeGb": 0.44
         }
       ],
       "customNodes": [],
-      "vramGb": 10,
-      "license": "Apache-2.0 (speridlabs/Idol weights, via nynxz/Idol; built on TripoSplat, MIT, VAST-AI-Research); the dino_v3_vit_h image encoder is under the DINOv3 License (royalty-free, commercial use allowed, trade-control limits; the app must show a \"Built with DINOv3\" notice); FLUX.2 VAE Apache-2.0; BiRefNet MIT",
+      "vramGb": 8,
+      "license": "MIT (VAST-AI/TripoSplat weights); the dino_v3_vit_h image encoder is under the DINOv3 License (royalty-free, commercial use allowed, trade-control limits; the app must show a \"Built with DINOv3\" notice); FLUX.2 VAE Apache-2.0; BiRefNet MIT",
       "validated": true,
-      "notes": "One photo of one person or product -> a vertex-coloured GLB (main output, no role: the server makes its web GLB), the splat (role splat, .spz), a 4 s orbit of the splat (role orbit: the server skips its mesh turntable) and a front still (the poster). image-to-splat-triposplat with Idol's files and reference sampler (50 euler steps, cfg 4; the shift 3 is built into the TripoSplat model class). BiRefNet cut-out (cutout false = the image's own alpha), then TripoSplatPreprocessImage = Idol's \"synthetic\" 1.2 crop; photoCrop true scales it to 720 px on a black 1024 square, about Idol's \"real\" 1.7 crop (core nodes, not run). SplatToMesh (meshDetail = its grid, 384 by default; min_opacity 0.05 drops Idol's faint halo, which RenderSplat's opacity_threshold 0.05 also hides in the clip and still; the .spz keeps it: no core node prunes a splat). frontYaw turns the orbit's start and the still to the subject's front (calibrated on the GPU). Backdrop #ece4da, the middle of the server turntable's studio sweep. New weights 1.32 GB (idol_fp16 0.74, idol_decoder_fp16 0.58); with TripoSplat's shared DINOv3 ViT-H, FLUX.2 VAE and BiRefNet 3.78 GB. On an RTX 5090 a photo takes about 3.5 min with its orbit clip; the first run peaked at 12.7 GB on the card. frontYaw 90 turns the orbit and the still to the front."
+      "notes": "Step 1 of Any Angle, run once per photo (the server keeps the result by the photo's sha256; feature any-angle-step, out of Library). image-to-splat-triposplat's chain with the cut-out always on (without it a turned camera shows the photo as a flat card with black wedges), seeds fixed at 46 for the sampler and the decoder (the same photo gives the same 3D view), 20 steps, cfg 3, dpmpp_2m, 262,144 Gaussians. Outputs: the splat as .spz (role splat, about 3 MB: every angle reloads it), a 48-frame turntable from yaw 0 at pitch 10, distance 2, fov 33, 512 px, 12 fps (role turntable, shown while picking), the same frames at 192 px as lossless animated WebP, colour (role sweep) and RenderSplat's coverage mask (role sweep-mask), the BiRefNet cut-out (role matte) and a GLB from core SplatToMesh at 256 (role mesh, the desktop drag view). The server compares the sweep with the cut-out photo (silhouette overlap and colour correlation, the GPU test's measure) to find the photo's front yaw and distance: TripoSplat drops its own camera estimate and puts each subject in a pose of its own (the test found yaw 125, 75 and 90 on three photos). GPU test (RTX 5090): cut-out 0.8-1.3 s, TripoSplat 1.0 + 18-19.4 + 0.4 s, .spz save under 0.05 s, 48 frames at 512 px 20-37 s, mesh 0.4-0.5 s; about 8.7 GiB peak."
+    },
+    {
+      "id": "any-angle-shot",
+      "title": "Any Angle: one camera angle of a photo, the 3D view rendered there and repainted by Qwen-Image 2.1 + the AnyAngle LoRA",
+      "capability": "edit",
+      "file": "any-angle-shot.json",
+      "source": "hand-built (scripts/comfy/hand-built/any-angle-shot.json)",
+      "bindings": {
+        "image": [
+          {
+            "node": "1",
+            "input": "image"
+          }
+        ],
+        "splatFile": [
+          {
+            "node": "2",
+            "input": "model_file"
+          }
+        ],
+        "cameraYaw": [
+          {
+            "node": "20",
+            "input": "mode.yaw"
+          }
+        ],
+        "cameraPitch": [
+          {
+            "node": "20",
+            "input": "mode.pitch"
+          }
+        ],
+        "cameraDistance": [
+          {
+            "node": "20",
+            "input": "mode.distance"
+          }
+        ],
+        "cameraFov": [
+          {
+            "node": "20",
+            "input": "fov"
+          }
+        ],
+        "targetX": [
+          {
+            "node": "20",
+            "input": "target_x"
+          }
+        ],
+        "targetY": [
+          {
+            "node": "20",
+            "input": "target_y"
+          }
+        ],
+        "targetZ": [
+          {
+            "node": "20",
+            "input": "target_z"
+          }
+        ],
+        "width": [
+          {
+            "node": "30",
+            "input": "width"
+          }
+        ],
+        "height": [
+          {
+            "node": "30",
+            "input": "height"
+          }
+        ],
+        "seed": [
+          {
+            "node": "56",
+            "input": "seed"
+          }
+        ],
+        "steps": [
+          {
+            "node": "56",
+            "input": "steps"
+          }
+        ],
+        "cfg": [
+          {
+            "node": "56",
+            "input": "cfg"
+          }
+        ],
+        "filenamePrefix": [
+          {
+            "node": "58",
+            "input": "filename_prefix"
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "node": "58",
+          "kind": "image"
+        }
+      ],
+      "defaults": {
+        "width": 1536,
+        "height": 1152,
+        "steps": 25,
+        "cfg": 1
+      },
+      "limits": {
+        "maxWidth": 2048,
+        "maxHeight": 2048,
+        "dimensionMultiple": 8
+      },
+      "models": [
+        {
+          "file": "qwen_image_2.1_int8_convrot.safetensors",
+          "folder": "diffusion_models",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
+          "sizeGb": 7.26
+        },
+        {
+          "file": "QI2.1_AnyAngle.safetensors",
+          "folder": "loras",
+          "url": "https://huggingface.co/lilylilith/QI_2.1_AnyAngle/resolve/5c8b4c8e05ba6328d54bf8d34ec724fef5a414ae/QI2.1_AnyAngle.safetensors",
+          "sizeGb": 0.12
+        },
+        {
+          "file": "qwen3vl_8b_int8_convrot.safetensors",
+          "folder": "text_encoders",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+          "sizeGb": 9.35
+        },
+        {
+          "file": "qwen_image_2.1_vae_bf16.safetensors",
+          "folder": "vae",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
+          "sizeGb": 0.68
+        }
+      ],
+      "customNodes": [],
+      "vramGb": 32,
+      "license": "Qwen Research License Agreement (Qwen-Image 2.1, Qwen3-VL 8B encoder, VAE): NON-COMMERCIAL, research and evaluation only; the AnyAngle LoRA (lilylilith/QI_2.1_AnyAngle) Apache-2.0",
+      "validated": true,
+      "notes": "Step 2 of Any Angle, one job per angle. The saved .spz goes in like any input (splatFile) and Load3D reads it without the browser: its image entry points at the photo (the provider fills it), then File3DToSplat. CreateCameraInfo orbit takes the camera Fuobe works out (the photo's measured front view plus the preset's turn, height and distance; a close-up aims at the face's height), RenderSplat renders it at the photo's shape (up to 2048 px, black background). Qwen-Image 2.1 int8 + the AnyAngle LoRA at 1.0, loaded here (one model loader, so no request LoRA lands on another), TextEncodeQwenImage21 with the LoRA's own prompt \"Change the camera angle from <image2> to <image1>.\", image 1 the original photo, image 2 the render, resolution 1024 (about 1 MP out: 1184x896 from a 1536x1152 photo), KSampler 25 steps, cfg 1, euler, simple, seed 46. GPU test (RTX 5090): reload + render 2.3 s (a rebuild would be about 20 s), text encode 5.4 s, sampler 22.6 s, about 30 s an angle, peak 28.4-29.2 GiB (card total, with the desktop): vramGb 32, since a 24 GB card has no room to spare. Tested against the alternatives: the other image order gives back the original angle, cfg 3 is 5x slower and no better, bf16 is 2x slower, the photo behind the render adds a ghost second person, grey is no better than black."
     },
     {
       "id": "image-to-splat-idol",
@@ -25285,86 +25463,146 @@
       "notes": "Fill the other sides from one picture: image-to-splat-idol-clean up to the pruned splat (IdolPreprocessImage 88:110, the sampler 88:6, the decoder 88:55, IdolPruneSplat 88:111 at minOpacity 0.05), then RenderSplat 88:120 from IdolCamera 88:112 (the camera Idol predicted for the input picture) with frames 4: a full turn in four steps of 90°, starting at the input view, 1024 px on white, opacity_threshold 0.05. SaveImage 96 keeps the batch: index 0 is the front (the input view), 1 the object's left, 2 its back, 3 its right. The sign of frames sets the direction: +4 turns the camera about world +Y (three.js, Y up) toward the viewer's right, which is the object's left (checked with an asymmetric splat through RenderSplat on 0.41.0); -4 would give the right first. No splat file and no orbit video are saved. The views are renders of a 3D reconstruction and can look soft; faces of real people are the hardest case, so check them before use. Same weights, presets and VRAM listing as image-to-splat-idol."
     },
     {
-      "id": "any-angle-3d",
-      "title": "Any Angle: a photo to a 3D view of its subject (TripoSplat), with a turntable, the sweep its front view is measured on and a GLB",
-      "capability": "splat",
-      "file": "any-angle-3d.json",
-      "source": "hand-built (scripts/comfy/hand-built/any-angle-3d.json)",
+      "id": "image-to-3d-idol",
+      "title": "Image to a 3D model (.glb) + its Gaussian splat + an orbit video (Idol on core TripoSplat nodes, SplatToMesh)",
+      "capability": "image-to-3d",
+      "file": "image-to-3d-idol.json",
+      "source": "hand-built (scripts/comfy/hand-built/image-to-3d-idol.json)",
       "bindings": {
         "image": [
           {
-            "node": "1",
+            "node": "99",
             "input": "image"
+          }
+        ],
+        "cutout": [
+          {
+            "node": "88:35",
+            "input": "switch"
+          }
+        ],
+        "photoCrop": [
+          {
+            "node": "88:104",
+            "input": "switch"
+          }
+        ],
+        "seed": [
+          {
+            "node": "88:6",
+            "input": "seed"
+          },
+          {
+            "node": "88:55",
+            "input": "seed"
+          }
+        ],
+        "steps": [
+          {
+            "node": "88:6",
+            "input": "steps"
+          }
+        ],
+        "cfg": [
+          {
+            "node": "88:6",
+            "input": "cfg"
+          }
+        ],
+        "sampler": [
+          {
+            "node": "88:6",
+            "input": "sampler_name"
+          }
+        ],
+        "numGaussians": [
+          {
+            "node": "88:55",
+            "input": "num_gaussians"
+          }
+        ],
+        "splatFormat": [
+          {
+            "node": "92",
+            "input": "format"
+          }
+        ],
+        "orbitFrames": [
+          {
+            "node": "75",
+            "input": "frames"
+          }
+        ],
+        "meshDetail": [
+          {
+            "node": "60",
+            "input": "resolution"
+          }
+        ],
+        "frontYaw": [
+          {
+            "node": "79",
+            "input": "mode.yaw"
+          },
+          {
+            "node": "80",
+            "input": "mode.yaw"
           }
         ],
         "filenamePrefix": [
           {
-            "node": "16",
+            "node": "61",
             "input": "filename_prefix"
           },
           {
-            "node": "83",
+            "node": "51",
             "input": "filename_prefix"
           },
           {
-            "node": "85",
+            "node": "42",
             "input": "filename_prefix"
           },
           {
-            "node": "88",
-            "input": "filename_prefix"
-          },
-          {
-            "node": "21",
-            "input": "filename_prefix"
-          },
-          {
-            "node": "91",
+            "node": "77",
             "input": "filename_prefix"
           }
         ]
       },
       "outputs": [
         {
-          "node": "16",
+          "node": "61",
+          "kind": "model3d"
+        },
+        {
+          "node": "51",
           "kind": "model3d",
           "role": "splat"
         },
         {
-          "node": "83",
+          "node": "42",
           "kind": "video",
-          "role": "turntable"
+          "role": "orbit"
         },
         {
-          "node": "85",
-          "kind": "image",
-          "role": "sweep"
-        },
-        {
-          "node": "88",
-          "kind": "image",
-          "role": "sweep-mask"
-        },
-        {
-          "node": "21",
-          "kind": "image",
-          "role": "matte"
-        },
-        {
-          "node": "91",
-          "kind": "model3d",
-          "role": "mesh"
+          "node": "77",
+          "kind": "image"
         }
       ],
-      "defaults": {},
-      "limits": {},
+      "defaults": {
+        "steps": 50,
+        "cfg": 4,
+        "numGaussians": 262144,
+        "orbitFrames": 96,
+        "meshDetail": 384,
+        "frontYaw": 90,
+        "splatFormat": "spz",
+        "cutout": true,
+        "photoCrop": false
+      },
+      "limits": {
+        "maxGaussians": 1048576
+      },
       "models": [
-        {
-          "file": "birefnet.safetensors",
-          "folder": "background_removal",
-          "url": "https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors",
-          "sizeGb": 0.44
-        },
         {
           "file": "dino_v3_vit_h.safetensors",
           "folder": "clip_vision",
@@ -25378,170 +25616,29 @@
           "sizeGb": 0.34
         },
         {
-          "file": "triposplat_vae_decoder_fp16.safetensors",
+          "file": "idol_decoder_fp16.safetensors",
           "folder": "vae",
-          "url": "https://huggingface.co/VAST-AI/TripoSplat/resolve/main/vae/triposplat_vae_decoder_fp16.safetensors",
+          "url": "https://huggingface.co/nynxz/Idol/resolve/c718f2b1b95b353edd07d17e845719fc10880a44/vae/idol_decoder_fp16.safetensors",
           "sizeGb": 0.58
         },
         {
-          "file": "triposplat_fp16.safetensors",
+          "file": "idol_fp16.safetensors",
           "folder": "diffusion_models",
-          "url": "https://huggingface.co/VAST-AI/TripoSplat/resolve/main/diffusion_models/triposplat_fp16.safetensors",
+          "url": "https://huggingface.co/nynxz/Idol/resolve/c718f2b1b95b353edd07d17e845719fc10880a44/diffusion_models/idol_fp16.safetensors",
           "sizeGb": 0.74
+        },
+        {
+          "file": "birefnet.safetensors",
+          "folder": "background_removal",
+          "url": "https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors",
+          "sizeGb": 0.44
         }
       ],
       "customNodes": [],
-      "vramGb": 8,
-      "license": "MIT (VAST-AI/TripoSplat weights); the dino_v3_vit_h image encoder is under the DINOv3 License (royalty-free, commercial use allowed, trade-control limits; the app must show a \"Built with DINOv3\" notice); FLUX.2 VAE Apache-2.0; BiRefNet MIT",
+      "vramGb": 10,
+      "license": "Apache-2.0 (speridlabs/Idol weights, via nynxz/Idol; built on TripoSplat, MIT, VAST-AI-Research); the dino_v3_vit_h image encoder is under the DINOv3 License (royalty-free, commercial use allowed, trade-control limits; the app must show a \"Built with DINOv3\" notice); FLUX.2 VAE Apache-2.0; BiRefNet MIT",
       "validated": true,
-      "notes": "Step 1 of Any Angle, run once per photo (the server keeps the result by the photo's sha256; feature any-angle-step, out of Library). image-to-splat-triposplat's chain with the cut-out always on (without it a turned camera shows the photo as a flat card with black wedges), seeds fixed at 46 for the sampler and the decoder (the same photo gives the same 3D view), 20 steps, cfg 3, dpmpp_2m, 262,144 Gaussians. Outputs: the splat as .spz (role splat, about 3 MB: every angle reloads it), a 48-frame turntable from yaw 0 at pitch 10, distance 2, fov 33, 512 px, 12 fps (role turntable, shown while picking), the same frames at 192 px as lossless animated WebP, colour (role sweep) and RenderSplat's coverage mask (role sweep-mask), the BiRefNet cut-out (role matte) and a GLB from core SplatToMesh at 256 (role mesh, the desktop drag view). The server compares the sweep with the cut-out photo (silhouette overlap and colour correlation, the GPU test's measure) to find the photo's front yaw and distance: TripoSplat drops its own camera estimate and puts each subject in a pose of its own (the test found yaw 125, 75 and 90 on three photos). GPU test (RTX 5090): cut-out 0.8-1.3 s, TripoSplat 1.0 + 18-19.4 + 0.4 s, .spz save under 0.05 s, 48 frames at 512 px 20-37 s, mesh 0.4-0.5 s; about 8.7 GiB peak."
-    },
-    {
-      "id": "any-angle-shot",
-      "title": "Any Angle: one camera angle of a photo, the 3D view rendered there and repainted by Qwen-Image 2.1 + the AnyAngle LoRA",
-      "capability": "edit",
-      "file": "any-angle-shot.json",
-      "source": "hand-built (scripts/comfy/hand-built/any-angle-shot.json)",
-      "bindings": {
-        "image": [
-          {
-            "node": "1",
-            "input": "image"
-          }
-        ],
-        "splatFile": [
-          {
-            "node": "2",
-            "input": "model_file"
-          }
-        ],
-        "cameraYaw": [
-          {
-            "node": "20",
-            "input": "mode.yaw"
-          }
-        ],
-        "cameraPitch": [
-          {
-            "node": "20",
-            "input": "mode.pitch"
-          }
-        ],
-        "cameraDistance": [
-          {
-            "node": "20",
-            "input": "mode.distance"
-          }
-        ],
-        "cameraFov": [
-          {
-            "node": "20",
-            "input": "fov"
-          }
-        ],
-        "targetX": [
-          {
-            "node": "20",
-            "input": "target_x"
-          }
-        ],
-        "targetY": [
-          {
-            "node": "20",
-            "input": "target_y"
-          }
-        ],
-        "targetZ": [
-          {
-            "node": "20",
-            "input": "target_z"
-          }
-        ],
-        "width": [
-          {
-            "node": "30",
-            "input": "width"
-          }
-        ],
-        "height": [
-          {
-            "node": "30",
-            "input": "height"
-          }
-        ],
-        "seed": [
-          {
-            "node": "56",
-            "input": "seed"
-          }
-        ],
-        "steps": [
-          {
-            "node": "56",
-            "input": "steps"
-          }
-        ],
-        "cfg": [
-          {
-            "node": "56",
-            "input": "cfg"
-          }
-        ],
-        "filenamePrefix": [
-          {
-            "node": "58",
-            "input": "filename_prefix"
-          }
-        ]
-      },
-      "outputs": [
-        {
-          "node": "58",
-          "kind": "image"
-        }
-      ],
-      "defaults": {
-        "width": 1536,
-        "height": 1152,
-        "steps": 25,
-        "cfg": 1
-      },
-      "limits": {
-        "maxWidth": 2048,
-        "maxHeight": 2048,
-        "dimensionMultiple": 8
-      },
-      "models": [
-        {
-          "file": "qwen_image_2.1_int8_convrot.safetensors",
-          "folder": "diffusion_models",
-          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
-          "sizeGb": 7.26
-        },
-        {
-          "file": "QI2.1_AnyAngle.safetensors",
-          "folder": "loras",
-          "url": "https://huggingface.co/lilylilith/QI_2.1_AnyAngle/resolve/5c8b4c8e05ba6328d54bf8d34ec724fef5a414ae/QI2.1_AnyAngle.safetensors",
-          "sizeGb": 0.12
-        },
-        {
-          "file": "qwen3vl_8b_int8_convrot.safetensors",
-          "folder": "text_encoders",
-          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
-          "sizeGb": 9.35
-        },
-        {
-          "file": "qwen_image_2.1_vae_bf16.safetensors",
-          "folder": "vae",
-          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
-          "sizeGb": 0.68
-        }
-      ],
-      "customNodes": [],
-      "vramGb": 32,
-      "license": "Qwen Research License Agreement (Qwen-Image 2.1, Qwen3-VL 8B encoder, VAE): NON-COMMERCIAL, research and evaluation only; the AnyAngle LoRA (lilylilith/QI_2.1_AnyAngle) Apache-2.0",
-      "validated": true,
-      "notes": "Step 2 of Any Angle, one job per angle. The saved .spz goes in like any input (splatFile) and Load3D reads it without the browser: its image entry points at the photo (the provider fills it), then File3DToSplat. CreateCameraInfo orbit takes the camera Fuobe works out (the photo's measured front view plus the preset's turn, height and distance; a close-up aims at the face's height), RenderSplat renders it at the photo's shape (up to 2048 px, black background). Qwen-Image 2.1 int8 + the AnyAngle LoRA at 1.0, loaded here (one model loader, so no request LoRA lands on another), TextEncodeQwenImage21 with the LoRA's own prompt \"Change the camera angle from <image2> to <image1>.\", image 1 the original photo, image 2 the render, resolution 1024 (about 1 MP out: 1184x896 from a 1536x1152 photo), KSampler 25 steps, cfg 1, euler, simple, seed 46. GPU test (RTX 5090): reload + render 2.3 s (a rebuild would be about 20 s), text encode 5.4 s, sampler 22.6 s, about 30 s an angle, peak 28.4-29.2 GiB (card total, with the desktop): vramGb 32, since a 24 GB card has no room to spare. Tested against the alternatives: the other image order gives back the original angle, cfg 3 is 5x slower and no better, bf16 is 2x slower, the photo behind the render adds a ghost second person, grey is no better than black."
+      "notes": "One photo of one person or product -> a vertex-coloured GLB (main output, no role: the server makes its web GLB), the splat (role splat, .spz), a 4 s orbit of the splat (role orbit: the server skips its mesh turntable) and a front still (the poster). image-to-splat-triposplat with Idol's files and reference sampler (50 euler steps, cfg 4; the shift 3 is built into the TripoSplat model class). BiRefNet cut-out (cutout false = the image's own alpha), then TripoSplatPreprocessImage = Idol's \"synthetic\" 1.2 crop; photoCrop true scales it to 720 px on a black 1024 square, about Idol's \"real\" 1.7 crop (core nodes, not run). SplatToMesh (meshDetail = its grid, 384 by default; min_opacity 0.05 drops Idol's faint halo, which RenderSplat's opacity_threshold 0.05 also hides in the clip and still; the .spz keeps it: no core node prunes a splat). frontYaw turns the orbit's start and the still to the subject's front (calibrated on the GPU). Backdrop #ece4da, the middle of the server turntable's studio sweep. New weights 1.32 GB (idol_fp16 0.74, idol_decoder_fp16 0.58); with TripoSplat's shared DINOv3 ViT-H, FLUX.2 VAE and BiRefNet 3.78 GB. On an RTX 5090 a photo takes about 3.5 min with its orbit clip; the first run peaked at 12.7 GB on the card. frontYaw 90 turns the orbit and the still to the front."
     },
     {
       "id": "wan21-i2v-uni3c-path",
@@ -27602,151 +27699,6 @@
       "expand": "world"
     },
     {
-      "id": "head-swap-qwen-image-21",
-      "title": "Qwen-Image 2.1 Head Swap (BFS head LoRA V1.1, pasted back onto the shot)",
-      "capability": "edit",
-      "file": "head-swap-qwen-image-21.json",
-      "source": "hand-built (scripts/comfy/hand-built/head-swap-qwen-image-21.json)",
-      "bindings": {
-        "prompt": [
-          {
-            "node": "30",
-            "input": "prompt"
-          }
-        ],
-        "image": [
-          {
-            "node": "10",
-            "input": "image"
-          }
-        ],
-        "image2": [
-          {
-            "node": "11",
-            "input": "image"
-          }
-        ],
-        "seed": [
-          {
-            "node": "32",
-            "input": "seed"
-          }
-        ],
-        "steps": [
-          {
-            "node": "32",
-            "input": "steps"
-          }
-        ],
-        "loraStrength": [
-          {
-            "node": "4",
-            "input": "strength_model"
-          }
-        ],
-        "maskPrompt": [
-          {
-            "node": "43",
-            "input": "text"
-          }
-        ],
-        "maskGrow": [
-          {
-            "node": "50",
-            "input": "expand"
-          }
-        ],
-        "maskBlur": [
-          {
-            "node": "50",
-            "input": "blur_radius"
-          }
-        ],
-        "pasteBack": [
-          {
-            "node": "52",
-            "input": "switch"
-          }
-        ],
-        "filenamePrefix": [
-          {
-            "node": "90",
-            "input": "filename_prefix"
-          }
-        ],
-        "maxDimension": [
-          {
-            "node": "20",
-            "input": "largest_size"
-          },
-          {
-            "node": "21",
-            "input": "largest_size"
-          }
-        ]
-      },
-      "outputs": [
-        {
-          "node": "90",
-          "kind": "image"
-        }
-      ],
-      "defaults": {
-        "steps": 25,
-        "loraStrength": 1,
-        "maskPrompt": "head",
-        "maskGrow": 32,
-        "maskBlur": 16,
-        "pasteBack": true
-      },
-      "limits": {
-        "maxWidth": 2048,
-        "maxHeight": 2048
-      },
-      "models": [
-        {
-          "file": "qwen_image_2.1_int8_convrot.safetensors",
-          "folder": "diffusion_models",
-          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
-          "sizeGb": 7.26
-        },
-        {
-          "file": "qwen3vl_8b_int8_convrot.safetensors",
-          "folder": "text_encoders",
-          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
-          "sizeGb": 9.35
-        },
-        {
-          "file": "qwen_image_2.1_vae_bf16.safetensors",
-          "folder": "vae",
-          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
-          "sizeGb": 0.68
-        },
-        {
-          "file": "bfs_head_v1.1_qwen_2.1.safetensors",
-          "folder": "loras",
-          "url": "https://huggingface.co/Alissonerdx/BFS-Best-Face-Swap/resolve/0ca3913ade4b4ada458d60c232354e8586c4c181/bfs_head_v1.1_qwen_2.1.safetensors",
-          "sizeGb": 0.26
-        },
-        {
-          "file": "sam3.1_multiplex_fp16.safetensors",
-          "folder": "checkpoints",
-          "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/7bb8374780a725b4353ed31f3a9395c9742b5621/checkpoints/sam3.1_multiplex_fp16.safetensors",
-          "sizeGb": 1.75
-        }
-      ],
-      "customNodes": [
-        {
-          "name": "ComfyUI-KJNodes",
-          "repo": "https://github.com/kijai/ComfyUI-KJNodes"
-        }
-      ],
-      "vramGb": 20,
-      "license": "Qwen Research License Agreement (Qwen-Image 2.1): NON-COMMERCIAL, research and evaluation only; BFS head-swap LoRA by Alissonerdx MIT; SAM 3.1 under Meta's SAM License (commercial use allowed under its terms); GrowMaskWithBlur from ComfyUI-KJNodes (GPL-3.0 code)",
-      "validated": true,
-      "notes": "qwen-image-21-edit (int8, 25 steps, euler / simple, cfg 1, both pictures 2048 on the long side, resolution 0) with Alissonerdx's BFS head LoRA V1.1 at 1.0 and its training prompt (\"head_swap: start with <image1> as the base image ...\"). image = the shot to keep (body, pose, light, background), image2 = the head (identity, hair, eye colour): body first, head second, as V1.1 was trained; other BFS versions take other orders, so the file is pinned. V1.1 is V1 without the second-half img_mlp.gate_up modules (less skin softening, slightly weaker expression transfer); the V1.1 \"alternative\" file copies expression better at about 1 degree more head-pose error. Paste-back (pasteBack, on by default): SAM 3.1 finds the head (\"head\") on the swap and on the shot scaled to the swap's size, the two masks are joined (ImageCompositeMasked of the mask images, so old long hair goes too), grown by maskGrow and blurred by maskBlur (GrowMaskWithBlur), and only that area comes from the swap: every other pixel is the shot's, which removes Qwen 2.1's colour and detail drift over the whole picture. pasteBack false returns the whole swap (the switch is lazy, SAM does not run). No head found: the shot comes back unchanged. BFS's own workflow runs the Pruna 8-step LoRA with deis_2m (RES4LYF); this graph keeps core samplers. RTX 5090: about 130 s a photo warm, about 250 s when the models load, peak about 28 GB."
-    },
-    {
       "id": "video-group-swap-h3",
       "title": "Group swap: 1-4 characters each take over one person, named by role (Openjutsu advanced: SAM 3.1 tracks, Qwen3-VL labels them, MiniMax H3 + DMAD redraw the labelled people clip by clip)",
       "capability": "video-group-swap",
@@ -28732,6 +28684,151 @@
       "license": "n/a (no model; Image Detail Contrast MIT, Orion4D_FXMax MIT, VideoHelperSuite GPL-3.0 code)",
       "validated": true,
       "notes": "params.extra.openjutsu: finish soft | filmic | rich | off (the tone mapper's settings travel in raw_settings, no preset files), strength 0-1 (Orion 0-0.5), soften 0-1 (detail contrast 0 to -0.6; 0 drops the step). Both steps work frame by frame, so the clip goes through in passes (VHS_BatchManager re-queues the prompt until the clip is done, as upscale-video-esrgan-chunked does) into one H.264 encode that stays open; the last pass writes the file with the source's sound. framesPerBatch: the provider sizes it from the clip's header so a pass holds about 1.5 GB of frames (three frame-sized copies: decoded, softened, toned), so memory stays flat whatever the length."
+    },
+    {
+      "id": "head-swap-qwen-image-21",
+      "title": "Qwen-Image 2.1 Head Swap (BFS head LoRA V1.1, pasted back onto the shot)",
+      "capability": "edit",
+      "file": "head-swap-qwen-image-21.json",
+      "source": "hand-built (scripts/comfy/hand-built/head-swap-qwen-image-21.json)",
+      "bindings": {
+        "prompt": [
+          {
+            "node": "30",
+            "input": "prompt"
+          }
+        ],
+        "image": [
+          {
+            "node": "10",
+            "input": "image"
+          }
+        ],
+        "image2": [
+          {
+            "node": "11",
+            "input": "image"
+          }
+        ],
+        "seed": [
+          {
+            "node": "32",
+            "input": "seed"
+          }
+        ],
+        "steps": [
+          {
+            "node": "32",
+            "input": "steps"
+          }
+        ],
+        "loraStrength": [
+          {
+            "node": "4",
+            "input": "strength_model"
+          }
+        ],
+        "maskPrompt": [
+          {
+            "node": "43",
+            "input": "text"
+          }
+        ],
+        "maskGrow": [
+          {
+            "node": "50",
+            "input": "expand"
+          }
+        ],
+        "maskBlur": [
+          {
+            "node": "50",
+            "input": "blur_radius"
+          }
+        ],
+        "pasteBack": [
+          {
+            "node": "52",
+            "input": "switch"
+          }
+        ],
+        "filenamePrefix": [
+          {
+            "node": "90",
+            "input": "filename_prefix"
+          }
+        ],
+        "maxDimension": [
+          {
+            "node": "20",
+            "input": "largest_size"
+          },
+          {
+            "node": "21",
+            "input": "largest_size"
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "node": "90",
+          "kind": "image"
+        }
+      ],
+      "defaults": {
+        "steps": 25,
+        "loraStrength": 1,
+        "maskPrompt": "head",
+        "maskGrow": 32,
+        "maskBlur": 16,
+        "pasteBack": true
+      },
+      "limits": {
+        "maxWidth": 2048,
+        "maxHeight": 2048
+      },
+      "models": [
+        {
+          "file": "qwen_image_2.1_int8_convrot.safetensors",
+          "folder": "diffusion_models",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
+          "sizeGb": 7.26
+        },
+        {
+          "file": "qwen3vl_8b_int8_convrot.safetensors",
+          "folder": "text_encoders",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+          "sizeGb": 9.35
+        },
+        {
+          "file": "qwen_image_2.1_vae_bf16.safetensors",
+          "folder": "vae",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
+          "sizeGb": 0.68
+        },
+        {
+          "file": "bfs_head_v1.1_qwen_2.1.safetensors",
+          "folder": "loras",
+          "url": "https://huggingface.co/Alissonerdx/BFS-Best-Face-Swap/resolve/0ca3913ade4b4ada458d60c232354e8586c4c181/bfs_head_v1.1_qwen_2.1.safetensors",
+          "sizeGb": 0.26
+        },
+        {
+          "file": "sam3.1_multiplex_fp16.safetensors",
+          "folder": "checkpoints",
+          "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/7bb8374780a725b4353ed31f3a9395c9742b5621/checkpoints/sam3.1_multiplex_fp16.safetensors",
+          "sizeGb": 1.75
+        }
+      ],
+      "customNodes": [
+        {
+          "name": "ComfyUI-KJNodes",
+          "repo": "https://github.com/kijai/ComfyUI-KJNodes"
+        }
+      ],
+      "vramGb": 20,
+      "license": "Qwen Research License Agreement (Qwen-Image 2.1): NON-COMMERCIAL, research and evaluation only; BFS head-swap LoRA by Alissonerdx MIT; SAM 3.1 under Meta's SAM License (commercial use allowed under its terms); GrowMaskWithBlur from ComfyUI-KJNodes (GPL-3.0 code)",
+      "validated": true,
+      "notes": "qwen-image-21-edit (int8, 25 steps, euler / simple, cfg 1, both pictures 2048 on the long side, resolution 0) with Alissonerdx's BFS head LoRA V1.1 at 1.0 and its training prompt (\"head_swap: start with <image1> as the base image ...\"). image = the shot to keep (body, pose, light, background), image2 = the head (identity, hair, eye colour): body first, head second, as V1.1 was trained; other BFS versions take other orders, so the file is pinned. V1.1 is V1 without the second-half img_mlp.gate_up modules (less skin softening, slightly weaker expression transfer); the V1.1 \"alternative\" file copies expression better at about 1 degree more head-pose error. Paste-back (pasteBack, on by default): SAM 3.1 finds the head (\"head\") on the swap and on the shot scaled to the swap's size, the two masks are joined (ImageCompositeMasked of the mask images, so old long hair goes too), grown by maskGrow and blurred by maskBlur (GrowMaskWithBlur), and only that area comes from the swap: every other pixel is the shot's, which removes Qwen 2.1's colour and detail drift over the whole picture. pasteBack false returns the whole swap (the switch is lazy, SAM does not run). No head found: the shot comes back unchanged. BFS's own workflow runs the Pruna 8-step LoRA with deis_2m (RES4LYF); this graph keeps core samplers. RTX 5090: about 130 s a photo warm, about 250 s when the models load, peak about 28 GB."
     }
   ]
 }

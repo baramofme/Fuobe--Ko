@@ -32,6 +32,9 @@ const COMFYUI_DIR = process.env.COMFYUI_DIR || '/home/user/ComfyUI';
 // Which input of which loader holds a model file, and the models/<folder> it is read from.
 export const LOADER_FOLDERS = {
   UNETLoader: { unet_name: 'diffusion_models' },
+  // Krea 2 Turbo unified router (the owner's entry): its single model_name reads models/diffusion_models (it also
+  // accepts the unet / unet_gguf keys, but the folder the files live in is diffusion_models).
+  UnifiedModelLoader: { model_name: 'diffusion_models' },
   CheckpointLoaderSimple: { ckpt_name: 'checkpoints' },
   VAELoader: { vae_name: 'vae' },
   CLIPLoader: { clip_name: 'text_encoders' },
