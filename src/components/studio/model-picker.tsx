@@ -18,6 +18,7 @@ import type { Badge as BadgeT } from "@/lib/gpu/types";
 import { type Engine, type ModelDef, type Operation } from "@/lib/catalog/types";
 import { askToSignUp, useEngineMode, useStatus } from "@/lib/api";
 import { groupModels, studioBest, toggleIn } from "@/lib/composer";
+import { useI18n } from "@/lib/i18n";
 import { readsBoxes } from "@/lib/layout-prompt";
 import { pickerPrice } from "@/lib/model-rows";
 import { cn } from "@/lib/utils";
@@ -247,6 +248,7 @@ export function ModelPicker(props: PickerProps) {
   }, [listens]);
   const { value, models, onChange, answersPick } = props;
   useEffect(() => (answersPick ? answerPickModel(() => setOpen(true)) : undefined), [answersPick]);
+  const { t } = useI18n();
   const made = !!value && value.id === props.madeWith;
   // The model a dimmed row was chosen for (by this picker only): picked once its key is saved and the studio knows it
   // (the status has the key, so the engine switch is on Cloud and nothing swaps the model back to an open one).
@@ -274,7 +276,7 @@ export function ModelPicker(props: PickerProps) {
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
-      title="Choose a model"
+      title={t("studio.model.choose")}
       className="w-[min(92vw,440px)] p-0 shadow-strong"
       sheetClassName="h-[80svh]"
       trigger={
@@ -282,12 +284,12 @@ export function ModelPicker(props: PickerProps) {
           variant="secondary"
           size="sm"
           className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-[13px] font-medium"
-          aria-label={`Model: ${value?.name ?? "none"}${made ? ", used for this preview" : ""}. Change model`}
-          title={made ? "Used for this preview" : undefined}
+          aria-label={t("studio.model.trigger", { model: value?.name ?? t("studio.model.none") })}
+          title={made ? t("studio.model.usedForThisPreview") : undefined}
         >
           {value?.engine === "open" ? <Cpu className="size-3.5" /> : <Cloud className="size-3.5" />}
-          <span className="max-w-40 truncate max-sm:hidden sm:max-w-44">{value?.name ?? "Choose model"}</span>
-          <span className="max-w-40 truncate sm:hidden">{value ? phoneName(value.name) : "Choose model"}</span>
+          <span className="max-w-40 truncate max-sm:hidden sm:max-w-44">{value?.name ?? t("studio.model.chooseModel")}</span>
+          <span className="max-w-40 truncate sm:hidden">{value ? phoneName(value.name) : t("studio.model.chooseModel")}</span>
           {made && <Sparkles className="size-3.5 text-brand-text" aria-hidden />}
           <ChevronDown className="size-3.5 opacity-60" />
         </Button>
@@ -326,6 +328,7 @@ export function PickerList({
   onNeedsKey,
 }: PickerProps & { onPicked: () => void; onNeedsKey?: (m: ModelDef, p: CloudProvider, served: CloudProvider[]) => void }) {
   const [q, setQ] = useState("");
+  const { t } = useI18n();
   const status = useStatus().data;
   const badges = useGpuBadges().data;
   const mode = useEngineMode();
@@ -393,22 +396,24 @@ export function PickerList({
     <Command shouldFilter={false} loop label="Models" onKeyDown={(e) => starKey(e, (id) => setStarred((s) => toggleIn(s, id)))} className="rounded-none! bg-transparent p-0">
       <div className="flex items-center gap-2 p-1 sm:p-2 sm:pb-1">
         <div className="min-w-0 flex-1 [&_[data-slot=command-input-wrapper]]:p-0">
-          <CommandInput value={q} onValueChange={setQ} placeholder={mobile ? "Search" : mode === "both" ? "Search all models" : "Search models"} aria-label="Search models" autoFocus={!mobile} />
+          <CommandInput value={q} onValueChange={setQ} placeholder={mobile ? t("studio.model.search") : mode === "both" ? t("studio.model.searchAll") : t("studio.model.searchModels")} aria-label={t("studio.model.searchModelsAria")} autoFocus={!mobile} />
         </div>
         {/* A visitor's two-line switch keeps to its icons on a phone, so the search field keeps its room. */}
         <EngineSwitch value={engine} onChange={onEngineChange} size="sm" compact={hostedVisitor || undefined} />
       </div>
       <div className="flex items-baseline gap-x-2 px-3 pb-1.5 leading-snug text-[11px] text-muted-foreground sm:px-3.5">
         <span className="shrink-0 whitespace-nowrap tabular-nums">
-          {q ? `${count + paid.length} result${count + paid.length === 1 ? "" : "s"}` : `${count} ${engine === "open" ? "open-source" : "cloud"} model${count === 1 ? "" : "s"}`}
+          {q
+            ? t(count + paid.length === 1 ? "studio.model.results" : "studio.model.resultsPlural", { n: count + paid.length })
+            : t(engine === "open" ? (count === 1 ? "studio.model.openCount" : "studio.model.openCountPlural") : count === 1 ? "studio.model.cloudCount" : "studio.model.cloudCountPlural", { n: count })}
         </span>
         {payer ? (
           <>
             <span aria-hidden>·</span>
             <span className="min-w-0">
-              {`Paid models are billed to ${payer.length > 1 ? "your fal.ai and Replicate accounts" : billedTo(payer[0])} · `}
+              {t("studio.model.paidBillingMultiple")} ·{" "}
               <Link href="/settings#your-keys" className="text-brand-text underline underline-offset-2">
-                Your keys
+                {t("studio.model.yourKeys")}
               </Link>
             </span>
           </>
@@ -417,7 +422,7 @@ export function PickerList({
             <>
               <span aria-hidden>·</span>
               <span className="min-w-0">
-                {hostedVisitor ? CLOUD_PICKER_NOTE : "Paid models like Nano Banana and Kling need your own fal.ai or Replicate key"} ·{" "}
+                {hostedVisitor ? CLOUD_PICKER_NOTE : t("studio.model.paidNeedsKey")} ·{" "}
                 {guest ? (
                   <button
                     type="button"
@@ -427,11 +432,11 @@ export function PickerList({
                     }}
                     className="text-brand-text underline underline-offset-2"
                   >
-                    Create a free account
+                    {t("studio.model.createFreeAccount")}
                   </button>
                 ) : (
                   <button type="button" onClick={addKey} className="text-brand-text underline underline-offset-2">
-                    Add a key
+                    {t("studio.model.addKey")}
                   </button>
                 )}
               </span>
@@ -442,15 +447,15 @@ export function PickerList({
           <>
             <span aria-hidden>·</span>
             <span className="min-w-0">
-              Placeholder results are on, so outputs are stand-ins.{" "}
+              {t("studio.model.placeholderOn")}{" "}
               <Link href="/settings#demo" className="text-brand-text underline underline-offset-2">
-                Settings
+                {t("studio.model.settings")}
               </Link>
             </span>
           </>
         )}
         <span className="ml-auto shrink-0 whitespace-nowrap max-sm:hidden">
-          <kbd className="font-sans">{STAR_KEY_HINT}</kbd> to star
+          <kbd className="font-sans">{STAR_KEY_HINT}</kbd> {t("studio.model.toStar")}
         </span>
       </div>
       <CommandList className="max-h-[min(52vh,420px)] border-t sm:max-h-[min(56vh,440px)]">
@@ -490,18 +495,18 @@ export function PickerList({
             <SearchX className="size-5 text-subtle-foreground" />
             {noneForEngine ? (
               <>
-                <p className="text-[13px] text-muted-foreground">No {engine === "open" ? "open-source" : "cloud"} models for this yet.</p>
+                <p className="text-[13px] text-muted-foreground">{t("studio.model.noModelsForEngine", { kind: t(engine === "open" ? "studio.model.openSource" : "studio.model.cloud") })}</p>
                 {engines.includes(otherEngine) && (
                   <Button variant="secondary" size="sm" onClick={() => onEngineChange(otherEngine)}>
-                    Show {otherEngine === "open" ? "open-source" : "cloud"} models
+                    {t("studio.model.showOther", { kind: t(otherEngine === "open" ? "studio.model.openSource" : "studio.model.cloud") })}
                   </Button>
                 )}
               </>
             ) : (
               <>
-                <p className="text-[13px] text-muted-foreground">No models match “{q}”</p>
+                <p className="text-[13px] text-muted-foreground">{t("studio.model.noMatch", { q })}</p>
                 <Button variant="secondary" size="sm" onClick={() => setQ("")}>
-                  Clear search
+                  {t("studio.model.clearSearch")}
                 </Button>
               </>
             )}

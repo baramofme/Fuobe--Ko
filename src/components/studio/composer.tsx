@@ -143,6 +143,7 @@ import { useVoiceFirstLive, useVoiceFirstShown, VoiceFirstSwitch } from "@/compo
 import { VOICE_FIRST_PARAM, voiceFirstDefault } from "@/lib/av/voice-first";
 import { useSignature } from "../palettes/use-signature";
 import { placeholdersOn } from "@/lib/demo-mode";
+import { useI18n } from "@/lib/i18n";
 
 const EMPTY: StudioElement[] = [];
 
@@ -251,6 +252,7 @@ function slotButton(root: HTMLElement | null, key: string) {
 
 export function Composer({ docked }: { docked: boolean }) {
   const { config, draft: typed, setDraft, setSlot } = useStudio();
+  const { t } = useI18n();
   const catalog = useCatalog();
   const presetUrl = usePresetUrl();
   const [engine, setEngine, engineMode] = useEngine();
@@ -574,7 +576,7 @@ export function Composer({ docked }: { docked: boolean }) {
     if (!unknownPreset) return;
     setDraft({ presetId: config.preset?.id, mix: undefined, presetStrength: undefined });
     presetUrl(undefined);
-    toast("That camera motion or effect isn't available. Pick another one.", { id: "unknown-preset" });
+    toast(t("studio.composer.presetNotAvailable"), { id: "unknown-preset" });
   }, [unknownPreset, config.preset, presetUrl, setDraft]);
 
   // Single-purpose studios (Extend, Reframe, Edit video…) pin their operation.
@@ -790,7 +792,7 @@ export function Composer({ docked }: { docked: boolean }) {
   // An end frame runs first and last frames only: References mode's extra images, clips and sound would be left out.
   // It goes before "Write a prompt first": words won't fix it.
   if (refMode && !framesOn && draft.slots.endImage?.ref && (draft.refs.length || refClips.length || refAudios.length) && (!planError || planError === WRITE_PROMPT)) {
-    planError = "References can't go with an end frame. Remove the end frame, or the references";
+    planError = t("studio.composer.refsWithEndFrame");
   }
   // Models that take no prompt (try-on, 3D, transcription, upscalers), or can run without one, never ask for one.
   // A model that reads only words (Open-H3 Regenerate redraws from them) asks for them even in a tool that hides the box.
@@ -803,7 +805,7 @@ export function Composer({ docked }: { docked: boolean }) {
     !(layoutOn && draft.layout!.items.length > 0);
   const blocker = blockerFor({
     // A model outside the studio's slice (remembered, or handed over) is known once the full catalog arrives: loading until then, not "Pick a model".
-    loading: !catalog.ready || (!model && !catalog.complete) ? "Loading models…" : presetLoading ? "Loading presets…" : null,
+    loading: !catalog.ready || (!model && !catalog.complete) ? t("studio.composer.loadingModels") : presetLoading ? t("studio.composer.loadingPresets") : null,
     model: !!model,
     engineError,
     frames: framesOn && model ? (framesBlocker(model, draft.frames!.length) ?? (framesGap ? { message: framesGap } : null)) : null,
@@ -928,7 +930,7 @@ export function Composer({ docked }: { docked: boolean }) {
     setKeyChoice(false);
     if (exact) {
       // An exact orbit: the still filmed along the orbit's numbers (Fly around), priced in its panel.
-      const stop = !exactImage ? "Add a start frame to film an exact orbit" : fly.preview.data?.blocker;
+      const stop = !exactImage ? t("studio.composer.addStartFrame") : fly.preview.data?.blocker;
       if (stop) return void toast(stop, { id: "composer-blocker" });
       if (fly.run.isPending) return;
       toast.dismiss("composer-blocker");
@@ -958,7 +960,7 @@ export function Composer({ docked }: { docked: boolean }) {
         // One blocker toast at a time (pressing Generate again replaces it), gone once a run starts.
         // A missing photo or clip: the toast's Upload opens the file picker (a click, so the browser allows it).
         const slot = blocker.slot;
-        toast(blocker.message, { id: "composer-blocker", action: slot ? { label: "Upload", onClick: () => slotButton(root.current, slot)?.click() } : undefined });
+        toast(blocker.message, { id: "composer-blocker", action: slot ? { label: t("studio.attach.upload"), onClick: () => slotButton(root.current, slot)?.click() } : undefined });
         // Point at the tile to fill: the missing slot, or the clip list of a tool that only takes clips.
         const target = slot ?? (config.multiRef && config.hidePrompt && draft.refs.length < 2 ? "refs" : undefined);
         if (target) pulseSlot(root.current, target);
@@ -1016,7 +1018,7 @@ export function Composer({ docked }: { docked: boolean }) {
   };
 
   const runEnhance = async () => {
-    if (!draft.prompt.trim()) return toast("Write a short idea first, then enhance it");
+    if (!draft.prompt.trim()) return toast(t("studio.composer.enhanceFirst"));
     setEnhancing(true);
     try {
       const p = await enhance(draft.prompt, config.kind, op ?? (config.kind === "video" ? "t2v" : "t2i"));
@@ -1043,7 +1045,7 @@ export function Composer({ docked }: { docked: boolean }) {
       if (words) {
         setDraft((d) => (d.prompt.trim() ? {} : { prompt: words }));
         promptRef.current?.focus();
-      } else toast("Couldn't put the clip into words", { description: "Describe it in a sentence or two: what is in it, how it moves, the light." });
+      } else toast(t("studio.composer.describeFail"), { description: t("studio.composer.describeHint") });
     } catch (e) {
       if (!ctl.signal.aborted && !(e as { gpuSetup?: boolean }).gpuSetup) toastError(e);
     } finally {
@@ -1161,7 +1163,7 @@ export function Composer({ docked }: { docked: boolean }) {
   const keyChip = keyOnlyChip({ ownSetup: !!poolSetup, key: keyTwin ? { provider: keyTwin.provider, price: keyPrice } : null, gpu: !!viewerInfo?.gpu.connected, picked: runOnPicked, rows: !!runOnRows });
   const ownKeyHere = !!keyChip;
   const keyTip = keyChip?.tip ?? "";
-  const runOnText = runOnRows?.on === "gpu" || ownGpuHere ? "Free · your GPU" : keyChip ? keyChip.text : runOnRows?.on === "key" ? `${costText} · your key` : costText;
+  const runOnText = runOnRows?.on === "gpu" || ownGpuHere ? t("studio.composer.freeYourGpu") : keyChip ? keyChip.text : runOnRows?.on === "key" ? `${costText} · ${t("studio.composer.yourKeySuffix")}` : costText;
   // What Generate's tooltip says it costs.
   const pressCost = ownKeyHere ? runOnText : costText;
   // Hosted runs, runs going to the account's key: its key turned the last run down (out of credit, not accepted). Said
@@ -1327,7 +1329,7 @@ export function Composer({ docked }: { docked: boolean }) {
     const lengths = opts.durations;
     const duration = lengths?.length && p.duration !== undefined && !lengths.includes(p.duration) ? lengths.reduce((a, b) => (Math.abs(b - p.duration!) < Math.abs(a - p.duration!) ? b : a)) : p.duration;
     setDraft({ frames: undefined, slots: back, params: { ...p, duration } });
-    if (dropped) toast(`Frames off — frames 1 and ${draft.frames.length} are your start and end frames`, { action: { label: "Undo", onClick: () => setDraft(before) } });
+    if (dropped) toast(t("studio.composer.framesOffToast", { n: draft.frames.length }), { action: { label: t("studio.composer.undo"), onClick: () => setDraft(before) } });
   };
 
   // Layout on: an empty layout on the picture's shape, and the editor opens to draw the first box. Off: the boxes go (Undo
@@ -1342,7 +1344,7 @@ export function Composer({ docked }: { docked: boolean }) {
     const before = { layout: draft.layout, params: draft.params };
     const { params, dropped } = leaveLayout(draft.layout, draft.params);
     setDraft({ layout: undefined, params });
-    if (dropped) toast(`Layout off — ${dropped} box${dropped === 1 ? "" : "es"} set aside`, { id: "layout-off", action: { label: "Undo", onClick: () => setDraft(before) } });
+    if (dropped) toast(t("studio.composer.layoutOffToast", { n: dropped }), { id: "layout-off", action: { label: t("studio.composer.undo"), onClick: () => setDraft(before) } });
   };
   // The canvas the boxes are drawn on: the size this model renders (src/lib/catalog/plan.ts layoutCanvas).
   const canvasFor = (aspect: string | undefined) => layoutCanvas(model!, { ...draft.params, aspectRatio: aspect }, studioOp ?? "t2i");
@@ -1364,10 +1366,10 @@ export function Composer({ docked }: { docked: boolean }) {
     <Tooltip>
       <TooltipTrigger asChild>
         <Chip icon={LayoutDashboard} active={layoutOn} aria-pressed={layoutOn} onClick={toggleLayout}>
-          Layout
+          {t("studio.composer.layout")}
         </Chip>
       </TooltipTrigger>
-      <TooltipContent>{layoutOn ? "Back to a plain prompt" : "Draw boxes for where things go, with the exact words"}</TooltipContent>
+      <TooltipContent>{layoutOn ? t("studio.composer.layoutOnTip") : t("studio.composer.layoutOffTip")}</TooltipContent>
     </Tooltip>
   ) : null;
 
@@ -1403,10 +1405,10 @@ export function Composer({ docked }: { docked: boolean }) {
     <Tooltip>
       <TooltipTrigger asChild>
         <Chip icon={GalleryHorizontalEnd} active={framesOn} aria-pressed={framesOn} onClick={toggleFrames}>
-          Frames
+          {t("studio.composer.frames")}
         </Chip>
       </TooltipTrigger>
-      <TooltipContent>{framesOn ? "Back to a start and an end frame" : "Up to 10 frames, each at its own time"}</TooltipContent>
+      <TooltipContent>{framesOn ? t("studio.composer.framesOnTip") : t("studio.composer.framesOffTip")}</TooltipContent>
     </Tooltip>
   ) : null;
 
@@ -1418,7 +1420,7 @@ export function Composer({ docked }: { docked: boolean }) {
           model={model}
           voice={p.voice}
           sample={draft.slots.voiceAudio}
-          label={effectiveOp === "voice-change" ? "New voice" : "Voice"}
+          label={effectiveOp === "voice-change" ? t("studio.audio.newVoice") : t("studio.audio.voice")}
           onChange={(c) => {
             if (c?.kind === "preset") setDraft((d) => ({ params: { ...d.params, voice: c.id }, slots: { ...d.slots, voiceAudio: null } }));
             if (c?.kind === "sample") setSlot("voiceAudio", c.value);
@@ -1434,12 +1436,12 @@ export function Composer({ docked }: { docked: boolean }) {
             key={key}
             model={{ ...model, options: { ...model.options, voices: [] } }}
             sample={draft.slots[key]}
-            label={`Speaker ${i ? "B" : "A"}`}
+            label={`Speaker ${i ? t("studio.audio.speakerB") : t("studio.audio.speakerA")}`}
             onChange={(c) => c?.kind === "sample" && setSlot(key, c.value)}
           />
         ))}
       {model && opts.languages && (
-        <LanguageChip languages={opts.languages} value={p.targetLanguage} label={effectiveOp === "dub" ? "Translate to…" : "Language"} onChange={(targetLanguage) => setP({ targetLanguage })} />
+        <LanguageChip languages={opts.languages} value={p.targetLanguage} label={effectiveOp === "dub" ? t("studio.audio.translateTo") : t("studio.audio.language")} onChange={(targetLanguage) => setP({ targetLanguage })} />
       )}
     </>
   );
@@ -1630,14 +1632,18 @@ export function Composer({ docked }: { docked: boolean }) {
               <div key={r.id ?? r.ref} className="relative size-14 shrink-0 overflow-hidden rounded-xl border bg-muted">
                 <SlotPreview value={r} />
                 {r.uploading && (
-                  <div className="absolute inset-0 grid place-items-center bg-background/60" role="status" aria-label="Uploading">
+                  <div className="absolute inset-0 grid place-items-center bg-background/60" role="status" aria-label={t("studio.attach.uploading")}>
                     <Loader2 className="size-4 animate-spin" />
                   </div>
                 )}
                 <button
                   onClick={() => attach.removeRef(r)}
                   className="absolute top-0.5 right-0.5 grid size-5 place-items-center rounded-full bg-foreground/80 text-background"
-                  aria-label={`Remove ${config.multiRef?.kind === "video" ? "clip" : "reference"} ${i + 1}`}
+                  aria-label={
+                    config.multiRef?.kind === "video"
+                      ? t("studio.composer.removeClip", { n: i + 1 })
+                      : t("studio.composer.removeRef", { n: i + 1 })
+                  }
                 >
                   <X className="size-3" />
                 </button>
@@ -1683,7 +1689,7 @@ export function Composer({ docked }: { docked: boolean }) {
           onSubmit={submit}
           placeholder={
             layoutOn
-              ? "Describe the whole picture… the boxes say what goes where"
+              ? t("studio.composer.layoutPlaceholder")
               : (preset?.promptPlaceholder ?? opts.promptPlaceholder ?? (config.hidePrompt && config.modelPrompt ? config.modelPrompt : config.placeholder))
           }
           elements={elements}
@@ -1803,18 +1809,18 @@ export function Composer({ docked }: { docked: boolean }) {
                 setFocused(true);
               }}
               aria-pressed={refsOpen}
-              title="Images, clips and a voice or music clip the shot follows"
+              title={t("studio.composer.referencesTitle")}
               className={cn(chipBase, chipIdle, "gap-1.5", refsOpen && "border-foreground/30 text-foreground")}
             >
               <Library className="size-3.5" />
-              <span className="max-sm:sr-only">References</span>
+              <span className="max-sm:sr-only">{t("studio.composer.references")}</span>
             </button>
           )}
           {collapsed && showAttachments && attached.length > 0 && (
             <button
               type="button"
               onClick={() => setFocused(true)}
-              aria-label={`${attached.length} attached. Show attachments`}
+              aria-label={t("studio.composer.addedAria", { n: attached.length })}
               className={cn(chipBase, chipIdle, "gap-1.5 pl-1 max-sm:order-1")}
             >
               <span className="flex -space-x-2.5">
@@ -1826,7 +1832,7 @@ export function Composer({ docked }: { docked: boolean }) {
               </span>
               <span className="tabular-nums">
                 {attached.length}
-                <span className="max-sm:hidden"> attached</span>
+                <span className="max-sm:hidden">{t("studio.attach.addedSuffix")}</span>
               </span>
             </button>
           )}
@@ -1852,20 +1858,20 @@ export function Composer({ docked }: { docked: boolean }) {
                 />
               ) : (
                 <Chip icon={Loader2} disabled className="[&>svg]:animate-spin">
-                  Loading models…
+                  {t("studio.composer.loadingModels")}
                 </Chip>
               )
             ) : (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Chip icon={model?.engine === "cloud" ? Cloud : Cpu} aria-label={`${preset?.name} runs on ${model?.name ?? "its own model"}${model && model.id === madeWith ? ", used for this preview" : ""}`}>
+                  <Chip icon={model?.engine === "cloud" ? Cloud : Cpu} aria-label={`${preset?.name} ${t("studio.composer.runsOnShort")} ${model?.name ?? t("studio.composer.itsOwnModel")}${model && model.id === madeWith ? " · " + t("studio.composer.usedForThisPreview") : ""}`}>
                     <span className="min-w-0 truncate">{model?.name ?? "…"}</span>
                     {model && model.id === madeWith && <Sparkles className="size-3.5 shrink-0 text-brand-text" aria-hidden />}
                   </Chip>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {preset?.name} runs on {model?.name ?? "its own model"}
-                  {model && model.id === madeWith ? " · Used for this preview" : ""}
+                  {preset?.name} {t("studio.composer.runsOnShort")} {model?.name ?? t("studio.composer.itsOwnModel")}
+                  {model && model.id === madeWith ? " · " + t("studio.composer.usedForThisPreview") : ""}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -1881,12 +1887,12 @@ export function Composer({ docked }: { docked: boolean }) {
                     "grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50 max-sm:order-3",
                     collapsed && "max-sm:hidden",
                   )}
-                  aria-label="Add an element"
+                  aria-label={t("studio.composer.addElement")}
                 >
                   <AtSign className="size-3.5" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Add a character, location or prop · type @</TooltipContent>
+              <TooltipContent>{t("studio.composer.addElementTip")}</TooltipContent>
             </Tooltip>
           )}
           <span className="contents max-sm:hidden">
@@ -1928,7 +1934,7 @@ export function Composer({ docked }: { docked: boolean }) {
             rows={runOnRows.rows}
             text={runOnText}
             tooltip={runOnTip}
-            ariaLabel={`${runOnRows.on === "gpu" ? "Runs on your GPU" : runOnRows.on === "key" ? "Runs with your key" : `Runs on ${sitePlace.text}`}. Change where it runs`}
+            ariaLabel={`${runOnRows.on === "gpu" ? t("studio.composer.runsOnYourGpu") : runOnRows.on === "key" ? t("studio.composer.runsWithYourKey") : t("studio.composer.runsOn", { place: sitePlace.text })}. ${t("studio.composer.changeWhereRuns")}`}
             onPick={pickRunOn}
             pending={setRunOn.isPending}
             className={cn(poolRefused && runOnRows.on === "site" && "max-w-48")}
@@ -1980,7 +1986,7 @@ export function Composer({ docked }: { docked: boolean }) {
               size="icon"
               onClick={submit}
               disabled={create.isPending || signature.lock.isPending || (poolRefused && !poolSetup)}
-              aria-label={blocker ? `Generate — ${blocker.message}` : ownKeyHere ? `Generate — ${runOnText}` : poolRefused && poolState ? `Generate — ${poolState.text}` : "Generate"}
+              aria-label={blocker ? `${t("studio.composer.generate")} — ${blocker.message}` : ownKeyHere ? `${t("studio.composer.generate")} — ${runOnText}` : poolRefused && poolState ? `${t("studio.composer.generate")} — ${poolState.text}` : t("studio.composer.generate")}
               aria-busy={create.isPending || signature.lock.isPending || undefined}
               // Blocked, it stays the brand colour (paler, the arrow still 3:1 or more): pressing it still says what's missing and points at it.
               className={cn("size-10 shrink-0 rounded-full", blocker && "bg-primary/70 hover:bg-primary/80")}
@@ -2080,9 +2086,9 @@ export function Composer({ docked }: { docked: boolean }) {
       {keyChoice && poolSetup && keyTwin && keyPrice && (
         <div role="note" aria-live="polite" className="mx-1 mt-2 space-y-1.5 rounded-xl border border-dashed px-3 py-2 text-[12px] leading-snug text-muted-foreground">
           <p>
-            <span className="font-medium text-foreground">This one runs on your own GPU.</span>{" "}
-            {"vramGb" in poolSetup && poolSetup.vramGb ? `It needs a GPU with ${poolSetup.vramGb} GB of memory. ` : ""}
-            Your {CLOUD_KEY[keyTwin.provider].label} key runs its cloud version.
+            <span className="font-medium text-foreground">{t("studio.composer.thisRunsOnYourGpu")}</span>{" "}
+            {"vramGb" in poolSetup && poolSetup.vramGb ? t("studio.composer.needsGpuMemory", { n: poolSetup.vramGb }) + " " : ""}
+            {t("studio.composer.keyRunsCloud", { provider: CLOUD_KEY[keyTwin.provider].label })}
           </p>
           <div className="flex flex-wrap gap-1.5">
             <TroubleActions actions={[withKeyAction(keyTwin.provider, keyTwin.modelId, keyTwin.op, keyPrice)]} handlers={{ onRunWithKey }} />
@@ -2091,7 +2097,7 @@ export function Composer({ docked }: { docked: boolean }) {
               onClick={() => (setKeyChoice(false), window.dispatchEvent(new Event(CONNECT_GPU_EVENT)))}
               className="inline-flex h-7 w-fit items-center gap-1.5 rounded-full bg-secondary px-2.5 text-[12px] font-medium hover:bg-accent"
             >
-              Connect your GPU
+              {t("studio.composer.connectGpu")}
             </button>
           </div>
         </div>
@@ -2100,18 +2106,18 @@ export function Composer({ docked }: { docked: boolean }) {
         <div role="note" className="mx-1 mt-2 space-y-1.5 rounded-xl border border-dashed px-3 py-2 text-[12px] leading-snug text-muted-foreground">
           <p>
             <span className="font-medium text-foreground">{ISOLATED_ON_GPU_WHY}</span>{" "}
-            {isolatedTwin ? "Run it with your key instead, or pick another model." : "Pick another model to run it now."}
+            {isolatedTwin ? t("studio.composer.runWithKeyInstead") : t("studio.composer.pickAnotherToRunNow")}
           </p>
           <TroubleActions
-            actions={[...(isolatedTwin ? [withKeyAction(isolatedTwin.provider, isolatedTwin.modelId, isolatedTwin.op)] : []), { kind: "pick-model", label: "Pick another model" }]}
+            actions={[...(isolatedTwin ? [withKeyAction(isolatedTwin.provider, isolatedTwin.modelId, isolatedTwin.op)] : []), { kind: "pick-model", label: t("studio.composer.pickAnotherModel") }]}
             handlers={{ onRunWithKey: runOnceWithKey, onPickModel: openModelPicker }}
           />
         </div>
       )}
       {emptyPayer && model && (
         <div role="note" className="mx-1 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dashed px-3 py-2 text-[12px] leading-snug text-muted-foreground">
-          <p className="min-w-0 flex-1 basis-56">Your {CLOUD_KEY[emptyPayer].label} balance is empty. Add credit there, then run.</p>
-          <TroubleActions actions={[{ kind: "add-credit", label: `Add credit on ${CLOUD_KEY[emptyPayer].label}`, target: BILLING_URL[emptyPayer] }]} />
+          <p className="min-w-0 flex-1 basis-56">{t("studio.composer.balanceEmpty", { provider: CLOUD_KEY[emptyPayer].label })}</p>
+          <TroubleActions actions={[{ kind: "add-credit", label: t("studio.composer.addCreditOn", { provider: CLOUD_KEY[emptyPayer].label }), target: BILLING_URL[emptyPayer] }]} />
         </div>
       )}
       {outcome && (
@@ -2152,10 +2158,10 @@ export function Composer({ docked }: { docked: boolean }) {
       {keyToAdd && model && (
         <div role="note" className="mx-1 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-dashed px-3 py-2 text-[12px] leading-snug text-muted-foreground">
           <p className="min-w-0 flex-1 basis-56">
-            {model.name} runs on {CLOUD_KEY[keyToAdd].label}, billed to your own {CLOUD_KEY[keyToAdd].label} account. Add your {CLOUD_KEY[keyToAdd].label} key to run it.
+            {t("studio.composer.runsOnKeyBilled", { model: model.name, provider: CLOUD_KEY[keyToAdd].label })}
           </p>
           <Button size="sm" variant="secondary" className="h-7" onMouseDown={(e) => e.preventDefault()} onClick={() => openAddKey(keyToAdd, model.id)}>
-            Add key
+            {t("studio.composer.addKey")}
           </Button>
         </div>
       )}

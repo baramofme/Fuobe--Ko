@@ -91,6 +91,7 @@ import { copyWithToast } from "@/lib/clipboard";
 import { enhanceRequest, rerenderRequest } from "@/lib/catalog/regenerate";
 import { toastError } from "@/lib/refusals";
 import { OwnSetupChip, useOwnSetupPress } from "@/components/own-setup";
+import { useI18n } from "@/lib/i18n";
 
 export const ACTION_ICONS: Record<OutputActionId, LucideIcon> = {
   animate: Clapperboard,
@@ -201,6 +202,7 @@ const ForeverCtx = createContext<ConfirmForever | null>(null);
 /** Asks before anything is deleted for good. Wrap views that show the Trash. */
 export function ForeverConfirmProvider({ children }: { children: React.ReactNode }) {
   const actions = useGenerationActions();
+  const { t } = useI18n();
   const [pending, setPending] = useState<{ gs: Generation[]; after?: () => void } | null>(null);
   const ask = useCallback<ConfirmForever>((gs, after) => {
     if (gs.length) setPending({ gs, after });
@@ -212,20 +214,20 @@ export function ForeverConfirmProvider({ children }: { children: React.ReactNode
       <AlertDialog open={!!pending} onOpenChange={(v) => !v && setPending(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {n === 1 ? "this for good" : `${n} items for good`}?</AlertDialogTitle>
-            <AlertDialogDescription>{n === 1 ? "It's" : "They're"} removed with the files and can&apos;t be recovered.</AlertDialogDescription>
+            <AlertDialogTitle>{t(n === 1 ? "studio.result.deleteOne" : "studio.result.deleteMany", { n })}?</AlertDialogTitle>
+            <AlertDialogDescription>{t(n === 1 ? "studio.result.removedOne" : "studio.result.removedMany")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
                 if (!pending) return;
-                void actions.deleteForever(pending.gs).then((done) => done && toast(done === 1 ? "Deleted for good" : `Deleted ${done} for good`));
+                void actions.deleteForever(pending.gs).then((done) => done && toast(done === 1 ? t("studio.result.deletedOne") : t("studio.result.deletedMany", { n: done })));
                 pending.after?.();
               }}
             >
-              Delete forever
+              {t("studio.result.deleteForever")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -252,6 +254,7 @@ export function useActionRunner(opts: RunnerOptions = {}) {
   const share = useShare();
   const skillBuilder = useSkillBuilder();
   const press = useOwnSetupPress();
+  const { t } = useI18n();
   return (a: OutputAction, g: Generation, index: number) => {
     const o = g.outputs[index];
     // An item that runs on the visitor's own setup: a guest signs up, an account without it connects its GPU first.
@@ -262,11 +265,11 @@ export function useActionRunner(opts: RunnerOptions = {}) {
       case "copy-text":
         return void copyWithToast(textOf(o));
       case "copy-prompt":
-        return void copyWithToast(g.prompt ?? "", "Prompt copied");
+        return void copyWithToast(g.prompt ?? "", t("studio.result.promptCopied"));
       case "share":
-        if (!share) return void toast.error("Share from the Library or a studio page");
+        if (!share) return void toast.error(t("studio.result.shareFail"));
         // The prompt-made title only while prompts are shared (the dialog switches between them).
-        return share.share({ kind: "result", id: g.id, title: `${OPERATION_LABELS[g.op] ?? "Result"}${g.modelName ? ` · ${g.modelName}` : ""}`, promptTitle: userTitle(g).slice(0, 120) });
+        return share.share({ kind: "result", id: g.id, title: `${OPERATION_LABELS[g.op] ?? t("studio.result.result")}${g.modelName ? ` · ${g.modelName}` : ""}`, promptTitle: userTitle(g).slice(0, 120) });
       case "download-txt":
         return saveBlob(textOf(o), downloadName(g, o, index, "txt"), "text/plain");
       case "download-srt":
@@ -276,18 +279,18 @@ export function useActionRunner(opts: RunnerOptions = {}) {
       case "finalize":
         return create.mutate(
           { feature: g.feature, modelId: g.modelId, op: "finalize", prompt: g.request.prompt, params: { draftId: o.draftId, resolution: "1080p", duration: g.request.params?.duration } },
-          { onSuccess: () => toast.success("Rendering the final 1080p version"), onError: (e) => toastError(e) },
+          { onSuccess: () => toast.success(t("studio.result.rendering1080p")), onError: (e) => toastError(e) },
         );
       case "rerender-2k":
         // fal's H3 at 2K: the same inputs, words and seed, a new render on the same hosted model (priced per second).
-        return create.mutate(rerenderRequest(g), { onSuccess: () => toast.success("Rendering it again at 2K"), onError: (e) => toastError(e) });
+        return create.mutate(rerenderRequest(g), { onSuccess: () => toast.success(t("studio.result.rerendering2k")), onError: (e) => toastError(e) });
       case "enhance-h3":
         // Open-H3 Regenerate at 1080p on your GPU (RIFE first for a 16 fps edit), from the edit's own words.
-        return create.mutate(enhanceRequest(g, o.url), { onSuccess: () => toast.success("Enhancing at 1080p on your GPU"), onError: (e) => toastError(e) });
+        return create.mutate(enhanceRequest(g, o.url), { onSuccess: () => toast.success(t("studio.result.enhancing1080p")), onError: (e) => toastError(e) });
       case "reuse":
         return opts.onReuse?.(g);
       case "make-skill":
-        if (!skillBuilder) return void toast.error("Make a skill from the Library or a studio page");
+        if (!skillBuilder) return void toast.error(t("studio.result.makeSkillFail"));
         return skillBuilder.open([g.id]);
       case "compare":
         return opts.onCompare?.();
@@ -295,7 +298,7 @@ export function useActionRunner(opts: RunnerOptions = {}) {
         return opts.onOpen?.(g, index);
       case "pin":
         void actions.pin([g], !g.pinnedAt);
-        return void toast(g.pinnedAt ? "Unpinned" : "Pinned to the top of the Library", { id: "pin" });
+        return void toast(g.pinnedAt ? t("studio.result.unpinned") : t("studio.result.pinned"), { id: "pin" });
       case "delete-own":
         return askDeleteForGood([g], opts.onDeleted);
       case "delete-upload":
@@ -305,11 +308,11 @@ export function useActionRunner(opts: RunnerOptions = {}) {
         return opts.onDeleted?.();
       case "restore":
         void actions.restore([g]);
-        return void toast("Restored");
+        return void toast(t("studio.result.restored"));
       case "delete-forever":
         if (confirmForever) return confirmForever([g], opts.onDeleted);
-        if (!window.confirm("Delete this for good? It's removed with its files and can't be recovered.")) return;
-        void actions.deleteForever([g]).then((done) => done && toast("Deleted for good"));
+        if (!window.confirm(t("studio.result.deleteForeverConfirm"))) return;
+        void actions.deleteForever([g]).then((done) => done && toast(t("studio.result.deletedOne")));
         return opts.onDeleted?.();
     }
   };
@@ -319,6 +322,7 @@ export function useActionRunner(opts: RunnerOptions = {}) {
 export function SaveElementForm({ g, o, onDone }: { g: Generation; o: OutputFile; onDone: () => void }) {
   const save = useSaveElement();
   const router = useRouter();
+  const { t } = useI18n();
   const [name, setName] = useState(() => characterName(g.request.prompt));
   const [kind, setKind] = useState<ElementKind>("character");
   const nameRef = useRef<HTMLInputElement>(null);
@@ -329,11 +333,11 @@ export function SaveElementForm({ g, o, onDone }: { g: Generation; o: OutputFile
   }, []);
   const submit = () =>
     save.mutate(
-      { name: name.trim() || "New character", kind, references: [o.url] },
+      { name: name.trim() || t("studio.result.newCharacter"), kind, references: [o.url] },
       {
         onSuccess: (el) => {
           onDone();
-          toast.success(`Saved as @${el.handle}`, { action: { label: "Open", onClick: () => router.push(`/elements/${el.id}`) } });
+          toast.success(t("studio.result.savedAs", { handle: el.handle }), { action: { label: t("studio.result.open"), onClick: () => router.push(`/elements/${el.id}`) } });
         },
         onError: (e) => toastError(e),
       },
@@ -349,7 +353,7 @@ export function SaveElementForm({ g, o, onDone }: { g: Generation; o: OutputFile
     >
       <div className="space-y-1">
         <label htmlFor={`el-name-${g.id}`} className="text-[12px] font-medium text-muted-foreground">
-          Save as element
+          {t("studio.result.saveAsElement")}
         </label>
         <input
           id={`el-name-${g.id}`}
@@ -357,11 +361,11 @@ export function SaveElementForm({ g, o, onDone }: { g: Generation; o: OutputFile
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={60}
-          placeholder="e.g. “Maya”"
+          placeholder={t("studio.result.namePlaceholder")}
           className="h-9 w-full rounded-lg border bg-background px-3 text-[14px] outline-none focus:border-primary focus:ring-4 focus:ring-brand-faint"
         />
       </div>
-      <div role="radiogroup" aria-label="Kind" className="flex flex-wrap gap-1 rounded-full bg-muted p-0.5">
+      <div role="radiogroup" aria-label={t("studio.attach.kind")} className="flex flex-wrap gap-1 rounded-full bg-muted p-0.5">
         {ELEMENT_KINDS.filter((k) => k.kind !== "voice").map((k) => (
           <button
             key={k.kind}
@@ -380,7 +384,7 @@ export function SaveElementForm({ g, o, onDone }: { g: Generation; o: OutputFile
         disabled={save.isPending}
         className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-full bg-primary text-[13px] font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
       >
-        <UserRoundPlus className="size-3.5" /> Save
+        <UserRoundPlus className="size-3.5" /> {t("common.save")}
       </button>
     </form>
   );
@@ -546,6 +550,7 @@ export function ActionMenu({
   defaultOpen?: boolean;
 }) {
   const actions = useGenerationActions();
+  const { t } = useI18n();
   const destructive = list.filter((a) => a.destructive);
   const rest = list.filter((a) => !a.destructive);
   // Focus goes back to ⋯ when the menu closes, except when it hands over to the Save-as-element popover.
@@ -593,7 +598,7 @@ export function ActionMenu({
           onSave();
         }}
       >
-        <Icon className={cn(a.id === "favorite" && g.favorite && "fill-current")} /> {a.id === "save-character" ? "Save as element…" : a.label}
+        <Icon className={cn(a.id === "favorite" && g.favorite && "fill-current")} /> {a.id === "save-character" ? t("studio.result.saveAsElementEllipsis") : a.label}
         <OwnSetupChip setup={a.ownSetup} className="ml-auto" />
       </DropdownMenuItem>
     );

@@ -20,6 +20,7 @@ import { opTakes, settingUnavailable, type OpTakes } from "@/lib/catalog/route-t
 import type { Unavailable } from "@/lib/unavailable";
 import { SliderControls } from "./audio-controls";
 import { Chip } from "./chip";
+import { useI18n } from "@/lib/i18n";
 import { radioKeys, radioTab } from "./radio-keys";
 import { ResponsivePanel } from "./responsive-panel";
 import { MultiShotControl } from "./shots-editor";
@@ -257,22 +258,23 @@ export interface SettingsPanelProps {
 export function SettingsChip(props: SettingsPanelProps) {
   const { model, shape, params, negativePrompt, className } = props;
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   const parts = settingsSummary(shape, params, model);
   const extra = hiddenChanges(params, negativePrompt, model);
-  const text = parts.length ? parts.join(" · ") : "Settings";
+  const text = parts.length ? parts.join(" · ") : t("studio.settings.title");
   // Icon-only on phones: the dot then also says the summary differs from the model's defaults.
   const changed = extra > 0 || parts.join() !== settingsSummary(shape, { ...model?.defaults }, model).join();
   return (
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
-      title="Settings"
+      title={t("studio.settings.title")}
       description={parts.length ? text : undefined}
       className="w-[min(92vw,400px)] p-3.5"
       trigger={
         <Chip
           icon={SlidersHorizontal}
-          aria-label={`Settings: ${parts.join(", ") || "defaults"}${extra ? `, ${extra} more changed` : ""}`}
+          aria-label={t("studio.settings.trigger", { parts: parts.join(", ") || t("studio.settings.defaults"), extra: extra ? ` ${extra}` : "" })}
           className={cn("relative tabular-nums max-sm:w-8 max-sm:justify-center max-sm:px-0", className)}
         >
           <span className="max-sm:hidden">{text}</span>
@@ -321,6 +323,7 @@ function FormatChoices({ formats, value, onChange, via }: { formats: VideoFormat
 }
 
 function SettingsBody({ model, op, shape, params: p, setP, setExtra, negativePrompt, setNegativePrompt, kind, enhancing, onRewrite, opNote, extras, onFormat, formatVia }: SettingsPanelProps) {
+  const { t } = useI18n();
   const opts = model?.options ?? {};
   const d = model?.defaults ?? {};
   const [advanced, setAdvanced] = useState(p.seed !== undefined || !!negativePrompt);
@@ -340,7 +343,7 @@ function SettingsBody({ model, op, shape, params: p, setP, setExtra, negativePro
     <div className="space-y-4">
       {extras && <div className="flex flex-wrap gap-1.5 sm:hidden">{extras}</div>}
       {shape.aspect && (
-        <Section label="Aspect ratio">
+        <Section label={t("studio.settings.aspectRatio")}>
           <AspectChoices
             options={shape.aspect}
             value={p.aspectRatio ?? d.aspectRatio ?? shape.aspect[0]}
@@ -350,14 +353,14 @@ function SettingsBody({ model, op, shape, params: p, setP, setExtra, negativePro
         </Section>
       )}
       {shape.formats && (
-        <Section label="Format">
+        <Section label={t("studio.settings.format")}>
           <FormatChoices formats={shape.formats} value={formatOf(p, model, shape.formats)!} onChange={(f) => (onFormat ? onFormat(f) : setP({ format: f }))} via={formatVia} />
         </Section>
       )}
       {shape.resolution && (
-        <Section label={op?.startsWith("upscale") ? "Resolution" : "Quality"}>
+        <Section label={op?.startsWith("upscale") ? t("studio.settings.resolution") : t("studio.settings.quality")}>
           <Segmented
-            label={op?.startsWith("upscale") ? "Resolution" : "Quality"}
+            label={op?.startsWith("upscale") ? t("studio.settings.resolution") : t("studio.settings.quality")}
             options={shape.resolution}
             value={p.resolution ?? d.resolution ?? shape.resolution[0]}
             onChange={(v) => setP({ resolution: v })}
@@ -373,26 +376,26 @@ function SettingsBody({ model, op, shape, params: p, setP, setExtra, negativePro
         </Section>
       )}
       {shape.fps && (
-        <Section label="Frame rate">
+        <Section label={t("studio.settings.frameRate")}>
           {/* 0 stands for the clip's own frame rate (nothing sent). */}
           <Segmented
-            label="Frame rate"
+            label={t("studio.settings.frameRate")}
             options={shape.fps.original ? [0, ...shape.fps.values] : shape.fps.values}
             value={p.targetFps ?? d.targetFps ?? (shape.fps.original ? 0 : shape.fps.values[0])}
             onChange={(v) => setP({ targetFps: v || undefined })}
-            format={(v) => (v ? `${v}` : "Original")}
+            format={(v) => (v ? `${v}` : t("studio.settings.original"))}
           />
         </Section>
       )}
       {shape.slowdown && (
-        <Section label="Slow motion">
-          <Segmented label="Slow motion" options={shape.slowdown} value={p.slowdown ?? 1} onChange={(v) => setP({ slowdown: v > 1 ? v : undefined })} format={(v) => (v > 1 ? `${v}×` : "Off")} />
+        <Section label={t("studio.settings.slowMotion")}>
+          <Segmented label={t("studio.settings.slowMotion")} options={shape.slowdown} value={p.slowdown ?? 1} onChange={(v) => setP({ slowdown: v > 1 ? v : undefined })} format={(v) => (v > 1 ? `${v}×` : t("studio.settings.off"))} />
         </Section>
       )}
       {shape.duration && (
-        <Section label="Duration">
+        <Section label={t("studio.settings.duration")}>
           <Segmented
-            label="Duration"
+            label={t("studio.settings.duration")}
             options={shape.duration}
             value={p.duration ?? d.duration ?? shape.duration[0]}
             onChange={(v) => setP({ duration: v })}
@@ -402,49 +405,49 @@ function SettingsBody({ model, op, shape, params: p, setP, setExtra, negativePro
         </Section>
       )}
       {shape.count && (
-        <Section label={kind === "video" ? "Videos" : "Images"}>
-          <Segmented label={kind === "video" ? "Videos" : "Images"} options={[1, 2, 3, 4]} value={p.numOutputs ?? 1} onChange={(v) => setP({ numOutputs: v })} format={(v) => `×${v}`} />
+        <Section label={kind === "video" ? t("studio.settings.videos") : t("studio.settings.images")}>
+          <Segmented label={kind === "video" ? t("studio.settings.videos") : t("studio.settings.images")} options={[1, 2, 3, 4]} value={p.numOutputs ?? 1} onChange={(v) => setP({ numOutputs: v })} format={(v) => `×${v}`} />
         </Section>
       )}
       {shape.sourceLanguages && (
-        <Section label="Spoken language">
+        <Section label={t("studio.settings.spokenLanguage")}>
           <SpokenLanguage codes={shape.sourceLanguages} value={p.sourceLanguage} onChange={(sourceLanguage) => setP({ sourceLanguage })} />
         </Section>
       )}
       {shape.matteOutput && model && (
-        <Section label="Output">
-          <Segmented label="Output" options={shape.matteOutput} value={p.matteOutput ?? shape.matteOutput[0]} onChange={(v) => setP({ matteOutput: v })} format={(v) => MATTE_OUTPUT_LABELS[v]} />
+        <Section label={t("studio.settings.output")}>
+          <Segmented label={t("studio.settings.output")} options={shape.matteOutput} value={p.matteOutput ?? shape.matteOutput[0]} onChange={(v) => setP({ matteOutput: v })} format={(v) => MATTE_OUTPUT_LABELS[v]} />
           <OptionNote text={videoToolNote(model, "matte")} />
         </Section>
       )}
       {shape.colormap && model && (
-        <Section label="Color map">
-          <Segmented label="Color map" options={shape.colormap} value={p.colormap ?? shape.colormap[0]} onChange={(v) => setP({ colormap: v })} format={colormapLabel} />
+        <Section label={t("studio.settings.colorMap")}>
+          <Segmented label={t("studio.settings.colorMap")} options={shape.colormap} value={p.colormap ?? shape.colormap[0]} onChange={(v) => setP({ colormap: v })} format={colormapLabel} />
           <OptionNote text={videoToolNote(model, "colormap")} />
         </Section>
       )}
       {shape.multiShot && model && (
-        <Section label="Multi-shot">
+        <Section label={t("studio.settings.multiShot")}>
           <MultiShotControl model={model} params={p} onChange={setP} />
         </Section>
       )}
       {(shape.draft || shape.audio || shape.enhance || shape.sideBySide) && (
         <div className="divide-y rounded-xl border px-3">
-          {shape.sideBySide && <Toggle label="Side by side" hint="Put the original video next to the depth map" checked={!!p.sideBySide} onChange={(v) => setP({ sideBySide: v })} />}
+          {shape.sideBySide && <Toggle label={t("studio.settings.sideBySide")} hint={t("studio.settings.originalNextToDepth")} checked={!!p.sideBySide} onChange={(v) => setP({ sideBySide: v })} />}
           {shape.draft && (
-            <Toggle label="Draft" hint={p.draft ? "Cheap 480p take — finish the one you like in 1080p" : "Preview at 480p first, then render the keeper in 1080p"} checked={!!p.draft} onChange={(v) => setP({ draft: v })} />
+            <Toggle label={t("studio.settings.draft")} hint={p.draft ? t("studio.settings.draftOnHint") : t("studio.settings.draftOffHint")} checked={!!p.draft} onChange={(v) => setP({ draft: v })} />
           )}
           {shape.audio && (
             <Toggle
-              label="Audio"
-              hint={p.generateAudio === false ? "Silent video (cheaper)" : "Native sound, music and dialogue"}
+              label={t("studio.settings.audio")}
+              hint={p.generateAudio === false ? t("studio.settings.silentVideo") : t("studio.settings.nativeSound")}
               checked={p.generateAudio !== false}
               onChange={(v) => setP({ generateAudio: v })}
               unavailable={!takes.audio && model ? `${model.name} sets its own sound here: this switch can't change it` : undefined}
             />
           )}
           {shape.enhance && (
-            <Toggle label="Enhance prompt" hint="Rewrites your prompt with more detail before it runs" checked={!!p.enhancePrompt} onChange={(v) => setP({ enhancePrompt: v })}>
+            <Toggle label={t("studio.settings.enhancePrompt")} hint={t("studio.settings.enhanceHint")} checked={!!p.enhancePrompt} onChange={(v) => setP({ enhancePrompt: v })}>
               {!visitor && (
                 <button
                   type="button"
@@ -452,7 +455,7 @@ function SettingsBody({ model, op, shape, params: p, setP, setExtra, negativePro
                   disabled={enhancing}
                   className="mt-1 inline-flex items-center gap-1 rounded text-[12px] font-medium text-brand-text outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60"
                 >
-                  {enhancing ? <Loader2 className="size-3 animate-spin" /> : <Wand2 className="size-3" />} Rewrite my prompt now
+                  {enhancing ? <Loader2 className="size-3 animate-spin" /> : <Wand2 className="size-3" />} {t("studio.settings.rewriteNow")}
                 </button>
               )}
             </Toggle>
@@ -460,7 +463,7 @@ function SettingsBody({ model, op, shape, params: p, setP, setExtra, negativePro
         </div>
       )}
       {shape.sliders && model && (
-        <Section label="Model settings">
+        <Section label={t("studio.settings.modelSettings")}>
           <SliderControls model={model} values={p.extra ?? {}} onChange={setExtra} />
         </Section>
       )}

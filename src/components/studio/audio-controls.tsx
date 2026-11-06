@@ -12,6 +12,7 @@ import { voiceOrigin } from "@/lib/voice-design";
 import { fileToSlot, type SlotValue } from "./media-slot";
 import { VoiceRecorder } from "./voice-recorder";
 import { useMaybeClean } from "@/components/audio-tools/clean-voice-switch";
+import { useI18n } from "@/lib/i18n";
 
 const chip = "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors";
 const idle = "bg-secondary text-secondary-foreground hover:bg-accent";
@@ -60,12 +61,13 @@ export function VoicePicker({
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const { t } = useI18n();
   const file = useRef<HTMLInputElement>(null);
   const saved = (useElements().data ?? []).filter((e) => e.kind === "voice" && e.references[0]);
   const presets = model.options.voices ?? [];
   const clone = !!model.options.voiceClone;
   const preset = presets.find((v) => v.id === voice || v.name === voice);
-  const current = sample?.ref ? (saved.find((e) => e.references[0] === sample.ref)?.name ?? sample.name ?? "Your sample") : preset?.name;
+  const current = sample?.ref ? (saved.find((e) => e.references[0] === sample.ref)?.name ?? sample.name ?? t("studio.audio.yourSample")) : preset?.name;
   const list = presets.filter((v) => !q || `${v.name} ${v.hint ?? ""}`.toLowerCase().includes(q.toLowerCase()));
   const pick = (c: VoiceChoice) => {
     onChange(c);
@@ -84,16 +86,16 @@ export function VoicePicker({
       <PopoverTrigger asChild>
         <button type="button" className={cn(chip, current ? on : idle)}>
           <User className="size-3.5" />
-          {current ?? (clone ? `${label}: add a sample` : label)}
+          {current ?? (clone ? `${label}: ${t("studio.audio.addSample")}` : label)}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-[min(92vw,340px)] p-1.5" align="start" side="top" collisionPadding={12}>
         {clone && (
-          <Section title="Clone a voice">
+          <Section title={t("studio.audio.cloneVoice")}>
             <div className="flex flex-wrap gap-1.5 px-2 pb-1">
               <VoiceRecorder clean onRecorded={(v) => pick({ kind: "sample", value: v })} />
               <button type="button" onClick={upload} className={cn(chip, idle)}>
-                <Upload className="size-3.5" /> Upload
+                <Upload className="size-3.5" /> {t("studio.attach.upload")}
               </button>
               <input
                 ref={file}
@@ -107,11 +109,11 @@ export function VoicePicker({
                 }}
               />
             </div>
-            <p className="px-2 pb-1 text-[11px] text-muted-foreground">{clean.busy ? "Cleaning the voice…" : "10–60 s of clean speech works best. Clean samples make cleaner clones: a clone copies room noise."}</p>
+            <p className="px-2 pb-1 text-[11px] text-muted-foreground">{clean.busy ? t("studio.audio.cleaningVoice") : t("studio.audio.voiceHint")}</p>
           </Section>
         )}
         {clone && (
-          <Section title="My voices">
+          <Section title={t("studio.audio.myVoices")}>
             {saved.length ? (
               saved.map((e) => (
                 <Row
@@ -120,14 +122,14 @@ export function VoicePicker({
                   onClick={() => pick({ kind: "sample", value: { ref: e.references[0], preview: e.references[0], kind: "audio", name: e.name } })}
                   icon={<AudioLines className="size-3.5" />}
                   name={e.name}
-                  hint={voiceOrigin(e.voice) ?? e.description ?? "Saved voice"}
+                  hint={voiceOrigin(e.voice) ?? e.description ?? t("studio.audio.savedVoice")}
                 />
               ))
             ) : (
               <p className="px-2 pb-1 text-[12px] text-muted-foreground">
-                Save voices you reuse in{" "}
+                {t("studio.audio.saveVoicesHint")}{" "}
                 <Link href="/elements?new=1" className="text-brand-text underline underline-offset-2">
-                  Elements
+                  {t("studio.audio.elements")}
                 </Link>
                 .
               </p>
@@ -135,12 +137,12 @@ export function VoicePicker({
           </Section>
         )}
         {presets.length > 0 && (
-          <Section title="Voices">
+          <Section title={t("studio.audio.voices")}>
             {presets.length > 8 && (
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search voices"
+                placeholder={t("studio.audio.searchVoices")}
                 className="mx-2 mb-1 h-8 w-[calc(100%-1rem)] rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
               />
             )}
@@ -158,7 +160,7 @@ export function VoicePicker({
             </div>
           </Section>
         )}
-        {!clone && !presets.length && <p className="p-3 text-[13px] text-muted-foreground">{model.name} uses its own voice.</p>}
+        {!clone && !presets.length && <p className="p-3 text-[13px] text-muted-foreground">{t("studio.audio.modelOwnVoice", { model: model.name })}</p>}
       </PopoverContent>
     </Popover>
   );
@@ -206,6 +208,7 @@ const langLabel = (l: string) => (/^[a-z]{2,3}$/.test(l) ? (display?.of(l) ?? l)
 export function LanguageChip({ languages, value, onChange, label = "Translate to…" }: { languages: string[]; value?: string; onChange: (v: string) => void; label?: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const { t } = useI18n();
   const list = useMemo(() => languages.filter((l) => !q || langLabel(l).toLowerCase().includes(q.toLowerCase())), [languages, q]);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -219,7 +222,7 @@ export function LanguageChip({ languages, value, onChange, label = "Translate to
           autoFocus
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search languages"
+          placeholder={t("studio.audio.searchLanguages")}
           className="mb-1 h-8 w-full rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
         />
         <div className="max-h-72 overflow-y-auto">
@@ -250,6 +253,7 @@ type Line = NonNullable<GenParams["dialogue"]>[number];
 /** Script with one voice per line (ElevenLabs Dialogue). */
 export function DialogueEditor({ model, lines, onChange }: { model: ModelDef; lines: Line[]; onChange: (l: Line[]) => void }) {
   const voices = model.options.voices ?? [];
+  const { t } = useI18n();
   const set = (i: number, patch: Partial<Line>) => onChange(lines.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const chars = lines.reduce((n, l) => n + l.text.length, 0);
   return (
@@ -260,7 +264,7 @@ export function DialogueEditor({ model, lines, onChange }: { model: ModelDef; li
             value={l.voice ?? ""}
             onChange={(e) => set(i, { voice: e.target.value })}
             className="h-8 w-32 shrink-0 rounded-lg border bg-background px-2 text-[13px] font-medium outline-none focus:border-primary"
-            aria-label={`Voice for line ${i + 1}`}
+            aria-label={t("studio.audio.voiceForLine", { n: i + 1 })}
           >
             {voices.map((v) => (
               <option key={v.id} value={v.id}>
@@ -272,14 +276,14 @@ export function DialogueEditor({ model, lines, onChange }: { model: ModelDef; li
             value={l.text}
             onChange={(e) => set(i, { text: e.target.value })}
             rows={1}
-            placeholder={i % 2 ? "…and the reply." : "What does the first speaker say?"}
+            placeholder={i % 2 ? t("studio.audio.secondLine") : t("studio.audio.firstLine")}
             className="field-sizing-content max-h-32 min-h-8 flex-1 resize-none bg-transparent py-1 text-[14px] leading-snug outline-none placeholder:text-subtle-foreground"
           />
           <button
             onClick={() => onChange(lines.filter((_, j) => j !== i))}
             disabled={lines.length <= 1}
             className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
-            aria-label={`Remove line ${i + 1}`}
+            aria-label={t("studio.audio.removeLine", { n: i + 1 })}
           >
             <X className="size-3.5" />
           </button>
@@ -291,14 +295,14 @@ export function DialogueEditor({ model, lines, onChange }: { model: ModelDef; li
           onClick={() => onChange([...lines, { text: "", voice: lines.at(-2)?.voice ?? voices[0]?.id }])}
           className="inline-flex items-center gap-1 text-[12px] font-medium text-brand-text hover:underline"
         >
-          <Plus className="size-3" /> Add line
+          <Plus className="size-3" /> {t("studio.audio.addLine")}
         </button>
         {lines.length > 1 && (
           <button
             onClick={() => onChange(lines.slice(0, -1))}
             className="ml-3 inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground"
           >
-            <Minus className="size-3" /> Last line
+            <Minus className="size-3" /> {t("studio.audio.lastLine")}
           </button>
         )}
         <span className="ml-auto font-mono text-[11px] text-muted-foreground">{chars} chars</span>
