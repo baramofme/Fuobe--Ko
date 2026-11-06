@@ -1,0 +1,20 @@
+{
+  "nav.homeAria": "Fuobe 홈",
+  "nav.assist": "어시스트",
+  "nav.library": "라이브러리",
+  "nav.more": "더보기",
+  "nav.search": "Fuobe에서 검색",
+  "nav.searchWide": "스튜디오, 앱, 효과 검색…",
+  "nav.newCreation": "새 작업",
+  "nav.seeAllMotions": "모션 & 효과 전체 보기",
+  "selector.label": "언어",
+  "selector.switchTo": "언어 변경",
+  "selector.english": "English",
+  "selector.korean": "한국어",
+  "common.close": "닫기",
+  "common.cancel": "취소",
+  "common.save": "저장",
+  "common.retry": "다시 시도",
+  "common.loading": "불러오는 중…",
+  "common.welcome": "{name}님, 환영합니다!"
+}

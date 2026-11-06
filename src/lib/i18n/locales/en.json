@@ -1,0 +1,20 @@
+{
+  "nav.homeAria": "Fuobe home",
+  "nav.assist": "Assist",
+  "nav.library": "Library",
+  "nav.more": "More",
+  "nav.search": "Search Fuobe",
+  "nav.searchWide": "Search studios, apps, effects…",
+  "nav.newCreation": "New creation",
+  "nav.seeAllMotions": "See all motions & effects",
+  "selector.label": "Language",
+  "selector.switchTo": "Switch language",
+  "selector.english": "English",
+  "selector.korean": "한국어",
+  "common.close": "Close",
+  "common.cancel": "Cancel",
+  "common.save": "Save",
+  "common.retry": "Retry",
+  "common.loading": "Loading…",
+  "common.welcome": "Welcome, {name}!"
+}

@@ -19,6 +19,7 @@ const GuidedFixHost = dynamic(() => import("@/components/gpu/guided-fix").then((
 const ComputerRunnerHost = dynamic(() => import("@/components/gpu/computer-runner").then((m) => m.ComputerRunnerHost), { ssr: false });
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { HtmlLang } from "@/lib/i18n";
 
 /** Answers a retry can't change: signed out, not allowed, not there. */
 const NO_RETRY = new Set([401, 403, 404]);
@@ -55,6 +56,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={client}>
         <TooltipProvider delayDuration={300}>
+          {/* The document's language follows the language the person chose (it ships as "en"). */}
+          <HtmlLang />
           {children}
           {/* Below the top bar on a desktop (56 px and a gap), near the top on a phone (its tabs are at the bottom). */}
           <Toaster position="top-center" gap={8} offset={{ top: 68 }} mobileOffset={{ top: 12 }} />
