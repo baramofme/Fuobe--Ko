@@ -3,6 +3,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { MEGA_AREAS, megaMove, megaPanelId, TILE_COLS, type MegaId } from "@/lib/mega-menus";
 import { launcherActive, subActive } from "@/lib/nav-model";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useBarMenu } from "./bar-menus";
 import { BarTrigger } from "./bar-split";
@@ -44,6 +45,9 @@ export const LAUNCHER_PANEL = "absolute inset-x-0 top-full max-h-[calc(100dvh-3.
 
 /** The routes a menu's links lead to that load ahead when it opens (each row also loads on hover: IntentLink). */
 const WARM: Record<MegaId, NavPanel> = { studios: "studios", apps: "more", motions: "more", canvas: "more" };
+
+/** The panel's accessible name, looked up in the language of the switch (the bar's words go by the item's id). */
+const PANEL_KEY: Record<MegaId, string> = { studios: "nav.panelStudios", apps: "nav.panelApps", motions: "nav.panelMotions", canvas: "nav.panelCanvas" };
 
 /** The item of a menu the open page is (aria-current): a studio or one of its features, an app, a preset, a ready board. */
 export function megaCurrent(id: MegaId, pathname: string, search = ""): string | undefined {
@@ -116,6 +120,7 @@ export function MegaSkeleton({ id }: { id?: MegaId }) {
  */
 export function MegaLauncher({ id, active, className }: { id: MegaId; active?: boolean; className?: string }) {
   const area = MEGA_AREAS[id];
+  const { t } = useI18n();
   const search = useSearchPalette();
   const [warm, setWarm] = useState(false);
   const heat = useCallback(() => {
@@ -138,7 +143,7 @@ export function MegaLauncher({ id, active, className }: { id: MegaId; active?: b
         id={id}
         panelId={megaPanelId(id)}
         href={area.href}
-        label={area.label}
+        label={t(`nav.${id}`)}
         active={active}
         open={open}
         handlers={trigger}
@@ -155,7 +160,7 @@ export function MegaLauncher({ id, active, className }: { id: MegaId; active?: b
         data-mega-panel={id}
         data-phase={phase}
         data-mega-enter={entered}
-        aria-label={area.panel}
+        aria-label={t(PANEL_KEY[id])}
         hidden={phase === "gone"}
         inert={phase !== "open"}
         aria-hidden={phase === "exit" || undefined}

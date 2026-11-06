@@ -13,6 +13,7 @@ import { navActive } from "@/lib/nav";
 import { ms } from "@/lib/ui-motion";
 import { activeEntry } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 const NO_SEARCH = new URLSearchParams();
 
@@ -53,6 +54,7 @@ function useYouDot(): TabDot {
 
 function Tabs({ pathname }: { pathname: string }) {
   const { sheet, setSheet } = useNavUi();
+  const { t } = useI18n();
   const entry = pathname ? activeEntry(pathname, NO_SEARCH) : undefined;
   const active = activePhoneTab(pathname, sheet, entry);
   const dot = useYouDot();
@@ -89,11 +91,11 @@ function Tabs({ pathname }: { pathname: string }) {
   };
   return (
     <>
-      {linkTab("home", "/", "Home", House)}
-      {sheetTab("create", "Create", Plus)}
-      {sheetTab("studios", "Studios", LayoutGrid)}
-      {linkTab("library", "/library", "Library", Library)}
-      {sheetTab("you", "You", CircleUserRound, dot)}
+      {linkTab("home", "/", t("nav.home"), House)}
+      {sheetTab("create", t("nav.create"), Plus)}
+      {sheetTab("studios", t("nav.studios"), LayoutGrid)}
+      {linkTab("library", "/library", t("nav.library"), Library)}
+      {sheetTab("you", t("nav.you"), CircleUserRound, dot)}
     </>
   );
 }
@@ -147,6 +149,7 @@ function useKeyboardFlag() {
  */
 export function PhoneTabs() {
   const { sheet } = useNavUi();
+  const { t } = useI18n();
   useKeyboardFlag();
   // Stays above a closing sheet until its slide out ends, so the sheet goes back under the bar the way it came.
   const [lastSheet, setLastSheet] = useState(sheet);
@@ -157,13 +160,13 @@ export function PhoneTabs() {
   }
   useEffect(() => {
     if (!closing) return;
-    const t = window.setTimeout(() => setClosing(false), ms("base") + 40);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setClosing(false), ms("base") + 40);
+    return () => window.clearTimeout(timer);
   }, [closing]);
   const raised = !!sheet || closing;
   return (
     <nav
-      aria-label="Main"
+      aria-label={t("nav.main")}
       data-phone-tabs
       className={cn(
         "pointer-events-auto fixed inset-x-0 bottom-0 grid h-[calc(4rem+env(safe-area-inset-bottom))] grid-cols-5 border-t border-sidebar-border bg-sidebar/95 pt-[3px] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[calc(0.25rem+env(safe-area-inset-bottom))] pl-[max(0.5rem,env(safe-area-inset-left))] backdrop-blur md:hidden print:hidden [html[data-fullscreen-studio]_&]:hidden [html[data-keyboard-open]_&]:hidden",

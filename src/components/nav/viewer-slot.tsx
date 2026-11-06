@@ -7,6 +7,7 @@ import type { ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "./account-menu";
 import { useViewerKind } from "./nav-ui";
+import { useI18n } from "@/lib/i18n";
 
 /*
  * The bar's right end: who is looking. The server's shell is the same for everyone, so until the viewer is known it is
@@ -28,13 +29,14 @@ const GUEST_BUTTON =
   "nav-focus-out inline-flex h-10 shrink-0 items-center justify-center rounded-full text-[13.5px] [@media(pointer:coarse)]:h-11 font-medium whitespace-nowrap motion-safe:transition-colors";
 
 function GuestButtons({ here }: { here: string }) {
+  const { t } = useI18n();
   return (
     <>
       <a href={signInHref("login", here)} className={cn(GUEST_BUTTON, "hidden w-[68px] text-foreground/80 nav-hover:bg-[var(--nav-hi)] nav-hover:text-foreground active:bg-[var(--nav-press)] min-[1440px]:inline-flex")}>
-        Log in
+        {t("auth.login")}
       </a>
       <a href={signInHref("signup", here)} className={cn(GUEST_BUTTON, "w-[84px] bg-primary font-semibold text-primary-foreground nav-hover:bg-primary/90 active:bg-primary/85")}>
-        Sign up
+        {t("auth.signup")}
       </a>
     </>
   );

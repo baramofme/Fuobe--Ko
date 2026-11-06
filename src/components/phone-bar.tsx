@@ -14,13 +14,14 @@ const SHORT: Record<Lang, string> = { en: "EN", ko: "KO" };
 /** Opens the search: the way to search on a phone, where there's no keyboard shortcut. */
 export function SearchButton({ className }: { className?: string }) {
   const search = useSearchPalette();
+  const { t } = useI18n();
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon"
       className={cn("nav-row size-11 rounded-full text-muted-foreground focus-visible:border-transparent focus-visible:ring-0 motion-reduce:transition-none", className)}
-      aria-label="Search"
+      aria-label={t("nav.searchAria")}
       aria-haspopup="dialog"
       onTouchStart={search.warm}
       onPointerEnter={search.warm}
@@ -73,6 +74,7 @@ function PhoneLangSelector({ className }: { className?: string }) {
  * rest. Clear of the notch and the rounded corners. Hidden from md up, where the top bar shows.
  */
 export function PhoneBar({ className }: { className?: string }) {
+  const { t } = useI18n();
   return (
     <div
       className={cn(
@@ -83,7 +85,7 @@ export function PhoneBar({ className }: { className?: string }) {
       <IntentLink
         href="/"
         eager
-        aria-label="Fuobe home"
+        aria-label={t("nav.homeAria")}
         className="nav-focus rounded-md px-1 font-heading text-[22px] leading-none"
       >
         Fuobe

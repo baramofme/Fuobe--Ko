@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef } from "react";
 import { IntentLink } from "@/components/intent-link";
 import { Kbd } from "@/components/ui/kbd";
 import { NEW_CREATION_HREF } from "@/lib/nav";
+import { useI18n } from "@/lib/i18n";
 import { area, areaOfPath, areaPageOf, type AreaId } from "@/lib/nav-areas";
 import { activeEntry, entry, type NavEntry } from "@/lib/nav-model";
 import { isPlainClick, useTappedTab } from "@/lib/use-tapped-tab";
@@ -107,6 +108,7 @@ const MOTIONS_AREA_HREF = area("motions").href;
 
 function MoreItems() {
   const on = useOn();
+  const { t } = useI18n();
   return (
     <>
       {pick(["apps", "motions", "effects"]).map((e, i) => (
@@ -115,7 +117,7 @@ function MoreItems() {
         </div>
       ))}
       <div className="xl:hidden">
-        <SeeAllRow href={MOTIONS_AREA_HREF} name="See all motions & effects" data-col={0} data-row={3} className="mt-1" />
+        <SeeAllRow href={MOTIONS_AREA_HREF} name={t("nav.seeAllMotions")} data-col={0} data-row={3} className="mt-1" />
         <div role="separator" className="mx-2.5 my-1.5 h-px bg-border" />
       </div>
       {pick(["canvas", "assist"]).map((e, i) => (
@@ -138,10 +140,11 @@ const warmMore = () => warmNav("more");
 
 /** More: the bar's items that don't fit at this width (each hides here where the bar shows it). One button, as every menu item. */
 function MoreMenu({ active }: { active: Active }) {
+  const { t } = useI18n();
   return (
     <BarCardMenu
       id="more"
-      label="More"
+      label={t("nav.more")}
       icon={<MoreHorizontal aria-hidden className="size-4" />}
       onOpen={warmMore}
       cardClassName="w-80"
@@ -160,6 +163,7 @@ function MoreMenu({ active }: { active: Active }) {
  * from the next frame on, before its page arrives.
  */
 function BarLinks({ active, onTap }: { active: Active; onTap?: (href: string) => void }) {
+  const { t } = useI18n();
   const cur = (on: boolean) => (on ? "page" : undefined);
   const tap = (href: string) => (e: React.MouseEvent) => isPlainClick(e) && onTap?.(href);
   return (
@@ -171,10 +175,10 @@ function BarLinks({ active, onTap }: { active: Active; onTap?: (href: string) =>
       <MegaLauncher id="motions" active={active.motions || active.page === "motions"} className="hidden xl:inline-flex" />
       <MegaLauncher id="canvas" active={active.canvas || active.canvasHome} className="hidden min-[1440px]:inline-flex" />
       <IntentLink href="/assist" eager data-bar-item="" onClick={tap("/assist")} aria-current={cur(active.assist)} className={cn(BAR_ITEM, "hidden min-[1440px]:inline-flex")}>
-        Assist
+        {t("nav.assist")}
       </IntentLink>
       <IntentLink href="/library" eager data-bar-item="" onClick={tap("/library")} aria-current={cur(active.library)} className={BAR_ITEM}>
-        Library
+        {t("nav.library")}
       </IntentLink>
       <MoreMenu active={active} />
     </>
@@ -191,6 +195,7 @@ function ActiveBarLinks() {
 /** Search, styled as a field from lg (an icon button at md): opens the palette; hover or focus starts loading it. */
 function SearchField() {
   const search = useSearchPalette();
+  const { t } = useI18n();
   return (
     <button
       type="button"
@@ -209,8 +214,8 @@ function SearchField() {
       {/* Its name is the words it shows: "Search Fuobe" to 1599 px, the longer line from 1600 where the field is 280 px
           wide (sr-only below lg). One line always: not-sr-only would let it wrap. */}
       <span className="sr-only min-w-0 flex-1 truncate text-left lg:not-sr-only lg:whitespace-nowrap">
-        <span className="min-[1600px]:hidden">Search Fuobe</span>
-        <span className="hidden min-[1600px]:inline">Search studios, apps, effects…</span>
+        <span className="min-[1600px]:hidden">{t("nav.search")}</span>
+        <span className="hidden min-[1600px]:inline">{t("nav.searchWide")}</span>
       </span>
       <Kbd aria-hidden className="hidden lg:inline-flex [@media(hover:none)]:hidden">
         /
@@ -225,6 +230,7 @@ function SearchField() {
  * is Sign up.
  */
 function NewCreation() {
+  const { t } = useI18n();
   return (
     <IntentLink
       href={NEW_CREATION_HREF}
@@ -232,7 +238,7 @@ function NewCreation() {
       className="nav-focus-out inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border-strong px-2.5 text-[14px] font-semibold whitespace-nowrap text-foreground nav-hover:bg-[var(--nav-hi)] active:bg-[var(--nav-press)] [@media(pointer:coarse)]:h-11 [html[data-viewer]:not([data-viewer=guest])_&]:border-transparent [html[data-viewer]:not([data-viewer=guest])_&]:bg-primary [html[data-viewer]:not([data-viewer=guest])_&]:text-primary-foreground [html[data-viewer]:not([data-viewer=guest])_&]:nav-hover:bg-primary/90 [html[data-viewer]:not([data-viewer=guest])_&]:active:bg-primary/85 motion-safe:transition-colors lg:pr-4 lg:pl-3"
     >
       <Plus aria-hidden className="size-[18px]" />
-      <span className="sr-only lg:not-sr-only">New creation</span>
+      <span className="sr-only lg:not-sr-only">{t("nav.newCreation")}</span>
     </IntentLink>
   );
 }
@@ -294,6 +300,7 @@ function MenuPrefetch() {
 /** The main nav: its keys (Left and Right along the items); the first pointer or focus near it warms the menus. */
 function MainNav({ children }: { children: React.ReactNode }) {
   const ctl = useBarController();
+  const { t } = useI18n();
   const warmed = useRef(false);
   const warm = () => {
     if (warmed.current) return;
@@ -301,7 +308,7 @@ function MainNav({ children }: { children: React.ReactNode }) {
     warmBar();
   };
   return (
-    <nav aria-label="Main" className="flex min-w-0 items-center gap-0.5" onKeyDown={(e) => ctl?.navKey(e)} onPointerEnter={warm} onFocus={warm}>
+    <nav aria-label={t("nav.main")} className="flex min-w-0 items-center gap-0.5" onKeyDown={(e) => ctl?.navKey(e)} onPointerEnter={warm} onFocus={warm}>
       {children}
     </nav>
   );
@@ -323,6 +330,7 @@ function BarHeader({ children }: { children: React.ReactNode }) {
 
 /** The bar. Hidden below md and in print; same height on every page, full-screen studios included. */
 export function TopBar() {
+  const { t } = useI18n();
   return (
     <BarMenusProvider>
       <BarHeader>
@@ -332,7 +340,7 @@ export function TopBar() {
           <IntentLink
             href="/"
             eager
-            aria-label="Fuobe home"
+            aria-label={t("nav.homeAria")}
             className="nav-focus mr-1.5 inline-flex shrink-0 items-center self-stretch rounded-md px-1 font-heading text-[24px] leading-none lg:mr-3"
           >
             Fuobe

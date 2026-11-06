@@ -8,6 +8,7 @@ import { navActive, NEW_CREATION_HREF } from "@/lib/nav";
 import { area } from "@/lib/nav-areas";
 import { CREATE_COLUMNS, entry, visibleTo, type NavEntry, type ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { BarCardMenu } from "./bar-split";
 import { warmNav } from "./nav-prefetch";
 import { NavIcon } from "./cover-thumb";
@@ -49,12 +50,13 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
   const pathname = usePathname();
   const columns = createColumns(kind);
   const ids = useId();
+  const { t } = useI18n();
   if (variant === "menu")
     return (
       <>
         {/* The area's own page: first in Tab order (the item, then See all, then the rows), at the top right. */}
         <div className="absolute top-1.5 right-1.5 z-10">
-          <SeeAllRow href={CREATE_AREA_HREF} name="See all of Create" data-see-all className="h-8" />
+          <SeeAllRow href={CREATE_AREA_HREF} name={t("nav.seeAllCreate")} data-see-all className="h-8" />
         </div>
         <div className="grid grid-cols-2 gap-x-1.5">
           {columns.map((c, i) => (
@@ -88,7 +90,7 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
         <div role="separator" className="mx-2.5 my-1.5 h-px bg-border" />
         <IntentLink href={NEW_CREATION_HREF} eager data-col={0} data-row={columns[0]?.entries.length ?? 0} className={cn(CARD_ROW, MENU_ROW_1, "font-medium")}>
           <Plus aria-hidden className="size-4 text-brand-text" />
-          New creation
+          {t("nav.newCreation")}
         </IntentLink>
       </>
     );
@@ -103,7 +105,7 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
         className="nav-focus-out flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-[15px] font-semibold text-primary-foreground nav-hover:bg-primary/90 active:bg-primary/85"
       >
         <Plus aria-hidden className="size-5" />
-        New creation
+        {t("nav.newCreation")}
       </IntentLink>
       {columns.map((c, i) => (
         <section key={c.label} aria-labelledby={`${ids}-s${i}`} className="flex flex-col">
@@ -162,8 +164,9 @@ const warmCreate = () => warmNav("create");
  * Space or ArrowDown). Its page (/create) is the card's first link, "See all". `active`: a Create page is open.
  */
 export function CreateMenu({ active }: { active?: boolean }) {
+  const { t } = useI18n();
   return (
-    <BarCardMenu id="create" href={CREATE_AREA_HREF} label="Create" active={active} onOpen={warmCreate} cardClassName="relative w-[520px] max-w-[calc(100vw-24px)]">
+    <BarCardMenu id="create" href={CREATE_AREA_HREF} label={t("nav.create")} active={active} onOpen={warmCreate} cardClassName="relative w-[520px] max-w-[calc(100vw-24px)]">
       <CreateList variant="menu" />
     </BarCardMenu>
   );

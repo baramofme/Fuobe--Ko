@@ -16,6 +16,7 @@ import { useModKey } from "@/lib/keys";
 import { entriesFor, entry, LAUNCHER_GROUPS, launcherEntries, studioCount, visibleTo, type LauncherGroupId, type NavEntry } from "@/lib/nav-model";
 import { isExternal, isThemeAction, navSearchEntries, searchNav, type NavHit, type SearchResult } from "@/lib/nav-search";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import { useViewerKind } from "./nav-ui";
 import { fetchPaletteIndex, PALETTE_INDEX_KEY, type PaletteScope, type PaletteSession } from "./search-context";
@@ -64,6 +65,7 @@ export function returnFocus(el: Element | null) {
 export function SearchPalette({ session, onClose, takeReturn }: { session: PaletteSession; onClose: () => void; takeReturn: () => Element | null }) {
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
+  const { t } = useI18n();
   const [viewing, setViewing] = useState<Generation | null>(null);
   // Set when the palette closes onto something else (a page, the viewer): focus stays with that.
   const leaving = useRef(false);
@@ -118,9 +120,9 @@ export function SearchPalette({ session, onClose, takeReturn }: { session: Palet
               "motion-safe:duration-150 motion-safe:data-open:animate-in motion-safe:data-open:fade-in-0 motion-safe:data-closed:animate-out motion-safe:data-closed:fade-out-0 md:motion-safe:data-open:zoom-in-98",
             )}
           >
-            <DialogPrimitive.Title className="sr-only">Search Fuobe</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="sr-only">{t("nav.search")}</DialogPrimitive.Title>
             <DialogPrimitive.Description className="sr-only">
-              Find a studio, a tool, an app, a camera motion, an effect, a model, a setting or a recent creation, or browse every studio.
+              {t("search.description")}
             </DialogPrimitive.Description>
             <PaletteBody key={session.id} initialQuery={session.query ?? ""} initialGroup={session.group} initialScope={session.scope} onPick={pick} onOpenRecent={openRecent} onClose={onClose} />
           </DialogPrimitive.Content>
@@ -195,6 +197,7 @@ export function PaletteBody({
   const [scope, setScope] = useState(initialScope);
   const dq = useDebounced(q.trim(), 200);
   const kind = useViewerKind();
+  const { t } = useI18n();
   const mode = useEngineMode();
   const access = useModelAccess();
   const index = useQuery({ queryKey: PALETTE_INDEX_KEY, queryFn: fetchPaletteIndex, staleTime: Infinity });
@@ -237,7 +240,7 @@ export function PaletteBody({
       loop
       value={selected}
       onValueChange={(value) => setMoved({ q, group, value })}
-      label="Search Fuobe"
+      label={t("nav.search")}
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="flex h-[68px] shrink-0 items-center gap-3.5 border-b border-brand-text/25 pr-3.5 pl-[22px] max-md:pl-4">
@@ -265,15 +268,15 @@ export function PaletteBody({
           value={q}
           onValueChange={setQ}
           autoFocus
-          placeholder="What do you want to make?"
-          aria-label="Search studios, apps, motions and effects"
+          placeholder={t("search.placeholder")}
+          aria-label={t("search.aria")}
           className="h-11 min-w-0 flex-1 bg-transparent text-[20px] caret-brand-text outline-none placeholder:text-muted-foreground max-md:text-[17px]"
         />
-        {index.isLoading && searching && <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none" aria-label="Loading the catalog" />}
+        {index.isLoading && searching && <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none" aria-label={t("search.loadingAria")} />}
         {q && (
           <button
             type="button"
-            aria-label="Clear search"
+            aria-label={t("search.clearAria")}
             onKeyDown={keepKeys}
             onClick={() => {
               setQ("");
@@ -313,7 +316,7 @@ export function PaletteBody({
               Every studio
             </span>
             <span className="text-[12px] text-muted-foreground">{groupLabel ? `${tiles.length} in ${groupLabel}` : studioCount()}</span>
-            <TabRow role="group" aria-label="Show the studios for one goal" follow className="mt-1 w-[calc(100%+8px)] md:mt-0 md:ml-auto md:w-auto md:overflow-visible">
+            <TabRow role="group" aria-label={t("search.goalsAria")} follow className="mt-1 w-[calc(100%+8px)] md:mt-0 md:ml-auto md:w-auto md:overflow-visible">
               {(["all", ...LAUNCHER_GROUPS.map((g) => g.id)] as Group[]).map((id) => {
                 const g = LAUNCHER_GROUPS.find((x) => x.id === id);
                 const on = group === id;
@@ -414,24 +417,25 @@ export function PaletteBody({
 
 function Hints() {
   const mod = useModKey();
+  const { t } = useI18n();
   const cap = "h-[22px] min-w-[22px] rounded-md border border-b-2 bg-secondary px-1.5 text-[11px] text-foreground";
   return (
     <div className="flex h-[46px] shrink-0 items-center gap-3 border-t bg-muted/40 px-6 text-[12px] text-muted-foreground max-md:hidden [@media(hover:none)]:hidden">
       <span className="flex items-center gap-1">
         <Kbd className={cap}>↑</Kbd>
         <Kbd className={cap}>↓</Kbd>
-        <span className="ml-1">to move</span>
+        <span className="ml-1">{t("search.toMove")}</span>
       </span>
       <span aria-hidden>·</span>
       <span className="flex items-center gap-2">
-        <Kbd className={cap}>Enter</Kbd> to open
+        <Kbd className={cap}>Enter</Kbd> {t("search.toOpen")}
       </span>
       <span aria-hidden>·</span>
       <span className="flex items-center gap-2">
-        <Kbd className={cap}>Esc</Kbd> to close
+        <Kbd className={cap}>Esc</Kbd> {t("search.toClose")}
       </span>
       <span className="ml-auto flex items-center gap-1.5">
-        Open it from anywhere with <Kbd className={cap}>/</Kbd> or <Kbd className={cap}>{mod === "⌘" ? "⌘K" : "Ctrl+K"}</Kbd>
+        {t("search.anywhere")} <Kbd className={cap}>/</Kbd> {t("search.or")} <Kbd className={cap}>{mod === "⌘" ? "⌘K" : "Ctrl+K"}</Kbd> {t("search.anywhereTail")}
       </span>
     </div>
   );

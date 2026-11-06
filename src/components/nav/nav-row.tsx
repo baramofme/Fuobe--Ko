@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { DropdownMenu as MenuPrimitive } from "radix-ui";
 import { IntentLink } from "@/components/intent-link";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 /*
@@ -48,6 +49,7 @@ export const CARD_ROW =
 /** "See all": the area's own page, a one-line link in the brand's colour (`name`: for a screen reader). */
 export function SeeAllRow({ href, name, className, ...rest }: { href: string; name: string; className?: string } & Omit<React.ComponentProps<typeof IntentLink>, "href">) {
   const pathname = usePathname();
+  const { t } = useI18n();
   return (
     <IntentLink
       href={href}
@@ -56,7 +58,7 @@ export function SeeAllRow({ href, name, className, ...rest }: { href: string; na
       className={cn(CARD_ROW, "group/all h-10 gap-2 font-medium text-brand-text", className)}
       {...rest}
     >
-      See all
+      {t("nav.seeAll")}
       <ArrowRight aria-hidden className="size-4 motion-safe:transition-transform group-hover/all:translate-x-0.5 group-focus-visible/all:translate-x-0.5" />
     </IntentLink>
   );

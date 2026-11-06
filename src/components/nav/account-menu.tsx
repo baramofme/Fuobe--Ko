@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { signInHref, signOut, useEngineMode, useViewer } from "@/lib/api";
 import type { ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { ConnectedAccounts } from "./connected-accounts";
 import { ExploreProgress } from "./explore-progress";
 import { useViewerKind } from "./nav-ui";
@@ -271,7 +272,8 @@ export function AccountSections({ variant, onNavigate }: { variant: Variant; onN
 export function AccountMenu({ kind }: { kind: ViewerKind }) {
   const email = useViewer().data?.account?.email;
   const dot = avatarDot(kind, useShownStatus(), useEngineMode());
-  const label = kind === "guest" ? "Menu" : kind === "account" && email ? `Account: ${email}` : `Account and settings${dot === "warn" ? ", something needs a look" : ""}`;
+  const { t } = useI18n();
+  const label = kind === "guest" ? t("account.menu") : kind === "account" && email ? t("account.email", { email }) : dot === "warn" ? t("account.settingsWarn") : t("account.settings");
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
