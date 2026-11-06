@@ -229,6 +229,47 @@ step("phone: the header and the tabs switch the same way");
   await page.close();
 }
 
+step("studio: the composer's labels switch to Korean");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "studio");
+  await openRoute(page, `${app}/image`);
+  // In English first: the run control reads as "Generate".
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(200);
+  check("the run button reads “Generate” in English", await page.getByRole("button", { name: "Generate" }).first().isVisible().catch(() => false), "");
+  const trigger = page.locator('button:has(svg.lucide-globe)').locator("visible=true").first();
+  await trigger.waitFor({ timeout: 15_000 });
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(400);
+  check("the run button reads “생성” after the switch", await page.getByRole("button", { name: "생성" }).first().isVisible().catch(() => false), "");
+  check("no English “Generate” left in the composer", !(await page.getByRole("button", { name: "Generate" }).first().isVisible().catch(() => false)), "");
+  await page.close();
+}
+
+step("RSC: the server's words follow the cookie");
+{
+  // With the `fuobe_lang` cookie set to ko, the server renders in Korean on first paint — no English flash.
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "rsc");
+  await page.goto(`${app}/`, { waitUntil: "load" });
+  await page.evaluate(() => {
+    document.cookie = "fuobe_lang=ko; path=/; max-age=31536000; samesite=lax";
+    localStorage.setItem("fuobe.lang", "ko");
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(1_000);
+  const homeText = await page.evaluate(() => document.body.innerText);
+  // The below-fold sections use content-visibility: innerText skips them until scrolled, so read the heading by id.
+  const openHeading = await page.evaluate(() => document.getElementById("home-open")?.textContent ?? "");
+  check("the Open source heading is Korean in the server HTML", openHeading.includes("처음부터 끝까지 오픈소스"), `heading=${openHeading}`);
+  check("no English “Open source, all the way down” in the server HTML", !openHeading.includes("Open source, all the way down"), `heading=${openHeading}`);
+  check("the footer's MIT line is Korean", homeText.includes("MIT 라이선스로 공개된 오픈소스입니다."), "");
+  check("<html lang> is ko on the server's first paint", await page.evaluate(() => document.documentElement.lang) === "ko", "");
+  await page.close();
+}
+
 step("nothing was missed on the way");
 {
   const i18nNoise = noise.filter((l) => /\[i18n\]/.test(l));

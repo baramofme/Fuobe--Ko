@@ -33,6 +33,8 @@ import { staggered, type AutoPlay } from "@/lib/preview-playback";
 import { cn } from "@/lib/utils";
 import { plainTagline } from "@/lib/plain-tagline";
 import type { PresetCardData } from "@/lib/preset-cards";
+import { getServerLang } from "@/lib/i18n/server-lang";
+import { translate, type Params } from "@/lib/i18n/store";
 
 /*
  * Home's sections under the wall. Server components: their words, numbers and links ship as HTML, and only the
@@ -63,7 +65,7 @@ const navIcon = (href: string) => NAV.flatMap((g) => g.items).find((i) => i.href
  * A section's heading with its count and line, and a "See all" link. `as="h1"`: an area page's own heading (the
  * PageHeader's size), with its search or quick start beside it (`children`).
  */
-export function SectionHead({
+export async function SectionHead({
   id,
   title,
   count,
@@ -86,6 +88,8 @@ export function SectionHead({
   as?: "h1" | "h2";
   children?: React.ReactNode;
 }) {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between gap-4">
@@ -108,7 +112,7 @@ export function SectionHead({
             // 44 px to tap: its hit area reaches past the words.
             className="group relative inline-flex shrink-0 items-center gap-1 text-[13px] text-muted-foreground transition-colors after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:text-foreground"
           >
-            See all {allCount}
+            {t("home.seeAll", { n: allCount ?? "" })}
             {allCount !== count && ` ${allNoun}`} <ArrowRight className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
           </IntentLink>
         )}
@@ -161,28 +165,30 @@ export const PresetRail = Cards;
  * The first pictures on the page: eight real covers, four on a phone. `label`: the section's name for screen readers;
  * `foot`: the line under it (Home's says where the previews were rendered; an area page has none).
  */
-export function ShowcaseWall({
+export async function ShowcaseWall({
   wall,
-  label = "What Fuobe makes",
+  label,
   foot = true,
 }: {
   wall: readonly { id: string; kind: string; caption: string; href: string; card: PresetCardData }[];
   label?: string;
   foot?: boolean;
 }) {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   return (
-    <section aria-label={label} className="mt-6 sm:mt-8">
+    <section aria-label={label ?? t("home.wall.label")} className="mt-6 sm:mt-8">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:max-lg:grid-cols-2">
-        {wall.map((t, i) => (
-          <ShowcaseTile key={t.id} card={t.card} kind={t.kind} caption={t.caption} href={t.href} index={i} />
+        {wall.map((t2, i) => (
+          <ShowcaseTile key={t2.id} card={t2.card} kind={t2.kind} caption={t2.caption} href={t2.href} index={i} />
         ))}
       </div>
       <div className="mt-3 flex items-center justify-between gap-3 text-[12px] text-muted-foreground">
         <p className="min-w-0">
           {foot && (
             <>
-              <span className="sm:hidden">Rendered locally on ComfyUI, on one RTX 5090.</span>
-              <span className="max-sm:hidden">Every preview on this page was rendered locally on ComfyUI, on one RTX 5090.</span>
+              <span className="sm:hidden">{t("home.wall.footShort")}</span>
+              <span className="max-sm:hidden">{t("home.wall.footFull")}</span>
             </>
           )}
         </p>
@@ -192,30 +198,34 @@ export function ShowcaseWall({
   );
 }
 
-export function EffectsSection({ facts, effects }: Pick<HomeShowcase, "facts" | "effects">) {
+export async function EffectsSection({ facts, effects }: Pick<HomeShowcase, "facts" | "effects">) {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   return (
     <section aria-labelledby="home-effects" data-reveal className={cn(SECTION, "[--cv:336px] sm:[--cv:951px] md:[--cv:1014px] lg:[--cv:1023px] xl:[--cv:930px]")}>
       <SectionHead
         id="home-effects"
-        title="Effects"
+        title={t("home.effects.title")}
         count={facts.effects}
         all="/effects"
-        line="Add one photo and get the shot: storms, blooms, flares, floods."
+        line={t("home.effects.line")}
       />
       <Cards items={effects} {...ROWS} className="sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" />
     </section>
   );
 }
 
-export function MotionsSection({ facts, motions }: Pick<HomeShowcase, "facts" | "motions">) {
+export async function MotionsSection({ facts, motions }: Pick<HomeShowcase, "facts" | "motions">) {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   return (
     <section aria-labelledby="home-motions" data-reveal className={cn(SECTION, "[--cv:336px] sm:[--cv:935px] md:[--cv:1014px] lg:[--cv:1039px] xl:[--cv:930px]")}>
       <SectionHead
         id="home-motions"
-        title="Camera motions"
+        title={t("home.motions.title")}
         count={facts.motions}
         all="/motions"
-        line="Moves a film crew would make: orbits, drone dives, crash zooms. Mix any two."
+        line={t("home.motions.line")}
       />
       <Cards items={motions} {...ROWS} className="sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" />
     </section>
@@ -232,14 +242,16 @@ export function MotionsSection({ facts, motions }: Pick<HomeShowcase, "facts" | 
  * them, so the grid has no gap of its own; the before/after keeps 16 px from the cards beside it. Under xl, the
  * before/after sits over the cards: four a row from lg, three from sm, a phone's rail.
  */
-export function AppsSection({ facts, beforeAfter, reveals, start }: Pick<HomeShowcase, "facts" | "beforeAfter" | "reveals"> & { start?: { title: string; line: string } }) {
+export async function AppsSection({ facts, beforeAfter, reveals, start }: Pick<HomeShowcase, "facts" | "beforeAfter" | "reveals"> & { start?: { title: string; line: string } }) {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   const id = start ? "apps-start" : "home-apps";
   return (
     <section aria-labelledby={id} data-reveal className={cn(SECTION, "[--cv:676px] sm:[--cv:1384px] md:[--cv:1496px] lg:[--cv:1198px] xl:[--cv:719px]")}>
       {start ? (
         <SectionHead id={id} title={start.title} line={start.line} />
       ) : (
-        <SectionHead id={id} title="Apps" count={facts.apps} all="/apps" line="One click changes one thing and keeps the rest." />
+        <SectionHead id={id} title={t("home.apps.title")} count={facts.apps} all="/apps" line={t("home.apps.line")} />
       )}
       <div className="grid grid-cols-1 gap-6 xl:-mx-1.5 xl:grid-cols-36 xl:gap-0">
         <div className="min-w-0 xl:col-span-15 xl:row-span-2 xl:pt-1.5 xl:pr-2.5 xl:pl-1.5">
@@ -259,18 +271,20 @@ export function AppsSection({ facts, beforeAfter, reveals, start }: Pick<HomeSho
  * Live edit's moment: a recorded session plays beside what it does and one way in. The player is the only island; it
  * pauses off screen, and nothing here reaches a GPU.
  */
-export function LiveEditSection() {
+export async function LiveEditSection() {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   const points: [LucideIcon, string][] = [
-    [Zap, "Live frames as you type, on your own GPU"],
-    [TextCursorInput, "One prompt that keeps growing, always on your original"],
-    [Undo2, "Undo a change, or start fresh from the picture"],
+    [Zap, t("home.live.p1")],
+    [TextCursorInput, t("home.live.p2")],
+    [Undo2, t("home.live.p3")],
   ];
   return (
     <section aria-labelledby="home-live" data-reveal className={cn(SECTION, "[--cv:720px] sm:[--cv:860px] md:[--cv:820px] lg:[--cv:470px] xl:[--cv:500px]")}>
       <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-12 lg:gap-10">
         <LiveDemo className="aspect-[4/3] w-full shadow-strong lg:col-span-7" />
         <div className="min-w-0 lg:col-span-5">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-highlight px-2 py-0.5 text-[11px] font-semibold text-highlight-foreground">New · Live edit</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-highlight px-2 py-0.5 text-[11px] font-semibold text-highlight-foreground">{t("home.live.badge")}</span>
           <h2 id="home-live" className={cn(H2, "mt-3")}>
             {HOME_LIVE.title}
           </h2>
@@ -284,7 +298,7 @@ export function LiveEditSection() {
             ))}
           </ul>
           <IntentLink href={HOME_LIVE.href} className="group mt-6 inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-[14px] font-medium text-primary-foreground transition hover:opacity-90">
-            Open Live edit <ArrowRight className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" />
+            {t("home.live.open")} <ArrowRight className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" />
           </IntentLink>
         </div>
       </div>
@@ -473,17 +487,19 @@ export function DestinationsSection({
 }
 
 
-export function StudiosSection({ facts, studios, audioTools, pills }: Pick<HomeShowcase, "facts" | "studios" | "audioTools" | "pills">) {
+export async function StudiosSection({ facts, studios, audioTools, pills }: Pick<HomeShowcase, "facts" | "studios" | "audioTools" | "pills">) {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   return (
     <DestinationsSection
       id="home-studios"
-      title="Studios and tools"
+      title={t("home.studios.title")}
       count={facts.destinations}
-      line="Whole productions, start to finish: films, ads, shoots and series. Open any of them to look around, no account needed."
+      line={t("home.studios.line")}
       cards={studios}
       audioTools={audioTools}
       pills={pills.map((p) => ({ ...p, icon: navIcon(p.href) }))}
-      pillsLabel="Also in Fuobe"
+      pillsLabel={t("home.studios.pillsLabel")}
       all={area("studios").href}
       allCount={studioCount()}
       allNoun="studios"
@@ -499,13 +515,15 @@ export function StudiosSection({ facts, studios, audioTools, pills }: Pick<HomeS
  * else reads it as what they get on their own install, with the way to run one (AssistTag, AssistAction,
  * AssistExamples). Until the viewer is known, that's what shows.
  */
-export function AssistSection({ facts, skills }: Pick<HomeShowcase, "facts" | "skills">) {
+export async function AssistSection({ facts, skills }: Pick<HomeShowcase, "facts" | "skills">) {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   const points: [LucideIcon, string][] = [
-    [ListChecks, "Plans every step and prices it first"],
-    [ScanEye, "Checks each result before the next step"],
-    [Sparkles, `${facts.skills} built-in skills, projects and memory`],
-    [CalendarClock, "Scheduled tasks, with a cost cap"],
-    [Plug, "Works with your other tools"],
+    [ListChecks, t("home.assist.p1")],
+    [ScanEye, t("home.assist.p2")],
+    [Sparkles, t("home.assist.p3", { n: facts.skills })],
+    [CalendarClock, t("home.assist.p4")],
+    [Plug, t("home.assist.p5")],
   ];
   return (
     <section aria-labelledby="home-assist" data-reveal className={cn(SECTION, "[--cv:912px] sm:[--cv:831px] md:[--cv:911px] lg:[--cv:562px] xl:[--cv:480px]")}>
@@ -513,10 +531,10 @@ export function AssistSection({ facts, skills }: Pick<HomeShowcase, "facts" | "s
         <div className="min-w-0">
           <AssistTag />
           <h2 id="home-assist" className={H2}>
-            Assist runs the whole job
+            {t("home.assist.title")}
           </h2>
           <p className={LINE}>
-            Describe the job in one message. Assist picks the models, shows the plan and what it costs, and runs every step when you say go.
+            {t("home.assist.line")}
           </p>
           <ul className="mt-5 space-y-2.5">
             {points.map(([Icon, text]) => (
@@ -526,7 +544,7 @@ export function AssistSection({ facts, skills }: Pick<HomeShowcase, "facts" | "s
               </li>
             ))}
           </ul>
-          <p className="mt-5 text-[12px] text-pretty text-muted-foreground">Plans with the AI you choose, online or on your own computer.</p>
+          <p className="mt-5 text-[12px] text-pretty text-muted-foreground">{t("home.assist.plansLine")}</p>
           <AssistAction />
         </div>
         <AssistExamples prompts={[...ASSIST_SUGGESTIONS]} skills={skills} />
@@ -537,20 +555,22 @@ export function AssistSection({ facts, skills }: Pick<HomeShowcase, "facts" | "s
 
 const KIND_ICON: Record<string, LucideIcon> = { image: ImageIcon, video: Video, audio: AudioLines, model3d: Box };
 
-export function OpenSourceSection({ facts, newModels }: Pick<HomeShowcase, "facts" | "newModels">) {
+export async function OpenSourceSection({ facts, newModels }: Pick<HomeShowcase, "facts" | "newModels">) {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   const numbers = [
-    { value: facts.openModels, label: "open-source models and tools", href: "/image" },
-    { value: facts.workflows, label: "ComfyUI workflows to read, run and change", href: WORKFLOWS_ON_GITHUB, external: true },
-    { value: facts.originals, label: "Fuobe Originals", href: "/apps" },
-    { value: facts.presets, label: "presets: apps, camera motions and effects", href: "/effects" },
+    { value: facts.openModels, label: t("home.open.n1"), href: "/image" },
+    { value: facts.workflows, label: t("home.open.n2"), href: WORKFLOWS_ON_GITHUB, external: true },
+    { value: facts.originals, label: t("home.open.n3"), href: "/apps" },
+    { value: facts.presets, label: t("home.open.n4"), href: "/effects" },
   ];
   return (
     <section aria-labelledby="home-open" data-reveal className={cn(SECTION, "[--cv:528px] sm:[--cv:494px] md:[--cv:571px] lg:[--cv:494px] xl:[--cv:363px]")}>
       <h2 id="home-open" className={H2}>
-        Open source, all the way down
+        {t("home.open.title")}
       </h2>
       <p className={cn(LINE, "max-w-[62ch]")}>
-        The code is MIT-licensed. Every open model comes with its ComfyUI workflow, its files and its licence, and runs on your own GPU.
+        {t("home.open.line")}
       </p>
       <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5 rounded-2xl bg-muted/50 p-6 lg:grid-cols-4">
         {numbers.map((n) => {
@@ -578,7 +598,7 @@ export function OpenSourceSection({ facts, newModels }: Pick<HomeShowcase, "fact
       </ul>
       {newModels.length > 0 && (
         <>
-          <h3 className="mt-6 mb-2 font-sans text-[13px] font-medium">Just added</h3>
+          <h3 className="mt-6 mb-2 font-sans text-[13px] font-medium">{t("home.open.justAdded")}</h3>
           <FadeRow>
             <ul className="flex gap-1.5 max-sm:w-max sm:flex-wrap">
               {newModels.map((m) => {
@@ -608,39 +628,41 @@ export function OpenSourceSection({ facts, newModels }: Pick<HomeShowcase, "fact
 /** The README's own three lines. */
 const COMMANDS = ["git clone https://github.com/workingprototype/fuobe.git && cd fuobe", "pnpm install", "pnpm dev"].join("\n");
 
-export function StartSection() {
+export async function StartSection() {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   return (
     <section aria-labelledby="home-start" data-reveal className={cn(SECTION, "[--cv:843px] sm:[--cv:726px] md:[--cv:748px] lg:[--cv:430px] xl:[--cv:427px]")}>
       <h2 id="home-start" className={H2}>
-        Your GPU. Your models. Your files.
+        {t("home.start.title")}
       </h2>
-      <p className={LINE}>No account to look around. A free account to run. Your own server if you want all of it.</p>
+      <p className={LINE}>{t("home.start.line")}</p>
       <div className="mt-6 grid gap-8 lg:grid-cols-12">
         <div className="lg:col-span-5">
           <StartSteps />
         </div>
         <div className="min-w-0 rounded-2xl bg-media p-5 text-white ring-1 ring-white/10 lg:col-span-7">
-          <p className="text-[15px] font-medium">Or run all of Fuobe yourself</p>
+          <p className="text-[15px] font-medium">{t("home.start.runYourself")}</p>
           <p className="mt-1 text-[13px] text-white/70">
-            MIT licence. Your keys, settings and work stay on your machine.
+            {t("home.start.mitLine")}
           </p>
           <div className="mt-4 min-w-0 overflow-hidden rounded-xl bg-white/[0.04] ring-1 ring-white/10">
             <div className="flex items-center justify-between py-2 pr-2 pl-4">
-              <span className="text-[12px] text-white/55">Terminal</span>
+              <span className="text-[12px] text-white/55">{t("home.start.terminal")}</span>
               <CopyCommand text={COMMANDS} />
             </div>
             {/* A phone wraps the lines, so the whole command shows; wider, a line too long scrolls, and a keyboard can reach it. */}
             <pre
               tabIndex={0}
               role="region"
-              aria-label="Commands to run Fuobe"
+              aria-label={t("home.start.commandsAria")}
               className="overflow-x-auto px-4 pb-4 font-mono text-[13px] leading-relaxed text-white/90 outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset max-sm:break-all max-sm:whitespace-pre-wrap"
             >
               <code>{COMMANDS}</code>
             </pre>
           </div>
           <p className="mt-3 text-[12px] text-white/70">
-            On Windows, <code className="font-mono text-white/90">start.bat</code> installs and starts everything.
+            {t("home.start.winLead")} <code className="font-mono text-white/90">start.bat</code> {t("home.start.winTail")}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <a
@@ -649,7 +671,7 @@ export function StartSection() {
               rel="noopener"
               className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-4 text-[13px] font-medium text-black transition-colors hover:bg-white/90"
             >
-              <GitHubMark className="size-3.5" /> View on GitHub
+              <GitHubMark className="size-3.5" /> {t("home.start.viewGithub")}
             </a>
             <a
               href={WORKFLOWS_ON_GITHUB}
@@ -657,7 +679,7 @@ export function StartSection() {
               rel="noopener"
               className="inline-flex h-9 items-center rounded-full px-4 text-[13px] font-medium text-white ring-1 ring-white/20 transition-colors hover:bg-white/10"
             >
-              ComfyUI workflows
+              {t("home.start.comfyWorkflows")}
             </a>
           </div>
         </div>
@@ -666,25 +688,27 @@ export function StartSection() {
   );
 }
 
-/** The footer's own pages; the code is on GitHub. */
+/** The footer's own pages; the code is on GitHub. Labels are i18n keys. */
 const FOOTER_PAGES = [
-  { href: "/privacy", label: "Privacy" },
-  { href: "/terms", label: "Terms" },
-  { href: "/settings/licences", label: "Thanks & licences" },
+  { href: "/privacy", label: "home.footer.privacy" },
+  { href: "/terms", label: "home.footer.terms" },
+  { href: "/settings/licences", label: "home.footer.thanks" },
 ];
 
-export function HomeFooter() {
+export async function HomeFooter() {
+  const lang = await getServerLang();
+  const t = (key: string, params?: Params) => translate(lang, key, params);
   const link = "transition-colors hover:text-foreground";
   return (
     <footer className="mt-12 flex flex-wrap items-end justify-between gap-4 border-t pt-8 pb-4">
       <div>
         <p className="font-heading text-[22px] leading-none">Fuobe</p>
-        <p className="mt-1.5 text-[12px] text-muted-foreground">Open source under the MIT licence.</p>
+        <p className="mt-1.5 text-[12px] text-muted-foreground">{t("home.footer.mit")}</p>
       </div>
-      <nav aria-label="About Fuobe" className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
+      <nav aria-label={t("home.footer.aboutAria")} className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
         {FOOTER_PAGES.map((i) => (
           <Link key={i.href} href={i.href} prefetch={false} className={link}>
-            {i.label}
+            {t(i.label)}
           </Link>
         ))}
         <a href={FUOBE_REPO} target="_blank" rel="noopener" className={link}>

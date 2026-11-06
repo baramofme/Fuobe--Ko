@@ -8,6 +8,8 @@ import { appsAreaShowcase } from "@/lib/area-showcase";
 import { APPS } from "@/lib/catalog";
 import { toPresetCard } from "@/lib/preset-card-data";
 import { featuredGallery } from "@/lib/preset-featured";
+import { getServerLang } from "@/lib/i18n/server-lang";
+import { translate } from "@/lib/i18n/store";
 
 export const metadata: Metadata = {
   title: "Apps",
@@ -15,21 +17,22 @@ export const metadata: Metadata = {
   alternates: { canonical: "/apps" },
 };
 
-/** Tools of their own, first in the gallery. */
-const LEADING: LinkCard[] = [
-  {
-    href: "/live-edit?from=apps",
-    title: "Live edit",
-    line: "Type a change and watch it happen",
-    words: "realtime live as you type instant change edit",
-    badge: "New",
-    cover: <LiveDemo compact className="absolute inset-0 rounded-none" />,
-  },
-];
-
 /** Apps as an area page: Home's Apps section to start, then every app in the gallery (search and categories). */
 export default async function Page() {
+  const lang = await getServerLang();
+  const t = (key: string, params?: { [k: string]: string | number }) => translate(lang, key, params);
   const start = await appsAreaShowcase();
+  /** Tools of their own, first in the gallery. */
+  const LEADING: LinkCard[] = [
+    {
+      href: "/live-edit?from=apps",
+      title: t("apps.liveEditTitle"),
+      line: t("apps.liveEditLine"),
+      words: "realtime live as you type instant change edit",
+      badge: t("apps.liveEditBadge"),
+      cover: <LiveDemo compact className="absolute inset-0 rounded-none" />,
+    },
+  ];
   return (
     <AreaPage>
       <AreaHero
@@ -41,7 +44,7 @@ export default async function Page() {
             href="#every-app"
             className="group relative inline-flex h-11 shrink-0 items-center gap-1 rounded-full px-1 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:h-10"
           >
-            See all {APPS.length}
+            {t("home.seeAll", { n: APPS.length })}
             <ArrowDown aria-hidden className="size-3.5 transition-transform duration-150 group-hover:translate-y-0.5" />
           </a>
         }
@@ -50,11 +53,11 @@ export default async function Page() {
         facts={start.facts}
         beforeAfter={start.beforeAfter}
         reveals={start.reveals}
-        start={{ title: "Start here", line: "Drag across a picture to see what one click changed." }}
+        start={{ title: t("apps.startHere"), line: t("apps.startLine") }}
       />
       <section aria-labelledby="every-app-title" id="every-app" className="mt-10 scroll-mt-[calc(3.5rem+env(safe-area-inset-top))] sm:mt-14 md:scroll-mt-4">
         <h2 id="every-app-title" className="mb-4 font-heading text-[24px] leading-tight sm:text-[28px]">
-          Every app
+          {t("apps.everyApp")}
         </h2>
         {/* Slim card data only: no prompt templates, routes or LoRA URLs in the page payload. */}
         <PresetGallery {...featuredGallery(APPS.map(toPresetCard))} href="/apps/{id}" noun="apps" leading={LEADING} skipInAll={start.shown} />
