@@ -1,11 +1,15 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Globe, Search } from "lucide-react";
 import { IntentLink } from "@/components/intent-link";
 import { PhoneNavButton } from "@/components/nav/phone-nav-button";
 import { useSearchPalette } from "@/components/nav/search-context";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useI18n, type Lang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+
+const SHORT: Record<Lang, string> = { en: "EN", ko: "KO" };
 
 /** Opens the search: the way to search on a phone, where there's no keyboard shortcut. */
 export function SearchButton({ className }: { className?: string }) {
@@ -29,7 +33,43 @@ export function SearchButton({ className }: { className?: string }) {
 }
 
 /**
- * The phone header of gallery and settings pages: the wordmark (home) and search; the tab bar at the bottom does the
+ * The phone's compact language selector: a globe button that opens a list of the supported languages.
+ * Sits in the phone header between the wordmark and the search/nav button.
+ */
+function PhoneLangSelector({ className }: { className?: string }) {
+  const { lang, t, switchLanguage, languages, langNames } = useI18n();
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger
+        aria-label={t("selector.label")}
+        className={cn("nav-row inline-flex size-11 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold uppercase tracking-wider text-muted-foreground focus-visible:border-transparent focus-visible:ring-0", className)}
+      >
+        <Globe aria-hidden className="size-[18px]" />
+        <span className="sr-only">{SHORT[lang]}</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={8} collisionPadding={12} className="w-40 p-1.5">
+        {languages.map((l) => (
+          <DropdownMenuItem
+            key={l}
+            onSelect={() => switchLanguage(l)}
+            className="h-10 justify-start gap-2 rounded-[10px] px-2.5 text-[13.5px] font-medium"
+            data-active={lang === l || undefined}
+          >
+            <span className="flex w-5 shrink-0 items-center justify-center text-[10px] font-bold text-muted-foreground">
+              {SHORT[l]}
+            </span>
+            <span className={cn("min-w-0 flex-1", lang === l && "font-semibold text-foreground")}>
+              {langNames[l]}
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * The phone header of gallery and settings pages: the wordmark (home), language and search; the tab bar at the bottom does the
  * rest. Clear of the notch and the rounded corners. Hidden from md up, where the top bar shows.
  */
 export function PhoneBar({ className }: { className?: string }) {
@@ -48,7 +88,8 @@ export function PhoneBar({ className }: { className?: string }) {
       >
         Fuobe
       </IntentLink>
-      <PhoneNavButton className="ml-auto" />
+      <PhoneLangSelector className="ml-auto" />
+      <PhoneNavButton />
     </div>
   );
 }

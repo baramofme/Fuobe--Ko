@@ -23,6 +23,7 @@ import { MegaLauncher, preloadMegaPanel } from "./mega-launcher";
 import { BarCardMenu } from "./bar-split";
 import { BarIndicator, BarMenusProvider, BarScrim, BarStage, CloseMenusOnRoute, useBarController } from "./bar-menus";
 import { ViewerSlot } from "./viewer-slot";
+import { LangSelector } from "./lang-selector";
 
 export { prefetchHrefs } from "./nav-prefetch";
 
@@ -242,6 +243,7 @@ function RightCluster() {
   return (
     <>
       <BarPills kind={kind} />
+      <LangSelector />
       <SearchField />
       <NewCreation />
       <ViewerSlot />
