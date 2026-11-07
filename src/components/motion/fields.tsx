@@ -2,6 +2,7 @@
 
 import type { TemplateField } from "@/lib/catalog/marketing";
 import { cn } from "@/lib/utils";
+import { t as tr } from "@/lib/i18n/store";
 
 /**
  * A template's words, typed exactly as they will be set: each field with its count, its tip, and a plain line when the
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 const box = "w-full min-w-0 rounded-xl border bg-background px-3 text-[15px] outline-none transition-[border-color,box-shadow] placeholder:text-subtle-foreground focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-brand-faint aria-invalid:border-destructive";
 
-export const shortenLine = (f: TemplateField) => `Shorten the ${f.label.toLowerCase()} to fit`;
+export const shortenLine = (f: TemplateField) => tr("kinetic.shortenField", { field: f.label.toLowerCase() });
 
 export function TemplateFields({ fields, values, onChange, overflow }: { fields: TemplateField[]; values: Record<string, string>; onChange: (key: string, value: string) => void; overflow: string[] }) {
   return (

@@ -26,6 +26,7 @@ import { addRuns, send, useBrands, useEstimate, useProducts } from "./hooks";
 import { KineticTemplate } from "./kinetic-template";
 import type { MarketingRun } from "@/lib/catalog/marketing";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
 import { templateCover } from "@/lib/template-covers";
 import type { ModelInfo } from "./model-info";
 import { FitNotes, type FitNote } from "@/components/studio/fit-notes";
@@ -320,6 +321,7 @@ function UrlParams({ onTemplate, onTab, owner }: { onTemplate: (t: MarketingTemp
  */
 export function MarketingStudio({ models, starters = [] }: { models: Record<string, ModelInfo>; starters?: StarterCardData[] }) {
   const qc = useQueryClient();
+  const { t: tr } = useI18n();
   const { engine, setEngine } = useMarketingEngine();
   const [tab, setTab] = useState<"templates" | "generations">("templates");
   const viewRef = useSwapFade<HTMLDivElement>(tab);
@@ -553,7 +555,7 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
                   <p className="max-w-32 truncate text-[12px] font-medium">{template.name}</p>
                   <p className="text-[11px] text-muted-foreground">{f.cardLabel}</p>
                 </div>
-                <button type="button" onClick={() => setDraft((d) => withTemplate(d, null, d.format))} aria-label="Clear template" className="absolute top-1 right-1 grid size-5 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
+                <button type="button" onClick={() => setDraft((d) => withTemplate(d, null, d.format))} aria-label={tr("marketing.clearTemplateAria")} className="absolute top-1 right-1 grid size-5 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
                   <X className="size-3" />
                 </button>
               </div>
@@ -561,7 +563,7 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
             {/* A guest or an account gets no upload slots: nothing is uploaded for a run that can't start here. */}
             {isOwner && f.product !== "none" && <ProductSlot value={draft.product} onChange={(p) => set({ product: p })} required={f.product === "required"} brandId={brandId} pulse={pulse === "product"} />}
             {isOwner && f.avatar !== "none" && <AvatarSlot value={draft.avatar} onChange={(a) => set({ avatar: a })} pulse={pulse === "avatar"} />}
-            {isOwner && f.pipeline !== "ugc" && <MediaSlot label="Reference" kind="image" value={draft.reference} onChange={(v) => set({ reference: v })} />}
+            {isOwner && f.pipeline !== "ugc" && <MediaSlot label={tr("marketing.referenceLabel")} kind="image" value={draft.reference} onChange={(v) => set({ reference: v })} />}
           </div>
           <textarea
             ref={prompt}
@@ -577,17 +579,17 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
             }}
             maxLength={MAX_PROMPT}
             rows={focused || draft.prompt ? 2 : 1}
-            placeholder={template ? (f.text ? "Describe your edit (optional)" : "What should look different? (optional)") : f.promptPlaceholder}
-            aria-label="Prompt"
+            placeholder={template ? (f.text ? tr("marketing.placeholderEdit") : tr("marketing.placeholderDifferent")) : f.promptPlaceholder}
+            aria-label={tr("marketing.promptAria")}
             className="field-sizing-content max-h-40 min-h-9 w-full resize-none bg-transparent px-2 py-1.5 text-[15px] outline-none placeholder:text-subtle-foreground"
           />
           <div className="flex min-w-0 items-center gap-1.5">
             <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-              <div role="radiogroup" aria-label="Mode" className="inline-flex shrink-0 rounded-full bg-muted p-0.5">
+              <div role="radiogroup" aria-label={tr("marketing.modeAria")} className="inline-flex shrink-0 rounded-full bg-muted p-0.5">
                 {(["image", "video"] as const).map((k) => (
-                  <button key={k} role="radio" aria-checked={kind === k} onClick={() => toggleKind(k)} aria-label={k === "image" ? "Image mode" : "Video mode"} className={cn("inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium text-muted-foreground", kind === k && "bg-background text-foreground shadow-soft")}>
+                  <button key={k} role="radio" aria-checked={kind === k} onClick={() => toggleKind(k)} aria-label={k === "image" ? tr("marketing.imageModeAria") : tr("marketing.videoModeAria")} className={cn("inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium text-muted-foreground", kind === k && "bg-background text-foreground shadow-soft")}>
                     {k === "image" ? <ImageIcon className="size-3.5" /> : <Video className="size-3.5" />}
-                    <span className="hidden sm:inline">{k === "image" ? "Image" : "Video"}</span>
+                    <span className="hidden sm:inline">{k === "image" ? tr("marketing.imageLabel") : tr("marketing.videoLabel")}</span>
                   </button>
                 ))}
               </div>
@@ -607,14 +609,14 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
                   type="button"
                   onClick={() => void generate()}
                   disabled={visitor}
-                  aria-label={template ? "Recreate template" : "Generate"}
+                  aria-label={template ? tr("marketing.recreateTemplate") : tr("marketing.generate")}
                   aria-disabled={!!blocker || busy}
                   className={cn("grid size-10 shrink-0 place-items-center rounded-full text-primary-foreground transition-colors", blocker ? "bg-primary/70 hover:bg-primary/80" : "bg-primary hover:bg-primary/90")}
                 >
                   {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
                 </button>
               </TooltipTrigger>
-              <TooltipContent>{blocker ?? (template ? `Recreate template${sendTip}` : `Generate${sendTip}`)}</TooltipContent>
+              <TooltipContent>{blocker ?? (template ? `${tr("marketing.recreateTemplate")}${sendTip}` : `${tr("marketing.generate")}${sendTip}`)}</TooltipContent>
             </Tooltip>
           </div>
           {notes.length && !blocker ? <p className="hidden truncate px-2 pt-1 text-[11px] text-muted-foreground sm:block">{notes[0]}</p> : null}

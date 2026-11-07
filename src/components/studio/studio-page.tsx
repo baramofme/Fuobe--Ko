@@ -638,7 +638,7 @@ function StudioBody({ header, tabs, examples }: { header?: React.ReactNode; tabs
                 className="pointer-events-auto inline-flex h-8 animate-pop-in items-center gap-1.5 rounded-full bg-foreground px-3.5 text-[13px] font-medium text-background shadow-strong transition hover:opacity-90"
               >
                 {offscreen.working ? <Loader2 className="size-3.5 animate-spin" /> : null}
-                {offscreen.working ? `${offscreen.working} generating` : `${offscreen.count} new result${offscreen.count === 1 ? "" : "s"}`}
+                {offscreen.working ? t("studio.page.offscreenGenerating", { n: offscreen.working }) : offscreen.count === 1 ? t("studio.page.offscreenOne", { n: offscreen.count }) : t("studio.page.offscreenMany", { n: offscreen.count })}
                 <ArrowUp className="size-3.5" />
               </button>
             </div>

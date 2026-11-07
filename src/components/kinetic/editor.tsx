@@ -20,6 +20,7 @@ import { exportSize, type SizePreset } from "@/lib/motion/sizes";
 import { templateLengths, templateSizes, type TemplateBrand } from "@/lib/motion/template";
 import { templateCover } from "@/lib/template-covers";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { ClipControl } from "./clip-picker";
 import { Choices, Segmented, SliderField } from "./controls";
 import { readChoice, writeChoice } from "./draft";
@@ -97,6 +98,7 @@ function SceneRail({ entry, onScene }: { entry: KineticEntry; onScene: (e: Kinet
 export function Editor({ editor, doc, entry, onBack, onScene, missing }: { editor: KineticEditor; doc: KineticDoc; entry: KineticEntry; onBack: () => void; onScene: (e: KineticEntry) => void; missing: ReadonlySet<string> }) {
   const r = doc.recipe;
   const t = templateOf(entry);
+  const { t: tr } = useI18n();
   const owner = useIsOwner();
   // A guest's Save always answers (with the sign-up card), even where this browser can't make the clip.
   const guest = useIsGuest();
@@ -187,8 +189,8 @@ export function Editor({ editor, doc, entry, onBack, onScene, missing }: { edito
   const fields = t.fields ?? [];
   const overflow = plan?.overflow ?? [];
   const brandOver = overflow.includes("brand");
-  const overflowLine = overflow.length ? fields.filter((f) => overflow.includes(f.key)).map(shortenLine).concat(brandOver ? ["Shorten the brand name to fit"] : []).join(" · ") : null;
-  const mp4Line = r.export.format === "mp4" && mp4 === false ? "This browser can't make MP4 here. Pick WebM in Export options." : null;
+  const overflowLine = overflow.length ? fields.filter((f) => overflow.includes(f.key)).map(shortenLine).concat(brandOver ? [tr("kinetic.save.shortenBrand")] : []).join(" · ") : null;
+  const mp4Line = r.export.format === "mp4" && mp4 === false ? tr("kinetic.save.mp4NoBrowser") : null;
 
   // Versions: what was opened, saved or restored last (Restore asks first when the open state differs from it).
   const key = recipeKey(r);
@@ -234,9 +236,9 @@ export function Editor({ editor, doc, entry, onBack, onScene, missing }: { edito
         className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 text-[15px] font-medium text-primary-foreground shadow-soft outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
       >
         {jobs.job?.kind === "clip" ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-        <span className="truncate">{jobs.job?.kind === "clip" ? busy : jobs.job ? "Saving another one…" : jobs.saveLabel}</span>
+        <span className="truncate">{jobs.job?.kind === "clip" ? busy : jobs.job ? tr("kinetic.save.another") : jobs.saveLabel}</span>
       </button>
-      <button type="button" onClick={() => setSheet("export")} aria-label="Export options" className="grid size-12 shrink-0 place-items-center rounded-full bg-secondary outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
+      <button type="button" onClick={() => setSheet("export")} aria-label={tr("kinetic.export.optionsAria")} className="grid size-12 shrink-0 place-items-center rounded-full bg-secondary outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
         <Settings2 className="size-5" />
       </button>
     </div>

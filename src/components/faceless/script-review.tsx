@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { blockId, formatLength, secondsFor, splitScript, tooLong, totalSeconds, wordCount, type EpisodeView, type ScriptBlock } from "@/lib/catalog/faceless";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
 import { EstimateLine } from "./controls";
 import { useEpisodeAction, useEstimate, useUpdateEpisode } from "./hooks";
 
@@ -103,6 +104,7 @@ function SceneCard({
  */
 export function ScriptReview({ view }: { view: EpisodeView }) {
   const ep = view.episode;
+  const { t } = useI18n();
   const [blocks, setBlocks] = useState<ScriptBlock[]>(ep.script.blocks);
   const [dirty, setDirty] = useState(false);
   const [confirmRewrite, setConfirmRewrite] = useState(false);
@@ -258,12 +260,12 @@ export function ScriptReview({ view }: { view: EpisodeView }) {
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground" aria-live="polite">
             {update.isPending ? <Loader2 className="size-3 animate-spin" /> : dirty ? null : <Check className="size-3" />}
-            {update.isPending ? "Saving…" : dirty ? "Unsaved" : "Saved"}
+            {update.isPending ? t("faceless.review.saving") : dirty ? t("faceless.review.unsaved") : t("faceless.review.saved")}
           </span>
           <span className="font-mono text-[12px] text-muted-foreground tabular-nums">{formatLength(seconds)}</span>
           <EstimateLine data={estimate.data} loading={estimate.isFetching} engine={ep.settings.engine} className="min-w-0 flex-1" />
           <Button onClick={() => void render()} disabled={action.isPending || update.isPending} className="rounded-full">
-            {action.isPending ? <Loader2 className="animate-spin" /> : <Wand2 />} Render episode
+            {action.isPending ? <Loader2 className="animate-spin" /> : <Wand2 />} {t("faceless.review.renderEpisode")}
           </Button>
         </div>
       </div>

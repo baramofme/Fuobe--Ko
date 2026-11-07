@@ -26,6 +26,7 @@ import {
 } from "@/lib/catalog/faceless";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
 import { ChannelAvatar } from "./cards";
 import { EstimateLine, Section, Segmented, ToggleRow } from "./controls";
 import { pendingScriptKey } from "./faceless-home";
@@ -64,6 +65,7 @@ function Steps({ step }: { step: 1 | 2 }) {
  */
 export function EpisodeWizard({ channelId, picker, initialTopic }: { channelId: string; picker: PickerData; initialTopic?: string }) {
   const router = useRouter();
+  const { t } = useI18n();
   const { data, error } = useChannel(channelId);
   const [engine, setEngine] = useEngine();
   const create = useCreateEpisode();
@@ -359,27 +361,27 @@ export function EpisodeWizard({ channelId, picker, initialTopic }: { channelId: 
             {step === 2 ? (
               <>
                 <Button variant="ghost" onClick={() => setStep(1)}>
-                  <ArrowLeft /> Topic
+                  <ArrowLeft /> {t("faceless.wizard.topicBack")}
                 </Button>
                 <EstimateLine data={estimate.data} loading={estimate.isFetching} engine={engine} className="min-w-0 flex-1" />
                 <Button onClick={write} disabled={create.isPending} className="rounded-full">
                   {create.isPending ? <Loader2 className="animate-spin" /> : scriptMode === "pasted" ? <FileText /> : <Sparkles />}
-                  {scriptMode === "pasted" ? "Split into scenes" : "Write the script"}
+                  {scriptMode === "pasted" ? t("faceless.wizard.splitScenes") : t("faceless.wizard.writeScript")}
                 </Button>
               </>
             ) : (
               <>
                 {ready ? (
-                  <p className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{topic ? `Topic: ${topic}` : "Your script is ready to split"}</p>
+                  <p className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{topic ? t("faceless.wizard.topicLine", { topic }) : t("faceless.wizard.scriptReady")}</p>
                 ) : (
                   <p className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">
                     <button type="button" onClick={focusTopics} className="underline decoration-border-strong underline-offset-2 hover:text-foreground hover:decoration-current">
-                      Pick a topic to continue
+                      {t("faceless.wizard.pickTopic")}
                     </button>
                   </p>
                 )}
                 <Button onClick={next} disabled={!ready} className="rounded-full">
-                  Next <ArrowRight />
+                  {t("faceless.wizard.next")} <ArrowRight />
                 </Button>
               </>
             )}

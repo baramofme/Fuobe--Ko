@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+import { t as tr } from "@/lib/i18n/store";
 import { measureText } from "@/components/ads/render";
 import { loadClip } from "@/components/motion/clip-source";
 import { fontsReady } from "@/components/motion/fonts";
@@ -132,7 +133,7 @@ export function useKineticJobs() {
 
   const cancel = useCallback(() => abort.current?.abort(), []);
   // An account (not the owner, not a guest): its saves count toward its hourly limits, which the sheet says.
-  return { run, cancel, job, saved, saveLabel: owner ? "Save to Library" : "Save to your runs", account: !owner && !guest, guest };
+  return { run, cancel, job, saved, saveLabel: owner ? tr("kinetic.save.toLibrary") : tr("kinetic.save.toRuns"), account: !owner && !guest, guest };
 }
 
 export type KineticJobs = ReturnType<typeof useKineticJobs>;
@@ -140,8 +141,8 @@ export type KineticJobs = ReturnType<typeof useKineticJobs>;
 /** "Rendering 42 of 75", "Saving…", or null. */
 export function jobLine(j: JobState | null): string | null {
   if (!j) return null;
-  if (j.saving) return "Saving…";
-  return `Rendering ${j.done} of ${j.total}`;
+  if (j.saving) return tr("kinetic.job.saving");
+  return tr("kinetic.job.rendering", { done: j.done, total: j.total });
 }
 
 /**
