@@ -6,12 +6,17 @@ import { PILL, PILL_TAP } from "@/components/home/pill";
 import { IntentLink } from "@/components/intent-link";
 import { motionsAreaShowcase } from "@/lib/area-showcase";
 import { cn } from "@/lib/utils";
+import { getServerLang } from "@/lib/i18n/server-lang";
+import { translate } from "@/lib/i18n/store";
 
-export const metadata: Metadata = {
-  title: "Motions & effects",
-  description: "Camera moves a film crew would make and cinematic effects, ready for any photo.",
-  alternates: { canonical: "/motions-and-effects" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getServerLang();
+  return {
+    title: translate(lang, "mae.metaTitle"),
+    description: translate(lang, "mae.metaDesc"),
+    alternates: { canonical: "/motions-and-effects" },
+  };
+}
 
 const categoryHref = (gallery: string, c: string) => `${gallery}?category=${encodeURIComponent(c)}`;
 
@@ -52,25 +57,26 @@ function GalleryRow({
 
 /** Both preset galleries on one page: a playing wall of the best, then each gallery's first row and its categories. */
 export default async function Page() {
+  const lang = await getServerLang();
   const { wall, motions, effects } = await motionsAreaShowcase();
   const tabs: AreaTab[] = [
-    { href: "#camera-motions", label: "Camera motions", icon: "Film", section: "camera-motions" },
-    { href: "#effects", label: "Effects", icon: "Sparkles", section: "effects" },
+    { href: "#camera-motions", label: translate(lang, "mae.tabMotions"), icon: "Film", section: "camera-motions" },
+    { href: "#effects", label: translate(lang, "mae.tabEffects"), icon: "Sparkles", section: "effects" },
   ];
   return (
     <AreaPage>
       <AreaHero id="motions" count={motions.count + effects.count} />
       <AreaBody id="motions" tabs={tabs}>
-        <ShowcaseWall wall={wall} label="The best camera motions and effects" foot={false} />
+        <ShowcaseWall wall={wall} label={translate(lang, "mae.showcaseLabel")} foot={false} />
         <GalleryRow
           id="camera-motions"
-          title="Camera motions"
-          line="Moves a film crew would make: orbits, drone dives, crash zooms. Mix any two."
+          title={translate(lang, "mae.tabMotions")}
+          line={translate(lang, "mae.motionsLine")}
           href="/motions"
           data={motions}
-          pillsLabel="Camera motions by kind"
+          pillsLabel={translate(lang, "mae.motionsPills")}
         />
-        <GalleryRow id="effects" title="Effects" line="Add one photo and get the shot: storms, blooms, flares, floods." href="/effects" data={effects} pillsLabel="Effects by kind" />
+        <GalleryRow id="effects" title={translate(lang, "mae.tabEffects")} line={translate(lang, "mae.effectsLine")} href="/effects" data={effects} pillsLabel={translate(lang, "mae.effectsPills")} />
       </AreaBody>
       <MoreInFuobe current="motions" />
       <AreaJsonLd

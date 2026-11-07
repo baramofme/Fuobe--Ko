@@ -31,27 +31,30 @@ import type { Generation } from "@/lib/catalog/types";
 import { starterShown, type StarterCardData, type StarterFill } from "@/lib/starters/types";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 /** Skills offered as one-tap starters on the empty page (Supercomputer's suggestion cards). */
 const STARTER_SKILLS = ["product-photoshoot", "ugc-video", "thumbnail-generation", "faceless-video", "short-film", "localization"];
 
-const AGENT_HINT: Record<AssistThread["agent"], string> = {
-  claude: "Claude plans the shoot, picks models and runs them with your approval.",
-  hosted: "Runs on a model from a provider you've connected (Settings → AI helper). It plans the shoot, picks models and runs them with your approval.",
-  local: "Runs on your local model (Ollama, LM Studio or Unsloth Studio). Smaller local models follow instructions less reliably than Claude.",
-  offline: "A simple rule-based planner. Add a key in Settings → AI helper (Anthropic, OpenAI, Google, OpenRouter…), or run a local model (Ollama, LM Studio or Unsloth Studio), for the full assistant that picks models, chains steps and checks results.",
+/** Keys for each agent's hint — resolved at render so the words follow the language switch. */
+const AGENT_HINT_KEY: Record<AssistThread["agent"], string> = {
+  claude: "assist.hint.claude",
+  hosted: "assist.hint.hosted",
+  local: "assist.hint.local",
+  offline: "assist.hint.offline",
 };
 
 export function AskFirst({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  const { t } = useI18n();
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <label className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-full px-2.5 text-[13px] font-medium whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-foreground max-sm:gap-1.5 max-sm:px-1.5">
-          <Switch size="sm" checked={checked} onCheckedChange={onChange} aria-label="Ask before generating" />
-          Ask first
+          <Switch size="sm" checked={checked} onCheckedChange={onChange} aria-label={t("assist.askAria")} />
+          {t("assist.askFirst")}
         </label>
       </TooltipTrigger>
-      <TooltipContent>{checked ? "You approve each plan (and each memory) before anything runs" : "Plans run right away — no approval card"}</TooltipContent>
+      <TooltipContent>{t(checked ? "assist.askTipOn" : "assist.askTipOff")}</TooltipContent>
     </Tooltip>
   );
 }
@@ -95,7 +98,9 @@ export function NewChatControls({
  * fills: what each one types into the composer ("/skill words"), by id, also for /assist?starter=<id>.
  */
 export function AssistView({ starters: given = [], fills: givenFills = {} }: { starters?: StarterCardData[]; fills?: Record<string, StarterFill> } = {}) {
+  // t_218a3ef3: /assist chrome wired to assist.* keys.
   const { owner, starters, fills } = useStarters("assist", given, givenFills);
+  const { t } = useI18n();
   const router = useRouter();
   const params = useSearchParams();
   const id = params.get("c");
@@ -150,9 +155,9 @@ export function AssistView({ starters: given = [], fills: givenFills = {} }: { s
   }, [count, status]);
 
   const start = async (text: string, attachments: string[] = []) => {
-    const t = await actions.start({ text, attachments, engine, autoApprove: !askFirst, mode: choice ?? undefined });
-    if (t.note) toast(t.note);
-    go(t.id);
+    const created = await actions.start({ text, attachments, engine, autoApprove: !askFirst, mode: choice ?? undefined });
+    if (created.note) toast(created.note);
+    go(created.id);
   };
 
   const agent = thread?.agent ?? chats.data?.agent;
@@ -164,7 +169,7 @@ export function AssistView({ starters: given = [], fills: givenFills = {} }: { s
           {modeLabel(thread)}
         </Link>
       </TooltipTrigger>
-      <TooltipContent className="max-w-64">{AGENT_HINT[agent]}</TooltipContent>
+      <TooltipContent className="max-w-64">{t(AGENT_HINT_KEY[agent])}</TooltipContent>
     </Tooltip>
   );
 
@@ -180,33 +185,33 @@ export function AssistView({ starters: given = [], fills: givenFills = {} }: { s
               <span aria-hidden>/</span>
             </Link>
           )}
-          <h1 className="min-w-0 truncate font-heading text-[22px] leading-none">{thread?.title ?? "Assist"}</h1>
+          <h1 className="min-w-0 truncate font-heading text-[22px] leading-none">{thread?.title ?? t("assist.fallbackTitle")}</h1>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {agentBadge}
           {thread && thread.items.some((i) => i.role === "user") && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={() => setScheduling(true)} aria-label="Schedule this request">
-                  <CalendarClock /> <span className="hidden lg:inline">Schedule</span>
+                <Button variant="ghost" size="sm" onClick={() => setScheduling(true)} aria-label={t("assist.scheduleAria")}>
+                  <CalendarClock /> <span className="hidden lg:inline">{t("assist.schedule")}</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Run this chat&apos;s request again on a schedule</TooltipContent>
+              <TooltipContent>{t("assist.scheduleTip")}</TooltipContent>
             </Tooltip>
           )}
           {thread && builder && thread.items.some((i) => i.role === "generations" && i.ids.length > 0) && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={() => builder.openChat(thread.id)} aria-label="Save as skill">
-                  <BookmarkPlus /> <span className="hidden lg:inline">Save as skill</span>
+                <Button variant="ghost" size="sm" onClick={() => builder.openChat(thread.id)} aria-label={t("assist.saveSkillAria")}>
+                  <BookmarkPlus /> <span className="hidden lg:inline">{t("assist.saveSkill")}</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Turn what ran in this chat into a skill you can run again with new inputs</TooltipContent>
+              <TooltipContent>{t("assist.saveSkillTip")}</TooltipContent>
             </Tooltip>
           )}
           {id && (
-            <Button variant="ghost" size="sm" onClick={() => go(null)} aria-label="New chat">
-              <MessageSquarePlus /> <span className="hidden sm:inline">New chat</span>
+            <Button variant="ghost" size="sm" onClick={() => go(null)} aria-label={t("assist.newChatAria")}>
+              <MessageSquarePlus /> <span className="hidden sm:inline">{t("assist.newChat")}</span>
             </Button>
           )}
           {thread && <ChatMenu chat={thread} onDeleted={() => go(null)} />}
@@ -218,8 +223,8 @@ export function AssistView({ starters: given = [], fills: givenFills = {} }: { s
         <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 pt-[10vh] pb-16 sm:px-6 sm:pt-[14vh]">
           <div className="w-full max-w-[760px]">
             <div className="mb-6 text-center">
-              <h2 className="font-heading text-display text-balance">What are we creating today?</h2>
-              <p className="mt-2 text-[14px] text-pretty text-muted-foreground">Describe the whole job. Assist picks the models, shows you the plan and cost, then runs every step. Type / to use a skill.</p>
+              <h2 className="font-heading text-display text-balance">{t("assist.createToday")}</h2>
+              <p className="mt-2 text-[14px] text-pretty text-muted-foreground">{t("assist.describe")}</p>
             </div>
             <AssistVisitorNote className="mb-4" />
             <AssistComposer
@@ -227,7 +232,7 @@ export function AssistView({ starters: given = [], fills: givenFills = {} }: { s
               initialText={draft.text}
               autoFocus
               skills={available}
-              placeholder="e.g. “A launch campaign for my sneaker: 3 hero stills, then a 5s vertical video of the best one”"
+              placeholder={t("assist.placeholder")}
               onSend={start}
               footer={<NewChatControls choice={choice} setChoice={setChoice} can={can} engine={engine} setEngine={setEngine} askFirst={askFirst} setAskFirst={setAskFirst} />}
             />
@@ -239,7 +244,7 @@ export function AssistView({ starters: given = [], fills: givenFills = {} }: { s
               extra={
                 readyShown && (
                   <a href="#starters" className="text-[12px] text-brand-text hover:underline sm:hidden">
-                    Ready jobs
+                    {t("assist.readyJobs")}
                   </a>
                 )
               }
@@ -249,13 +254,13 @@ export function AssistView({ starters: given = [], fills: givenFills = {} }: { s
             </Suspense>
             <StarterSection surface="assist" starters={given} row onFill={fillStarter} className="mt-8 text-left" />
             <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {ASSIST_SUGGESTIONS.map((s) => (
+              {ASSIST_SUGGESTIONS.map((s, i) => (
                 <button
-                  key={s}
+                  key={i}
                   onClick={() => start(s).catch((e) => toastError(e))}
                   className="max-w-full rounded-full border bg-background px-3.5 py-1.5 text-left text-[13px] text-muted-foreground transition hover:border-primary hover:text-foreground"
                 >
-                  {s}
+                  {t(`assist.suggest${i}`)}
                 </button>
               ))}
             </div>
@@ -267,15 +272,15 @@ export function AssistView({ starters: given = [], fills: givenFills = {} }: { s
             <div className="mx-auto w-full max-w-[760px] py-4">
               {view.isError ? (
                 <div className="py-20 text-center">
-                  <p className="font-heading text-[22px]">This chat doesn&apos;t exist anymore</p>
+                  <p className="font-heading text-[22px]">{t("assist.chatMissing")}</p>
                   <Button variant="outline" className="mt-4" onClick={() => go(null)}>
-                    Start a new chat
+                    {t("assist.startNewChat")}
                   </Button>
                 </div>
               ) : thread ? (
                 <Transcript thread={thread} all={all} skills={skills.data} onAnswer={(ok) => assist.answer(thread.id, ok)} onOpen={(g, i) => setOpen({ g, i })} />
               ) : (
-                <Loader2 className="mx-auto mt-20 animate-spin text-muted-foreground" aria-label="Loading the chat" />
+                <Loader2 className="mx-auto mt-20 animate-spin text-muted-foreground" aria-label={t("assist.loadingChatAria")} />
               )}
               <div ref={end} className="h-4" />
             </div>
@@ -284,7 +289,7 @@ export function AssistView({ starters: given = [], fills: givenFills = {} }: { s
             <div className="mx-auto w-full max-w-[760px]">
               <AssistComposer
                 skills={available}
-                placeholder={thread?.status === "waiting" ? "Or tell me what to change…" : "Ask for changes, variations or the next step…"}
+                placeholder={thread?.status === "waiting" ? t("assist.placeholderWaiting") : t("assist.placeholderAsk")}
                 disabled={!thread || thread.status === "running"}
                 onSend={(text, attachments) => assist.send(id, { text, attachments })}
                 footer={
@@ -356,12 +361,13 @@ export function SkillStarters({
   extra?: ReactNode;
   className?: string;
 }) {
+  const { t } = useI18n();
   const shown = [...STARTER_SKILLS.map((n) => skills.find((s) => s.name === n)).filter((s): s is SkillSummary => !!s), ...skills.filter((s) => !STARTER_SKILLS.includes(s.name))].slice(0, 6);
   if (loading && !shown.length) {
     return (
-      <div className={cn("mt-4", className)} aria-busy="true" aria-label="Loading skills">
+      <div className={cn("mt-4", className)} aria-busy="true" aria-label={t("assist.loadingSkillsAria")}>
         <div className="flex items-center justify-between px-1 pb-2">
-          <p className="text-[12px] font-medium text-muted-foreground">Start with a skill</p>
+          <p className="text-[12px] font-medium text-muted-foreground">{t("assist.startWithSkill")}</p>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {STARTER_SKILLS.map((n) => (
@@ -385,11 +391,11 @@ export function SkillStarters({
   return (
     <div className={cn("mt-4", className)}>
       <div className="flex items-center justify-between px-1 pb-2">
-        <p className="text-[12px] font-medium text-muted-foreground">Start with a skill</p>
+        <p className="text-[12px] font-medium text-muted-foreground">{t("assist.startWithSkill")}</p>
         <span className="flex items-center gap-3">
           {extra}
           <Link href="/assist/skills" className="text-[12px] text-brand-text hover:underline">
-            All skills
+            {t("assist.allSkills")}
           </Link>
         </span>
       </div>
@@ -407,4 +413,3 @@ export function SkillStarters({
     </div>
   );
 }
-

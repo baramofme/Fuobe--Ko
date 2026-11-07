@@ -22,6 +22,7 @@ import { timeAgo } from "@/lib/format";
 import { templateCover } from "@/lib/template-covers";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { SkillCanvases } from "./skill-canvases";
 import { Schematic, TemplateCard } from "./template-card";
 import { useCanvasActions, useCanvases } from "./use-canvas";
@@ -30,6 +31,7 @@ import { VisitorBoards } from "./visitor-boards";
 export type { TemplateCardData } from "@/lib/canvas-sections";
 
 function CanvasCard({ c, onRename, onDelete }: { c: CanvasSummary; onRename: () => void; onDelete: () => void }) {
+  const { t } = useI18n();
   const router = useRouter();
   const { duplicate } = useCanvasActions();
   return (
@@ -49,36 +51,37 @@ function CanvasCard({ c, onRename, onDelete }: { c: CanvasSummary; onRename: () 
         </div>
         <h3 className="mt-2 truncate pr-9 text-[14px] font-medium">{c.name}</h3>
         <p className="text-[12px] text-muted-foreground">
-          {c.editedAt ? `Edited ${timeAgo(c.editedAt)}` : "Never edited"} · {c.nodeCount} node{c.nodeCount === 1 ? "" : "s"}
-          {c.pageCount > 1 && ` · ${c.pageCount} pages`}
+          {c.editedAt ? t("canvas.edited", { time: timeAgo(c.editedAt) }) : t("canvas.neverEdited")}
+          {c.nodeCount === 1 ? t("canvas.nodeSingular", { count: c.nodeCount }) : t("canvas.nodePlural", { count: c.nodeCount })}
+          {c.pageCount > 1 ? t("canvas.pageLine", { count: c.pageCount }) : null}
         </p>
       </Link>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             className="absolute right-0 bottom-5 grid size-8 place-items-center rounded-md text-muted-foreground opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 data-[state=open]:opacity-100"
-            aria-label={`Actions for ${c.name}`}
+            aria-label={t("canvas.actionsAria", { name: c.name })}
           >
             <MoreHorizontal className="size-4" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem onSelect={onRename}>
-            <Pencil /> Rename
+            <Pencil /> {t("canvas.rename")}
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() =>
               void duplicate(c.id).then(
-                (copy) => toast.success("Duplicated", { action: { label: "Open", onClick: () => router.push(`/canvas/${copy.id}`) } }),
+                (copy) => toast.success(t("canvas.duplicated"), { action: { label: t("canvas.open"), onClick: () => router.push(`/canvas/${copy.id}`) } }),
                 (e) => toastError(e),
               )
             }
           >
-            <Copy /> Duplicate
+            <Copy /> {t("canvas.duplicate")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-            <Trash2 /> Delete
+            <Trash2 /> {t("canvas.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -88,6 +91,7 @@ function CanvasCard({ c, onRename, onDelete }: { c: CanvasSummary; onRename: () 
 
 /** "What's a canvas?": two plain sentences, then one real effect film as three tiles, the photo, the scene, the shot. */
 function WhatsACanvas({ intro }: { intro?: CanvasIntro }) {
+  const { t } = useI18n();
   const { ref, playing, asked, handlers } = useCoverPlayback<HTMLLIElement>("canvas-intro", intro?.film);
   const tile = "relative aspect-[4/3] overflow-hidden rounded-lg border bg-muted";
   const caption = "mt-1 text-center text-[12px] font-medium text-muted-foreground sm:text-[13px]";
@@ -97,26 +101,26 @@ function WhatsACanvas({ intro }: { intro?: CanvasIntro }) {
     <section aria-labelledby="whats-a-canvas" className="mt-4 grid gap-3 rounded-2xl border bg-card p-4 sm:p-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-center lg:gap-8">
       <div>
         <h2 id="whats-a-canvas" className="font-heading text-[22px] leading-tight">
-          What&apos;s a canvas?
+          {t("canvas.whatsTitle")}
         </h2>
         <p className="mt-1 text-[15px] text-pretty text-muted-foreground">
-          A board of connected steps: a photo goes in, an edit sets the scene, and the last step turns it into a moving shot. Change any step and run it again.
+          {t("canvas.whatsBody")}
         </p>
       </div>
       {intro && (
-        <ol className="flex items-start gap-1.5 sm:gap-3" aria-label="One canvas, step by step">
+        <ol className="flex items-start gap-1.5 sm:gap-3" aria-label={t("canvas.stepsAria")}>
           <li className="min-w-0 flex-1">
             <div className={tile}>
               <CoverImg frame={intro.photo} sizes={sizes} />
             </div>
-            <p className={caption}>Your photo</p>
+            <p className={caption}>{t("canvas.stepPhoto")}</p>
           </li>
           {arrow}
           <li className="min-w-0 flex-1">
             <div className={tile}>
               <CoverImg frame={intro.film.frames[0]} sizes={sizes} />
             </div>
-            <p className={caption}>A new scene</p>
+            <p className={caption}>{t("canvas.stepScene")}</p>
           </li>
           {arrow}
           <li ref={ref} {...handlers} className="min-w-0 flex-1">
@@ -124,7 +128,7 @@ function WhatsACanvas({ intro }: { intro?: CanvasIntro }) {
               <CoverArt cover={intro.film} sizes={sizes} playing={playing} asked={asked} />
               <Play className="pointer-events-none absolute right-1.5 bottom-1.5 size-5 rounded-full bg-background/85 p-1 text-foreground shadow-soft" aria-hidden />
             </div>
-            <p className={caption}>A moving shot</p>
+            <p className={caption}>{t("canvas.stepShot")}</p>
           </li>
         </ol>
       )}
@@ -161,6 +165,7 @@ function CardGrid({ items, row, card }: { items: TemplateCardData[]; row?: boole
 }
 
 function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?: CanvasIntro }) {
+  const { t } = useI18n();
   const router = useRouter();
   const params = useSearchParams();
   const askedTemplates = params.get("tab") === "templates";
@@ -238,9 +243,9 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
         <section aria-labelledby="tpl-more">
           <div className="mb-3">
             <h3 id="tpl-more" className="font-heading text-[20px] leading-tight">
-              More templates
+              {t("canvas.moreTitle")}
             </h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">Boards to build on, and a blank one.</p>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{t("canvas.moreNote")}</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {more.map(card)}
@@ -249,7 +254,7 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
               disabled={!!creating}
               className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-[14px] font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
             >
-              {creating === "new" ? <Loader2 className="size-5 animate-spin" /> : <Plus className="size-5" />} Start blank
+              {creating === "new" ? <Loader2 className="size-5 animate-spin" /> : <Plus className="size-5" />} {t("canvas.startBlank")}
             </button>
           </div>
         </section>
@@ -273,17 +278,17 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
     <PageShell wide>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
         <div className="min-w-0 flex-1">
-          <h1 className="font-heading text-[34px] leading-tight">Canvas</h1>
-          {hasBoards && <p className="mt-1 max-w-xl text-[15px] text-muted-foreground">Make images, videos and ideas in one place: wire prompts, files and models together, then run them in order or side by side.</p>}
+          <h1 className="font-heading text-[34px] leading-tight">{t("canvas.title")}</h1>
+          {hasBoards && <p className="mt-1 max-w-xl text-[15px] text-muted-foreground">{t("canvas.heroLine")}</p>}
         </div>
         {owner ? (
           <Button className="w-fit rounded-full" onClick={() => void start("new", {})} disabled={!!creating}>
-            {creating === "new" ? <Loader2 className="animate-spin" /> : <Plus />} New canvas
+            {creating === "new" ? <Loader2 className="animate-spin" /> : <Plus />} {t("canvas.new")}
           </Button>
         ) : (
           <Button asChild className="w-fit rounded-full">
             <Link href="/canvas/try/blank">
-              <Plus /> New canvas
+              <Plus /> {t("canvas.new")}
             </Link>
           </Button>
         )}
@@ -296,11 +301,11 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
           <section aria-labelledby="mine-title" className="mt-6">
             <div className="flex flex-wrap items-center gap-3">
               <h2 id="mine-title" className="font-heading text-[22px] leading-tight">
-                Your canvases
+                {t("canvas.mine")}
               </h2>
               <div className="relative ml-auto w-full sm:w-64">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search canvases" aria-label="Search canvases" className="h-9 rounded-full pl-9" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("canvas.search")} aria-label={t("canvas.search")} className="h-9 rounded-full pl-9" />
               </div>
             </div>
             {items.length ? (
@@ -318,18 +323,18 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
                 ))}
               </div>
             ) : (
-              <p className="py-16 text-center text-[15px] text-muted-foreground">No canvas called “{q}”.</p>
+              <p className="py-16 text-center text-[15px] text-muted-foreground">{t("canvas.noMatch", { q })}</p>
             )}
           </section>
           <section id="templates" ref={gallery} aria-labelledby="templates-title" className="mt-12 scroll-mt-20">
-            {galleryHeading("Start from a template")}
+            {galleryHeading(t("canvas.fromTemplate"))}
             {allTemplates ? (
               fullGallery
             ) : (
               <>
                 <CardGrid items={firstTemplates(templates, viewing)} row card={card} />
                 <Button variant="secondary" className="mt-4 rounded-full" onClick={() => setSeeAll(true)}>
-                  See all templates
+                  {t("canvas.seeAll")}
                 </Button>
               </>
             )}
@@ -344,8 +349,8 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
             <WhatsACanvas intro={intro} />
             <section id="templates" ref={gallery} aria-labelledby="templates-title" className="mt-8 scroll-mt-20">
               {galleryHeading(
-                "Start from a ready board",
-                owner ? "Every step, word and file is already in place. Press Run all, or change anything first." : "Every step, word and photo is already in place. Open one in the editor and change anything.",
+                t("canvas.fromReadyBoard"),
+                owner ? t("canvas.readyBoardNoteOwner") : t("canvas.readyBoardNoteVisitor"),
               )}
               {fullGallery}
             </section>
@@ -357,9 +362,9 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
       {owner && !loadingMine && (
         <section id="skills" ref={skillsRef} aria-labelledby="skills-title" className="mt-12 scroll-mt-20">
           <h2 id="skills-title" className="font-heading text-[22px] leading-tight">
-            Skills as canvases
+            {t("canvas.skillsTitle")}
           </h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Open a skill that runs by itself as a canvas, change a model or a link, then save it back as a skill.</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">{t("canvas.skillsNote")}</p>
           <SkillCanvases visitor={false} />
         </section>
       )}
@@ -367,8 +372,8 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
       <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Rename canvas</DialogTitle>
-            <DialogDescription className="sr-only">Give this canvas a new name</DialogDescription>
+            <DialogTitle>{t("canvas.renameTitle")}</DialogTitle>
+            <DialogDescription className="sr-only">{t("canvas.renameDesc")}</DialogDescription>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -376,16 +381,16 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
               const c = renaming!;
               const name = draft.trim();
               setRenaming(null);
-              if (name && name !== c.name) void rename(c.id, name).then(() => toast.success("Renamed", { duration: 1500 }), (err) => toastError(err));
+              if (name && name !== c.name) void rename(c.id, name).then(() => toast.success(t("canvas.renamed"), { duration: 1500 }), (err) => toastError(err));
             }}
           >
-            <Input autoFocus value={draft} maxLength={80} onChange={(e) => setDraft(e.target.value)} aria-label="Name" />
+            <Input autoFocus value={draft} maxLength={80} onChange={(e) => setDraft(e.target.value)} aria-label={t("canvas.nameAria")} />
             <DialogFooter className="mt-4">
               <Button type="button" variant="ghost" onClick={() => setRenaming(null)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={!draft.trim()}>
-                Save
+                {t("common.save")}
               </Button>
             </DialogFooter>
           </form>
@@ -395,20 +400,20 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{deleting?.name}”?</AlertDialogTitle>
-            <AlertDialogDescription>The board is removed for good. Everything it made stays in your library.</AlertDialogDescription>
+            <AlertDialogTitle>{t("canvas.deleteTitle", { name: deleting?.name ?? "" })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("canvas.deleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
                 const c = deleting!;
                 setDeleting(null);
-                void remove(c.id).then(() => toast("Deleted", { duration: 1500 }), (e) => toastError(e));
+                void remove(c.id).then(() => toast(t("canvas.deleted"), { duration: 1500 }), (e) => toastError(e));
               }}
             >
-              Delete
+              {t("canvas.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
