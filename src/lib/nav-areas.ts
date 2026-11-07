@@ -99,6 +99,17 @@ const GROUP_COPY: Record<LauncherGroupId, { line: string; icon: NavIconName }> =
   finish: { line: "Sharper, larger or in 3D: the last step before you share.", icon: "SlidersHorizontal" },
 };
 
+/**
+ * The keys whose English values hold these literals byte-for-byte (so a wired render is byte-identical under vitest,
+ * where the language is the default en). One namespace per area page: `area.<id>.title`, `area.section.<id>.title` and
+ * `.line`, where `<id>` is the area's or section's id. The English literal stays in the data; the render reads the key
+ * so the page follows the cookie's language on the server.
+ */
+export const AREA_TITLE_KEY = (id: AreaId) => `area.${id}.title`;
+export const AREA_LINE_KEY = (id: AreaId) => `area.${id}.line`;
+export const SECTION_TITLE_KEY = (id: string) => `area.section.${id}.title`;
+export const SECTION_LINE_KEY = (id: string) => `area.section.${id}.line`;
+
 /** The tools (hub modes, a studio's own pages) of the given studios, in the model's order. */
 const toolsOf = (parents: readonly string[]) => NAV_ENTRIES.filter((e) => e.kind === "tool" && !!e.parent && parents.includes(e.parent)).map((e) => e.id);
 

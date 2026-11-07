@@ -18,7 +18,7 @@ const src = (f: string) => fs.readFileSync(path.join(__dirname, "..", f), "utf8"
 const ROWS: [file: string, label: string][] = [
   ["src/components/areas/area-islands.tsx", "<TabRow follow>"],
   ["src/components/nav/goal-row.tsx", 'aria-label="Start from a goal"'],
-  ["src/components/library-view.tsx", 'aria-label="Library sections"'],
+  ["src/components/library-view.tsx", 'aria-label={tt("library.sections")}'],
   ["src/components/studio/hub-chrome.tsx", "<TabRow ref={ref}"],
   ["src/components/marketing/shell.tsx", 'aria-label="Marketing tools"'],
   ["src/components/marketing/marketing-studio.tsx", 'aria-label="View"'],

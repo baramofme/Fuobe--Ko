@@ -9,6 +9,7 @@ import { useViewerKind } from "@/components/nav/nav-ui";
 import { useSearchPalette } from "@/components/nav/search-context";
 import { onAttr, reducedMotion, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import { glideTo } from "@/lib/glide-scroll";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { area, type AreaId } from "@/lib/nav-areas";
 import { navIcon } from "@/lib/nav-icons";
 import { entry, subLabel, visibleTo, type NavEntry } from "@/lib/nav-model";
@@ -19,14 +20,16 @@ import { cn } from "@/lib/utils";
  * "Jump back in" and the owner's own pills. Everything else on the page is server HTML.
  */
 
-/** What an area's search field says. */
+/** What an area's search field says. The keys whose English values hold the create/studios literals byte-for-byte; others fall through "Search <area>…". */
 const SEARCH_WORDS: Partial<Record<AreaId, string>> = { create: "Search tools to make and edit…", studios: "Search studios…" };
+const SEARCH_KEYS: Partial<Record<AreaId, string>> = { create: "area.searchTools", studios: "area.searchStudios" };
 
 /** Search inside the area: a button styled as a field, opening the site's search on this area's pages only. */
 export function AreaSearch({ id, ids, className }: { id: AreaId; ids: string[]; className?: string }) {
   const search = useSearchPalette();
+  const { t } = useI18n();
   const { label } = area(id);
-  const words = SEARCH_WORDS[id] ?? `Search ${label.toLowerCase()}…`;
+  const words = SEARCH_KEYS[id] ? t(SEARCH_KEYS[id]) : SEARCH_WORDS[id] ?? `Search ${label.toLowerCase()}…`;
   return (
     <button
       type="button"
@@ -255,6 +258,7 @@ const subPillOf = (e: NavEntry) => (
 export function JumpBackIn({ ids }: { ids: string[] }) {
   const kind = useViewerKind();
   const explored = useExplored();
+  const { t } = useI18n();
   if (!kind || kind === "guest" || !explored) return null;
   const mine = new Set(ids);
   const recent = [...explored]
@@ -267,7 +271,7 @@ export function JumpBackIn({ ids }: { ids: string[] }) {
   return (
     <section aria-labelledby="jump-back-in" className="mt-8 sm:mt-10">
       <h2 id="jump-back-in" className="mb-2 font-sans text-[13px] font-medium">
-        Jump back in
+        {t("area.jumpBackIn")}
       </h2>
       <ul className="flex flex-wrap gap-1.5">{recent.map((e) => pillOf(e))}</ul>
     </section>
@@ -285,6 +289,7 @@ export function OwnerPills({ ids, sub }: { ids: string[]; sub?: boolean }) {
 /** A studio's feature row on /studios that only the owner has (Cinema Studio's Blockout), added once the viewer is known. */
 export function OwnerSubRow({ parent, ids }: { parent: string; ids: string[] }) {
   const kind = useViewerKind();
+  const { t } = useI18n();
   const p = entry(parent);
   if (kind !== "owner" || !p) return null;
   const list = ids.map(entry).filter((e): e is NavEntry => !!e && visibleTo(e, kind));
@@ -292,7 +297,7 @@ export function OwnerSubRow({ parent, ids }: { parent: string; ids: string[] }) 
   return (
     <li className={SUB_ROW}>
       <p className={SUB_ROW_NAME}>{p.label}</p>
-      <ul aria-label={`In ${p.label}`} className="flex flex-wrap gap-x-1.5 gap-y-3">
+      <ul aria-label={t("area.in", { name: p.label })} className="flex flex-wrap gap-x-1.5 gap-y-3">
         {list.map(subPillOf)}
       </ul>
     </li>

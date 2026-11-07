@@ -47,6 +47,7 @@ import { keyCombo, useModKey } from "@/lib/keys";
 import { buildEntries, folderAndDescendants, reviewInfo, splitByDate, stacksOffReason, toggleAll, TRASH_DAYS, type LibraryEntry } from "@/lib/library";
 import { isLayered, shownOutputs } from "@/lib/output-actions";
 import { isExpired } from "@/lib/share";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { StarterSection, useStarters } from "@/components/starters/starter-section";
 import { starterShown, type StarterCardData } from "@/lib/starters/types";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,20 @@ const TABS: { id: TabId; label: string; kinds?: MediaKind[] }[] = [
   { id: "shared", label: "Shared" },
   { id: "trash", label: "Trash" },
 ];
+
+/** The keys whose English values hold these labels byte-for-byte (so a wired tab is byte-identical under vitest). */
+const TAB_LABEL_KEYS: Record<TabId, string> = {
+  all: "library.tab.all",
+  images: "library.tab.images",
+  videos: "library.tab.videos",
+  audio: "library.tab.audio",
+  text: "library.tab.text",
+  "3d": "library.tab.3d",
+  favorites: "library.tab.favorites",
+  uploads: "library.tab.uploads",
+  shared: "library.tab.shared",
+  trash: "library.tab.trash",
+};
 
 const singles = new WeakMap<Generation, LibraryEntry>();
 /** A stack member as its own card entry (cached per object so memoized cards stay put). */
@@ -230,6 +245,8 @@ function Cards({ entries, prefs, expanded, render, panel }: { entries: LibraryEn
 }
 
 function Inner({ starters: given }: { starters: StarterCardData[] }) {
+  const { t: tt } = useI18n();
+  const tabLabel = (id: TabId) => tt(TAB_LABEL_KEYS[id]);
   const routed = useSearchParams();
   // The params just set by go(): the History API hands them to useSearchParams in a transition, a frame later; shown at
   // once until the router has them.
@@ -589,22 +606,22 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
           </div>
         ) : (
           <div className="min-w-0">
-            <h1 className="font-heading text-[34px] leading-tight">Library</h1>
+            <h1 className="font-heading text-[34px] leading-tight">{tt("library.heading")}</h1>
             <p className="mt-1 max-w-2xl text-[15px] text-muted-foreground">
               {/* A guest can't make anything yet; a studio of open-source models only takes no keys. */}
               {!visitor ? (
-                "Everything you make, across cloud and open-source runs."
+                tt("library.lineCloud")
               ) : guest ? (
                 <>
                   <Link href={signInHref("signup", "/library")} className="text-brand-text underline underline-offset-2">
-                    Sign up free
+                    {tt("library.signUp")}
                   </Link>{" "}
-                  to keep what you make here.
+                  {tt("library.signUpRest")}
                 </>
               ) : account && seen?.paidAllowed !== false ? (
-                "Everything you make, in one place."
+                tt("library.lineOne")
               ) : (
-                "Everything you make, in one place."
+                tt("library.lineOne")
               )}
             </p>
           </div>
@@ -616,14 +633,14 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && setQ("")}
-              placeholder={uploadsTab ? "Search file names" : "Search prompts"}
-              aria-label="Search prompts"
+              placeholder={uploadsTab ? tt("library.searchFileNames") : tt("library.searchPrompts")}
+              aria-label={tt("library.searchPrompts")}
               className="h-8 w-full rounded-full border bg-background pr-8 pl-8 text-[13px] outline-none focus:border-primary focus:ring-4 focus:ring-brand-faint"
             />
             {refreshing || (q.trim() !== dq && q.trim()) ? (
               <Loader2 className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
             ) : q ? (
-              <button onClick={() => setQ("")} aria-label="Clear search" className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
+              <button onClick={() => setQ("")} aria-label={tt("library.clearSearch")} className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
                 <X className="size-3.5" />
               </button>
             ) : null}
@@ -632,14 +649,14 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
             <button
               onClick={() => (selecting ? clear() : setSelecting(true))}
               // Named for what a press does, and with the word it shows ("Done" while selecting).
-              aria-label={selecting ? "Done selecting" : "Select"}
-              title={selecting ? "Done selecting" : "Select several"}
+              aria-label={selecting ? tt("library.doneSelecting") : tt("library.select")}
+              title={selecting ? tt("library.doneSelecting") : tt("library.selectSeveral")}
               className={cn(
                 "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors",
                 selecting ? "bg-brand-faint text-brand-text hover:bg-brand-faint-hover" : "bg-secondary text-secondary-foreground hover:bg-accent",
               )}
             >
-              <CheckSquare className="size-3.5" /> <span className="hidden sm:inline">{selecting ? "Done" : "Select"}</span>
+              <CheckSquare className="size-3.5" /> <span className="hidden sm:inline">{selecting ? tt("library.done") : tt("library.select")}</span>
             </button>
           )}
           <ViewOptions prefs={prefs} onChange={setPrefs} noStacks={stacksOffReason(tab.id)} />
@@ -650,7 +667,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
         <TabRow
           ref={tabsRef}
           role="tablist"
-          aria-label="Library sections"
+          aria-label={tt("library.sections")}
           className="mb-4"
           onKeyDown={(e) => {
             // Arrow keys move between tabs (and open them), as in any tab strip.
@@ -676,7 +693,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
                 className={TAB_PILL}
                 {...onAttr(on)}
               >
-                {t.label}
+                {tabLabel(t.id)}
                 {n ? (
                   <span className="tab-count min-w-4" aria-label={`${n} items`}>
                     {n}
