@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsOwner } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChatMenu } from "./chat-menu";
@@ -23,9 +24,10 @@ import { ProjectDot } from "./project-dot";
  */
 
 export function AssistShell({ children }: { children: React.ReactNode }) {
+  const { t: tr } = useI18n();
   return (
     <div className="flex min-w-0 flex-1">
-      <aside className="sticky top-chrome hidden h-content w-64 shrink-0 flex-col border-r bg-sidebar/40 xl:flex" aria-label="Assist">
+      <aside className="sticky top-chrome hidden h-content w-64 shrink-0 flex-col border-r bg-sidebar/40 xl:flex" aria-label={tr("assist.fallbackTitle")}>
         <Suspense fallback={<RailSkeleton />}>
           <Rail />
         </Suspense>
@@ -37,21 +39,22 @@ export function AssistShell({ children }: { children: React.ReactNode }) {
 
 /** The header button that opens the Assist sidebar below xl. */
 export function RailButton({ className }: { className?: string }) {
+  const { t: tr } = useI18n();
   const [open, setOpen] = useState(false);
   return (
     <>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon-sm" className={cn("xl:hidden", className)} onClick={() => setOpen(true)} aria-label="Chats, projects, skills, memory and scheduled tasks">
+          <Button variant="ghost" size="icon-sm" className={cn("xl:hidden", className)} onClick={() => setOpen(true)} aria-label={tr("assist.rail.railAria")}>
             <MessagesSquare />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Chats, projects, skills, memory and scheduled tasks</TooltipContent>
+        <TooltipContent>{tr("assist.rail.railAria")}</TooltipContent>
       </Tooltip>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-[min(86vw,320px)] gap-0 p-0" aria-describedby={undefined} onOpenAutoFocus={(e) => e.preventDefault()}>
-          <SheetTitle className="sr-only">Assist</SheetTitle>
-          <SheetDescription className="sr-only">Chats, projects, skills, memory and scheduled tasks</SheetDescription>
+          <SheetTitle className="sr-only">{tr("assist.fallbackTitle")}</SheetTitle>
+          <SheetDescription className="sr-only">{tr("assist.rail.railAria")}</SheetDescription>
           <Suspense fallback={<RailSkeleton />}>
             <Rail onNavigate={() => setOpen(false)} />
           </Suspense>
@@ -89,6 +92,7 @@ function RailLink({ href, icon: Icon, label, active, onNavigate }: { href: strin
 export { ProjectDot };
 
 function Rail({ onNavigate }: { onNavigate?: () => void }) {
+  const { t: tr } = useI18n();
   const pathname = usePathname() ?? "";
   const params = useSearchParams();
   const router = useRouter();
@@ -106,22 +110,22 @@ function Rail({ onNavigate }: { onNavigate?: () => void }) {
       <div className={cn("space-y-2 p-3 pb-2", onNavigate && "pt-12")}>
         <Button asChild variant="outline" className="h-9 w-full justify-start rounded-full">
           <Link href="/assist" onClick={onNavigate}>
-            <MessageSquarePlus /> New chat
+            <MessageSquarePlus /> {tr("assist.newChat")}
           </Link>
         </Button>
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-subtle-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search chats" aria-label="Search chats" className="h-8 rounded-lg pr-7 pl-8 text-[13px]" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("assist.rail.searchChats")} aria-label={tr("assist.rail.searchChats")} className="h-8 rounded-lg pr-7 pl-8 text-[13px]" />
           {query && (
-            <button onClick={() => setQuery("")} className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground hover:text-foreground" aria-label="Clear search">
+            <button onClick={() => setQuery("")} className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground hover:text-foreground" aria-label={tr("assist.rail.clearSearch")}>
               <X className="size-3" />
             </button>
           )}
         </div>
-        <nav className="space-y-0.5" aria-label="Assist pages">
-          <RailLink href="/assist/skills" icon={Sparkles} label="Skills" active={pathname.startsWith("/assist/skills")} onNavigate={onNavigate} />
-          <RailLink href="/assist/memory" icon={Brain} label="Memory" active={pathname.startsWith("/assist/memory")} onNavigate={onNavigate} />
-          <RailLink href="/assist/scheduled" icon={CalendarClock} label="Scheduled" active={pathname.startsWith("/assist/scheduled")} onNavigate={onNavigate} />
+        <nav className="space-y-0.5" aria-label={tr("assist.rail.pagesAria")}>
+          <RailLink href="/assist/skills" icon={Sparkles} label={tr("assist.rail.skills")} active={pathname.startsWith("/assist/skills")} onNavigate={onNavigate} />
+          <RailLink href="/assist/memory" icon={Brain} label={tr("assist.rail.memory")} active={pathname.startsWith("/assist/memory")} onNavigate={onNavigate} />
+          <RailLink href="/assist/scheduled" icon={CalendarClock} label={tr("assist.rail.scheduled")} active={pathname.startsWith("/assist/scheduled")} onNavigate={onNavigate} />
         </nav>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
@@ -129,16 +133,16 @@ function Rail({ onNavigate }: { onNavigate?: () => void }) {
           <section aria-labelledby="rail-projects" className="mb-4">
             <div className="flex items-center justify-between px-2.5 pt-2 pb-1">
               <h2 id="rail-projects" className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-                Projects
+                {tr("assist.rail.projects")}
               </h2>
               {owner && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-xs" onClick={() => setCreating(true)} aria-label="New project">
+                    <Button variant="ghost" size="icon-xs" onClick={() => setCreating(true)} aria-label={tr("assist.rail.newProject")}>
                       <FolderPlus />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>New project</TooltipContent>
+                  <TooltipContent>{tr("assist.rail.newProject")}</TooltipContent>
                 </Tooltip>
               )}
             </div>
@@ -166,16 +170,16 @@ function Rail({ onNavigate }: { onNavigate?: () => void }) {
               </ul>
             ) : owner ? (
               <button onClick={() => setCreating(true)} className="w-full rounded-lg px-2.5 py-1.5 text-left text-[12px] text-muted-foreground hover:bg-accent hover:text-foreground">
-                Group chats with shared instructions and sources →
+                {tr("assist.rail.groupPrompt")}
               </button>
             ) : (
-              <p className="px-2.5 py-1.5 text-[12px] text-muted-foreground">Projects group chats with shared instructions and sources.</p>
+              <p className="px-2.5 py-1.5 text-[12px] text-muted-foreground">{tr("assist.rail.groupNote")}</p>
             )}
           </section>
         )}
         <section aria-labelledby="rail-chats">
           <h2 id="rail-chats" className="px-2.5 pt-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-            {q ? `Results for “${q}”` : "Chats"}
+            {q ? tr("assist.rail.resultsFor", { q }) : tr("assist.rail.chats")}
           </h2>
           {chats.isLoading ? (
             <div className="space-y-1.5 px-2.5">
@@ -200,7 +204,7 @@ function Rail({ onNavigate }: { onNavigate?: () => void }) {
                         <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                           {project && <ProjectDot project={project} className="size-1.5" />}
                           {project ? `${project.name} · ` : ""}
-                          {t.status === "running" ? "Working…" : t.status === "waiting" ? "Waiting for you" : timeAgo(t.updatedAt)}
+                          {t.status === "running" ? tr("assist.rail.working") : t.status === "waiting" ? tr("assist.rail.waiting") : timeAgo(t.updatedAt)}
                         </span>
                       )}
                     </Link>
@@ -214,7 +218,7 @@ function Rail({ onNavigate }: { onNavigate?: () => void }) {
               })}
             </ul>
           ) : (
-            <p className="px-2.5 py-2 text-[12px] text-muted-foreground">{q ? "No chats match." : "Your chats will show up here."}</p>
+            <p className="px-2.5 py-2 text-[12px] text-muted-foreground">{q ? tr("assist.rail.noMatch") : tr("assist.rail.emptyChats")}</p>
           )}
         </section>
       </div>

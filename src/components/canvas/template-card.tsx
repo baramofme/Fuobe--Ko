@@ -11,6 +11,7 @@ import type { Engine } from "@/lib/catalog/types";
 import type { TemplateCardData, TemplateModels } from "@/lib/canvas-sections";
 import { offered, type AccessSummary } from "@/lib/model-access";
 import { templateCover } from "@/lib/template-covers";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { cn } from "@/lib/utils";
 import { NodeIcon } from "./node-icon";
 import { useTemplateModels } from "./use-canvas";
@@ -115,6 +116,7 @@ export function offeredNames({ models, ifOff }: TemplateModels[Engine], access: 
  * come from the owner's own request (useTemplateModels), never with the page: a line's height is kept while they load.
  */
 export function ModelLine({ t, engine, access, className }: { t: TemplateCardData; engine: Engine; access?: AccessSummary; className?: string }) {
+  const { t: tr } = useI18n();
   const on = useTemplateModels().data?.[t.id]?.[engine];
   const models = on ? offeredNames(on, access, engine) : [];
   return (
@@ -122,7 +124,7 @@ export function ModelLine({ t, engine, access, className }: { t: TemplateCardDat
       {engine === "open" ? <Cpu className="mt-px size-3.5 shrink-0" /> : <Cloud className="mt-px size-3.5 shrink-0" />}
       <span className="line-clamp-2">
         {models.join(" · ")}
-        {engine === "open" && " · free on your GPU"}
+        {engine === "open" && tr("canvas.tplCard.freeOnGpu")}
       </span>
     </p>
   );
@@ -150,6 +152,7 @@ export function TemplateCard({
   /** A visitor's "Use this board": the board open in the editor. */
   tryHref?: string;
 }) {
+  const { t: tr } = useI18n();
   const cover = templateCover("canvas", t.id);
   return (
     <StarterCard
@@ -163,21 +166,21 @@ export function TemplateCard({
       description={t.description}
       href={`/canvas/start/${t.id}`}
       meta={owner ? <ModelLine t={t} engine={engine} access={access} /> : undefined}
-      badge={owner && !cover ? "No cover yet" : undefined}
+      badge={owner && !cover ? tr("canvas.tplCard.noCover") : undefined}
       action={
         onUse ? (
           <Button size="sm" className="w-fit rounded-full" onClick={onUse} disabled={busy}>
-            {busy ? <Loader2 className="animate-spin" /> : <Plus />} Use template
+            {busy ? <Loader2 className="animate-spin" /> : <Plus />} {tr("canvas.tplCard.use")}
           </Button>
         ) : tryHref ? (
           <Button asChild size="sm" className="w-fit rounded-full">
             <Link href={tryHref} data-use-board>
-              <Workflow /> Use this board
+              <Workflow /> {tr("canvas.tplCard.useBoard")}
             </Link>
           </Button>
         ) : (
           <span className="inline-flex items-center gap-1 text-[13px] font-medium text-foreground">
-            See how it works <ArrowRight className="size-3.5 transition-transform group-hover/starter:translate-x-0.5" />
+            {tr("canvas.tplCard.seeHow")} <ArrowRight className="size-3.5 transition-transform group-hover/starter:translate-x-0.5" />
           </span>
         )
       }

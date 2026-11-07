@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import type { AssistThreadSummary } from "@/lib/assist";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
@@ -49,6 +50,7 @@ export function ChatMenu({
   className?: string;
   align?: "start" | "end";
 }) {
+  const { t: tr } = useI18n();
   const projects = useProjects();
   const actions = useChatActions();
   const [renaming, setRenaming] = useState(false);
@@ -59,7 +61,7 @@ export function ChatMenu({
     try {
       await actions.patch(chat.id, { projectId });
       const p = projects.data?.find((x) => x.id === projectId);
-      toast(p ? `Moved to ${p.name}` : "Moved out of the project", { duration: 1500 });
+      toast(p ? tr("assist.chatMenu.movedTo", { name: p.name }) : tr("assist.chatMenu.movedOut"), { duration: 1500 });
     } catch (e) {
       toastError(e);
     }
@@ -68,7 +70,7 @@ export function ChatMenu({
     try {
       await actions.remove(chat.id);
       onDeleted?.();
-      toast("Chat deleted", { duration: 1500 });
+      toast(tr("assist.chatMenu.deleted"), { duration: 1500 });
     } catch (e) {
       toastError(e);
     }
@@ -77,42 +79,42 @@ export function ChatMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" className={cn("text-muted-foreground", className)} aria-label={`More for ${chat.title}`}>
+          <Button variant="ghost" size="icon-sm" className={cn("text-muted-foreground", className)} aria-label={tr("assist.chatMenu.moreFor", { title: chat.title })}>
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align={align} className="w-52">
           <DropdownMenuItem onSelect={() => setRenaming(true)}>
-            <Pencil /> Rename…
+            <Pencil /> {tr("assist.chatMenu.rename")}
           </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <FolderInput /> Move to project
+              <FolderInput /> {tr("assist.chatMenu.moveToProject")}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-72 w-52 overflow-y-auto">
               <DropdownMenuItem onSelect={() => void move(null)}>
                 <span className="size-2.5 shrink-0 rounded-full border border-dashed border-muted-foreground" aria-hidden />
-                <span className="flex-1">No project</span>
-                {!chat.projectId && <Check className="text-brand-text" aria-label="Current" />}
+                <span className="flex-1">{tr("assist.chatMenu.noProject")}</span>
+                {!chat.projectId && <Check className="text-brand-text" aria-label={tr("assist.chatMenu.current")} />}
               </DropdownMenuItem>
               {projects.data?.length ? <DropdownMenuSeparator /> : null}
               {projects.data?.map((p) => (
                 <DropdownMenuItem key={p.id} onSelect={() => void move(p.id)}>
                   <ProjectDot project={p} />
                   <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                  {chat.projectId === p.id && <Check className="text-brand-text" aria-label="Current" />}
+                  {chat.projectId === p.id && <Check className="text-brand-text" aria-label={tr("assist.chatMenu.current")} />}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           {builder && (
             <DropdownMenuItem onSelect={() => builder.openChat(chat.id)}>
-              <BookmarkPlus /> Save as skill…
+              <BookmarkPlus /> {tr("assist.chatMenu.saveSkill")}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
-            <Trash2 /> Delete…
+            <Trash2 /> {tr("assist.chatMenu.deleteEllipsis")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -122,13 +124,13 @@ export function ChatMenu({
       <AlertDialog open={deleting} onOpenChange={setDeleting}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
-            <AlertDialogDescription>“{chat.title}” and its messages are removed. Everything it made stays in your Library.</AlertDialogDescription>
+            <AlertDialogTitle>{tr("assist.chatMenu.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{tr("assist.chatMenu.deleteDesc", { title: chat.title })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tr("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={() => void remove()}>
-              Delete
+              {tr("canvas.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -138,6 +140,7 @@ export function ChatMenu({
 }
 
 function RenameForm({ chat, onDone }: { chat: Pick<AssistThreadSummary, "id" | "title">; onDone: () => void }) {
+  const { t: tr } = useI18n();
   const actions = useChatActions();
   const id = useId();
   const [title, setTitle] = useState(chat.title);
@@ -159,19 +162,19 @@ function RenameForm({ chat, onDone }: { chat: Pick<AssistThreadSummary, "id" | "
   return (
     <form onSubmit={save} className="space-y-4">
       <DialogHeader>
-        <DialogTitle className="font-heading text-[24px] font-normal">Rename chat</DialogTitle>
-        <DialogDescription className="sr-only">Give this chat a new name.</DialogDescription>
+        <DialogTitle className="font-heading text-[24px] font-normal">{tr("assist.chatMenu.renameTitle")}</DialogTitle>
+        <DialogDescription className="sr-only">{tr("assist.chatMenu.renameDesc")}</DialogDescription>
       </DialogHeader>
       <div className="space-y-2">
-        <Label htmlFor={id}>Name</Label>
+        <Label htmlFor={id}>{tr("assist.chatMenu.name")}</Label>
         <Input id={id} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} autoFocus onFocus={(e) => e.currentTarget.select()} />
       </div>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
+          {tr("common.cancel")}
         </Button>
         <Button type="submit" disabled={busy || !title.trim()}>
-          Save
+          {tr("common.save")}
         </Button>
       </DialogFooter>
     </form>
