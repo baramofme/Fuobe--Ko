@@ -32,11 +32,19 @@ export function templateModels(): Record<string, TemplateModels> {
   return Object.fromEntries(CANVAS_TEMPLATES.map((t) => [t.id, { cloud: modelsOn(t, "cloud"), open: modelsOn(t, "open") }]));
 }
 
+/**
+ * The carousel's words per template: the originals stay in the data layer (byte-identical for tests); the render
+ * site resolves these keys with `tr(nameKey ?? name)` so a language switch re-renders them.
+ */
+const tplKey = (id: string) => `canvas.tpl.${id}`;
+
 function card(t: CanvasTemplate): TemplateCardData {
   return {
     id: t.id,
     name: t.name,
+    nameKey: `${tplKey(t.id)}.name`,
     description: t.description,
+    descriptionKey: `${tplKey(t.id)}.description`,
     icon: t.icon,
     hue: t.hue,
     section: t.group ?? "",

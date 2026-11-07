@@ -162,8 +162,8 @@ export function TemplateCard({
       flow={<StepFlow steps={t.flow} />}
       overlay={<CoverPlaceholder icon={t.icon} />}
       icon={<NodeIcon name={t.icon} className="size-4" />}
-      title={t.name}
-      description={t.description}
+      title={tr(t.nameKey ?? t.name)}
+      description={tr(t.descriptionKey ?? t.description)}
       href={`/canvas/start/${t.id}`}
       meta={owner ? <ModelLine t={t} engine={engine} access={access} /> : undefined}
       badge={owner && !cover ? tr("canvas.tplCard.noCover") : undefined}

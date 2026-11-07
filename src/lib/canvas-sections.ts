@@ -34,7 +34,13 @@ export type TemplateSectionKey = Exclude<(typeof TEMPLATE_SECTIONS)[number]["key
 export interface TemplateCardData {
   id: string;
   name: string;
+  /**
+   * The render site resolves these keys (`tr(nameKey ?? name)`); the originals stay byte-identical for the data
+   * layer and the tests. Never capture `t()` at import time — a language switch must re-resolve at render.
+   */
+  nameKey?: string;
   description: string;
+  descriptionKey?: string;
   icon: string;
   hue: number;
   section: TemplateSectionKey | "";
