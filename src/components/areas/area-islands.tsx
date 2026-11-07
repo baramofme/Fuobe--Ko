@@ -12,7 +12,7 @@ import { glideTo } from "@/lib/glide-scroll";
 import { useI18n } from "@/lib/i18n/use-i18n";
 import { area, type AreaId } from "@/lib/nav-areas";
 import { navIcon } from "@/lib/nav-icons";
-import { entry, subLabel, visibleTo, type NavEntry } from "@/lib/nav-model";
+import { entry, labelKeyOf, pillLabelKeyOf, visibleTo, type NavEntry } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
 
 /*
@@ -229,23 +229,26 @@ export function AreaTabs({ tabs, label }: { tabs: AreaTab[]; label: string }) {
   );
 }
 
-const pillOf = (e: NavEntry, tap = true) => {
+/** The words a pill of these takes reads: the keys of the navigation model, in the language of the switch. */
+type Words = (key: string) => string;
+
+const pillOf = (e: NavEntry, words: Words, tap = true) => {
   const Icon = navIcon(e.icon);
   return (
     <li key={e.id}>
       <IntentLink href={e.href} className={cn(PILL, tap && PILL_TAP)}>
         <Icon className={PILL_ICON} />
-        {e.label}
+        {words(labelKeyOf(e.id))}
       </IntentLink>
     </li>
   );
 };
 
 /** A studio's feature as a pill in its row on /studios: its tab's name, no icon (the row names the studio). */
-const subPillOf = (e: NavEntry) => (
+const subPillOf = (e: NavEntry, words: Words) => (
   <li key={e.id}>
     <IntentLink href={e.href} className={SUB_PILL}>
-      {subLabel(e)}
+      {words(pillLabelKeyOf(e))}
     </IntentLink>
   </li>
 );
@@ -273,7 +276,7 @@ export function JumpBackIn({ ids }: { ids: string[] }) {
       <h2 id="jump-back-in" className="mb-2 font-sans text-[13px] font-medium">
         {t("area.jumpBackIn")}
       </h2>
-      <ul className="flex flex-wrap gap-1.5">{recent.map((e) => pillOf(e))}</ul>
+      <ul className="flex flex-wrap gap-1.5">{recent.map((e) => pillOf(e, t))}</ul>
     </section>
   );
 }
@@ -281,9 +284,10 @@ export function JumpBackIn({ ids }: { ids: string[] }) {
 /** The owner's own pills in a section's row (a mode only the owner sees), added once the viewer is known. `sub`: a studio's feature row. */
 export function OwnerPills({ ids, sub }: { ids: string[]; sub?: boolean }) {
   const kind = useViewerKind();
+  const { t } = useI18n();
   if (kind !== "owner") return null;
   const list = ids.map(entry).filter((e): e is NavEntry => !!e && visibleTo(e, kind));
-  return <>{list.map((e) => (sub ? subPillOf(e) : pillOf(e)))}</>;
+  return <>{list.map((e) => (sub ? subPillOf(e, t) : pillOf(e, t)))}</>;
 }
 
 /** A studio's feature row on /studios that only the owner has (Cinema Studio's Blockout), added once the viewer is known. */
@@ -294,11 +298,12 @@ export function OwnerSubRow({ parent, ids }: { parent: string; ids: string[] }) 
   if (kind !== "owner" || !p) return null;
   const list = ids.map(entry).filter((e): e is NavEntry => !!e && visibleTo(e, kind));
   if (!list.length) return null;
+  const name = t(labelKeyOf(p.id));
   return (
     <li className={SUB_ROW}>
-      <p className={SUB_ROW_NAME}>{p.label}</p>
-      <ul aria-label={t("area.in", { name: p.label })} className="flex flex-wrap gap-x-1.5 gap-y-3">
-        {list.map(subPillOf)}
+      <p className={SUB_ROW_NAME}>{name}</p>
+      <ul aria-label={t("area.in", { name })} className="flex flex-wrap gap-x-1.5 gap-y-3">
+        {list.map((e) => subPillOf(e, t))}
       </ul>
     </li>
   );

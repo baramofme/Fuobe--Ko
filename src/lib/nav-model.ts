@@ -759,6 +759,21 @@ export function studioSubs(parent: string, kind: ViewerKind | undefined, place: 
 export const subLabel = (e: Pick<NavEntry, "label" | "tab">) => e.tab ?? e.label;
 
 /**
+ * An entry's words as locale keys, so a page reads them in the cookie's language while the model keeps its own (the
+ * literals stay here: tests, search and JSON-LD read them). The label is `nav.<id>`, the sentence under a cover card
+ * `nav.<id>.line`, and what a studio's row shows for a mode with a tab of its own `nav.<id>.tab`.
+ *
+ * Two ids' keys are taken by the bar's own words, which say something else there (the bar's Library item says
+ * "Library", not "All creations"; the Motions item says "Motions & effects", not "Camera motions"), so those two
+ * entries' words live under `nav.entry.<id>` instead of overwriting the bar's.
+ */
+const TAKEN_KEYS: ReadonlySet<string> = new Set(["library", "motions"]);
+export const labelKeyOf = (id: string): string => (TAKEN_KEYS.has(id) ? `nav.entry.${id}` : `nav.${id}`);
+export const lineKeyOf = (id: string): string => `nav.${id}.line`;
+/** A pill's words: the tab's name where the feature has one of its own under its studio, else the entry's label. */
+export const pillLabelKeyOf = (e: Pick<NavEntry, "id" | "tab">): string => (e.tab ? `${labelKeyOf(e.id)}.tab` : labelKeyOf(e.id));
+
+/**
  * The studio feature a page is (for aria-current on its link under its studio): the one whose link the path and query
  * match, the longest such link winning. None when the feature's link is its studio's own (/upscale is Upscale, and its
  * "Image" tab is that same page), so the studio stays the one marked.

@@ -108,8 +108,14 @@ export async function AreaSections({ sections }: { sections: AreaShowcase["secti
               title={translate(lang, SECTION_TITLE_KEY(s.id))}
               count={s.cards.length + s.pills.length}
               line={translate(lang, SECTION_LINE_KEY(s.id))}
-              cards={s.cards}
-              pills={s.pills.map((p) => ({ href: p.href, label: p.label, icon: navIcon(p.icon) }))}
+              cards={s.cards.map((c) => ({
+                href: c.href,
+                label: translate(lang, c.labelKey),
+                line: c.lineKey ? translate(lang, c.lineKey, c.lineParams) : c.line,
+                card: c.card,
+                drawn: c.drawn,
+              }))}
+              pills={s.pills.map((p) => ({ href: p.href, label: translate(lang, p.labelKey), icon: navIcon(p.icon) }))}
               pillsLabel={translate(lang, "area.alsoIn", { name: translate(lang, SECTION_TITLE_KEY(s.id)) })}
               tap
               grid
@@ -143,13 +149,13 @@ async function StudioFeatures({ section, subs }: { section: string; subs: AreaSh
           g.pills.length > 0 ? (
             <li key={g.parent.id} className={SUB_ROW}>
               <p id={`${section}-inside-${g.parent.id}`} className={SUB_ROW_NAME}>
-                {g.parent.label}
+                {translate(lang, g.parent.labelKey)}
               </p>
               <ul aria-labelledby={`${section}-inside-${g.parent.id}`} className="flex flex-wrap gap-x-1.5 gap-y-3">
                 {g.pills.map((p) => (
                   <li key={p.id}>
                     <IntentLink href={p.href} className={SUB_PILL}>
-                      {p.label}
+                      {translate(lang, p.labelKey)}
                     </IntentLink>
                   </li>
                 ))}

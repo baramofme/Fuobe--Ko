@@ -8,8 +8,9 @@ import { cacheLife } from "next/cache";
 import { EFFECTS, MOTIONS } from "@/lib/catalog";
 import { HOME_EFFECTS, HOME_MOTIONS, HOME_STUDIOS, homeCard, homeShowcase, presetHref, type HomeFacts } from "@/lib/home-showcase";
 import { areaCount, areaSections, rankCards, type AreaId } from "@/lib/nav-areas";
-import { entry, NAV_ENTRIES, subLabel, visibleTo, type NavEntry } from "@/lib/nav-model";
+import { entry, labelKeyOf, lineKeyOf, NAV_ENTRIES, pillLabelKeyOf, subLabel, visibleTo, type NavEntry } from "@/lib/nav-model";
 import type { PresetCardData } from "@/lib/preset-cards";
+import type { Params } from "@/lib/i18n/store";
 import { featuredAll, featuredBand } from "@/lib/preset-featured";
 
 /** How a card without a cover is drawn: Live edit plays its recorded session. */
@@ -19,6 +20,11 @@ export interface AreaCard {
   id: string;
   href: string;
   label: string;
+  /** The words under the label, in the cookie's language: `labelKey` and, where the line is one the page keys, its
+   * `lineKey` with `lineParams` for any number the sentence counts. Without a key, the card shows `line` as written. */
+  labelKey: string;
+  lineKey?: string;
+  lineParams?: Params;
   line: string;
   /** Its cover, as Home's cards get it. */
   card?: PresetCardData;
@@ -29,6 +35,8 @@ export interface AreaPill {
   id: string;
   href: string;
   label: string;
+  /** Its words in the cookie's language: the label's key, or the tab's where the feature is named by its tab. */
+  labelKey: string;
   icon: string;
 }
 
@@ -57,9 +65,38 @@ function lineOf(e: NavEntry, facts: HomeFacts): string {
   return home ? home.line(facts) : (e.line ?? e.what);
 }
 
-const pill = (e: NavEntry): AreaPill => ({ id: e.id, href: e.href, label: e.label, icon: e.icon });
+/**
+ * Home's own sentence for a studio whose model has no line of its own: keys so the area page follows the language too.
+ * Three of them count a number (moves, ad templates, looks), so the key holds "{moves}" and the card carries the count
+ * with it; under English the two put the sentence back exactly as Home writes it.
+ */
+const HOME_LINE_KEYS: Record<string, string> = {
+  "/cinema": "nav.cinema.line",
+  "/marketing": "nav.marketing.line",
+  "/mixed-media": "nav.mixed-media.line",
+  "/genjutsu": "nav.genjutsu.line",
+  "/character-swap": "nav.character-swap.line",
+  "/motion-control": "nav.motion-control.line",
+  "/audio": "nav.audio.line",
+  "/image-to-3d": "nav.image-to-3d.line",
+  "/kinetic": "nav.kinetic.line",
+};
+const HOME_LINE_PARAMS: Record<string, (f: HomeFacts) => Params> = {
+  "/cinema": (f) => ({ moves: f.cinemaMoves }),
+  "/marketing": (f) => ({ templates: f.adTemplates }),
+  "/mixed-media": (f) => ({ looks: f.mixedLooks }),
+};
+
+/** The key a card's line reads, and any number it counts. None for a page with no line of its own anywhere: it shows its `what`. */
+function lineKeyFor(e: NavEntry, facts: HomeFacts): { lineKey?: string; lineParams?: Params } {
+  if (e.line) return { lineKey: lineKeyOf(e.id) };
+  if (HOME_LINE_KEYS[e.href]) return { lineKey: HOME_LINE_KEYS[e.href], ...(HOME_LINE_PARAMS[e.href] ? { lineParams: HOME_LINE_PARAMS[e.href](facts) } : {}) };
+  return {};
+}
+
+const pill = (e: NavEntry): AreaPill => ({ id: e.id, href: e.href, label: e.label, labelKey: labelKeyOf(e.id), icon: e.icon });
 /** A feature as a pill under its studio: its tab's name. */
-const subPill = (e: NavEntry): AreaPill => ({ ...pill(e), label: subLabel(e) });
+const subPill = (e: NavEntry): AreaPill => ({ ...pill(e), label: subLabel(e), labelKey: pillLabelKeyOf(e) });
 
 /**
  * A card's cover: Home's for a page Home has a card for (so a studio looks the same in both places), unless another
@@ -105,7 +142,9 @@ export async function areaShowcase(id: AreaId) {
         id: e.id,
         href: e.href,
         label: e.label,
+        labelKey: labelKeyOf(e.id),
         line: lineOf(e, facts),
+        ...lineKeyFor(e, facts),
         ...(cover ? { card: homeCard(cover) } : { drawn: DRAWN[e.id] }),
       };
     });
