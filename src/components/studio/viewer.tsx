@@ -28,6 +28,7 @@ import { ReviewSelect } from "@/components/library/review";
 import { PlaceholderChip } from "@/components/demo-mode";
 import { NextSteps } from "@/components/nav/next-steps";
 import { AiTag, useAiTag } from "./ai-tag";
+import { useI18n } from "@/lib/i18n";
 
 
 /** One line of the details; `center` lines the label up with a control (the Review picker) instead of a text value's first line. */
@@ -62,6 +63,7 @@ function metaText(o: OutputFile | undefined, key: string): string | undefined {
 }
 
 function Details({ g, index }: { g: Generation; index: number }) {
+  const { t } = useI18n();
   const p = g.request.params ?? {};
   const made = shownSettings(g);
   const title = userTitle(g);
@@ -73,9 +75,9 @@ function Details({ g, index }: { g: Generation; index: number }) {
       <div className="space-y-4">
         <p className="font-heading text-[20px] leading-snug break-words">{title}</p>
         <div className="divide-y rounded-lg border px-3">
-          <Row label="Source" value="Your upload" />
-          <Row label="Type" value={g.outputs[index]?.contentType} />
-          <Row label="Added" value={timeAgo(g.createdAt)} />
+          <Row label={t("studio.viewer.source")} value={t("studio.viewer.yourUpload")} />
+          <Row label={t("studio.viewer.type")} value={g.outputs[index]?.contentType} />
+          <Row label={t("studio.viewer.added")} value={timeAgo(g.createdAt)} />
         </div>
       </div>
     );
@@ -85,60 +87,61 @@ function Details({ g, index }: { g: Generation; index: number }) {
       <div>
         <p className="font-heading text-[20px] leading-snug">{title}</p>
         {aiTag && <AiTag className="mt-1.5 inline-block bg-muted text-muted-foreground backdrop-blur-none" />}
-        {g.prompt && g.prompt !== title && <p className="mt-1 line-clamp-6 text-[12px] leading-relaxed break-words text-muted-foreground">{g.modelId === "local-motion" ? "Words" : "Sent to the model"}: {g.prompt}</p>}
+        {g.prompt && g.prompt !== title && <p className="mt-1 line-clamp-6 text-[12px] leading-relaxed break-words text-muted-foreground">{g.modelId === "local-motion" ? t("studio.viewer.words") : t("studio.viewer.sentToModel")}: {g.prompt}</p>}
         {g.prompt && (
           <button
-            onClick={() => void copyWithToast(g.prompt ?? "", "Prompt copied")}
+            onClick={() => void copyWithToast(g.prompt ?? "", t("studio.result.promptCopied"))}
             className="mt-1 inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground"
           >
-            <Copy className="size-3" /> Copy prompt
+            <Copy className="size-3" /> {t("studio.actions.copyPrompt")}
           </button>
         )}
       </div>
       <div className="divide-y rounded-lg border px-3">
-        <Row label="Model" value={g.modelName ?? g.modelId} />
-        <Row label="Made on" value={g.provider === "mock" ? "Placeholder" : g.provider === "local" ? "In your browser" : g.place === "pool" ? site : g.engine === "open" ? "Your GPU" : "Cloud"} />
-        <Row label="Mode" value={OPERATION_LABELS[g.op]} />
-        <Row label={g.modelId.startsWith("fuobe-soul") ? "Look" : "Preset"} value={g.presetName} />
-        <Row label="Finish" value={finishText(g.outputs[index])} />
-        <Row label="Step" value={g.request.step?.label} />
-        {isLayered(g) && <Row label="Layer" value={`${layerInfo(g.outputs[index], index).name} · ${index + 1} of ${g.outputs.length}`} />}
-        <Row label="Stem" value={metaText(g.outputs[index], "stem")} />
-        <Row label="Language" value={metaText(g.outputs[index], "language") ?? p.targetLanguage} />
+        <Row label={t("studio.viewer.model")} value={g.modelName ?? g.modelId} />
+        <Row label={t("studio.viewer.madeOn")} value={g.provider === "mock" ? t("studio.viewer.placeholderLabel") : g.provider === "local" ? t("studio.viewer.browserLabel") : g.place === "pool" ? site : g.engine === "open" ? t("studio.viewer.yourGpuLabel") : t("studio.viewer.cloudLabel")} />
+        <Row label={t("studio.viewer.mode")} value={OPERATION_LABELS[g.op]} />
+        <Row label={g.modelId.startsWith("fuobe-soul") ? t("studio.look.look") : t("studio.viewer.preset")} value={g.presetName} />
+        <Row label={t("studio.viewer.finish")} value={finishText(g.outputs[index], t)} />
+        <Row label={t("studio.viewer.step")} value={g.request.step?.label} />
+        {isLayered(g) && <Row label={t("studio.viewer.layer")} value={`${layerInfo(g.outputs[index], index).name} · ${index + 1} of ${g.outputs.length}`} />}
+        <Row label={t("studio.viewer.stem")} value={metaText(g.outputs[index], "stem")} />
+        <Row label={t("studio.audio.language")} value={metaText(g.outputs[index], "language") ?? p.targetLanguage} />
         {/* What it was made at; where that differs from what it asked, the line under the details says so. */}
-        <Row label="Aspect ratio" value={made.aspectRatio ?? g.aspectRatio} />
-        <Row label="Quality" value={made.resolution} />
-        <Row label="Duration" value={made.duration ? `${made.duration}s` : undefined} />
-        <Row label="Seed" value={made.seed} mono />
-        <Row label="Cost" value={g.costUsd != null ? formatCost(g.costUsd) : undefined} mono />
-        <Row label="Made" value={timeAgo(g.createdAt)} />
-        {g.deletedAt && <Row label="In Trash" value={`${trashDaysLeft(g.deletedAt)} days left`} />}
-        {!g.deletedAt && <Row label="Review" center value={<ReviewSelect g={g} />} />}
+        <Row label={t("studio.settings.aspectRatio")} value={made.aspectRatio ?? g.aspectRatio} />
+        <Row label={t("studio.settings.quality")} value={made.resolution} />
+        <Row label={t("studio.settings.duration")} value={made.duration ? `${made.duration}s` : undefined} />
+        <Row label={t("studio.settings.seed")} value={made.seed} mono />
+        <Row label={t("studio.viewer.cost")} value={g.costUsd != null ? formatCost(g.costUsd) : undefined} mono />
+        <Row label={t("studio.viewer.made")} value={timeAgo(g.createdAt)} />
+        {g.deletedAt && <Row label={t("studio.viewer.inTrash")} value={t("studio.viewer.daysLeft", { n: trashDaysLeft(g.deletedAt) })} />}
+        {!g.deletedAt && <Row label={t("studio.viewer.review")} center value={<ReviewSelect g={g} />} />}
       </div>
       <MadeNote g={g} />
-      {g.request.negativePrompt && <p className="text-[12px] text-muted-foreground">Negative: {g.request.negativePrompt}</p>}
+      {g.request.negativePrompt && <p className="text-[12px] text-muted-foreground">{t("studio.viewer.negativePrefix")} {g.request.negativePrompt}</p>}
     </div>
   );
 }
 
 /** A Fuobe Soul result's post steps: the grade preset and the overlay, applied in the browser (or still to come). */
-function finishText(o: OutputFile | undefined): string | undefined {
+function finishText(o: OutputFile | undefined, t: (key: string) => string): string | undefined {
   const m = o?.meta;
   if (!m || (!m.grade && !m.overlay)) return undefined;
   const grade = typeof m.grade === "string" ? (GRADE_PRESETS.find((p) => p.id === m.grade)?.name ?? m.grade) : undefined;
-  const overlay = m.overlay === "date-stamp" ? "date stamp" : m.overlay === "cctv" ? "CCTV caption" : m.overlay === "photo-booth" ? "photo-booth print" : undefined;
-  const what = [grade && `${grade} grade`, overlay].filter(Boolean).join(" + ");
-  return m.finished ? what : `${what} (applied when it opens in a studio)`;
+  const overlay = m.overlay === "date-stamp" ? t("studio.viewer.dateStamp") : m.overlay === "cctv" ? t("studio.viewer.cctvCaption") : m.overlay === "photo-booth" ? t("studio.viewer.photoBooth") : undefined;
+  const what = [grade && `${grade} ${t("studio.viewer.gradeWord")}`, overlay].filter(Boolean).join(" + ");
+  return m.finished ? what : `${what} ${t("studio.viewer.appliedOnOpen")}`;
 }
 
 function LayerList({ g, index, all, onPick, onAll }: { g: Generation; index: number; all: boolean; onPick: (i: number) => void; onAll: () => void }) {
+  const { t } = useI18n();
   const layers = g.outputs.map((o, i) => ({ o, i, ...layerInfo(o, i) })).sort((a, b) => b.z - a.z);
   const item = "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-accent";
   return (
     <div className="space-y-1">
-      <p className="px-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Layers</p>
+      <p className="px-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{t("studio.viewer.layers")}</p>
       <button onClick={onAll} className={cn(item, all && "bg-brand-faint text-brand-text")}>
-        <Layers className="size-4" /> All layers
+        <Layers className="size-4" /> {t("studio.viewer.allLayers")}
       </button>
       {layers.map((l) => (
         <button key={l.o.url} onClick={() => onPick(l.i)} className={cn(item, !all && index === l.i && "bg-brand-faint text-brand-text")}>
@@ -198,6 +201,7 @@ export function Viewer({
   const run = useActionRunner({ onReuse: onReuse && ((x) => (onReuse(x), onClose())), onCompare: () => setComparing((v) => !v), onDeleted: onClose });
   const engineMode = useEngineMode();
   const visitor = useLikelyVisitor();
+  const { t } = useI18n();
   const placeholders = placeholdersOn(useStatus().data?.demoMode);
   const account = useIsAccount();
   const list = useMemo(() => outputActions(g, index, { reuse: !!onReuse, compare: !!source, inViewer: true, engineMode, visitor, placeholders, account }), [g, index, onReuse, source, engineMode, visitor, placeholders, account]);
@@ -258,7 +262,7 @@ export function Viewer({
 
   const actionButton = (a: OutputAction, opts: { variant?: "default" | "secondary" | "ghost"; className?: string; onDone?: () => void } = {}) => {
     const Icon = ACTION_ICONS[a.id];
-    const label = a.id === "favorite" ? (g.favorite ? "Favorited" : "Favorite") : a.id === "save-character" ? "Save as element" : a.label;
+    const label = a.id === "favorite" ? (g.favorite ? t("studio.viewer.favorited") : t("studio.actions.favorite")) : a.id === "save-character" ? t("studio.result.saveAsElement") : a.label;
     const icon = <Icon className={cn(a.id === "favorite" && g.favorite && "fill-current text-highlight")} />;
     const cls = cn(a.destructive && "text-destructive hover:text-destructive", opts.className);
     const variant = a.destructive ? "ghost" : (opts.variant ?? "secondary");
@@ -354,7 +358,7 @@ export function Viewer({
         className="flex h-[100svh] w-screen max-w-none gap-0 overflow-hidden rounded-none p-0 sm:max-w-none md:h-[min(92vh,900px)] md:w-[min(96vw,1400px)] md:rounded-xl"
       >
         <DialogTitle className="sr-only">{userTitle(g)}</DialogTitle>
-        <DialogDescription className="sr-only">Preview, actions and details</DialogDescription>
+        <DialogDescription className="sr-only">{t("studio.viewer.previewDesc")}</DialogDescription>
         <div className="relative flex min-w-0 flex-1 flex-col bg-media">
           <div className="relative flex min-h-0 flex-1 items-center justify-center p-0 md:p-2" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             {media}
@@ -368,16 +372,16 @@ export function Viewer({
                   comparing ? "bg-white text-black" : "bg-white/15 text-white hover:bg-white/25",
                 )}
               >
-                <Columns2 className="size-4" /> {comparing ? "Hide original" : "Compare"}
+                <Columns2 className="size-4" /> {comparing ? t("studio.viewer.hideOriginal") : t("studio.actions.compare")}
               </button>
             )}
             {onPrev && (
-              <button onClick={onPrev} aria-label="Previous" className="absolute top-1/2 left-3 hidden size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20 md:grid">
+              <button onClick={onPrev} aria-label={t("studio.viewer.previous")} className="absolute top-1/2 left-3 hidden size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20 md:grid">
                 <ChevronLeft className="size-5" />
               </button>
             )}
             {onNext && (
-              <button onClick={onNext} aria-label="Next" className="absolute top-1/2 right-3 hidden size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20 md:grid">
+              <button onClick={onNext} aria-label={t("studio.viewer.next")} className="absolute top-1/2 right-3 hidden size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20 md:grid">
                 <ChevronRight className="size-5" />
               </button>
             )}
@@ -386,7 +390,7 @@ export function Viewer({
           {/* Phones: the main actions stay at the bottom; the rest and the details are in a drawer. */}
           <div className="flex shrink-0 items-center gap-1.5 border-t border-white/10 bg-media px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden">
             {onPrev ? (
-              <button onClick={onPrev} aria-label="Previous" className="grid size-10 shrink-0 place-items-center rounded-full text-white/90 hover:bg-white/10">
+              <button onClick={onPrev} aria-label={t("studio.viewer.previous")} className="grid size-10 shrink-0 place-items-center rounded-full text-white/90 hover:bg-white/10">
                 <ChevronLeft className="size-5" />
               </button>
             ) : (
@@ -407,12 +411,12 @@ export function Viewer({
                   </button>
                 );
               })}
-              <button onClick={() => setDrawer(true)} aria-label="More actions and details" className="grid size-10 shrink-0 place-items-center rounded-full text-white/90 hover:bg-white/10">
+              <button onClick={() => setDrawer(true)} aria-label={t("studio.viewer.moreActionsDetails")} className="grid size-10 shrink-0 place-items-center rounded-full text-white/90 hover:bg-white/10">
                 <MoreHorizontal className="size-5" />
               </button>
             </div>
             {onNext ? (
-              <button onClick={onNext} aria-label="Next" className="grid size-10 shrink-0 place-items-center rounded-full text-white/90 hover:bg-white/10">
+              <button onClick={onNext} aria-label={t("studio.viewer.next")} className="grid size-10 shrink-0 place-items-center rounded-full text-white/90 hover:bg-white/10">
                 <ChevronRight className="size-5" />
               </button>
             ) : (
@@ -424,9 +428,9 @@ export function Viewer({
         <aside className="hidden w-80 shrink-0 flex-col border-l bg-card md:flex">
           <div className="flex items-center justify-between px-4 pt-3">
             <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground">
-              <Info className="size-3.5" /> Details
+              <Info className="size-3.5" /> {t("studio.viewer.detailsTitle")}
             </span>
-            <button onClick={dismiss} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Close">
+            <button onClick={dismiss} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={t("common.close")}>
               <X className="size-4" />
             </button>
           </div>
@@ -456,44 +460,44 @@ export function Viewer({
           <p className="flex flex-wrap gap-x-3 gap-y-1 border-t px-4 py-2 text-[11px] text-muted-foreground">
             {(onPrev || onNext) && (
               <span>
-                <Kbd>←</Kbd> <Kbd>→</Kbd> browse
+                <Kbd>←</Kbd> <Kbd>→</Kbd> {t("studio.viewer.browse")}
               </span>
             )}
             {!g.deletedAt && g.feature !== "upload" && (
               <span>
-                <Kbd>F</Kbd> favorite
+                <Kbd>F</Kbd> {t("studio.viewer.favoriteShort")}
               </span>
             )}
             {!g.deletedAt && g.feature !== "upload" && (
               <span>
-                <Kbd>P</Kbd> pin
+                <Kbd>P</Kbd> {t("studio.viewer.pinShort")}
               </span>
             )}
             {source && (
               <span>
-                <Kbd>C</Kbd> compare
+                <Kbd>C</Kbd> {t("studio.viewer.compareShort")}
               </span>
             )}
             <span>
-              <Kbd>D</Kbd> download
+              <Kbd>D</Kbd> {t("studio.viewer.downloadShort")}
             </span>
             {onReuse && (
               <span>
-                <Kbd>R</Kbd> reuse
+                <Kbd>R</Kbd> {t("studio.viewer.reuseShort")}
               </span>
             )}
           </p>
         </aside>
 
-        <button onClick={dismiss} className="absolute top-3 right-3 grid size-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur md:hidden" aria-label="Close">
+        <button onClick={dismiss} className="absolute top-3 right-3 grid size-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur md:hidden" aria-label={t("common.close")}>
           <X className="size-5" />
         </button>
 
         <Sheet open={drawer} onOpenChange={setDrawer}>
           <SheetContent side="bottom" className="max-h-[85svh] gap-0 rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden">
             <SheetHeader className="pb-2">
-              <SheetTitle className="text-[15px]">More</SheetTitle>
-              <SheetDescription className="sr-only">Every action and the details of this result</SheetDescription>
+              <SheetTitle className="text-[15px]">{t("studio.viewer.moreSheetTitle")}</SheetTitle>
+              <SheetDescription className="sr-only">{t("studio.viewer.everyActionDesc")}</SheetDescription>
             </SheetHeader>
             <div className="space-y-4 overflow-y-auto px-4">
               {/* The next steps first: on a phone this sheet is where they are. */}
@@ -501,7 +505,7 @@ export function Viewer({
               <div className="grid grid-cols-2 gap-2">
                 {source && (
                   <Button variant="secondary" size="sm" aria-pressed={comparing} onClick={() => (setComparing((v) => !v), setDrawer(false))}>
-                    <Columns2 /> {comparing ? "Hide original" : "Compare"}
+                    <Columns2 /> {comparing ? t("studio.viewer.hideOriginal") : t("studio.actions.compare")}
                   </Button>
                 )}
                 {menu.filter((a) => !a.destructive && a.id !== "compare").map((a) => actionButton(a, { onDone: () => a.id !== "save-character" && setDrawer(false) }))}

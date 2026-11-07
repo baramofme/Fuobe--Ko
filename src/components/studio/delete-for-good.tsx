@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useGenerationActions } from "@/lib/api";
 import type { Generation } from "@/lib/catalog/types";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * An account's "Delete for good…" on a result (its ⋯ menu, in any feed or the viewer): an account has no Trash, so the
@@ -36,6 +37,7 @@ const running = (g: Generation) => g.status === "queued" || g.status === "runnin
 
 export function DeleteForGoodHost() {
   const actions = useGenerationActions();
+  const { t } = useI18n();
   const [ask, setAsk] = useState<Ask | null>(null);
   useEffect(() => {
     const on = (e: Event) => setAsk((e as CustomEvent<Ask>).detail);
@@ -48,23 +50,23 @@ export function DeleteForGoodHost() {
     <AlertDialog open={!!ask} onOpenChange={(v) => !v && setAsk(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {n === 1 ? "this for good" : `${n} results for good`}?</AlertDialogTitle>
+          <AlertDialogTitle>{n === 1 ? t("studio.deleteForGood.titleOne") : t("studio.deleteForGood.title", { count: n })}</AlertDialogTitle>
           <AlertDialogDescription>
-            {n === 1 ? "It's" : "They're"} removed with {n === 1 ? "its" : "their"} files and can&apos;t be recovered.
-            {active && (n === 1 ? " It's still running, so it's stopped first." : " Any still running are stopped first.")}
+            {n === 1 ? t("studio.deleteForGood.descOne") : t("studio.deleteForGood.descMany")}
+            {active && (n === 1 ? t("studio.deleteForGood.runningOne") : t("studio.deleteForGood.runningMany"))}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             onClick={() => {
               if (!ask) return;
-              void actions.deleteOwn(ask.gs).then((done) => done && toast(done === 1 ? "Deleted for good" : `Deleted ${done} for good`));
+              void actions.deleteOwn(ask.gs).then((done) => done && toast(done === 1 ? t("studio.deleteForGood.deletedOne") : t("studio.deleteForGood.deletedMany", { count: done })));
               ask.after?.();
             }}
           >
-            Delete for good
+            {t("studio.deleteForGood.confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

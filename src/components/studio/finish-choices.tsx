@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n";
+
 import { Cpu, Loader2, Sparkles } from "lucide-react";
 import type { Engine, ModelDef } from "@/lib/catalog/types";
 import { REGEN_COPY, REGEN_MODEL, type FinishChoice } from "@/lib/catalog/regenerate";
@@ -41,6 +43,7 @@ export function FinishChoices({
   onDescribe?: () => void;
   describing?: boolean;
 }) {
+  const { t } = useI18n();
   const owner = useIsOwner();
   const badges = useGpuBadges().data;
   if (engineMode === "cloud") return null;
@@ -81,7 +84,7 @@ export function FinishChoices({
   const picked = shown.find((c) => c.modelId === model?.id);
   return (
     <div className="px-1.5 pb-2">
-      <div role="radiogroup" aria-label="How to finish the clip" onKeyDown={radioKeys} className={cn("grid grid-cols-2 gap-1.5", shown.length > 2 && "sm:grid-cols-3")}>
+      <div role="radiogroup" aria-label={t("studio.finish.howToFinish")} onKeyDown={radioKeys} className={cn("grid grid-cols-2 gap-1.5", shown.length > 2 && "sm:grid-cols-3")}>
         {shown.map((c, i) => {
           const sel = c.modelId === model?.id;
           return (
@@ -122,7 +125,7 @@ export function FinishChoices({
               className="mt-1.5 inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium text-foreground transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-70"
             >
               {describing ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Sparkles className="size-3.5" aria-hidden />}
-              {describing ? "Watching the clip…" : "Describe the clip for me"}
+              {describing ? t("studio.finish.watchingClip") : t("studio.finish.describeClip")}
             </button>
           )}
         </>

@@ -17,6 +17,7 @@ import { OwnSetupChip } from "@/components/own-setup";
 import type { OwnSetup } from "@/lib/own-setup";
 import { loadFullCatalog, useCatalog } from "./catalog";
 import { Chip, ClearableChip } from "./chip";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * Camera-motion / effect picker and Mix. Loaded as its own chunk (with the preset icons and the slim
@@ -69,19 +70,20 @@ export function PresetGrid({
   rules?: PoolRules;
   engine?: "open" | "cloud";
 }) {
+  const { t } = useI18n();
   const [cat, setCat] = useState<string>("All");
   const box = useRef<HTMLDivElement>(null);
   const ordered = useMemo(() => (list ? featuredAll(list) : null), [list]);
   if (!list || !ordered)
     return (
-      <div className="grid h-40 place-items-center" role="status" aria-label="Loading presets">
+      <div className="grid h-40 place-items-center" role="status" aria-label={t("studio.preset.loadingPresets")}>
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
       </div>
     );
   const cats = ["All", ...new Set(list.map((p) => p.category))];
   return (
     <>
-      <TabRow className="mb-1 shrink-0" role="tablist" aria-label="Categories" follow>
+      <TabRow className="mb-1 shrink-0" role="tablist" aria-label={t("studio.preset.categories")} follow>
         {cats.map((c) => (
           <button key={c} role="tab" aria-selected={cat === c} onClick={() => setCat(c)} className={TAB_PILL} {...onAttr(cat === c)}>
             {c}
@@ -140,6 +142,7 @@ function usePickerSide() {
 }
 
 export function PresetChip({ type, value, onChange, engine }: { type: "motion" | "effect"; value?: string; onChange: (id?: string) => void; engine?: "open" | "cloud" }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const { chip, side, measure } = usePickerSide();
   const catalog = useCatalog();
@@ -166,16 +169,16 @@ export function PresetChip({ type, value, onChange, engine }: { type: "motion" |
         <PopoverTrigger asChild>
           <Chip ref={chip} icon={Icon} active={!!value} onPointerEnter={prefetch} onFocus={prefetch} className={cn(value && !selected && "[&>svg]:animate-spin")}>
             {cover && <CoverTile cover={cover} className="size-4 rounded-full" />}
-            {selected?.name ?? (value ? "Loading…" : type === "motion" ? "Camera motion" : "Effect")}
+            {selected?.name ?? (value ? t("common.loading") : type === "motion" ? t("studio.preset.cameraMotion") : t("studio.preset.effect"))}
           </Chip>
         </PopoverTrigger>
-        <PopoverContent className={cn(POPOVER_HEIGHT, "w-[min(92vw,460px)] p-2")} align="start" side={side} collisionPadding={12} aria-label={type === "motion" ? "Camera motions" : "Effects"}>
+        <PopoverContent className={cn(POPOVER_HEIGHT, "w-[min(92vw,460px)] p-2")} align="start" side={side} collisionPadding={12} aria-label={type === "motion" ? t("studio.preset.cameraMotions") : t("studio.preset.effects")}>
           <PresetGrid
             list={list}
             value={value}
             rules={rules}
             engine={engine}
-            noneLabel="None"
+            noneLabel={t("studio.settings.off")}
             onPick={(id) => {
               onChange(id);
               setOpen(false);
@@ -211,6 +214,7 @@ export function MixChip({
   /** The composer's engine: a preset with a cloud route stays on the cloud engine whatever this studio's GPUs run. */
   engine?: "open" | "cloud";
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const { chip, side, measure } = usePickerSide();
   const catalog = useCatalog();
@@ -224,7 +228,7 @@ export function MixChip({
     [presets, primary.id],
   );
   return (
-    <ClearableChip active={!!mix} onClear={() => onChange({ mix: undefined })} clearLabel="Remove the mix">
+    <ClearableChip active={!!mix} onClear={() => onChange({ mix: undefined })} clearLabel={t("studio.preset.removeMix")}>
       <Popover
         open={open}
         onOpenChange={(o) => {
@@ -237,10 +241,10 @@ export function MixChip({
         <PopoverTrigger asChild>
           <Chip ref={chip} icon={cover ? undefined : Shuffle} active={!!mix} onPointerEnter={prefetch} onFocus={prefetch}>
             {cover && <CoverTile cover={cover} className="size-4 rounded-full" />}
-            {second ? `+ ${second.name}` : "Mix"}
+            {second ? `+ ${second.name}` : t("studio.preset.mix")}
           </Chip>
         </PopoverTrigger>
-        <PopoverContent className={cn(POPOVER_HEIGHT, "w-[min(92vw,460px)] space-y-3 p-3")} align="start" side={side} collisionPadding={12} aria-label="Mix">
+        <PopoverContent className={cn(POPOVER_HEIGHT, "w-[min(92vw,460px)] space-y-3 p-3")} align="start" side={side} collisionPadding={12} aria-label={t("studio.preset.mix")}>
           <div className="space-y-2.5">
             {takesStrength ? (
               <div className="space-y-1.5">
@@ -265,13 +269,13 @@ export function MixChip({
               </div>
             )}
           </div>
-          <p className="text-[12px] text-muted-foreground">{second ? "Swap the second preset:" : "Pick a second motion or effect to combine with it:"}</p>
+          <p className="text-[12px] text-muted-foreground">{second ? t("studio.preset.swapSecond") : t("studio.preset.pickSecond")}</p>
           <PresetGrid
             list={mixable}
             value={mix?.presetId}
             rules={rules}
             engine={engine}
-            noneLabel="No mix"
+            noneLabel={t("studio.preset.noMix")}
             onPick={(id) => onChange({ mix: id ? { presetId: id, strength: mix?.strength ?? 0.6 } : undefined })}
           />
         </PopoverContent>

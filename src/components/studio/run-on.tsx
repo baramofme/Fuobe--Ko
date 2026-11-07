@@ -6,6 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { RUN_ON_FOOTER, type RunOnPick, type RunOnRow } from "@/lib/run-place";
 import { cn } from "@/lib/utils";
 import { ResponsivePanel } from "./responsive-panel";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * "Run on": where an account's runs go while hosted runs are on (this studio's GPUs, its own GPU, its own key), for a
@@ -124,6 +125,7 @@ export function RunOnChip({
   pending?: boolean;
   className?: string;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   // A phone's sheet says the title in its own header; the desktop popover says it here.
   const mobile = useIsMobile();
@@ -131,7 +133,7 @@ export function RunOnChip({
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
-      title="Run on"
+      title={t("studio.runOn.title")}
       tooltip={open ? undefined : tooltip}
       align="end"
       focusSelf

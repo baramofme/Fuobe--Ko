@@ -6,6 +6,7 @@ import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, u
 import { elementKindInfo, mentionAtCaret, type ElementKind, type StudioElement } from "@/lib/catalog/elements";
 import { hasMention } from "@/lib/composer";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export const ELEMENT_ICONS: Record<ElementKind, typeof ScanFace> = {
   character: ScanFace,
@@ -62,6 +63,7 @@ export const PromptInput = forwardRef<
     elementsNote?: string;
   }
 >(function PromptInput({ value, onChange, onSubmit, placeholder, elements, className, collapsed, elementsNote }, ref) {
+  const { t } = useI18n();
   const ta = useRef<HTMLTextAreaElement>(null);
   const mirror = useRef<HTMLDivElement>(null);
   const [caret, setCaret] = useState<number | null>(null);
@@ -204,7 +206,7 @@ export const PromptInput = forwardRef<
         }}
         rows={1}
         placeholder={placeholder}
-        aria-label="Prompt"
+        aria-label={t("studio.promptInput.promptAria")}
         // Spellcheck would underline every @handle in red.
         spellCheck={!hasMention(value)}
         className={cn(
@@ -255,7 +257,7 @@ export const PromptInput = forwardRef<
           })}
           {!matches.length && (
             <p className="px-2 py-3 text-[13px] text-muted-foreground">
-              {visual.length ? "No element with that name." : "No elements yet. Save a character, location or prop once, then @mention it anywhere."}
+              {visual.length ? t("studio.promptInput.noElement") : t("studio.promptInput.noElementsYet")}
             </p>
           )}
           <Link href="/elements?new=1" className="mt-1 flex items-center gap-2 rounded-lg border-t px-2 py-2 text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground">

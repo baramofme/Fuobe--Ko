@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { UNAVAILABLE_OPTION, UnavailableNote, useUnavailableNote } from "@/components/ui/unavailable";
 import type { Unavailable } from "@/lib/unavailable";
 import { radioKeys, radioTab } from "./radio-keys";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * The Layout editor (Image studio, Layout mode): the picture's canvas in its aspect ratio, a box drawn per element and
@@ -47,18 +48,20 @@ const LABELS: { value: LayoutLabel; label: string }[] = [
   { value: "character", label: "Character" },
   { value: "text", label: "Text" },
 ];
+const LABEL_KEYS: Record<string, string> = { object: "studio.layout.object", character: "studio.layout.character", text: "studio.layout.text" };
 const CANVASES: { value: CanvasType; label: string }[] = [
   { value: "single", label: "Single" },
   { value: "multi_panel", label: "Panels" },
   { value: "collage", label: "Collage" },
 ];
+const CANVAS_KEYS: Record<string, string> = { single: "studio.layout.single", multi_panel: "studio.layout.panels", collage: "studio.layout.collage" };
 /** Box outlines by kind when a box has no colour of its own. */
-const SOURCE_WORDS: Record<LayoutSource, string> = {
-  fuobe: "a Fuobe layout",
-  linxce: "a ComfyUI layout draft",
-  compiled: "a MOSS-Image prompt",
-  scene: "a scene prompt",
-  elements: "bounding boxes",
+const SOURCE_KEYS: Record<LayoutSource, string> = {
+  fuobe: "studio.layout.sourceFuobe",
+  linxce: "studio.layout.sourceLinxce",
+  compiled: "studio.layout.sourceCompiled",
+  scene: "studio.layout.sourceScene",
+  elements: "studio.layout.sourceElements",
 };
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const HANDLE_POS: Record<Handle, string> = {
@@ -155,6 +158,7 @@ function LayoutBoard({
   escapeRef,
   keepRef,
 }: Parameters<typeof LayoutEditor>[0] & { escapeRef: React.RefObject<() => boolean>; keepRef: React.RefObject<() => void> }) {
+  const { t } = useI18n();
   const [items, setItems] = useState<LayoutItem[]>(layout.items);
   const [canvasType, setCanvasType] = useState<CanvasType>(layout.summary.canvas);
   // What the picked model's layout form reads (layout-prompt.ts): FLUX.3's table is the caption and the boxes alone, and
@@ -337,7 +341,7 @@ function LayoutBoard({
   const importText = (text: string): boolean => {
     const parsed = parseLayout(text, { width: size.width, height: size.height });
     if (!parsed) {
-      toast.error("No layout found there: paste a Fuobe or ComfyUI layout, a MOSS-Image prompt or bounding boxes");
+      toast.error(t("studio.layout.noLayoutFound"));
       return false;
     }
     remember();
@@ -349,7 +353,7 @@ function LayoutBoard({
     if (own) setAspect(own);
     setSelected(parsed.draft.items.length ? 0 : null);
     const n = parsed.draft.items.length;
-    toast(`Imported ${n} box${n === 1 ? "" : "es"} from ${SOURCE_WORDS[parsed.from]} · Undo is under the canvas`, { id: "layout-import" });
+    toast(t("studio.layout.imported", { count: n, plural: n === 1 ? "" : "es", source: t(SOURCE_KEYS[parsed.from]) }), { id: "layout-import" });
     return true;
   };
 
@@ -361,14 +365,14 @@ function LayoutBoard({
     try {
       const res = await fetch("/api/layout/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ words, width: size.width, height: size.height }) });
       const j = (await res.json().catch(() => ({}))) as { layout?: LayoutDraft; error?: string };
-      if (!res.ok || !j.layout) throw responseError(res, j.error ?? "Couldn't plan a layout. Try again, or draw the boxes");
+      if (!res.ok || !j.layout) throw responseError(res, j.error ?? t("studio.layout.planFailed"));
       remember();
       setItems(j.layout.items);
       if (j.layout.summary.meta.length && !tags.trim()) setTags(j.layout.summary.meta.join(", "));
       setSelected(j.layout.items.length ? 0 : null);
       setSheetOpen(true);
       const n = j.layout.items.length;
-      toast(`Planned ${n} box${n === 1 ? "" : "es"}: move them, change the words, or Undo`, { id: "layout-plan" });
+      toast(t("studio.layout.planned", { count: n, plural: n === 1 ? "" : "es" }), { id: "layout-plan" });
     } catch (e) {
       toastError(e);
     } finally {
@@ -381,7 +385,7 @@ function LayoutBoard({
       <div className="space-y-2 rounded-xl border p-3">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="layout-caption" className="text-[12px] font-medium">
-            The whole picture
+            {t("studio.layout.wholePicture")}
           </label>
           {!visitor && (
             <Button
@@ -397,7 +401,7 @@ function LayoutBoard({
             </Button>
           )}
         </div>
-        <Textarea id="layout-caption" value={caption} onChange={(e) => setCaption(e.target.value)} rows={2} placeholder="A warm autumn sale poster for a candle shop" className="min-h-0 resize-none text-[13px]" />
+        <Textarea id="layout-caption" value={caption} onChange={(e) => setCaption(e.target.value)} rows={2} placeholder={t("studio.layout.wordsPlaceholder")} className="min-h-0 resize-none text-[13px]" />
         {!visitor && (
           <p id="layout-plan-hint" className="text-[11px] leading-snug text-muted-foreground">
             Plan layout turns these words into boxes to start from: “a sale poster for my candle shop, 30% off”.
@@ -405,18 +409,18 @@ function LayoutBoard({
         )}
         <div className="flex flex-wrap items-center gap-2">
           <span id="layout-canvas-label" className="text-[12px] text-muted-foreground">
-            Canvas
+            {t("studio.layout.canvas")}
           </span>
           <Segmented
-            label="Canvas"
+            label={t("studio.layout.canvas")}
             labelledBy="layout-canvas-label"
-            options={CANVASES.map((c) => ({ ...c, unavailable: c.value !== "single" && !summaryReads.canvas && model ? { why: `${model.name} reads the boxes and the caption only: ask for ${c.label.toLowerCase()} in the caption` } : undefined }))}
+            options={CANVASES.map((c) => ({ ...c, label: t(CANVAS_KEYS[c.value]), unavailable: c.value !== "single" && !summaryReads.canvas && model ? { why: `${model.name} reads the boxes and the caption only: ask for ${c.label.toLowerCase()} in the caption` } : undefined }))}
             value={canvasType}
             onChange={setCanvasType}
           />
         </div>
         <Input
-          aria-label="Style tags (optional, comma separated)"
+          aria-label={t("studio.layout.styleTags")}
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           disabled={!summaryReads.tags}
@@ -424,7 +428,7 @@ function LayoutBoard({
           className="h-8 text-[13px] disabled:cursor-not-allowed"
         />
       </div>
-      {items.length === 0 && <p className="px-1 text-[13px] text-muted-foreground">Drag on the picture to draw a box for each thing to place: a headline, a product, a person.</p>}
+      {items.length === 0 && <p className="px-1 text-[13px] text-muted-foreground">{t("studio.layout.dragHint")}</p>}
       {items.map((it, i) => (
         <BoxRow
           key={i}
@@ -443,14 +447,14 @@ function LayoutBoard({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4">
-        <DialogTitle className="font-heading text-[18px] font-normal">Layout</DialogTitle>
+        <DialogTitle className="font-heading text-[18px] font-normal">{t("studio.layout.layoutTitle")}</DialogTitle>
         <Badge variant="secondary" className="h-5 gap-1 rounded-full px-2 text-[11px]">
-          <FlaskConical className="size-3" /> Experimental
+          <FlaskConical className="size-3" /> {t("studio.layout.experimental")}
         </Badge>
         <div className="ml-auto flex items-center gap-1.5">
           {aspects && aspects.length > 1 && (
             <select
-              aria-label="Aspect ratio"
+              aria-label={t("studio.layout.aspectRatio")}
               value={aspect}
               onChange={(e) => setAspect(e.target.value)}
               className="h-8 rounded-full border bg-background px-2.5 text-[13px] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
@@ -460,7 +464,7 @@ function LayoutBoard({
                 .filter((a) => a !== "auto" || aspect === "auto")
                 .map((a) => (
                   <option key={a} value={a}>
-                    {a === "auto" ? "Auto (square canvas)" : a}
+                    {a === "auto" ? t("studio.layout.autoSquare") : a}
                   </option>
                 ))}
             </select>
@@ -468,27 +472,27 @@ function LayoutBoard({
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="sm" className="h-8 rounded-full px-3 text-[13px]">
-                <FileJson className="size-3.5" /> Import / Export
+                <FileJson className="size-3.5" /> {t("studio.layout.importExport")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
               <DropdownMenuItem onSelect={() => setImporting(true)}>
-                <Import /> Import a layout…
+                <Import /> {t("studio.layout.importLayout")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem disabled={!items.length} onSelect={() => void copyWithToast(compiled(), `${model?.name ?? "Model"} prompt copied`)}>
-                <ClipboardCopy /> Copy the compiled prompt
+              <DropdownMenuItem disabled={!items.length} onSelect={() => void copyWithToast(compiled(), t("studio.layout.modelCopied", { model: model?.name ?? "Model" }))}>
+                <ClipboardCopy /> {t("studio.layout.copyPrompt")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void copyWithToast(JSON.stringify(draft, null, 2), "Layout copied")}>
-                <ClipboardCopy /> Copy the layout (JSON)
+              <DropdownMenuItem onSelect={() => void copyWithToast(JSON.stringify(draft, null, 2), t("studio.layout.layoutCopied"))}>
+                <ClipboardCopy /> {t("studio.layout.copyLayout")}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => downloadJson(draft)}>
-                <ArrowDownToLine /> Download the layout
+                <ArrowDownToLine /> {t("studio.layout.downloadLayout")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button size="sm" className="h-8 rounded-full px-4" onClick={finish}>
-            Done
+            {t("studio.layout.done")}
           </Button>
         </div>
         <DialogDescription id="layout-editor-hint" className="w-full text-[12px] leading-snug text-muted-foreground max-sm:sr-only">
@@ -503,7 +507,7 @@ function LayoutBoard({
             <div
               ref={board}
               role="application"
-              aria-label={`Layout canvas, ${size.width} by ${size.height}: drag to draw a box (Shift to draw over another). With a box picked, arrow keys move it, Alt with arrow keys resizes it and Delete removes it.`}
+              aria-label={t("studio.layout.canvasAria", { width: size.width, height: size.height })}
               tabIndex={0}
               data-layout-canvas
               onPointerDown={onPointerDown}
@@ -526,7 +530,7 @@ function LayoutBoard({
                     data-box-tab={i}
                     onFocus={() => setSelected(i)}
                     onClick={() => setSelected(i)}
-                    aria-label={`Box ${i + 1}: ${it.label === "text" ? `the words ${it.text || "(not typed yet)"}` : it.caption || it.label}`}
+                    aria-label={t("studio.layout.boxTabLabel", { n: i + 1, desc: it.label === "text" ? (it.text || t("studio.layout.notTypedYet")) : it.caption || t(LABEL_KEYS[it.label]) })}
                     aria-pressed={selected === i}
                     className="absolute bottom-full -left-0.5 flex h-5 min-w-5 items-center justify-center rounded-t-md px-1.5 text-[11px] leading-none font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(pointer:coarse)]:h-6 [@media(pointer:coarse)]:min-w-7"
                     style={{ background: colorOf(it), color: inkOn(colorOf(it)) }}
@@ -561,22 +565,22 @@ function LayoutBoard({
           </div>
           <div className="flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
             <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[12px]" onClick={() => add(newBox(items.length))}>
-              <Plus className="size-3.5" /> Add box
+              <Plus className="size-3.5" /> {t("studio.layout.addBox")}
             </Button>
             <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[12px]" onClick={undo} disabled={!history.length} aria-keyshortcuts="Control+Z Meta+Z">
-              <Undo2 className="size-3.5" /> Undo
+              <Undo2 className="size-3.5" /> {t("studio.layout.undo")}
             </Button>
             <span className="tabular-nums">
-              {aspect} · {size.exact ? "" : "about "}
+              {aspect} · {size.exact ? "" : t("studio.layout.about") + " "}
               {size.width} × {size.height}
             </span>
-            {!reads && <span>This model reads the layout as words, not exact positions.</span>}
+            {!reads && <span>{t("studio.layout.wordsNotPositions")}</span>}
           </div>
         </div>
 
         {/* The rows: beside the canvas on desktop, in a sheet under it on phones. */}
         <aside
-          aria-label="Boxes"
+          aria-label={t("studio.layout.boxes")}
           className={cn(
             "flex min-h-0 flex-col border-t bg-popover max-sm:rounded-t-2xl max-sm:shadow-strong sm:w-[380px] sm:border-t-0 sm:border-l",
             // A fixed height on phones, so the canvas keeps its size while rows come and go.
@@ -590,9 +594,9 @@ function LayoutBoard({
             className="relative flex h-12 shrink-0 items-center gap-2 px-4 pt-1.5 text-left text-[13px] font-medium sm:hidden"
           >
             <span aria-hidden className="absolute top-1.5 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-border-strong" />
-            {items.length ? `${items.length} box${items.length === 1 ? "" : "es"}` : "No boxes yet"}
-            {selected !== null && <span className="text-muted-foreground">· box {selected + 1} picked</span>}
-            <span className="ml-auto text-[12px] text-brand-text">{sheetOpen ? "Hide" : "Show"}</span>
+            {items.length ? t("studio.layout.boxCount", { count: items.length }) : t("studio.layout.noBoxesYet")}
+            {selected !== null && <span className="text-muted-foreground">{t("studio.layout.boxPicked", { n: selected + 1 })}</span>}
+            <span className="ml-auto text-[12px] text-brand-text">{sheetOpen ? t("studio.layout.hide") : t("studio.layout.show")}</span>
           </button>
           <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4", !sheetOpen && "max-sm:hidden")}>
             {importing ? <ImportPanel onImport={(t) => importText(t) && setImporting(false)} onCancel={() => setImporting(false)} /> : rows}
@@ -676,6 +680,7 @@ function BoxRow({
   onChange: (p: Partial<LayoutItem>) => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   const n = index + 1;
   const row = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -693,26 +698,26 @@ function BoxRow({
         <span className="grid size-6 shrink-0 place-items-center rounded-md text-[12px] font-semibold" style={{ background: colorOf(item), color: inkOn(colorOf(item)) }} aria-hidden>
           {n}
         </span>
-        <Segmented label={`Box ${n} is`} options={LABELS} value={item.label} onChange={(label) => onChange({ label, ...(label === "text" ? { text: item.text ?? "" } : {}) })} />
-        <button type="button" onClick={onRemove} aria-label={`Remove box ${n}`} className="ml-auto grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
+        <Segmented label={t("studio.layout.boxIs", { n })} options={LABELS.map((l) => ({ ...l, label: t(LABEL_KEYS[l.value]) }))} value={item.label} onChange={(label) => onChange({ label, ...(label === "text" ? { text: item.text ?? "" } : {}) })} />
+        <button type="button" onClick={onRemove} aria-label={t("studio.layout.removeBox", { n })} className="ml-auto grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
           <Trash2 className="size-3.5" />
         </button>
       </div>
-      <Input aria-label={`Box ${n}: what it looks like`} value={item.caption} onChange={(e) => onChange({ caption: e.target.value })} placeholder="What it looks like" className="h-8 text-[13px]" />
+      <Input aria-label={t("studio.layout.whatLooksAria", { n })} value={item.caption} onChange={(e) => onChange({ caption: e.target.value })} placeholder={t("studio.layout.whatLooksPlaceholder")} className="h-8 text-[13px]" />
       {item.label === "text" && (
         <div>
           <Input
-            aria-label={`Box ${n}: exact words`}
+            aria-label={t("studio.layout.exactWordsAria", { n })}
             aria-invalid={error}
             aria-describedby={error ? `layout-words-${n}` : undefined}
             value={item.text ?? ""}
             onChange={(e) => onChange({ text: e.target.value })}
-            placeholder="Exact words, e.g. 30% OFF"
+            placeholder={t("studio.layout.exactWords")}
             className="h-8 text-[13px]"
           />
           {error && (
             <p id={`layout-words-${n}`} className="mt-1 text-[12px] text-destructive">
-              Type the words for box {n}
+              {t("studio.layout.typeWords", { n })}
             </p>
           )}
         </div>
@@ -723,14 +728,14 @@ function BoxRow({
             type="color"
             value={item.color ?? KIND_COLOR[item.label]}
             onChange={(e) => onChange({ color: e.target.value })}
-            aria-label={`Box ${n}: colour on the canvas (optional)`}
+            aria-label={t("studio.layout.colourAria", { n })}
             className="size-6 cursor-pointer rounded border bg-transparent p-0"
           />
-          Colour (optional, only on this canvas)
+          {t("studio.layout.colourOptional")}
         </label>
         {item.color && (
           <button type="button" onClick={() => onChange({ color: undefined })} className="inline-flex items-center gap-0.5 underline-offset-2 hover:text-foreground hover:underline">
-            <X className="size-3" /> Clear
+            <X className="size-3" /> {t("studio.layout.clear")}
           </button>
         )}
       </div>
@@ -739,13 +744,14 @@ function BoxRow({
 }
 
 function ImportPanel({ onImport, onCancel }: { onImport: (text: string) => void; onCancel: () => void }) {
+  const { t } = useI18n();
   const [text, setText] = useState("");
   const file = useRef<HTMLInputElement>(null);
   return (
     <div className="space-y-2">
-      <p className="text-[13px] font-medium">Import a layout</p>
+      <p className="text-[13px] font-medium">{t("studio.layout.importTitle")}</p>
       <p className="text-[12px] leading-snug text-muted-foreground">
-        Paste a Fuobe layout, a ComfyUI layout draft, a MOSS-Image prompt (read on this canvas), a scene prompt or CreateBoundingBoxes boxes. It replaces the boxes here.
+        {t("studio.layout.importHint")}
       </p>
       <Textarea aria-label="Layout to import" value={text} onChange={(e) => setText(e.target.value)} rows={8} className="font-mono text-[12px]" placeholder='{"summary": …, "items": […]}' />
       <input
@@ -761,13 +767,13 @@ function ImportPanel({ onImport, onCancel }: { onImport: (text: string) => void;
       />
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => onImport(text)} disabled={!text.trim()}>
-          Import
+          {t("studio.layout.importBtn")}
         </Button>
         <Button size="sm" variant="secondary" onClick={() => file.current?.click()}>
-          From a file…
+          {t("studio.layout.importFromFile")}
         </Button>
         <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
+          {t("studio.layout.cancel")}
         </Button>
       </div>
     </div>

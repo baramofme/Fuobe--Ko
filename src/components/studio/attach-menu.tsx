@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n";
+
 import { ClipboardPaste, Plus, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -35,6 +37,7 @@ async function clipboardFiles(): Promise<File[]> {
  * before. Attachments land in the first empty slot of their kind, then in the references.
  */
 export function AttachMenu({ kinds, onFiles, onPick }: { kinds: MediaKind[]; onFiles: (files: File[]) => void; onPick: (v: SlotValue) => void }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const mod = useModKey();
@@ -49,7 +52,7 @@ export function AttachMenu({ kinds, onFiles, onPick }: { kinds: MediaKind[]; onF
     if (refused()) return;
     try {
       const files = await clipboardFiles();
-      if (!files.length) return toast("Nothing to paste — copy an image first");
+      if (!files.length) return toast(t("studio.attach.nothingToPaste"));
       onFiles(files);
       setOpen(false);
     } catch {
@@ -61,14 +64,14 @@ export function AttachMenu({ kinds, onFiles, onPick }: { kinds: MediaKind[]; onF
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
-      title="Add media"
+      title={t("studio.attach.add")}
       description={`Attach ${words.join(", ").replace(/, ([^,]*)$/, " or $1")}`}
       className="w-[min(92vw,360px)] p-2.5"
-      tooltip="Upload, paste or pick from your library"
+      tooltip={t("studio.attach.tooltip")}
       trigger={
         <button
           type="button"
-          aria-label="Add media"
+          aria-label={t("studio.attach.add")}
           className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <Plus className="size-4" />
@@ -104,7 +107,7 @@ export function AttachMenu({ kinds, onFiles, onPick }: { kinds: MediaKind[]; onF
           }}
         />
         <div className="space-y-1.5">
-          <p className="text-[12px] font-medium text-muted-foreground">From your library</p>
+          <p className="text-[12px] font-medium text-muted-foreground">{t("studio.attach.fromLibrary")}</p>
           {open && (
             <LibraryGrid
               kinds={kinds}

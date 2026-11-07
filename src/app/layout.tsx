@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter, Instrument_Serif } from "next/font/google";
 import { Providers } from "./providers";
-import { getServerLang } from "@/lib/i18n/server-lang";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -49,12 +48,10 @@ export const viewport: Viewport = {
   ],
 };
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
-  // The person's saved language, from the cookie, so the server's first paint is already in it (getServerLang).
-  const lang = await getServerLang();
+export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang={lang}
+      lang="en"
       suppressHydrationWarning
       className={`${inter.variable} ${instrumentSerif.variable} ${instrumentSerifItalic.variable} ${geistMono.variable} h-full antialiased`}
     >

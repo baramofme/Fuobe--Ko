@@ -45,6 +45,7 @@ import { shownSettings } from "@/lib/catalog/made";
 import { NextSteps } from "@/components/nav/next-steps";
 import { reservedRowHeight, useArrival, useEnter, useFollowRow, useLiveRun } from "./feed-motion";
 import { AiTag, useAiTag } from "./ai-tag";
+import { useI18n } from "@/lib/i18n";
 
 export { MediaThumb } from "./result-media";
 export { downloadName } from "@/lib/library";
@@ -79,6 +80,7 @@ export function MakingTile({ ratio }: { ratio: number }) {
 }
 
 export function PendingTile({ g, ratio }: { g: Generation; ratio: number }) {
+  const { t } = useI18n();
   const { cancel } = useGenerationActions();
   // The clock runs between the job's reports (a fal queue or Higgsfield may report rarely).
   const now = useNow(1000);
@@ -109,7 +111,7 @@ export function PendingTile({ g, ratio }: { g: Generation; ratio: number }) {
   const left = !saving && pace.first && pace.last ? timeLeft(pace.first, pace.last, now) : null;
   // The bar: the steps, or how much of the result has reached the studio.
   const bar = saving ? Math.round((local.job.phase === "done" ? 1 : (local.job.saved ?? 0)) * 100) : pct;
-  const where = local ? (local.here ? "Keep this tab open" : "Running in another Fuobe tab") : null;
+  const where = local ? (local.here ? t("studio.composer.keepTabOpen") : t("studio.composer.runningAnotherTab")) : null;
   // A live frame: from the ComfyUI on this computer, or (Working on the workers) the latest preview picture.
   const frame = local?.preview ?? (g.status === "running" ? g.preview : undefined);
   // Waiting for its own GPU or key to come back: what helps meanwhile, and until when it waits.
@@ -165,12 +167,12 @@ export function PendingTile({ g, ratio }: { g: Generation; ratio: number }) {
                 void cancel(g);
               }}
               className="grid size-7 shrink-0 place-items-center rounded-full bg-background/70 text-muted-foreground hover:text-foreground"
-              aria-label="Cancel"
+              aria-label={t("common.cancel")}
             >
               <X className="size-3.5" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>Cancel</TooltipContent>
+          <TooltipContent>{t("common.cancel")}</TooltipContent>
         </Tooltip>
       </div>
       {bar != null && (
@@ -196,6 +198,7 @@ const NARROW_TILE_PX = 260;
  * studio's GPUs that failed on the person's own files, Reuse is the main button and Retry the quiet second.
  */
 export function FailedTile({ g, ratio, onRetry, onReuse }: { g: Generation; ratio: number; onRetry: () => void; onReuse?: () => void }) {
+  const { t } = useI18n();
   const create = useCreateGeneration();
   const feed = useContext(FeedCtx);
   const catalog = useOptionalCatalog();
@@ -254,7 +257,7 @@ export function FailedTile({ g, ratio, onRetry, onReuse }: { g: Generation; rati
               e.stopPropagation();
               onReuse?.();
             }}
-            title="Load prompt, model and settings into the composer"
+            title={t("studio.feed.loadDraft")}
             className="inline-flex h-7 w-fit items-center gap-1.5 rounded-full bg-highlight px-2.5 text-[12px] font-medium text-highlight-foreground hover:opacity-90"
           >
             <RotateCcw className="size-3" /> Reuse
@@ -299,11 +302,12 @@ export function FailedTile({ g, ratio, onRetry, onReuse }: { g: Generation; rati
 
 /** Seedance draft mode: render the chosen 480p take again at 1080p with the same seed and settings. */
 export function useFinalizeDraft() {
+  const { t } = useI18n();
   const create = useCreateGeneration();
   return (g: Generation, draftId: string) =>
     create.mutate(
       { feature: g.feature, modelId: g.modelId, op: "finalize", prompt: g.request.prompt, params: { draftId, resolution: "1080p", duration: g.request.params?.duration } },
-      { onSuccess: () => toast.success("Rendering the final 1080p version"), onError: (e) => toastError(e) },
+      { onSuccess: () => toast.success(t("studio.result.rendering1080p")), onError: (e) => toastError(e) },
     );
 }
 
@@ -346,6 +350,7 @@ function DraftButton({ g, draftId }: { g: Generation; draftId: string }) {
 const SHOW_ON_HOVER = "opacity-0 transition-opacity duration-100 group-focus-within/tile:opacity-100 group-hover/tile:opacity-100";
 
 const OutputTile = memo(function OutputTile({ g, index, ratio, layered, count }: { g: Generation; index: number; ratio: number; layered?: boolean; count: number }) {
+  const { t } = useI18n();
   const feed = useFeed();
   const canHover = useCanHover();
   // Actions mount on first hover / focus / tap: a long feed shouldn't hold thousands of menus and tooltips.
@@ -400,7 +405,7 @@ const OutputTile = memo(function OutputTile({ g, index, ratio, layered, count }:
           <TileActions g={g} index={index} ctx={ctx} opts={feed.runner} menuOnly className={cn("absolute right-2", g.favorite ? "top-8" : "top-2")} />
         ) : (
           <button
-            aria-label="More actions"
+            aria-label={t("studio.feed.moreActions")}
             onClick={(e) => {
               e.stopPropagation();
               setHot("menu");
@@ -416,6 +421,7 @@ const OutputTile = memo(function OutputTile({ g, index, ratio, layered, count }:
 
 /** One request: the user's words in serif, a meta line, then its outputs (or progress / failure). */
 export const GenerationGroup = memo(function GenerationGroup({ g, newest, first }: { g: Generation; newest?: boolean; /** The feed's top request (newest first). */ first?: boolean }) {
+  const { t } = useI18n();
   const feed = useFeed();
   const { favorite, trash } = useGenerationActions();
   // A run on this studio's GPUs is headed with their place name ("Our GPUs").
@@ -485,7 +491,7 @@ export const GenerationGroup = memo(function GenerationGroup({ g, newest, first 
           {feed.reuse && (
             <button
               onClick={() => feed.reuse?.(g)}
-              title="Load prompt, model and settings into the composer"
+              title={t("studio.feed.loadDraft")}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[12px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               <RotateCcw className="size-3.5" /> Reuse

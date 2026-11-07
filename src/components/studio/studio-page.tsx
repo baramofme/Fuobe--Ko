@@ -35,6 +35,7 @@ import { HubHeaderExtras, useInHub } from "./hub-chrome";
 import { Feed } from "./feed";
 import { applyExample, draftFromGeneration, initialDraft, slot } from "./draft";
 import { PresetUrlCtx, StartRequestCtx, StudioProvider, usePresetUrl, useStudio, useStudioActions, type Draft, type StudioConfig } from "./studio-context";
+import { useI18n } from "@/lib/i18n";
 
 // The example cards (and the clip player they bring) are their own chunk: a page with no examples never loads them.
 // The row loads under its own Suspense boundary (StudioExamples), whose fallback is the row's skeleton: the same heading
@@ -48,13 +49,14 @@ const LiveEditPanel = dynamic(() => import("@/components/live/live-edit-app").th
 
 /** The Live switch: the picture changes as you type, on the viewer's own GPU (whatever the engine). */
 function LiveSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
       onClick={() => onChange(!on)}
-      title="Live: the picture changes as you type (runs on your GPU)"
+      title={t("studio.page.liveTitle")}
       className={cn(
         "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors",
         on ? "border-primary/40 bg-brand-faint text-brand-text" : "text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -62,13 +64,14 @@ function LiveSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean) => 
       data-live-switch
     >
       <Zap className="size-3.5" />
-      Live
+      {t("studio.page.liveShort")}
     </button>
   );
 }
 
 /** The Live panel, seeded with the composer's picture and words; "Use in Edit" puts the kept picture back in the composer. */
 function LiveArea({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
   const { draft, setSlot } = useStudio();
   const [seed] = useState(() => ({ image: draft.slots.image?.ref, text: draft.prompt }));
   return (
@@ -79,7 +82,7 @@ function LiveArea({ onClose }: { onClose: () => void }) {
       onUse={(url) => {
         setSlot("image", slot(url));
         onClose();
-        toast.success("The kept picture is in Edit");
+        toast.success(t("studio.page.keptPictureInEdit"));
       }}
     />
   );
@@ -196,6 +199,7 @@ const isEmpty = (d: Draft) => !d.prompt.trim() && !Object.values(d.slots).some((
 
 /** Loads examples into the composer for every card on the page (the row, a preset's strip, the sheet, `?example=`). */
 function ExampleLoader({ cards, surface, baseFor, children }: { cards: ExampleCard[]; surface?: string; baseFor: (presetId?: string) => Draft; children: React.ReactNode }) {
+  const { t } = useI18n();
   const { config, draft, setDraft } = useStudio();
   const catalog = useCatalog();
   const presetUrl = usePresetUrl();
@@ -221,7 +225,7 @@ function ExampleLoader({ cards, surface, baseFor, children }: { cards: ExampleCa
       // A motion or effect goes into the address, as picking it does; one that isn't the example's comes out.
       if (!config.preset && (req.presetId || latest.current.presetId)) presetUrl(req.presetId);
       if (quiet) return;
-      toast("Example loaded. Change anything, then Generate.", { id: "example-loaded" });
+      toast(t("studio.page.exampleLoaded"), { id: "example-loaded" });
       requestAnimationFrame(() => {
         // This studio's composer: a studio left earlier stays in the page, hidden, with a composer of its own.
         const composer = [...document.querySelectorAll<HTMLElement>("[data-studio] [data-composer]")].find((el) => el.offsetParent !== null);
@@ -231,7 +235,7 @@ function ExampleLoader({ cards, surface, baseFor, children }: { cards: ExampleCa
         if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) composer?.querySelector("textarea")?.focus({ preventScroll: true });
       });
     },
-    [config, catalog, setDraft, presetUrl],
+    [config, catalog, setDraft, presetUrl, t],
   );
   const loadedRef = useRef(loadedAs);
   useLayoutEffect(() => {
@@ -256,13 +260,13 @@ function ExampleLoader({ cards, surface, baseFor, children }: { cards: ExampleCa
       <AlertDialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Replace what&apos;s in the composer?</AlertDialogTitle>
+            <AlertDialogTitle>{t("studio.page.replaceComposer")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {pending?.inputs.length ? "The example's files, words and settings take the place of yours." : "The example's words and settings take the place of yours."}
+              {pending?.inputs.length ? t("studio.page.exampleFilesTake") : t("studio.page.exampleWordsTake")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep mine</AlertDialogCancel>
+            <AlertDialogCancel>{t("studio.page.keepMine")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (pending) apply(pending);
@@ -349,8 +353,9 @@ function ActivePresetHeader() {
 function StudioSubtitle({ text }: { text: string }) {
   const { draft } = useStudio();
   const catalog = useCatalog();
+  const { t } = useI18n();
   const sphere = !!catalog.getModel(draft.modelId)?.options.lightSphere;
-  return <p className="mt-2 max-w-xl text-[13px] text-muted-foreground">{sphere ? "Pick a light — its direction, colour and softness — and the shot is relit to match." : text}</p>;
+  return <p className="mt-2 max-w-xl text-[13px] text-muted-foreground">{sphere ? t("studio.page.lightHint") : text}</p>;
 }
 
 /**
@@ -506,6 +511,7 @@ function StudioBody({ header, tabs, examples }: { header?: React.ReactNode; tabs
   const hasItems = items.length > 0;
   const offscreen = useOffscreenResults(feed.data);
   const catalog = useCatalog();
+  const { t } = useI18n();
   const [live, setLive] = useState(false);
   const inHub = useInHub();
 
@@ -543,7 +549,7 @@ function StudioBody({ header, tabs, examples }: { header?: React.ReactNode; tabs
         const files = [...e.dataTransfer.files];
         if (!files.length) return;
         if (bridge?.current) bridge.current(files);
-        else toast("Drop it on the composer");
+        else toast(t("studio.page.dropOnComposer"));
       }}
     >
       <StudioHeader
@@ -553,7 +559,7 @@ function StudioBody({ header, tabs, examples }: { header?: React.ReactNode; tabs
             <>
               {/* Live always runs on the viewer's GPU: the engine switch has no say while it is on. */}
               {live ? (
-                <span className="inline-flex cursor-not-allowed" title="Live runs on your GPU">
+                <span className="inline-flex cursor-not-allowed" title={t("studio.page.liveOnGpu")}>
                   <span className="pointer-events-none inline-flex opacity-40" aria-disabled>
                     {header}
                   </span>
@@ -593,7 +599,7 @@ function StudioBody({ header, tabs, examples }: { header?: React.ReactNode; tabs
               </Link>
             )}
             {firstSteps?.length ? (
-              <ul aria-label="Before upscaling" className="mt-3 flex max-w-xl flex-col items-center gap-2">
+              <ul aria-label={t("studio.page.beforeUpscaling")} className="mt-3 flex max-w-xl flex-col items-center gap-2">
                 {firstSteps.map((f) => (
                   <li key={f.id} className="flex flex-col items-center gap-1">
                     <Link

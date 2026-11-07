@@ -577,7 +577,7 @@ export function Composer({ docked }: { docked: boolean }) {
     setDraft({ presetId: config.preset?.id, mix: undefined, presetStrength: undefined });
     presetUrl(undefined);
     toast(t("studio.composer.presetNotAvailable"), { id: "unknown-preset" });
-  }, [unknownPreset, config.preset, presetUrl, setDraft]);
+  }, [unknownPreset, config.preset, presetUrl, setDraft, t]);
 
   // Single-purpose studios (Extend, Reframe, Edit video…) pin their operation.
   // A studio's other tool on the model picked (Edit video's "Insert a moment" on H3 Max insert) takes the pin's place.
@@ -1495,7 +1495,7 @@ export function Composer({ docked }: { docked: boolean }) {
           onStrength={(v) => setDraft({ presetStrength: v })}
         />
       )}
-      {shownControls.length > 0 && <ControlsChip controls={shownControls} values={p.extra ?? {}} onChange={setExtra} title={config.controlsTitle} op={effectiveOp} setupOf={setupViewer ? (param, v) => controlSetup(model?.id, param, v) : undefined} />}
+      {shownControls.length > 0 && <ControlsChip controls={shownControls} values={p.extra ?? {}} onChange={setExtra} title={t("studio.controls.options")} op={effectiveOp} setupOf={setupViewer ? (param, v) => controlSetup(model?.id, param, v) : undefined} />}
       {opts.lightSphere && <LightSphereChip value={draft.slots.image} onChange={setLight} />}
       {effectiveOp === "insert-moment" && <InsertRangeChip clip={facts?.duration} start={p.startTime} resume={p.endTime} onChange={setInsertRange} />}
     </>

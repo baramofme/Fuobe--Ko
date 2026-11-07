@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Chip, ClearableChip } from "./chip";
 import { radioKeys, radioTab } from "./radio-keys";
 import { ResponsivePanel } from "./responsive-panel";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * Fuobe Soul's Look picker: Soul's 106 looks and Soul 2.0's 33 (the request's presetId), with the look's
@@ -42,6 +43,7 @@ export default function LookChip({
   const [open, setOpen] = useState(false);
   const picked = value ? lookCard(value) : none ? undefined : lookCard(DEFAULT_LOOK);
   const [family, setFamily] = useState<"v1" | "v2">(picked?.family ?? "v2");
+  const { t } = useI18n();
   const [tab, setTab] = useState("All presets");
   const [q, setQ] = useState("");
   const set = useMemo(() => lookSet(family), [family]);
@@ -57,7 +59,7 @@ export default function LookChip({
       <ResponsivePanel
         open={open}
         onOpenChange={setOpen}
-        title="Look"
+        title={t("studio.look.look")}
         description="Soul's looks on open weights: words, LoRAs and a grade"
         className="w-[min(92vw,480px)] p-2"
         trigger={
@@ -96,8 +98,8 @@ export default function LookChip({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search looks"
-              aria-label="Search looks"
+              placeholder={t("studio.look.searchLooks")}
+              aria-label={t("studio.look.searchLooks")}
               className="h-8 w-full min-w-0 rounded-md border bg-background pr-2 pl-7 text-sm outline-none focus:border-primary"
             />
           </label>

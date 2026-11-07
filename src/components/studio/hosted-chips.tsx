@@ -11,6 +11,7 @@ import { LIGHT_PRESETS, lightPreset, SPHERE_SIZE, spherePixels, type LightPreset
 import { cn } from "@/lib/utils";
 import { Chip } from "./chip";
 import type { SlotValue } from "./media-slot";
+import { useI18n } from "@/lib/i18n";
 
 /** The preset's sphere on a canvas (the picker's swatch at `size`, or the full picture that is uploaded). */
 function sphereCanvas(preset: LightPreset, size: number): HTMLCanvasElement {
@@ -33,6 +34,7 @@ function Swatch({ preset, size = 56 }: { preset: LightPreset; size?: number }) {
 
 /** The light a sphere-reading relight (fal's H3 Max relight) matches: pick a preset, and its sphere becomes the run's image. */
 export function LightSphereChip({ value, onChange }: { value: SlotValue | null | undefined; onChange: (v: SlotValue | null) => void }) {
+  const { t } = useI18n();
   const picked = value?.name?.startsWith("light:") ? lightPreset(value.name.slice(6)) : undefined;
   const [busy, setBusy] = useState<string>();
   const pick = async (preset: LightPreset) => {
@@ -40,11 +42,11 @@ export function LightSphereChip({ value, onChange }: { value: SlotValue | null |
     try {
       const canvas = sphereCanvas(preset, SPHERE_SIZE);
       const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
-      if (!blob) throw new Error("Couldn't draw the light");
+      if (!blob) throw new Error(t("studio.relight.couldNotDraw"));
       const asset = await uploadFile(new File([blob], `light-${preset.id}.png`, { type: "image/png" }));
       onChange({ ref: asset.url, preview: canvas.toDataURL("image/png"), kind: "image", name: `light:${preset.id}` });
     } catch (e) {
-      toast.error((e as Error).message || "Couldn't set the light");
+      toast.error((e as Error).message || t("studio.relight.couldNotSet"));
     } finally {
       setBusy(undefined);
     }
@@ -53,12 +55,12 @@ export function LightSphereChip({ value, onChange }: { value: SlotValue | null |
     <Popover>
       <PopoverTrigger asChild>
         <Chip icon={Sun} active={!!picked}>
-          {picked ? `Light · ${picked.label}` : "Pick a light"}
+          {picked ? t("studio.relight.lightWith", { name: picked.label }) : t("studio.relight.pickLight")}
         </Chip>
       </PopoverTrigger>
       <PopoverContent className="w-[min(92vw,380px)] p-3" align="start" side="top" collisionPadding={12}>
-        <p className="text-[13px] font-medium">The new light</p>
-        <p className="mb-2 text-[12px] text-muted-foreground">The shot is relit to match the light on the sphere.</p>
+        <p className="text-[13px] font-medium">{t("studio.relight.newLight")}</p>
+        <p className="mb-2 text-[12px] text-muted-foreground">{t("studio.relight.relitHint")}</p>
         <div className="grid grid-cols-4 gap-2">
           {LIGHT_PRESETS.map((p) => (
             <button
@@ -76,7 +78,7 @@ export function LightSphereChip({ value, onChange }: { value: SlotValue | null |
               <Swatch preset={p} />
               <span className="text-center">{p.label}</span>
               {busy === p.id && (
-                <span className="absolute inset-0 grid place-items-center rounded-xl bg-background/60" role="status" aria-label="Setting the light">
+                <span className="absolute inset-0 grid place-items-center rounded-xl bg-background/60" role="status" aria-label={t("studio.relight.settingLightAria")}>
                   <Loader2 className="size-4 animate-spin" />
                 </span>
               )}
@@ -105,6 +107,7 @@ export function InsertRangeChip({
   resume: number | undefined;
   onChange: (start: number, resume: number) => void;
 }) {
+  const { t } = useI18n();
   const h = insertHandles(clip, [start, resume]);
   // The run carries both points once the clip's length is read: they start around its middle.
   useEffect(() => {
@@ -114,13 +117,13 @@ export function InsertRangeChip({
     <Popover>
       <PopoverTrigger asChild>
         <Chip icon={Scissors} active>
-          {`Insert · ${at(h.start)}–${at(h.resume)}`}
+          {t("studio.insert.insertChip", { start: at(h.start), resume: at(h.resume) })}
         </Chip>
       </PopoverTrigger>
       <PopoverContent className="w-[min(92vw,420px)] space-y-3 p-3" align="start" side="top" collisionPadding={12}>
         <div>
-          <p className="text-[13px] font-medium">Where the new moment goes</p>
-          <p className="text-[12px] text-muted-foreground">It starts at the first handle; your clip picks up again at the second.</p>
+          <p className="text-[13px] font-medium">{t("studio.insert.whereGoes")}</p>
+          <p className="text-[12px] text-muted-foreground">{t("studio.insert.whereHint")}</p>
         </div>
         <Slider
           min={h.min}
@@ -129,11 +132,11 @@ export function InsertRangeChip({
           minStepsBetweenThumbs={1}
           value={[h.start, h.resume]}
           onValueChange={(v) => onChange(v[0], v[1])}
-          thumbLabels={["New moment starts", "Clip picks up again"]}
+          thumbLabels={[t("studio.insert.thumbStart"), t("studio.insert.thumbResume")]}
         />
         <div className="flex justify-between text-[12px] text-muted-foreground tabular-nums">
           <span>{at(h.start)}</span>
-          <span>{clip ? `of ${at(Math.round(clip * 10) / 10)}` : "Reading the clip…"}</span>
+          <span>{clip ? t("studio.insert.ofTime", { time: at(Math.round(clip * 10) / 10) }) : t("studio.insert.readingClip")}</span>
           <span>{at(h.resume)}</span>
         </div>
       </PopoverContent>

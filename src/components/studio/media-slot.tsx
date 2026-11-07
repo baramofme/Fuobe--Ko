@@ -17,6 +17,7 @@ import { dropHeld, holdFile, readHeld } from "@/lib/held-files";
 import { cn } from "@/lib/utils";
 import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import type { SketchMode, Stroke } from "./sketch-editor";
+import { t as storeT } from "@/lib/i18n";
 
 export interface SlotValue {
   /** Client-side identity for list items (references) and in-flight uploads. */
@@ -67,7 +68,7 @@ export const kindOfFile = (f: File): MediaKind => {
 
 /** "Image only — drop a photo here": a tile was given the wrong kind of file. */
 export const wrongKindMessage = (kind: MediaKind) =>
-  ({ image: "Image only — drop a photo here", video: "Video only — drop a clip here", audio: "Audio only — drop a sound file here", text: "Text only — drop a .txt or .srt file here", model3d: "3D only — drop a .glb file here" })[kind];
+  ({ image: storeT("studio.media.imageHint"), video: storeT("studio.media.videoHint"), audio: storeT("studio.media.audioHint"), text: storeT("studio.media.textHint"), model3d: storeT("studio.media.model3dHint") })[kind];
 
 /** The file as it is: the server streams it (src/lib/upload.ts), and its error is the toast. */
 const upload = (file: File, signal?: AbortSignal): Promise<Asset> => postFile(file, signal);
@@ -249,7 +250,7 @@ function LibraryPicker({ kind, onPick }: { kind: MediaKind; onPick: (v: SlotValu
       <PopoverTrigger asChild>
         <button
           className="absolute -right-1.5 -bottom-1.5 grid size-5 place-items-center rounded-full border bg-background text-muted-foreground opacity-0 shadow-soft transition-opacity group-hover/slot:opacity-100 hover:text-foreground focus-visible:opacity-100"
-          aria-label="Choose from library"
+          aria-label={storeT("studio.media.chooseLibrary")}
           onClick={(e) => e.stopPropagation()}
         >
           <Library className="size-3" />

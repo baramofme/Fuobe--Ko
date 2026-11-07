@@ -2,10 +2,12 @@
 
 import { MoveHorizontal } from "lucide-react";
 import { useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 /** Before/after slider: drag (or use ← →) to reveal the original under the result. */
 export function CompareSlider({ before, after, alt }: { before: string; after: string; alt?: string }) {
   const box = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
   const [pos, setPos] = useState(50);
   const move = (clientX: number) => {
     const r = box.current?.getBoundingClientRect();
@@ -45,7 +47,7 @@ export function CompareSlider({ before, after, alt }: { before: string; after: s
         value={pos}
         onChange={(e) => setPos(Number(e.target.value))}
         className="sr-only"
-        aria-label="Compare before and after"
+        aria-label={t("studio.compareSlider.aria")}
       />
     </div>
   );

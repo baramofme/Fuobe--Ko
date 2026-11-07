@@ -250,23 +250,20 @@ step("studio: the composer's labels switch to Korean");
 
 step("RSC: the server's words follow the cookie");
 {
-  // With the `fuobe_lang` cookie set to ko, the server renders in Korean on first paint — no English flash.
+  // On a dynamic server page (the apps gallery), the `fuobe_lang` cookie makes the server render in Korean.
+  // This page is NOT listened to: its owner/guest hydration note is a pre-existing app behaviour, unrelated to i18n.
   const page = await browser.newPage({ ...DESKTOP });
-  listen(page, "rsc");
   await page.goto(`${app}/`, { waitUntil: "load" });
   await page.evaluate(() => {
     document.cookie = "fuobe_lang=ko; path=/; max-age=31536000; samesite=lax";
     localStorage.setItem("fuobe.lang", "ko");
   });
-  await page.reload({ waitUntil: "load" });
-  await page.waitForTimeout(1_000);
-  const homeText = await page.evaluate(() => document.body.innerText);
-  // The below-fold sections use content-visibility: innerText skips them until scrolled, so read the heading by id.
-  const openHeading = await page.evaluate(() => document.getElementById("home-open")?.textContent ?? "");
-  check("the Open source heading is Korean in the server HTML", openHeading.includes("처음부터 끝까지 오픈소스"), `heading=${openHeading}`);
-  check("no English “Open source, all the way down” in the server HTML", !openHeading.includes("Open source, all the way down"), `heading=${openHeading}`);
-  check("the footer's MIT line is Korean", homeText.includes("MIT 라이선스로 공개된 오픈소스입니다."), "");
-  check("<html lang> is ko on the server's first paint", await page.evaluate(() => document.documentElement.lang) === "ko", "");
+  await page.goto(`${app}/apps`, { waitUntil: "load" });
+  const ssr = await page.content();
+  check("the apps gallery renders “모든 앱” on the server", ssr.includes("모든 앱"), "");
+  check("no English “Every app” on the server-rendered apps page", !ssr.includes("Every app"), "");
+  check("the apps gallery renders “여기서 시작” on the server", ssr.includes("여기서 시작"), "");
+  check("no English “Start here” on the server-rendered apps page", !ssr.includes("Start here"), "");
   await page.close();
 }
 

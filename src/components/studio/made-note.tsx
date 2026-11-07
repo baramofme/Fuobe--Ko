@@ -2,6 +2,7 @@ import type { Generation } from "@/lib/catalog/types";
 import { autoLine } from "@/lib/auto-image";
 import { AddAutoPattern } from "@/components/add-auto-pattern";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 type NoteRun = Pick<Generation, "declinedCards" | "status" | "modelId" | "modelName"> & {
   request: Pick<Generation["request"], "notice" | "modelId" | "auto" | "prompt">;
@@ -15,11 +16,12 @@ type NoteRun = Pick<Generation, "declinedCards" | "status" | "modelId" | "modelN
  * the views show only the value it was made at (shownSettings), never a value the studio didn't offer.
  */
 export function MadeNote({ g, className }: { g: NoteRun; className?: string }) {
+  const { t } = useI18n();
   const auto = autoLine(g);
   const notice = g.request.notice?.trim();
   if (!auto && !notice && !g.declinedCards?.length) return null;
   return (
-    <ul className={cn("space-y-0.5 text-[11.5px] leading-snug text-pretty text-muted-foreground", className)} aria-label="How this run was made">
+    <ul className={cn("space-y-0.5 text-[11.5px] leading-snug text-pretty text-muted-foreground", className)} aria-label={t("studio.made.howMade")}>
       {auto && <li>{auto}</li>}
       {notice && <li>{notice}</li>}
       {!!g.declinedCards?.length && (

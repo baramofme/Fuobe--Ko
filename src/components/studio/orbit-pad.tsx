@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useI18n } from "@/lib/i18n";
 import type { PresetOption } from "@/lib/catalog/types";
 import { orbitDrag, qmaLabel, qmaPose, qmaView, QMA_ELEVATIONS, QMA_PARAMS } from "@/lib/qma";
 import type { ScenePose } from "@/lib/scene3d";
@@ -31,6 +32,7 @@ function nearest(o: PresetOption, param: string, v: number): string {
 }
 
 export function OrbitPad({ options, values, onChange }: { options: Keys; values: Record<string, string>; onChange: (next: Record<string, string>) => void }) {
+  const { t } = useI18n();
   const pose: ScenePose = {
     horizontal: Number(chosen(options.angle, values).extra?.[QMA_PARAMS.horizontal] ?? 0),
     vertical: Number(chosen(options.height, values).extra?.[QMA_PARAMS.vertical] ?? 0),
@@ -89,7 +91,7 @@ export function OrbitPad({ options, values, onChange }: { options: Keys; values:
       <div
         role="slider"
         tabIndex={0}
-        aria-label="Camera orbit: drag to swing the camera round and up or down; arrow keys move it one view"
+        aria-label={t("studio.orbit.ariaLabel")}
         aria-valuemin={0}
         aria-valuemax={315}
         aria-valuenow={qmaPose(view).horizontal}

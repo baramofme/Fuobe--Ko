@@ -5,20 +5,22 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { GenParams, ModelDef } from "@/lib/catalog/types";
 import { cn } from "@/lib/utils";
 import { radioKeys, radioTab } from "./radio-keys";
+import { useI18n } from "@/lib/i18n";
 
 type Shot = NonNullable<GenParams["shots"]>[number];
 
 /** Off · Auto (the model cuts by itself) · Custom (you write each shot): a segmented control for the settings panel. */
 export function MultiShotControl({ model, params, onChange }: { model: ModelDef; params: GenParams; onChange: (p: Partial<GenParams>) => void }) {
+  const { t } = useI18n();
   const ms = model.options.multiShot!;
   const mode = params.shots ? "custom" : params.multiShot === "auto" ? "auto" : "off";
   const concat = ms.mode === "concat";
   const each = concat ? (model.defaults?.duration ?? 5) : Math.max(1, Math.floor((params.duration ?? model.defaults?.duration ?? 6) / 2));
   const options = [
-    { id: "off", label: "Off", hint: "One continuous shot" },
+    { id: "off", label: t("studio.shots.off"), hint: t("studio.shots.oneContinuous") },
     // Open models can't plan their own cuts.
-    ...(concat ? [] : [{ id: "auto", label: "Auto", hint: "The model plans the cuts" } as const]),
-    { id: "custom", label: "Custom", hint: `Write up to ${ms.maxShots} shots` },
+    ...(concat ? [] : [{ id: "auto", label: t("studio.shots.auto"), hint: t("studio.shots.modelPlans") } as const]),
+    { id: "custom", label: t("studio.shots.custom"), hint: t("studio.shots.writeUpTo", { max: ms.maxShots }) },
   ] as const;
   const pick = (id: (typeof options)[number]["id"]) => {
     if (id === "off") onChange({ shots: undefined, multiShot: undefined });
@@ -34,7 +36,7 @@ export function MultiShotControl({ model, params, onChange }: { model: ModelDef;
   };
   return (
     <div className="space-y-1.5">
-      <div role="radiogroup" aria-label="Multi-shot" onKeyDown={radioKeys} className="flex rounded-full bg-muted p-0.5">
+      <div role="radiogroup" aria-label={t("studio.shots.multiShotAria")} onKeyDown={radioKeys} className="flex rounded-full bg-muted p-0.5">
         {options.map((o) => (
           <Tooltip key={o.id}>
             <TooltipTrigger asChild>
@@ -55,11 +57,11 @@ export function MultiShotControl({ model, params, onChange }: { model: ModelDef;
       </div>
       <p className="text-[11px] leading-snug text-muted-foreground">
         {ms.mode === "native"
-          ? `${model.name} takes each shot as its own prompt.`
+          ? t("studio.shots.nativeModel", { model: model.name })
           : concat
-            ? `Each shot renders as its own ${model.name} clip, then they're joined into one video.`
-            : `${model.name} follows shots written into the prompt.`}
-        {mode === "custom" && " Write each shot under the prompt."}
+            ? t("studio.shots.concatNote", { model: model.name })
+            : t("studio.shots.followsPrompt", { model: model.name })}
+        {mode === "custom" && t("studio.shots.customWrite")}
       </p>
     </div>
   );
@@ -67,6 +69,7 @@ export function MultiShotControl({ model, params, onChange }: { model: ModelDef;
 
 /** Per-shot prompts and durations, shown under the main prompt in Custom mode. */
 export function ShotsEditor({ model, shots, onChange }: { model: ModelDef; shots: Shot[]; onChange: (s: Shot[] | undefined) => void }) {
+  const { t } = useI18n();
   const max = Math.max(...(model.options.durations ?? [15]));
   const total = shots.reduce((n, s) => n + s.duration, 0);
   const maxShots = model.options.multiShot?.maxShots ?? 6;
@@ -94,11 +97,11 @@ export function ShotsEditor({ model, shots, onChange }: { model: ModelDef; shots
               value={s.prompt}
               onChange={(e) => set(i, { prompt: e.target.value.slice(0, 512) })}
               rows={1}
-              placeholder={i === 0 ? "Shot 1 — e.g. “wide: she steps out of the taxi into the rain”" : `Shot ${i + 1} — e.g. “close-up: she looks up at the neon sign”`}
+              placeholder={i === 0 ? t("studio.shots.shotPlaceholder1") : t("studio.shots.shotPlaceholderN", { n: i + 1 })}
               className="field-sizing-content max-h-28 min-h-8 flex-1 resize-none bg-transparent py-1 text-[14px] leading-snug outline-none placeholder:text-subtle-foreground"
             />
             <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-background p-0.5 shadow-soft">
-              <button onClick={() => set(i, { duration: stepTo(s.duration, -1) })} className="grid size-6 place-items-center rounded-full hover:bg-accent" aria-label="Shorter">
+              <button onClick={() => set(i, { duration: stepTo(s.duration, -1) })} className="grid size-6 place-items-center rounded-full hover:bg-accent" aria-label={t("studio.shots.shorter")}>
                 <Minus className="size-3" />
               </button>
               <Tooltip>
@@ -113,7 +116,7 @@ export function ShotsEditor({ model, shots, onChange }: { model: ModelDef; shots
                 onClick={() => set(i, { duration: stepTo(s.duration, 1) })}
                 disabled={full || (!!steps && s.duration >= steps[steps.length - 1])}
                 className="grid size-6 place-items-center rounded-full hover:bg-accent disabled:opacity-40"
-                aria-label="Longer"
+                aria-label={t("studio.shots.longer")}
               >
                 <Plus className="size-3" />
               </button>
@@ -121,7 +124,7 @@ export function ShotsEditor({ model, shots, onChange }: { model: ModelDef; shots
             <button
               onClick={() => onChange(shots.length > 1 ? shots.filter((_, j) => j !== i) : undefined)}
               className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label={`Remove shot ${i + 1}`}
+              aria-label={t("studio.shots.removeShotAria", { n: i + 1 })}
             >
               <X className="size-3.5" />
             </button>
@@ -135,11 +138,11 @@ export function ShotsEditor({ model, shots, onChange }: { model: ModelDef; shots
             disabled={full}
             className="inline-flex items-center gap-1 text-[12px] font-medium text-brand-text hover:underline disabled:opacity-40"
           >
-            <Plus className="size-3" /> Add shot
+            <Plus className="size-3" /> {t("studio.shots.addShot")}
           </button>
         )}
         <span className={cn("ml-auto font-mono text-[11px] text-muted-foreground", !concat && total > max && "text-destructive")}>
-          {concat ? `${total}s film · up to ${max}s a shot` : `${total}s of ${max}s`}
+          {concat ? t("studio.shots.filmTotal", { total, max }) : t("studio.shots.totalOfMax", { total, max })}
         </span>
       </div>
     </div>

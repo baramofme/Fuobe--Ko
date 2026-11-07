@@ -8,8 +8,6 @@ import { AREAS, area, type AreaId } from "@/lib/nav-areas";
 import { navIcon } from "@/lib/nav-icons";
 import { entry, type NavEntry } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
-import { getServerLang } from "@/lib/i18n/server-lang";
-import { translate, type Params } from "@/lib/i18n/store";
 import { AreaSearch, AreaTabs, JumpBackIn, OwnerPills, OwnerSubRow, type AreaTab } from "./area-islands";
 
 /*
@@ -115,16 +113,14 @@ export function AreaSections({ sections }: { sections: AreaShowcase["sections"] 
  * What a section's studios hold inside (their tabs and modes), a row per studio under its cards and pills, so each is
  * one tap from here: "Marketing Studio  (Click to Ad) (Ad Multiplier)". The owner's own features come with the island.
  */
-async function StudioFeatures({ section, subs }: { section: string; subs: AreaShowcase["sections"][number]["subs"] }) {
-  const lang = await getServerLang();
-  const t = (key: string, params?: Params) => translate(lang, key, params);
+function StudioFeatures({ section, subs }: { section: string; subs: AreaShowcase["sections"][number]["subs"] }) {
   const shown = subs.filter((g) => g.pills.length > 0);
   if (!shown.length) return null;
   const titleId = `${section}-inside`;
   return (
     <div className="mt-6" data-studio-features={section}>
       <h3 id={titleId} className="mb-2 font-sans text-[13px] text-muted-foreground">
-        {t("area.insideStudios")}
+        Inside these studios
       </h3>
       <ul aria-labelledby={titleId} className="flex flex-col gap-2.5">
         {subs.map((g) =>
@@ -154,15 +150,13 @@ async function StudioFeatures({ section, subs }: { section: string; subs: AreaSh
 }
 
 /** The pills at the end of an area page: the other areas, then Canvas and Assist. */
-export async function MoreInFuobe({ current }: { current: AreaId }) {
-  const lang = await getServerLang();
-  const t = (key: string, params?: Params) => translate(lang, key, params);
+export function MoreInFuobe({ current }: { current: AreaId }) {
   const others = AREAS.filter((a) => a.id !== current).map((a) => entry(a.entryId));
   const list = [...others, entry("canvas"), entry("assist")].filter((e): e is NavEntry => !!e);
   return (
     <section aria-labelledby="more-in-fuobe" data-reveal className="mt-10 sm:mt-14">
       <h2 id="more-in-fuobe" className="mb-2 font-sans text-[13px] font-medium">
-        {t("area.moreInFuobe")}
+        More in Fuobe
       </h2>
       <ul className="flex flex-wrap gap-1.5">
         {list.map((e) => {

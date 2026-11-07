@@ -5,6 +5,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { realDuration } from "@/components/av/frame-sampler";
 import { clampRange, clock, initialRange, moveRange, parseTime, setEdge, thumbTimes, trimHint, trimKey, type TrimLimits, type TrimRange } from "@/lib/trim-range";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export type { TrimRange } from "@/lib/trim-range";
 
@@ -121,6 +122,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
   const [shape, setShape] = useState(16 / 9);
   const [thumbs, setThumbs] = useState<string[]>([]);
   const [unsupported, setUnsupported] = useState(false);
+  const { t } = useI18n();
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [now, setNow] = useState(0);
@@ -358,7 +360,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
               onClick={togglePlay}
               disabled={!range}
               aria-label={playing ? "Pause" : "Play the selection"}
-              title={playing ? "Pause" : "Play the selection"}
+              title={playing ? t("studio.trim.pause") : t("studio.trim.playSelection")}
               className="grid size-8 shrink-0 place-items-center rounded-full bg-white/20 backdrop-blur transition-colors hover:bg-white/30 disabled:opacity-50"
             >
               {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
@@ -406,7 +408,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
                 data-trim="move"
                 role="slider"
                 tabIndex={0}
-                aria-label="Selection position"
+                aria-label={t("studio.trim.selectionPos")}
                 aria-valuemin={0}
                 aria-valuemax={Math.max(0, Math.round((d - len) * 10) / 10)}
                 aria-valuenow={range.startTime}
@@ -443,7 +445,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-muted-foreground">
           <TimeField label="Start" value={range?.startTime} disabled={!range} onCommit={(t) => range && commit(setEdge(range, "start", t, limits), t)} />
           <span className="font-mono tabular-nums text-foreground" aria-live="polite">
-            {range ? `${len.toFixed(1)} s selected` : "Reading the clip…"}
+            {range ? t("studio.trim.sSelected", { n: len.toFixed(1) }) : t("studio.trim.readingClip")}
           </span>
           <TimeField label="End" value={range?.endTime} disabled={!range} onCommit={(t) => range && commit(setEdge(range, "end", t, limits), t)} />
           {line && <span className="w-full text-[12px] text-brand-text sm:ml-auto sm:w-auto">{line}</span>}

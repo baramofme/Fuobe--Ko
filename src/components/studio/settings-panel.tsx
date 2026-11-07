@@ -140,6 +140,7 @@ function AspectChoices({ options, value, onChange, unavailable }: { options: str
  * whole number only; leaving it empty goes back to the last seed.
  */
 function SeedInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const { t: i18nT } = useI18n();
   const [text, setText] = useState(String(value));
   const [prev, setPrev] = useState(value);
   if (value !== prev) {
@@ -152,12 +153,12 @@ function SeedInput({ value, onChange }: { value: number; onChange: (v: number) =
       inputMode="numeric"
       value={text}
       onChange={(e) => {
-        const t = e.target.value.replace(/[^\d]/g, "").slice(0, 10);
-        setText(t);
-        if (t) onChange(Number(t));
+        const digits = e.target.value.replace(/[^\d]/g, "").slice(0, 10);
+        setText(digits);
+        if (digits) onChange(Number(digits));
       }}
       onBlur={() => !text && setText(String(value))}
-      aria-label="Seed"
+      aria-label={i18nT("studio.settings.seed")}
       className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm tabular-nums outline-none focus:border-primary"
     />
   );
@@ -169,16 +170,17 @@ function SeedInput({ value, onChange }: { value: number; onChange: (v: number) =
  * picker says what the chip says and the request sends.
  */
 function SpokenLanguage({ codes, value, onChange }: { codes: string[]; value?: string; onChange: (v: string | undefined) => void }) {
+  const { t } = useI18n();
   const options = useMemo(() => spokenLanguageOptions(codes), [codes]);
   const listed = value ? matchSpokenLanguage(value, options.map((l) => l.code)) : undefined;
   const selected = !value ? "auto" : (listed ?? value);
   return (
     <Select value={selected} onValueChange={(v) => onChange(v === "auto" ? undefined : v)}>
-      <SelectTrigger className="w-full" aria-label="Spoken language">
+      <SelectTrigger className="w-full" aria-label={t("studio.settings.spokenLanguage")}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="max-h-72">
-        <SelectItem value="auto">Detect automatically</SelectItem>
+        <SelectItem value="auto">{t("studio.settings.detectAuto")}</SelectItem>
         {value && !listed && <SelectItem value={value}>{spokenLanguageName(value)}</SelectItem>}
         {options.map((l) => (
           <SelectItem key={l.code} value={l.code}>
@@ -475,18 +477,18 @@ function SettingsBody({ model, op, shape, params: p, setP, setExtra, negativePro
         <CollapsibleContent className="space-y-3 pt-3">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[12px] text-muted-foreground">
-              <span>Seed</span>
+              <span>{t("studio.settings.seedLabel")}</span>
               <label className={cn("flex items-center gap-2", !takes.seed && "cursor-not-allowed opacity-60")}>
-                Random
-                <Switch checked={!takes.seed || p.seed === undefined} disabled={!takes.seed} onCheckedChange={(r) => setP({ seed: r ? undefined : Math.floor(Math.random() * 1e9) })} aria-label="Random seed" />
+                {t("studio.settings.random")}
+                <Switch checked={!takes.seed || p.seed === undefined} disabled={!takes.seed} onCheckedChange={(r) => setP({ seed: r ? undefined : Math.floor(Math.random() * 1e9) })} aria-label={t("studio.settings.randomSeed")} />
               </label>
             </div>
             {/* A model that takes no seed here (Nano Banana Pro, Seedance 2.5): every run is new, and it says so. */}
-            {!takes.seed && model && <p className="text-[12px] leading-snug text-muted-foreground">{model.name} picks its own seed here, so each run comes out new.</p>}
+            {!takes.seed && model && <p className="text-[12px] leading-snug text-muted-foreground">{t("studio.settings.ownSeed", { model: model.name })}</p>}
             {takes.seed && p.seed !== undefined && (
               <div className="flex gap-1.5">
                 <SeedInput value={p.seed} onChange={(seed) => setP({ seed })} />
-                <Button variant="secondary" size="icon" className="size-8" onClick={() => setP({ seed: Math.floor(Math.random() * 1e9) })} aria-label="New random seed">
+                <Button variant="secondary" size="icon" className="size-8" onClick={() => setP({ seed: Math.floor(Math.random() * 1e9) })} aria-label={t("studio.settings.newRandomSeed")}>
                   <Shuffle className="size-3.5" />
                 </Button>
               </div>
@@ -494,19 +496,19 @@ function SettingsBody({ model, op, shape, params: p, setP, setExtra, negativePro
           </div>
           {opts.negativePrompt && (
             <div className="space-y-1.5">
-              <span className="text-[12px] text-muted-foreground">Negative prompt</span>
+              <span className="text-[12px] text-muted-foreground">{t("studio.settings.negativeLabel")}</span>
               <textarea
                 value={negativePrompt}
                 onChange={(e) => setNegativePrompt(e.target.value)}
                 rows={3}
                 disabled={!takes.negativePrompt}
-                aria-label="Negative prompt"
-                placeholder="blurry, low quality, extra fingers…"
+                aria-label={t("studio.settings.negativePrompt")}
+                placeholder={t("studio.settings.negativeHint")}
                 className="w-full resize-none rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
               />
               {/* The route sends no negative prompt (Qwen Image Edit on fal, Kandinsky 6.0): said, never dropped without a word. */}
               {!takes.negativePrompt && model && (
-                <p className="text-[12px] leading-snug text-muted-foreground">{model.name} doesn&apos;t read a negative prompt here: describe only what you want in the prompt.</p>
+                <p className="text-[12px] leading-snug text-muted-foreground">{t("studio.settings.noNegative", { model: model.name })}</p>
               )}
             </div>
           )}

@@ -5,6 +5,8 @@ const COVER_VERSION = { type: "query" as const, key: "v", value: "[0-9a-f]{8}" }
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Allow cross-origin requests in dev so 127.0.0.1 and localhost both hydrate (Next 16 dev-origin blocking).
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   cacheComponents: true,
   poweredByHeader: false,
   partialPrefetching: true,

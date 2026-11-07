@@ -11,6 +11,7 @@ import type { MotionPaths } from "@/lib/motion-paths";
 import { keyCombo, useModKey } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n, t as storeT } from "@/lib/i18n";
 
 /**
  * Paint on top of an image.
@@ -49,7 +50,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Couldn't load the image"));
+    img.onerror = () => reject(new Error(storeT("studio.sketch.couldNotLoad")));
     img.src = src;
   });
 }
@@ -97,7 +98,7 @@ function drawStrokes(ctx: CanvasRenderingContext2D, strokes: Stroke[], mode: Ske
 
 async function canvasToFile(c: HTMLCanvasElement, name: string): Promise<File> {
   const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/png"));
-  if (!blob) throw new Error("Couldn't export the drawing");
+  if (!blob) throw new Error(storeT("studio.sketch.couldNotExport"));
   return new File([blob], name, { type: "image/png" });
 }
 
@@ -179,6 +180,7 @@ function SketchCanvas({
   onDone: (r: SketchResult) => void;
   escapeRef: React.RefObject<() => boolean>;
 }) {
+  const { t } = useI18n();
   const mod = useModKey();
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -447,21 +449,21 @@ function SketchCanvas({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{words?.title ?? (mode === "mask" ? "Paint what should change" : "Draw your edit")}</DialogTitle>
+        <DialogTitle>{words?.title ?? (mode === "mask" ? t("studio.sketch.paintWhatChanges") : t("studio.sketch.drawYourEdit"))}</DialogTitle>
         <DialogDescription>
           {words?.hint ??
             (mode === "mask"
-              ? "Brush over the area to replace. Everything you don't paint stays as it is."
-              : "Sketch arrows, shapes or write short notes — the model follows them and removes the marks.")}
+              ? t("studio.sketch.brushHint")
+              : t("studio.sketch.sketchHint"))}
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-wrap items-center gap-1.5">
-        <ToolBtn active={tool === "brush"} onClick={() => setTool("brush")} icon={Brush} label="Brush (B)" />
-        <ToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} icon={Eraser} label="Eraser (E)" />
-        {mode === "draw" && <ToolBtn active={tool === "text"} onClick={() => setTool("text")} icon={Type} label="Add a note (T)" />}
+        <ToolBtn active={tool === "brush"} onClick={() => setTool("brush")} icon={Brush} label={t("studio.sketch.brushKey")} />
+        <ToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} icon={Eraser} label={t("studio.sketch.eraserKey")} />
+        {mode === "draw" && <ToolBtn active={tool === "text"} onClick={() => setTool("text")} icon={Type} label={t("studio.sketch.noteKey")} />}
         <div className="mx-2 flex w-40 items-center gap-2">
-          <span className="text-[12px] text-muted-foreground">Size</span>
-          <Slider value={[size]} min={2} max={200} step={1} onValueChange={([v]) => setSize(v)} aria-label="Brush size" />
+          <span className="text-[12px] text-muted-foreground">{t("studio.sketch.sizeLabel")}</span>
+          <Slider value={[size]} min={2} max={200} step={1} onValueChange={([v]) => setSize(v)} aria-label={t("studio.sketch.brushSize")} />
         </div>
         {mode === "draw" && (
           <div className="flex items-center gap-1">
@@ -472,20 +474,20 @@ function SketchCanvas({
                 aria-pressed={color === c}
                 className={cn("size-6 rounded-full border ring-offset-2 ring-offset-background", color === c && "ring-2 ring-primary")}
                 style={{ background: c }}
-                aria-label={`Colour ${c}`}
+                aria-label={t("studio.sketch.colourAria", { c })}
               />
             ))}
           </div>
         )}
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={undo} disabled={!strokes.length} aria-label="Undo">
+          <Button variant="ghost" size="icon" onClick={undo} disabled={!strokes.length} aria-label={t("studio.sketch.undoAria")}>
             <Undo2 />
           </Button>
-          <Button variant="ghost" size="icon" onClick={redoOne} disabled={!redo.length} aria-label="Redo">
+          <Button variant="ghost" size="icon" onClick={redoOne} disabled={!redo.length} aria-label={t("studio.sketch.redoAria")}>
             <Redo2 />
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setStrokes([])} disabled={!strokes.length}>
-            <RotateCcw /> Clear
+            <RotateCcw /> {t("studio.sketch.clearButton")}
           </Button>
         </div>
       </div>
@@ -517,8 +519,8 @@ function SketchCanvas({
                   if (e.key === "Escape") setNote(null);
                 }}
                 onBlur={commitNote}
-                aria-label="Note text"
-                placeholder="Type a note, ↵"
+                aria-label={t("studio.sketch.noteText")}
+                placeholder={t("studio.sketch.typeNote")}
                 className="absolute min-w-40 rounded-md border bg-background/95 px-2 py-1 text-sm shadow-normal outline-none"
                 style={{ left: note.at[0] * scale, top: note.at[1] * scale, color }}
               />
@@ -535,12 +537,12 @@ function SketchCanvas({
         )}
       </div>
       <DialogFooter className="items-center">
-        <p className="mr-auto hidden text-[12px] text-muted-foreground sm:block">[ ] brush size · {keyCombo("Z", { mod })} undo · {keyCombo("Z", { mod, shift: true })} redo{mode === "draw" ? " · T note" : ""}</p>
+        <p className="mr-auto hidden text-[12px] text-muted-foreground sm:block">{t("studio.sketch.shortcutBrSize")} · {keyCombo("Z", { mod })}{t("studio.sketch.undoSuffix")} · {keyCombo("Z", { mod, shift: true })}{t("studio.sketch.redoSuffix")}{mode === "draw" ? t("studio.sketch.tNoteSuffix") : ""}</p>
         <Button variant="ghost" className="min-h-11 sm:min-h-9" onClick={() => onOpenChange(false)}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button className="min-h-11 sm:min-h-9" onClick={save} disabled={!hasPaint || saving}>
-          {saving && <Loader2 className="animate-spin" />} {words?.done ?? (mode === "mask" ? "Use this mask" : "Use this drawing")}
+          {saving && <Loader2 className="animate-spin" />} {words?.done ?? (mode === "mask" ? t("studio.sketch.useMask") : t("studio.sketch.useDrawing"))}
         </Button>
       </DialogFooter>
     </>

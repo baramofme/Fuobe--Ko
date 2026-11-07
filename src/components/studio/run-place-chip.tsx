@@ -21,6 +21,7 @@ import { EngineSwitch } from "./engine-switch";
 import { PlaceIntroNote } from "./place-intro";
 import { ResponsivePanel } from "./responsive-panel";
 import { RunOnList } from "./run-on";
+import { useI18n } from "@/lib/i18n";
 
 const ICONS: Record<RunPlace["where"], typeof Cloud> = { cloud: Cloud, gpu: Cpu, pool: Server, browser: MonitorPlay, unavailable: Lock };
 
@@ -121,6 +122,7 @@ export function RunPlaceChip({
   runLabel?: string;
   className?: string;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   // Hosted runs: the Run on list for an account with a GPU of its own, on an open run this studio's GPUs take too.
   const viewer = useStatus().data?.viewer;
@@ -192,7 +194,7 @@ export function RunPlaceChip({
           )}
           {place.price && (
             <p className="flex items-baseline justify-between gap-3 border-t pt-2 font-medium">
-              <span>{many ? "In all" : "Price"}</span>
+              <span>{many ? t("studio.runPlace.inAll") : t("studio.runPlace.price")}</span>
               <span className="font-mono tabular-nums">{place.price}</span>
             </p>
           )}
@@ -203,7 +205,7 @@ export function RunPlaceChip({
           )}
           {place.needs === "signup" && (
             <Button asChild size="sm" className="w-full">
-              <Link href={signInHref("signup", pathname)}>Sign up free</Link>
+              <Link href={signInHref("signup", pathname)}>{t("studio.runPlace.signUp")}</Link>
             </Button>
           )}
           {place.setup && place.needs && place.needs !== "signup" && (

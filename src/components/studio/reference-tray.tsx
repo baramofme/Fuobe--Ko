@@ -3,6 +3,7 @@
 import { Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { h3ReferenceLabels } from "@/lib/h3-references";
+import { useI18n } from "@/lib/i18n";
 import { MediaSlot, SlotPreview, type SlotValue } from "./media-slot";
 
 type List = "refClips" | "refAudios";
@@ -36,12 +37,13 @@ export function useMediaSeconds(values: SlotValue[]): (number | undefined)[] {
 }
 
 function Tile({ value, label, onRemove }: { value: SlotValue; label: string; onRemove: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border bg-muted">
       <SlotPreview value={value} />
       <span className="absolute inset-x-0 bottom-0 truncate bg-background/80 px-1 text-center text-[10px] font-medium">{label}</span>
       {value.uploading && (
-        <div className="absolute inset-0 grid place-items-center bg-background/60" role="status" aria-label="Uploading">
+        <div className="absolute inset-0 grid place-items-center bg-background/60" role="status" aria-label={t("studio.reference.uploading")}>
           <Loader2 className="size-4 animate-spin" />
         </div>
       )}
@@ -49,7 +51,7 @@ function Tile({ value, label, onRemove }: { value: SlotValue; label: string; onR
         type="button"
         onClick={onRemove}
         className="absolute top-0.5 right-0.5 grid size-5 place-items-center rounded-full bg-foreground/80 text-background"
-        aria-label={`Remove ${label}`}
+        aria-label={t("studio.reference.removeRef", { label })}
       >
         <X className="size-3" />
       </button>
@@ -78,23 +80,25 @@ export function ReferenceTiles({
   onPick: (list: List, v: SlotValue, max: number) => void;
   onRemove: (list: List, v: SlotValue) => void;
 }) {
+  const { t } = useI18n();
   const labels = h3ReferenceLabels({ images, videos: clips.length, audios: audios.length }).slice(images);
   return (
     <>
       {clips.map((v, i) => (
         <Tile key={v.id ?? v.ref} value={v} label={labels[i]} onRemove={() => onRemove("refClips", v)} />
       ))}
-      {limits.videos > clips.length && <MediaSlot slotKey="refClips" label="Add clip" kind="video" value={null} onFile={(f) => onFile("refClips", f, limits.videos)} onChange={(v) => v && onPick("refClips", v, limits.videos)} />}
+      {limits.videos > clips.length && <MediaSlot slotKey="refClips" label={t("studio.reference.addClip")} kind="video" value={null} onFile={(f) => onFile("refClips", f, limits.videos)} onChange={(v) => v && onPick("refClips", v, limits.videos)} />}
       {audios.map((v, i) => (
         <Tile key={v.id ?? v.ref} value={v} label={labels[clips.length + i]} onRemove={() => onRemove("refAudios", v)} />
       ))}
-      {limits.audios > audios.length && <MediaSlot slotKey="refAudios" label="Add voice" kind="audio" value={null} onFile={(f) => onFile("refAudios", f, limits.audios)} onChange={(v) => v && onPick("refAudios", v, limits.audios)} />}
+      {limits.audios > audios.length && <MediaSlot slotKey="refAudios" label={t("studio.reference.addVoice")} kind="audio" value={null} onFile={(f) => onFile("refAudios", f, limits.audios)} onChange={(v) => v && onPick("refAudios", v, limits.audios)} />}
     </>
   );
 }
 
 /** The order the prompt cites the references in, and what to fix before a run (Pika's limits). */
 export function ReferenceOrder({ images, clips, audios, problem }: { images: number; clips: number; audios: number; problem: string | null }) {
+  const { t } = useI18n();
   const labels = h3ReferenceLabels({ images, videos: clips, audios });
   if (!labels.length && !problem) return null;
   return (
@@ -103,8 +107,7 @@ export function ReferenceOrder({ images, clips, audios, problem }: { images: num
         <span className="text-destructive">{problem}</span>
       ) : (
         <>
-          References in order: <span className="font-medium text-foreground">{labels.join(", ")}</span>. Name them in your prompt, e.g. “the woman in Image 1 speaks
-          with Voice 1”.
+          {t("studio.reference.inOrder")} <span className="font-medium text-foreground">{labels.join(", ")}</span>. {t("studio.reference.nameThem")}
         </>
       )}
     </p>

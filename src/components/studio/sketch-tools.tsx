@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n";
+
 import { Brush, PenLine, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -8,11 +10,12 @@ import { SketchEditor, type SketchMode } from "./sketch-editor";
 import { useStudio } from "./studio-context";
 
 /**
- * "Paint area" / "Draw" buttons next to the first image, and the resulting drawing chip. `held`: the image is a guest's,
+ * t("studio.sketchTools.paintArea") / "Draw" buttons next to the first image, and the resulting drawing chip. `held`: the image is a guest's,
  * kept in the browser until sign-up (hosted runs on); a drawing is uploaded as it is saved, so the guest is asked to sign
  * up first, and the editor doesn't open by itself.
  */
 export function SketchTools({ modes, image, autoOpen, held = false }: { modes: SketchMode[]; image: string; autoOpen?: SketchMode; held?: boolean }) {
+  const { t } = useI18n();
   const { draft, setDraft } = useStudio();
   const [editing, setEditing] = useState<SketchMode | null>(null);
   const opened = useRef<string | null>(null);
@@ -47,7 +50,7 @@ export function SketchTools({ modes, image, autoOpen, held = false }: { modes: S
               <button
                 onClick={() => edit(mode)}
                 className="size-full overflow-hidden rounded-xl border-2 border-primary bg-muted"
-                aria-label={mode === "mask" ? "Edit the painted area" : "Edit the drawing"}
+                aria-label={mode === "mask" ? t("studio.sketchTools.editPaintArea") : t("studio.sketchTools.editDrawing")}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={current.preview} alt="" className="size-full object-cover" />
@@ -56,12 +59,12 @@ export function SketchTools({ modes, image, autoOpen, held = false }: { modes: S
                 </span>
               </button>
             </TooltipTrigger>
-            <TooltipContent>{mode === "mask" ? "Touch up the painted area" : "Touch up the drawing"}</TooltipContent>
+            <TooltipContent>{mode === "mask" ? t("studio.sketchTools.touchUpArea") : t("studio.sketchTools.touchUpDraw")}</TooltipContent>
           </Tooltip>
           <button
             onClick={clear}
             className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-foreground text-background shadow-soft"
-            aria-label="Remove drawing"
+            aria-label={t("studio.sketchTools.removeDrawing")}
           >
             <X className="size-3" />
           </button>
@@ -77,10 +80,10 @@ export function SketchTools({ modes, image, autoOpen, held = false }: { modes: S
                 className="flex size-14 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-primary/50 bg-brand-faint text-brand-text transition-colors hover:border-primary"
               >
                 {m === "mask" ? <Brush className="size-4" /> : <PenLine className="size-4" />}
-                <span className="text-[10px] leading-none font-medium">{m === "mask" ? "Paint area" : "Draw"}</span>
+                <span className="text-[10px] leading-none font-medium">{m === "mask" ? t("studio.sketchTools.paintArea") : "Draw"}</span>
               </button>
             </TooltipTrigger>
-            <TooltipContent>{m === "mask" ? "Brush over what should change (inpaint)" : "Sketch arrows and notes for the model to follow"}</TooltipContent>
+            <TooltipContent>{m === "mask" ? t("studio.sketchTools.brushInpaint") : t("studio.sketchTools.sketchFollow")}</TooltipContent>
           </Tooltip>
         ))
       )}

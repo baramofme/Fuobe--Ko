@@ -30,6 +30,7 @@ import { FRAMES_HINT, frameRange, frameRole, frameTimes, KEYFRAME_SNAP, MAX_KEYF
 import type { FrameAttachment } from "@/lib/composer";
 import { cn } from "@/lib/utils";
 import { ACCEPT, kindOfFile, MediaSlot, SlotPreview, wrongKindMessage, type SlotValue } from "./media-slot";
+import { useI18n } from "@/lib/i18n";
 
 export interface FramesNotice {
   text: string;
@@ -86,6 +87,7 @@ export function FramesStrip({
   style?: { on: boolean; onChange: (on: boolean) => void; engine: Engine };
   animation?: FramesAnimation;
 }) {
+  const { t } = useI18n();
   const titleId = useId();
   const hintId = useId();
   const styleId = useId();
@@ -124,13 +126,13 @@ export function FramesStrip({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Turn off Frames"
+                aria-label={t("studio.frames.turnOff")}
                 className="grid size-7 place-items-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 <X className="size-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent>Back to a start and an end frame</TooltipContent>
+            <TooltipContent>{t("studio.frames.backToFirstLast")}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -196,6 +198,7 @@ export function FramesStrip({
 
 /** The clip's length: one of the lengths the model (or the open chain) makes. */
 function LengthStepper({ value, options, onDuration }: { value: number; options: number[]; onDuration: (seconds: number) => void }) {
+  const { t } = useI18n();
   const sorted = [...new Set(options)].sort((a, b) => a - b);
   const i = sorted.indexOf(value);
   const lower = i < 0 ? sorted.findLast((x) => x < value) : sorted[i - 1];
@@ -206,7 +209,7 @@ function LengthStepper({ value, options, onDuration }: { value: number; options:
         type="button"
         onClick={() => lower !== undefined && onDuration(lower)}
         disabled={lower === undefined}
-        aria-label="Shorter clip"
+        aria-label={t("studio.frames.shorter")}
         className="grid size-6 place-items-center rounded-full transition-colors outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
       >
         <Minus className="size-3" />
@@ -218,7 +221,7 @@ function LengthStepper({ value, options, onDuration }: { value: number; options:
         type="button"
         onClick={() => higher !== undefined && onDuration(higher)}
         disabled={higher === undefined}
-        aria-label="Longer clip"
+        aria-label={t("studio.frames.longer")}
         className="grid size-6 place-items-center rounded-full transition-colors outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
       >
         <Plus className="size-3" />
@@ -435,6 +438,7 @@ function Ruler({
 
 /** One gap's timing on the strip, between its two keyframes: frames and speed, and a popover to change them and its words. */
 function GapChip({ index, gap, fps, engine, onChange }: { index: number; gap: GapTiming; fps: PlaybackFps; engine: Engine; onChange: (g: GapTiming) => void }) {
+  const { t } = useI18n();
   const can = ENGINE_TIMING[engine];
   const name = `keyframes ${index + 1} and ${index + 2}`;
   // The GPU-only speeds are pointed out only where the GPU is there to switch to (the owner, both engines on).
@@ -483,7 +487,7 @@ function GapChip({ index, gap, fps, engine, onChange }: { index: number; gap: Ga
                     role="radio"
                     aria-checked={gap.speed === sp}
                     disabled={!allowed}
-                    title={allowed || !gpuHint ? undefined : "On your GPU"}
+                    title={allowed || !gpuHint ? undefined : t("studio.frames.onGpu")}
                     onClick={() => onChange({ ...gap, speed: sp })}
                     className={cn("h-6 min-w-8 rounded-full px-1.5 text-[12px] font-medium tabular-nums disabled:opacity-40", gap.speed === sp ? "bg-background shadow-soft" : "hover:bg-background/60")}
                   >

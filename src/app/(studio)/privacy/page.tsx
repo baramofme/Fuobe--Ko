@@ -2,50 +2,42 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage, LegalSection } from "@/components/legal-page";
 import { FUOBE_REPO } from "@/lib/connections";
+import { getServerLang } from "@/lib/i18n/server-lang";
+import { translate } from "@/lib/i18n/store";
 
 export const metadata: Metadata = { title: "Privacy", description: "What Fuobe keeps when you use it, for how long, and how to remove it." };
 
-export default function Page() {
+export default async function Page() {
+  const lang = await getServerLang();
+  const t = (key: string, params?: { [k: string]: string | number }) => translate(lang, key, params);
   return (
-    <LegalPage title="Privacy" lead="What Fuobe keeps when you use it, for how long, and how to remove it." updated="1 November 2026">
-      <LegalSection title="What we keep">
+    <LegalPage title={t("studio.privacy.title")} lead={t("studio.privacy.lead")} updated="1 November 2026">
+      <LegalSection title={t("studio.privacy.kept")}>
+        <p>{t("studio.privacy.keptLine")}</p>
+      </LegalSection>
+      <LegalSection title={t("studio.privacy.howLong")}>
+        <p>{t("studio.privacy.howLongLine")}</p>
+      </LegalSection>
+      <LegalSection title={t("studio.privacy.whoSee")}>
+        <p>{t("studio.privacy.whoSeeLine")}</p>
+        <p>{t("studio.privacy.shareLine")}</p>
+      </LegalSection>
+      <LegalSection title={t("studio.privacy.gpuTitle")}>
+        <p>{t("studio.privacy.gpuLine")}</p>
+      </LegalSection>
+      <LegalSection title={t("studio.privacy.cookies")}>
+        <p>{t("studio.privacy.cookiesLine")}</p>
+      </LegalSection>
+      <LegalSection title={t("studio.privacy.deleteAccount")}>
         <p>
-          Your email address, and a protected form of your password: the password itself is never stored. The pictures, clips and sound you upload, and
-          everything you make. The address of the GPU you connect, so your runs can reach it.
+          <Link href="/settings">{t("studio.settings.settings")}</Link>{t("studio.privacy.deletePost")}
         </p>
       </LegalSection>
-      <LegalSection title="How long we keep it">
+      <LegalSection title={t("studio.privacy.openTitle")}>
         <p>
-          Uploads are deleted after 14 days. Your runs and what they made are deleted after 30 days, so download
-          anything you want to keep.
-        </p>
-      </LegalSection>
-      <LegalSection title="Who can see it">
-        <p>
-          The Fuobe team can see what you upload and make, to keep the service working and safe. We don&apos;t sell your data, and we don&apos;t
-          show it to anyone else.
-        </p>
-        <p>When you make a share link, anyone who has that link can see what it shares.</p>
-      </LegalSection>
-      <LegalSection title="Your GPU">
-        <p>When you connect your own GPU, your runs go to it from Fuobe, and the results come back to your account.</p>
-      </LegalSection>
-      <LegalSection title="Cookies">
-        <p>
-          One cookie keeps you signed in. Your browser also remembers small preferences, such as your theme and which studios you have opened. Analytics
-          cookies show us which pages and tools people use, so we can make them better. There are no advertising cookies.
-        </p>
-      </LegalSection>
-      <LegalSection title="Deleting your account">
-        <p>
-          <Link href="/settings">Settings</Link> → Delete account removes your account, your runs, your files and your GPU connection at once.
-        </p>
-      </LegalSection>
-      <LegalSection title="Open source">
-        <p>
-          Fuobe is open source, so you can read exactly how it handles your data{" "}
+          {t("studio.privacy.openLine")}{" "}
           <a href={FUOBE_REPO} target="_blank" rel="noopener">
-            on GitHub
+            {t("studio.privacy.openLink")}
           </a>
           .
         </p>

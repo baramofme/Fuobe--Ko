@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { KIND_COLOR } from "@/lib/layout-edit";
 import type { LayoutDraft } from "@/lib/layout-prompt";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 const ratioOf = (aspect: string | undefined) => {
   const m = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/.exec(aspect ?? "");
@@ -35,6 +36,7 @@ export function LayoutStrip({
   onEdit: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const ratio = ratioOf(aspect ?? layout.aspect);
   const n = layout.items.length;
   return (
@@ -90,9 +92,9 @@ export function LayoutStrip({
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <Button variant="secondary" size="sm" className="h-8 rounded-full px-3 text-[13px]" onClick={onEdit}>
-          {n ? "Edit boxes" : "Draw boxes"}
+          {n ? t("studio.layoutStrip.editBoxes") : t("studio.layoutStrip.drawBoxes")}
         </Button>
-        <button type="button" onClick={onClose} aria-label="Layout off" className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
+        <button type="button" onClick={onClose} aria-label={t("studio.layout.off")} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
           <X className="size-4" />
         </button>
       </div>

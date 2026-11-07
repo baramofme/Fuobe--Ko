@@ -8,6 +8,7 @@ import { controlsFor } from "@/lib/composer";
 import { Chip } from "./chip";
 import { OwnSetupChip } from "@/components/own-setup";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 const label = (v: string | number) =>
   String(v)
@@ -51,19 +52,22 @@ export function ControlsChip({
   setupOf?: (param: string, value: string | number) => string | undefined;
 }) {
   const controls = controlsFor(all, op);
-  const title = named ?? (controls.length && controls.every((c) => c.param === "quality") ? "Quality" : "Director");
+  const { t } = useI18n();
+  const allQuality = controls.length > 0 && controls.every((c) => c.param === "quality");
+  const title = named ?? t(allQuality ? "studio.controls.quality" : "studio.controls.director");
+  const isDirector = !named && !allQuality;
   if (!controls.length) return null;
   const set = controls.filter((c) => values[c.param] !== undefined);
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Chip icon={title === "Director" ? Clapperboard : Settings2} active={set.length > 0}>
+        <Chip icon={isDirector ? Clapperboard : Settings2} active={set.length > 0}>
           {set.length ? `${title} · ${set.length}` : title}
         </Chip>
       </PopoverTrigger>
       <PopoverContent className="w-[min(92vw,420px)] space-y-2 p-3" align="start" side="top" collisionPadding={12}>
-        <p className="text-[13px] font-medium">{title === "Director" ? "Director controls" : `Model ${title.toLowerCase()}`}</p>
-        <p className="text-[12px] text-muted-foreground">Leave one on Auto and the model decides.</p>
+        <p className="text-[13px] font-medium">{isDirector ? t("studio.controls.subtitleDirector") : t("studio.controls.subtitleModel", { title })}</p>
+        <p className="text-[12px] text-muted-foreground">{t("studio.controls.autoHint")}</p>
         <div className="grid grid-cols-2 gap-2">
           {controls.map((c) => (
             // A control alone on its row (MOSS-Image's one Quality), or one whose values read long (Qwen-Image 2.1's Speed),
@@ -76,7 +80,7 @@ export function ControlsChip({
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
                   {/* Auto sends nothing: the model's default, named when it's known (Leffa: Upper body). */}
-                  <SelectItem value="__auto">{c.default !== undefined ? `Auto · ${c.labels?.[String(c.default)] ?? label(c.default)}` : "Auto"}</SelectItem>
+                  <SelectItem value="__auto">{c.default !== undefined ? t("studio.controls.autoDefault", { default: c.labels?.[String(c.default)] ?? label(c.default) }) : t("studio.controls.auto")}</SelectItem>
                   {c.values.map((v) => (
                     <SelectItem key={String(v)} value={String(v)}>
                       {c.labels?.[String(v)] ?? label(v)}
@@ -90,7 +94,7 @@ export function ControlsChip({
         </div>
         {set.length > 0 && (
           <button onClick={() => set.forEach((c) => onChange(c.param, undefined))} className="inline-flex items-center gap-1 rounded text-[12px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50">
-            <Check className="size-3" /> Reset to Auto
+            <Check className="size-3" /> {t("studio.controls.resetAuto")}
           </button>
         )}
       </PopoverContent>

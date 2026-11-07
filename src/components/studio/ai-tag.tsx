@@ -2,6 +2,7 @@
 
 import { useHydrated, useStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * Results carry an "AI-generated" tag where this studio runs visitors' work on its own GPUs (hosted runs on). With
@@ -16,9 +17,10 @@ export function useAiTag(): boolean {
 
 /** The tag itself: a small label over a picture or a clip. */
 export function AiTag({ className }: { className?: string }) {
+  const { t } = useI18n();
   return (
     <span data-ai-tag className={cn("pointer-events-none rounded-full bg-black/55 px-2 py-0.5 text-[10.5px] font-medium text-white backdrop-blur", className)}>
-      AI-generated
+      {t("studio.viewer.aiTag")}
     </span>
   );
 }

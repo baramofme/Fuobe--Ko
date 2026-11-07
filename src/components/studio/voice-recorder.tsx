@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
 import type { SlotValue } from "./media-slot";
 import { cleanVoiceFile, CleanVoiceSwitch, useCleanVoiceAvailability, useCleanVoicePref } from "@/components/audio-tools/clean-voice-switch";
+import { useI18n } from "@/lib/i18n";
 
 /** Decode any recording the browser made and re-encode it as 16-bit mono WAV — every voice API takes WAV. */
 export async function toWav(blob: Blob): Promise<File> {
@@ -47,6 +48,7 @@ export async function toWav(blob: Blob): Promise<File> {
  * before it is handed over, named "Recording · cleaned" (the original rides along to compare).
  */
 export function VoiceRecorder({ onRecorded, max = 60, className, clean }: { onRecorded: (v: SlotValue & { original?: string }) => void; max?: number; className?: string; clean?: boolean }) {
+  const { t } = useI18n();
   const [state, setState] = useState<"idle" | "recording" | "saving" | "cleaning">("idle");
   const [cleanOn] = useCleanVoicePref();
   const cleanHere = useCleanVoiceAvailability() === "ok" && !!clean && cleanOn;
@@ -76,7 +78,7 @@ export function VoiceRecorder({ onRecorded, max = 60, className, clean }: { onRe
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     } catch {
-      toast.error("Fuobe needs microphone access to record — allow it in your browser, or upload a file instead.");
+      toast.error(t("studio.recorder.micNeeded"));
       return;
     }
     const chunks: Blob[] = [];
@@ -96,20 +98,20 @@ export function VoiceRecorder({ onRecorded, max = 60, className, clean }: { onRe
           cleaning.current = job;
           try {
             const { url } = await cleanVoiceFile(asset.url, "Recording", job.c.signal);
-            onRecorded({ ref: url, preview: url, kind: "audio", name: "Recording · cleaned", original: asset.url });
+            onRecorded({ ref: url, preview: url, kind: "audio", name: t("studio.recorder.cleanName"), original: asset.url });
           } catch (e) {
             // Gone from the page: nothing to hand over. Skipped: the original, quietly. Failed: the original, and why.
             if (job.c.signal.aborted && !job.skipped) return;
-            if (!job.skipped) toastError(e, "Couldn't clean the voice, so the original is kept");
-            onRecorded({ ref: asset.url, preview: asset.url, kind: "audio", name: "Recording" });
+            if (!job.skipped) toastError(e, t("studio.recorder.couldNotClean"));
+            onRecorded({ ref: asset.url, preview: asset.url, kind: "audio", name: t("studio.recorder.recName") });
           } finally {
             if (cleaning.current === job) cleaning.current = null;
           }
           return;
         }
-        onRecorded({ ref: asset.url, preview: asset.url, kind: "audio", name: "Recording" });
+        onRecorded({ ref: asset.url, preview: asset.url, kind: "audio", name: t("studio.recorder.recName") });
       } catch (e) {
-        toastError(e, "Couldn't save the recording");
+        toastError(e, t("studio.recorder.couldNotSave"));
       } finally {
         setState("idle");
       }
@@ -137,7 +139,7 @@ export function VoiceRecorder({ onRecorded, max = 60, className, clean }: { onRe
       type="button"
       onClick={state === "recording" ? stop : state === "cleaning" ? skipClean : start}
       disabled={state === "saving"}
-      title={state === "cleaning" ? "Use the original recording now" : undefined}
+      title={state === "cleaning" ? t("studio.recorder.useOriginalTitle") : undefined}
       className={cn(
         "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors",
         state === "recording" ? "bg-destructive text-white" : "bg-secondary text-secondary-foreground hover:bg-accent",
@@ -145,7 +147,7 @@ export function VoiceRecorder({ onRecorded, max = 60, className, clean }: { onRe
       )}
     >
       {state === "saving" || state === "cleaning" ? <Loader2 className="size-3.5 animate-spin" /> : state === "recording" ? <Square className="size-3 fill-current" /> : <Mic className="size-3.5" />}
-      {state === "recording" ? `Stop · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}` : state === "saving" ? "Saving…" : state === "cleaning" ? "Cleaning… · Skip" : "Record"}
+      {state === "recording" ? t("studio.recorder.stopWith", { time: `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}` }) : state === "saving" ? t("studio.recorder.saving") : state === "cleaning" ? t("studio.recorder.cleaningSkip") : t("studio.recorder.record")}
     </button>
   );
   if (!clean) return button;

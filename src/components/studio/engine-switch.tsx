@@ -15,6 +15,7 @@ import { placeOf, type Place } from "@/lib/place-name";
 import { accountEngine } from "@/lib/your-keys";
 import { cn } from "@/lib/utils";
 import { radioKeys, radioTab } from "./radio-keys";
+import { useI18n } from "@/lib/i18n";
 
 const OPTIONS: { value: Engine; label: string; icon: typeof Cloud; tip: string }[] = [
   { value: "cloud", label: "Cloud", icon: Cloud, tip: "Frontier paid models via your fal.ai / Replicate key" },
@@ -59,6 +60,7 @@ export function EngineSwitch({
   hint?: boolean;
 }) {
   const mode = useEngineMode();
+  const { t } = useI18n();
   // Until hydrated, the server's switch (as useEngineMode): a viewer or status that lands mid-hydration must not change it.
   const hydrated = useHydrated();
   const viewer = useViewer().data;
@@ -92,7 +94,7 @@ export function EngineSwitch({
     // One engine and nothing to change: only the owner (Settings) or an account that can add a key gets a badge.
     if (!hydrated || !viewer || (!owner && !(locked?.addKey && !selfHostedOnly))) return null;
     const o = OPTIONS.find((x) => x.value === (locked ? "open" : mode))!;
-    const text = locked?.text ?? (mode === "open" ? "Open source only" : "Cloud only");
+    const text = locked?.text ?? (mode === "open" ? t("studio.engine.openSourceOnly") : t("studio.engine.cloudOnly"));
     const cls = cn(
       "inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 text-[13px] font-medium whitespace-nowrap text-muted-foreground transition-colors",
       size === "sm" ? "h-8" : "h-8 sm:h-9",
@@ -137,14 +139,14 @@ export function EngineSwitch({
             <Lock className="size-3 opacity-60" />
           </Link>
         </TooltipTrigger>
-        <TooltipContent>{text} · locked in Settings → Engine mode</TooltipContent>
+        <TooltipContent>{text} · {t("studio.engine.lockedIn")}</TooltipContent>
       </Tooltip>
     );
   }
   return (
     <div
       role="radiogroup"
-      aria-label="Engine"
+      aria-label={t("studio.engine.engine")}
       onKeyDown={radioKeys}
       className={cn("relative inline-grid shrink-0 grid-cols-2 rounded-full bg-muted p-0.5", size === "sm" ? "h-8" : "h-8 sm:h-9")}
     >
@@ -215,6 +217,7 @@ function VisitorSwitch({
   account: ReturnType<typeof accountEngine>;
   hintFor?: string;
 }) {
+  const { t } = useI18n();
   const { keyless, place } = visitor;
   // The panel was opened from this switch: a key saved there (for no model in particular) moves it to Cloud.
   const asked = useRef(false);
@@ -249,7 +252,7 @@ function VisitorSwitch({
   const control = (
     <div
       role="radiogroup"
-      aria-label="Engine"
+      aria-label={t("studio.engine.engine")}
       data-engine-switch="visitor"
       onKeyDown={radioKeys}
       className={cn("relative inline-grid shrink-0 grid-cols-2 rounded-full bg-muted p-0.5", size === "sm" ? "h-9" : "h-9 sm:h-10")}

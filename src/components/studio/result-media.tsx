@@ -13,6 +13,7 @@ import type { Generation, OutputFile, VideoFormat } from "@/lib/catalog/types";
 import { extensionOf } from "@/lib/library";
 import { cuesOf, cueTime, editOnlyFormat, isLayered, layerInfo, modelPreview, textOf, videoPoster } from "@/lib/output-actions";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 /** Any result as a tile picture: image, video (plays on hover), audio, text card, 3D preview. */
 export function MediaThumb({
@@ -36,6 +37,7 @@ export function MediaThumb({
   /** Room at the end of a text card's header for a control in the tile's top-right corner (the feed's ⋯ or heart). */
   inset?: boolean;
 }) {
+  const { t } = useI18n();
   const object = fit ? "object-contain" : "object-cover";
   if (output.kind === "video") {
     const pro = editOnlyFormat(g, output);
@@ -66,7 +68,7 @@ export function MediaThumb({
         ) : (
           <>
             <Box className="size-8" />
-            <span className="text-[12px] font-medium">3D model</span>
+            <span className="text-[12px] font-medium">{t("studio.result.model3dLabel")}</span>
           </>
         )}
       </div>
@@ -101,13 +103,14 @@ function TileVideo({ output, poster, autoPlay, className }: { output: OutputFile
 
 /** A video the browser doesn't play (ProRes, FFV1, some 10-bit files) as what it is: a file for an editor or player. */
 export function VideoFileCard({ output, format, className }: { output: Pick<OutputFile, "url" | "kind">; format?: VideoFormat; className?: string }) {
+  const { t } = useI18n();
   const info = format ? FORMAT_INFO[format] : undefined;
   return (
     <div className={cn("flex size-full flex-col items-center justify-center gap-1.5 bg-muted p-4 text-center text-muted-foreground", className)}>
       <Film className="size-7" aria-hidden />
-      <span className="text-[13px] font-medium text-foreground">{info?.label ?? "Video file"}</span>
+      <span className="text-[13px] font-medium text-foreground">{info?.label ?? t("studio.result.videoFile")}</span>
       <span className="max-w-56 text-[12px] leading-snug">
-        .{extensionOf(output)} · {info ? "made for your editor; browsers don't play it. Download it to use it" : "this browser can't play it here. Download it to watch"}
+        .{extensionOf(output)} · {info ? t("studio.result.proForEditor") : t("studio.result.cantPlayHere")}
       </span>
     </div>
   );
@@ -129,6 +132,7 @@ export function SmallThumb({ g, output }: { g: Generation; output: OutputFile })
 
 /** A transcript, translation or script as a readable card: the first lines and a cue count. */
 export function TextPreview({ output, className, tag, inset }: { output: OutputFile; className?: string; tag?: string; inset?: boolean }) {
+  const { t } = useI18n();
   const cues = cuesOf(output);
   const text = textOf(output).trim();
   return (
@@ -136,19 +140,20 @@ export function TextPreview({ output, className, tag, inset }: { output: OutputF
     <div className={cn("@container flex size-full flex-col gap-2 bg-card p-4 text-left", className)}>
       <span className={cn("flex min-w-0 items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase", inset && "pr-7")}>
         <FileText className="size-3.5 shrink-0 @max-[8rem]:hidden" />
-        <span className="min-w-0 flex-1 truncate">{cues.length ? `Transcript · ${cues.length} lines` : "Text"}</span>
+        <span className="min-w-0 flex-1 truncate">{cues.length ? t("studio.result.transcriptNLines", { n: cues.length }) : t("studio.result.textLabel")}</span>
         {tag && <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] tracking-normal text-foreground normal-case">{tag}</span>}
       </span>
-      <p className="line-clamp-[8] min-h-0 flex-1 overflow-hidden text-[13px] leading-relaxed break-words whitespace-pre-line text-foreground">{text || "Empty"}</p>
+      <p className="line-clamp-[8] min-h-0 flex-1 overflow-hidden text-[13px] leading-relaxed break-words whitespace-pre-line text-foreground">{text || t("studio.result.emptyLabel")}</p>
     </div>
   );
 }
 
 /** The full text, with cue timings when there are any (viewer). */
 export function TextReader({ output }: { output: OutputFile }) {
+  const { t } = useI18n();
   const cues = cuesOf(output);
   if (!cues.length) {
-    return <div className="size-full overflow-y-auto p-6 text-body leading-relaxed whitespace-pre-wrap text-foreground sm:p-10">{textOf(output) || "Empty"}</div>;
+    return <div className="size-full overflow-y-auto p-6 text-body leading-relaxed whitespace-pre-wrap text-foreground sm:p-10">{textOf(output) || t("studio.result.emptyLabel")}</div>;
   }
   return (
     <ol className="size-full space-y-1 overflow-y-auto p-4 sm:p-8">
@@ -166,6 +171,7 @@ export function TextReader({ output }: { output: OutputFile }) {
 
 /** Layers of one picture as a stack: the composite on a checkerboard and the layer names. */
 export function LayersStack({ g, className, bare }: { g: Generation; className?: string; bare?: boolean }) {
+  const { t } = useI18n();
   const layers = g.outputs.map((o, i) => ({ o, ...layerInfo(o, i) })).sort((a, b) => a.z - b.z);
   const composite = (
     <div className="checkerboard absolute inset-0">
@@ -181,7 +187,7 @@ export function LayersStack({ g, className, bare }: { g: Generation; className?:
       {composite}
       <div className="absolute top-2 left-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-1">
         <span className="inline-flex h-6 items-center gap-1 rounded-full bg-black/55 px-2 text-[11px] font-medium text-white backdrop-blur">
-          <Layers className="size-3" /> {layers.length} layers
+          <Layers className="size-3" /> {t("studio.result.layersN", { n: layers.length })}
         </span>
       </div>
       <ul className="absolute inset-x-2 bottom-2 flex flex-wrap gap-1">
@@ -203,6 +209,7 @@ export function LayersStack({ g, className, bare }: { g: Generation; className?:
  * turns, and the chips under it turn it to a side.
  */
 export function ModelViewer({ output, g }: { output: OutputFile; g: Generation }) {
+  const { t } = useI18n();
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [viewer, setViewer] = useState<HTMLElement | null>(null);
@@ -223,12 +230,12 @@ export function ModelViewer({ output, g }: { output: OutputFile; g: Generation }
   }, [splat]);
   const { poster, video } = modelPreview(g, output);
   if (splat) return <SplatPanel output={output} format={splat} poster={poster} video={video} g={g} />;
-  if (failed) return <p className="text-[13px] text-white/80">Couldn&apos;t load the 3D viewer. Download the .glb to open it.</p>;
+  if (failed) return <p className="text-[13px] text-white/80">{t("studio.result.cantLoadViewer")}</p>;
   if (!ready) {
     return (
       <div className="flex flex-col items-center gap-2 text-white/80">
         <Box className="size-8 animate-pulse" />
-        <span className="text-[13px]">Loading 3D viewer…</span>
+        <span className="text-[13px]">{t("studio.result.loadingViewer")}</span>
       </div>
     );
   }
@@ -238,7 +245,7 @@ export function ModelViewer({ output, g }: { output: OutputFile; g: Generation }
     ref: setViewer,
     src,
     poster,
-    alt: g.request.prompt || "3D model",
+    alt: g.request.prompt || t("studio.result.model3dLabel"),
     loading: "lazy",
     reveal: "auto",
     "camera-controls": "",
@@ -265,6 +272,7 @@ export function ModelViewer({ output, g }: { output: OutputFile; g: Generation }
  * focus only when they chose it: otherwise the arrow keys keep browsing the results (the Viewer's own keys).
  */
 function SplatPanel({ output, format, poster, video, g }: { output: OutputFile; format: string; poster?: string; video?: string; g: Generation }) {
+  const { t } = useI18n();
   const hydrated = useHydrated();
   const reducedMotion = useReducedMotion();
   const [asked, setAsked] = useState(false);
@@ -283,7 +291,7 @@ function SplatPanel({ output, format, poster, video, g }: { output: OutputFile; 
     return (
       <div className="flex size-full flex-col">
         <div className="relative min-h-0 flex-1 overflow-hidden md:rounded-lg">
-          <SplatViewer url={output.url} format={format} poster={picture} name={name} defaultCutoff={hazeCutoffFor(g.modelId)} tone="panel" label={g.request.prompt || "the splat"} autoFocus={asked} onUnavailable={setNote} />
+          <SplatViewer url={output.url} format={format} poster={picture} name={name} defaultCutoff={hazeCutoffFor(g.modelId)} tone="panel" label={g.request.prompt || t("studio.result.splatLabel")} autoFocus={asked} onUnavailable={setNote} />
         </div>
         <div className="flex shrink-0 justify-center pt-2">{download}</div>
       </div>
@@ -303,12 +311,12 @@ function SplatPanel({ output, format, poster, video, g }: { output: OutputFile; 
           loop
           muted
           playsInline
-          aria-label="Orbit video of the splat"
+          aria-label={t("studio.result.orbitVideoAria")}
           className="max-h-[70%] max-w-full"
         />
       ) : picture ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={picture} alt="The subject the splat was made from" className="max-h-[70%] max-w-full object-contain" />
+        <img src={picture} alt={t("studio.result.splatSubjectAria")} className="max-h-[70%] max-w-full object-contain" />
       ) : (
         <Box className="size-10" aria-hidden />
       )}
@@ -316,7 +324,7 @@ function SplatPanel({ output, format, poster, video, g }: { output: OutputFile; 
       <div className="flex flex-wrap justify-center gap-2">
         {hydrated && fallback === "reduced-motion" && (
           <button type="button" onClick={() => setAsked(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white px-3.5 text-[13px] font-medium text-black hover:bg-white/90">
-            <Rotate3d className="size-4" aria-hidden /> Look around in 3D
+            <Rotate3d className="size-4" aria-hidden /> {t("studio.result.lookAround3d")}
           </button>
         )}
         {download}
