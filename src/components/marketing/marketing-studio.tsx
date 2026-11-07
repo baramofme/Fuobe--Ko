@@ -497,7 +497,7 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
         )}
         {!code && noProducts && <StarterSection surface="marketing" starters={starters} center compact className="mt-6 mb-4" />}
         {/* Under the ready shoots, so it doesn't read as an answer to them. */}
-        {visitor && !code && <SelfHostNote className="mx-auto mt-3 max-w-xl text-center">Marketing Studio isn&apos;t available here.</SelfHostNote>}
+        {visitor && !code && <SelfHostNote className="mx-auto mt-3 max-w-xl text-center">{tr("marketing.blocker.unavailableNote")}</SelfHostNote>}
         <TabRow role="tablist" aria-label="View" fade={false} className="mx-auto mt-4 w-fit">
           {(["templates", "generations"] as const).map((t) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={TAB_PILL} {...onAttr(tab === t)}>
