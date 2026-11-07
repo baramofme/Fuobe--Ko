@@ -17,6 +17,7 @@ import { getPreset } from "@/lib/catalog";
 import { HOME_TRY, homeShowcase, roundedDown } from "@/lib/home-showcase";
 import { GOALS } from "@/lib/nav-model";
 import { startQuotes, starterPriceLine } from "@/lib/starter-prices";
+import { getServerLang } from "@/lib/i18n/server-lang";
 
 /** The goal bands' one-tap presets by name, read here so the catalog stays on the server. */
 function goalTapNames(): Record<string, string> {
@@ -36,6 +37,7 @@ function goalTapNames(): Record<string, string> {
  * and what Start and the first-run guide cost. The first screen and the sections under the composer are server components.
  */
 export default async function Page() {
+  const lang = await getServerLang();
   const home = await homeShowcase();
   return (
     <HomeView
@@ -53,7 +55,7 @@ export default async function Page() {
       <MotionsSection facts={home.facts} motions={home.motions} />
       <EffectsSection facts={home.facts} effects={home.effects} />
       <AppsSection facts={home.facts} beforeAfter={home.beforeAfter} reveals={home.reveals} />
-      <StudiosSection facts={home.facts} studios={home.studios} audioTools={home.audioTools} pills={home.pills} />
+      <StudiosSection lang={lang} facts={home.facts} studios={home.studios} audioTools={home.audioTools} pills={home.pills} />
       <AssistSection facts={home.facts} skills={home.skills} />
       <OpenSourceSection facts={home.facts} newModels={home.newModels} />
       <StartSection />
