@@ -13,6 +13,7 @@ import { useIsOwner } from "@/lib/api";
 import { BRAND_EXAMPLES, type BrandKit } from "@/lib/catalog/marketing";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
 import { useBrand, useBrandActions, useBrands, useCreateBrand } from "@/components/marketing/hooks";
 import { BrandSummary } from "./brand-kit-form";
 import { areaCls, inputCls } from "./fields";
@@ -168,6 +169,7 @@ function BrandKitFlow({ onOpenChange, onUse }: { onOpenChange: (o: boolean) => v
 
 /** The composer's Brand kit chip: pick a kit, none, or add one. */
 export function BrandChip({ value, onChange }: { value: string | null; onChange: (id: string | null, brand?: BrandKit) => void }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const brands = useBrands();
@@ -180,7 +182,7 @@ export function BrandChip({ value, onChange }: { value: string | null; onChange:
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button type="button" className={cn(chipBase, current ? chipOn : chipIdle, "max-w-48")} aria-label={current ? `Brand kit: ${current.name}` : "Brand kit"}>
+          <button type="button" className={cn(chipBase, current ? chipOn : chipIdle, "max-w-48")} aria-label={current ? t("marketing.brand.ariaSelected", { name: current.name }) : t("marketing.brand.kit")}>
             {current?.colors.length ? (
               <span className="flex -space-x-1">
                 {current.colors.slice(0, 3).map((c) => (
@@ -190,11 +192,11 @@ export function BrandChip({ value, onChange }: { value: string | null; onChange:
             ) : (
               <Palette className="size-3.5" />
             )}
-            <span className="truncate">{current?.name ?? "Brand kit"}</span>
+            <span className="truncate">{current?.name ?? t("marketing.brand.kit")}</span>
           </button>
         </PopoverTrigger>
         <PopoverContent side="top" align="start" collisionPadding={12} className="w-[min(92vw,320px)] p-1.5">
-          <p className="px-2 pt-1 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Brand kit</p>
+          <p className="px-2 pt-1 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{t("marketing.brand.kit")}</p>
           <div className="max-h-72 overflow-y-auto">
             {ready.map((b) => (
               <button
@@ -212,7 +214,7 @@ export function BrandChip({ value, onChange }: { value: string | null; onChange:
             ))}
             {!ready.length && (
               <p className="px-2 py-3 text-[13px] text-muted-foreground">
-                {isOwner ? "No brand kit added yet — paste a link or create one manually to get started." : "Brand kits aren't available here."}
+                {isOwner ? t("marketing.brand.emptyOwner") : t("marketing.brand.emptyOther")}
               </p>
             )}
           </div>
@@ -227,7 +229,7 @@ export function BrandChip({ value, onChange }: { value: string | null; onChange:
                   }}
                   className="flex h-8 flex-1 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium hover:bg-accent"
                 >
-                  <Plus className="size-3.5" /> Add brand kit
+                  <Plus className="size-3.5" /> {t("marketing.brand.add")}
                 </button>
               )}
               {value && (
@@ -239,12 +241,12 @@ export function BrandChip({ value, onChange }: { value: string | null; onChange:
                   }}
                   className="h-8 rounded-lg px-2 text-[13px] text-muted-foreground hover:bg-accent"
                 >
-                  No brand kit
+                  {t("marketing.brand.none")}
                 </button>
               )}
               {isOwner && (
                 <Link href="/ads" className="flex h-8 items-center gap-1 rounded-lg px-2 text-[13px] text-muted-foreground hover:bg-accent" onClick={() => setOpen(false)}>
-                  Manage <ArrowRight className="size-3" />
+                  {t("marketing.brand.manage")} <ArrowRight className="size-3" />
                 </Link>
               )}
             </div>
