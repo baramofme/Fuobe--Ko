@@ -3648,6 +3648,10 @@
   "marketing.videoLabel": "비디오",
   "marketing.recreateTemplate": "템플릿 재생성",
   "marketing.generate": "생성",
+  "marketing.studio.productLine": "제품 사진, 모션, UGC 프리젠터, 광고, 포스터, 리스팅까지 — {fragment}, Fuobe 템플릿으로 만듭니다.",
+  "marketing.studio.fragmentOpenSource": "오픈소스 모델로",
+  "marketing.studio.fragmentOwnGpu": "본인 GPU에서 무료로",
+  "marketing.studio.fragmentCloud": "클라우드의 Fuobe Marketing Image 또는 파트너 모델로",
   "kinetic.job.saving": "저장 중…",
   "kinetic.job.rendering": "렌더링 {done}/{total}"
 }

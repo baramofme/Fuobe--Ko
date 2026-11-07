@@ -487,7 +487,7 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
         <div className={cn("pt-6 pb-2 text-center", noProducts ? "sm:pt-6" : "sm:pt-10")}>
           <h2 className="font-heading text-display text-balance">Turn a product into ready-to-post content</h2>
           <p className="mx-auto mt-2 max-w-xl text-[15px] text-muted-foreground">
-            Product shots, motion, UGC presenters, ads, posters and listings — from Fuobe&apos;s templates, on {engine === "open" ? (visitor ? "open-source models" : "your own GPU, free") : "Fuobe Marketing Image or partner models in the cloud"}.
+            {tr("marketing.studio.productLine", { fragment: engine === "open" ? (visitor ? tr("marketing.studio.fragmentOpenSource") : tr("marketing.studio.fragmentOwnGpu")) : tr("marketing.studio.fragmentCloud") })}
           </p>
         </div>
         {code && template && (

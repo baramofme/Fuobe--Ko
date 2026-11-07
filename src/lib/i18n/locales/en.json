@@ -3648,6 +3648,10 @@
   "marketing.videoLabel": "Video",
   "marketing.recreateTemplate": "Recreate template",
   "marketing.generate": "Generate",
+  "marketing.studio.productLine": "Product shots, motion, UGC presenters, ads, posters and listings — from Fuobe's templates, on {fragment}.",
+  "marketing.studio.fragmentOpenSource": "open-source models",
+  "marketing.studio.fragmentOwnGpu": "your own GPU, free",
+  "marketing.studio.fragmentCloud": "Fuobe Marketing Image or partner models in the cloud",
   "kinetic.job.saving": "Saving…",
   "kinetic.job.rendering": "Rendering {done} of {total}"
 }
