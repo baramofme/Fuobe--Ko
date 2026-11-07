@@ -463,7 +463,11 @@ describe("menu items: one button each, the area's page inside its menu", () => {
     expect(item(html, "studios")).toContain("data-studios-trigger");
     for (const name of ["Create menu", "Studios menu", "Apps menu", "Motions &amp; effects menu", "Canvas menu"]) expect(html, name).not.toContain(`aria-label="${name}"`);
     expect(html).not.toContain("data-bar-split");
-    expect(html).not.toMatch(/role="menu"|role="menuitem"|aria-haspopup="menu"/);
+    // The bar's own items are plain disclosure buttons, never menu widgets. The language selector's
+    // Radix dropdown trigger is the one legitimate menu popup — it stamps aria-haspopup="menu" itself.
+    expect(html).not.toMatch(/role="menu"|role="menuitem"/);
+    expect(count(html, 'aria-haspopup="menu"')).toBe(1);
+    expect(html).toMatch(/aria-haspopup="menu"[^>]*aria-label="Language"/);
     expect(count(html, "data-bar-menu=")).toBe(6);
   });
 
