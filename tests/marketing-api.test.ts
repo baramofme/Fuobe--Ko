@@ -161,7 +161,10 @@ describe("brand kits", () => {
     const view = await (await brandRoute.GET(json("GET"), params({ id: brandId }))).json();
     expect(view.products).toHaveLength(2);
     expect((await researchRoute.DELETE(json("DELETE"), params({ id: "missing" }))).status).toBe(404);
-    expect((await brandsRoute.POST(json("POST", { website: "not a site" }))).status).toBe(422);
+    const badSite = await brandsRoute.POST(json("POST", { website: "not a site" }));
+    expect(badSite.status).toBe(422);
+    // The server refuses a link its own rule can't read with a stable key, not the words (Option A).
+    expect(await badSite.json()).toEqual({ error: "badUrl" });
   });
 
   it("builds a kit by hand from a description (offline: name and look from the words)", async () => {
@@ -304,7 +307,9 @@ describe("brand kits", () => {
     const bria = mk.planMarketing({ engine: "cloud", format: "product-standalone", templateId: "ps-ice-bath", modelId: "bria-product-shot" }, ctx);
     expect(bria.steps[0].request.modelId).toBe("bria-product-shot");
     expect(bria.steps[0].request.prompt).toMatch(/^The product is half buried in crushed ice/);
-    expect(() => mk.planMarketing({ engine: "cloud", format: "product-standalone" }, { ...ctx, product: null })).toThrow("Attach a product to generate");
+    expect(() => mk.planMarketing({ engine: "cloud", format: "product-standalone" }, { ...ctx, product: null })).toThrow("attachProduct");
+    // A product picked but with no pictures of its own is blocked by its own key; the name stays out (the UI shows it).
+    expect(() => mk.planMarketing({ engine: "cloud", format: "product-standalone" }, { ...ctx, product: { ...product, images: [] } })).toThrow("noProductImages");
     expect(() => mk.planMarketing({ engine: "cloud", format: "product-with-model" }, { ...ctx, product: null })).toThrow("Attach reference or product");
     expect(() => mk.planMarketing({ engine: "cloud", format: "ads", templateId: "po-swiss-grid" }, ctx)).toThrow(/another format/);
 
@@ -386,7 +391,8 @@ describe("brand kits", () => {
     const est = await (await estimateRoute.POST(json("POST", { engine: "cloud", format: "ads", templateId: "ad-offer-burst", productId: product.id, brandId, batch: 2 }))).json();
     expect(est).toMatchObject({ demo: true, runs: 2, steps: [{ key: "image", modelId: "fuobe-marketing-image" }] });
     const blocked = await (await estimateRoute.POST(json("POST", { engine: "cloud", format: "ads" }))).json();
-    expect(blocked.blocker).toBe("Attach a product to generate");
+    // The blocker the server sends back is the stable key, resolved later by the client (Option A).
+    expect(blocked.blocker).toBe("attachProduct");
 
     const res = await runsRoute.POST(json("POST", { engine: "cloud", format: "ads", templateId: "ad-offer-burst", productId: product.id, brandId, batch: 2 }));
     expect(res.status).toBe(201);

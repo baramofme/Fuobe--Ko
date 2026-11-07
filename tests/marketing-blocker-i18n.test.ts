@@ -24,6 +24,10 @@ const EN = {
   "marketing.blocker.unavailable": "Marketing Studio isn't available here",
   "marketing.blocker.attachProduct": "Attach a product to generate",
   "marketing.blocker.badUrl": "Enter a valid website URL",
+  // noProductImages is the Option A server key t_41c3ee86 added on top of this wiring. The pre-wire line was dynamic
+  // (`${product.name} has no images`), so its en value is the card's full sentence, not a transcribed literal; the
+  // product name stays out of the blocker (which product it is is already on screen).
+  "marketing.blocker.noProductImages": "This product has no images yet",
 } as const;
 
 describe("marketing run blockers switch to Korean with the rest of the chrome", () => {
@@ -52,6 +56,7 @@ describe("marketing run blockers switch to Korean with the rest of the chrome", 
     expect(t("marketing.blocker.unavailable")).toBe("Marketing Studio isn't available here");
     expect(t("marketing.blocker.attachProduct")).toBe("Attach a product to generate");
     expect(t("marketing.blocker.badUrl")).toBe("Enter a valid website URL");
+    expect(t("marketing.blocker.noProductImages")).toBe("This product has no images yet");
   });
 
   it("the blocker side of the bad website says the panel's words in both languages", () => {
@@ -71,8 +76,9 @@ describe("marketing run blockers switch to Korean with the rest of the chrome", 
       expect(Object.keys(locales.ko)[i], `ko ${k} shares the position`).toBe(k);
     }
     // 정렬 순서로 붙어 있다(앵커 뒤 연속 삽입): 앞뒤가 직전 블록의 마지막·다음 블록의 첫 키다.
-    expect(positions[2] - positions[0]).toBe(2);
+    // 4키로 늘었다(t_41c3ee86의 Option A 서버 키 noProductImages가 badUrl 뒤로 붙었다).
+    expect(positions[3] - positions[0]).toBe(3);
     expect(enKeys[positions[0] - 1]).toBe("marketing.output.model");
-    expect(enKeys[positions[2] + 1]).toBe("studio.shots.addShot");
+    expect(enKeys[positions[3] + 1]).toBe("studio.shots.addShot");
   });
 });

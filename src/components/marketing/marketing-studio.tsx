@@ -26,7 +26,7 @@ import { addRuns, send, useBrands, useEstimate, useProducts } from "./hooks";
 import { KineticTemplate } from "./kinetic-template";
 import type { MarketingRun } from "@/lib/catalog/marketing";
 import { toastError } from "@/lib/refusals";
-import { useI18n } from "@/lib/i18n";
+import { resolveServerBlocker, useI18n } from "@/lib/i18n";
 import { templateCover } from "@/lib/template-covers";
 import type { ModelInfo } from "./model-info";
 import { FitNotes, type FitNote } from "@/components/studio/fit-notes";
@@ -407,7 +407,7 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
       ? tr("marketing.blocker.attachProduct")
       : badSite
         ? tr("marketing.blocker.badUrl")
-        : est.data?.blocker;
+        : resolveServerBlocker(est.data?.blocker);
   // Where the run happens and its price, as the studios say it (the chip by the send button); a guest or an account is
   // told the tool isn't available here, with no price.
   const priced = est.data && !est.data.blocker ? est.data : undefined;

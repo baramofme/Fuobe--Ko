@@ -1405,6 +1405,7 @@
   "marketing.blocker.unavailable": "Marketing Studio isn't available here",
   "marketing.blocker.attachProduct": "Attach a product to generate",
   "marketing.blocker.badUrl": "Enter a valid website URL",
+  "marketing.blocker.noProductImages": "This product has no images yet",
   "studio.shots.addShot": "Add shot",
   "studio.shots.auto": "Auto",
   "studio.shots.concatNote": "Each shot renders as its own {model} clip, then they are joined into one video.",
