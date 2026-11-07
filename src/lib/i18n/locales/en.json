@@ -3573,5 +3573,8 @@
   "menu.line.wire_models_together": "Wire models together",
   "menu.line.words_from_any_clip": "Words from any clip",
   "menu.line.your_own_paid_model_keys": "Your own paid model keys",
-  "menu.line.your_people_places_props": "Your people, places, props"
+  "menu.line.your_people_places_props": "Your people, places, props",
+  "menu.countLine.edited": "Edited {X}",
+  "menu.line.never_edited": "Never edited",
+  "menu.line.edited_just_now": "Edited just now"
 }

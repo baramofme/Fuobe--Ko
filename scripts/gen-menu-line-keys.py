@@ -5,10 +5,12 @@ menu.line.* 키를 en.json과 ko.json에 멱등으로 추가한다 — 런처 �
 
 - 키는 렌더된 문장에서 유도한다: `menu.line.<keySnake(line)>` — id 유도 아님. (keySnake과 같은 규칙:
   소문자화 후 non-alphanumerics 덩어리를 _ 하나로, 앞뒤 _ 제거.)
-- en 값은 그 라인을 만들어 낸 **그 값**과 문자 단위 동일하다. 원천은 드리프트 없이 두 곳:
+- en 값은 그 라인을 만들어 낸 **그 값**과 문자 단위 동일하다. 원천은 드리프트 없이 세 곳:
   1) 실행 중인 서버의 wire — `{base}/nav-menus/{apps,motions,canvas}`의 lead/rows `line`
      (shortLine/presetLine을 python에서 재구현하지 않는다 — 정답은 서버 출력에 이미 있다.)
-  2) nav-model.ts의 `kind: "studio"` 항목의 `what:` 리터럴 (Studios 패널의 라인은 이 문자열 그 자체).
+  2) nav-model.ts의 `what:` 리터럴 (Studios 패널의 라인은 이 문자열 그 자체).
+  3) OWNER_STATIC — 오너 리센트 보드(mega-canvas-owner.tsx의 editLineIn)가 렌더하는 정적 문구
+     2줄. 세 wire와 nav-model 어디에도 없는 라인이라 여기서 직접 선언한다(t_6b958c1a).
 - ko 값은 아래 KO_MAP에서 가져온다. 새 라인에 ko가 없으면 스크립트는 실패한다 — ko 100%를 강제한다.
 - 두 파일의 키 순서가 서로 같다는 관례를 지킨다: 새 키만 꼬리에, 같은 순서로 추가하고 재정리하지 않는다.
   (tests/i18n.test.ts:67-72 — en의 모든 키가 ko에 문자열 + len 동일 → ko 단독 키는 이 스크립트가 원천 차단.)
@@ -34,6 +36,14 @@ NAV_MODEL = ROOT / "src/lib/nav-model.ts"
 def keysnake(v: str) -> str:
     s = re.sub(r"[^a-z0-9]+", "_", v.lower())
     return re.sub(r"^_+|_+$", "", s)
+
+
+# 오너 리센트 보드의 정적 문구(t_6b958c1a). 동적 `Edited {X}`는 gen-countline-keys.py가 소유하고,
+# 여기는 wire에 없는 정적 2줄만 소유한다 — 키는 렌더된 영문 문장 그대로의 keySnake.
+OWNER_STATIC = ["Never edited", "Edited just now"]
+
+def owner_lines():
+    return [(f"menu.line.{keysnake(l)}", l) for l in OWNER_STATIC]
 
 
 # ko 값 인벤토리 — 키가 없으면 실패한다(번역 강요). 줄임표·개행 금지, 한글 1자 이상,
@@ -186,6 +196,10 @@ KO_MAP: dict[str, str] = {
     # bar의 Apps 항목의 라인(지금은 검색에서 보이나, 같은 문장 키로 통일):
     "menu.line.one_tap_photo_and_clip_tools": "원탭 사진·클립 도구",
 
+    # ── 오너 리센트 보드의 정적 문구 (OWNER_STATIC — wire 없음, t_6b958c1a) ──
+    "menu.line.never_edited": "수정한 적 없음",
+    "menu.line.edited_just_now": "방금 수정",
+
     # ── nav-model.ts의 모든 `what:` 리터럴(슈퍼셋 97 — 30을 포함) ──
     # ko는 en의 nav.*.what 중 값이 문자 단위 같은 키에서 수확했다. 아래 5개는 그런 키가 없어 새로 지었다:
     # (카메라 움직임·효과 / 모든 스튜디오, 미리보기로 / 만들고 편집하는 모든 방법 / 설정 / 자르기·배경 제거·깊이·자막)
@@ -301,7 +315,7 @@ def main() -> None:
     ap.add_argument("--check", action="store_true", help="쓰기 없이 발견·검증만")
     args = ap.parse_args()
 
-    found = wire_lines(args.base) + studio_lines()
+    found = wire_lines(args.base) + studio_lines() + owner_lines()
 
     # 문장이 다르고 키가 같은 충돌은 바이트 동일성을 깨므로 원천 차단한다.
     by_key: dict[str, str] = {}
@@ -341,7 +355,7 @@ def main() -> None:
         lines_ = "\n".join(f"  {k}  ← en {e!r}" for k, e in missing_ko)
         fail(f"KO_MAP에 번역이 없는 새 라인 {len(missing_ko)}개:\n{lines_}")
 
-    print(f"발견 {len(by_key)}개 키 (wire {len(wire_lines(args.base))} + studios {len(studio_lines())})")
+    print(f"발견 {len(by_key)}개 키 (wire {len(wire_lines(args.base))} + studios {len(studio_lines())} + owner {len(OWNER_STATIC)})")
     if not new_keys:
         print("이미 전부 존재 — 쓸 것 없음 (멱동 확인)")
 

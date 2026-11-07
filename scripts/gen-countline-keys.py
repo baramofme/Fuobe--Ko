@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """
-menu.countLine.* 키 4개(apps/motions/canvas/studios)를 en.json과 ko.json에 멱등으로 추가한다
-— 런처 헤더의 카운트 라인을 렌더 시점 번역 가능하게 하는 키들 (t_ca378163, 결정문 t_945498cb §1.2).
+menu.countLine.* 키 5개(apps/motions/canvas/studios + 오너의 edited)를 en.json과 ko.json에 멱등으로
+추가한다 — 런처 헤더의 카운트 라인과 오너 리센트 보드의 `Edited {X}` 라인을 렌더 시점 번역 가능하게
+하는 키들 (t_ca378163, t_6b958c1a; 결정문 t_945498cb §1.2).
+
+menu.countLine.edited(t_6b958c1a): mega-canvas-owner.tsx의 editLineIn이 렌더하는 동적 문구.
+en 값 "Edited {X}"는 화면 출력(`Edited ${timeAgo(...)}`)과 X=timeAgo 문자열로 재조립 시 문자 단위
+동일; ko 값 "수정한 지 {X}"의 X는 렌더가 그 언어로 생성한 한글 서수("3시간" 등)로 채워진다
+(정적 두 문구 `Never edited`·`Edited just now`는 gen-menu-line-keys.py의 OWNER_STATIC이 소유).
 
 Option C: 서버가 countLineKey + countLineParams를 실어 나르고, 렌더 지점(mega-panel.tsx의 카운트 라인)에서
 `translateOr(lang, model.countLineKey, model.countLine, model.countLineParams)`로 해석한다.
 
 - en 값은 **현재 출력과 문자 단위 동일**해야 한다(바이트 동일성, 결정문 §5의 hard_constraint). translateOr은
   en.json에 키가 있는 순간 그 키값을 fallback보다 먼저 채택하므로(store.ts:144-150), en 값이 곧 출력이 된다.
-  {n}/{m} 토큰은 반드시 유지한다(이름은 n, m 뿐 — 결정문 §1.2의 표).
-- ko 100% 강제: 4 키를 양쪽 파일에 넣는다. tests/i18n.test.ts:67-72는 en의 모든 키가 ko에 문자열로 존재
+  {n}/{m} 토큰은 반드시 유지한다(이름은 n, m 뿐 — 결정문 §1.2의 표; 새 edited의 토큰은 X다).
+- ko 100% 강제: 5 키를 양쪽 파일에 넣는다. tests/i18n.test.ts:67-72는 en의 모든 키가 ko에 문자열로 존재
   かつ len(ko)==len(en)을 요구하므로 ko 단독 키는 불법이다.
 - 두 파일의 키 순서가 서로 같다는 관례(결정문 §4): 새 키만 꼬리에, 같은 순서로 추가하고 재정리하지 않는다.
 - 재실행 멱등: 이미 있는 키는 건드리지 않는다. 통합자(t_b47d39c1)는 머지된 트리에서 형제 카드의
@@ -46,6 +52,12 @@ NEW_KEYS = {
     "menu.countLine.studios": (
         "{n} studios, grouped by what you want to make",
         "만들고 싶은 것별로 모은 스튜디오 {n}개",
+    ),
+    # 오너 리센트 보드의 `Edited {X}`(t_6b958c1a). en 값은 렌더 합성(`Edited ${timeAgo(...)}`)과
+    # X에 timeAgo 문자열('3h ago' 등)을 넣어 재조립 시 문자 단위 동일; ko의 X는 렌더 생성 한글 서수.
+    "menu.countLine.edited": (
+        "Edited {X}",
+        "수정한 지 {X}",
     ),
 }
 
@@ -92,8 +104,9 @@ def main() -> int:
         if not any("\uac00" <= ch <= "\ud7a3" for ch in ko[key]):
             print(f"KO HANGUL MISSING: {key}", file=sys.stderr)
             return 1
-        if "{n}" not in ko[key]:
-            print(f"KO TOKEN {{n}} MISSING: {key}", file=sys.stderr)
+        token = "{X}" if key == "menu.countLine.edited" else "{n}"
+        if token not in ko[key]:
+            print(f"KO TOKEN {token} MISSING: {key}", file=sys.stderr)
             return 1
         if key.endswith("motions") and "{m}" not in ko[key]:
             print(f"KO TOKEN {{m}} MISSING: {key}", file=sys.stderr)
