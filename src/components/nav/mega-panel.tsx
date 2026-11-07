@@ -7,6 +7,8 @@ import { IntentLink } from "@/components/intent-link";
 import { Kbd } from "@/components/ui/kbd";
 import { MEGA_AREAS, ROW_CAPS, studiosMenu, TILE_COLS, type MegaColumn, type MegaId, type MegaItem, type MegaModel } from "@/lib/mega-menus";
 import { isNew, subParent, type ViewerKind } from "@/lib/nav-model";
+import { useI18n } from "@/lib/i18n/use-i18n";
+import { keySnake, translateOr, type Lang } from "@/lib/i18n/store";
 import { cn } from "@/lib/utils";
 import { CoverThumb } from "./cover-thumb";
 import { useMegaMenu } from "./mega-data";
@@ -29,6 +31,19 @@ const ROW_HIDE = (i: number, families = false) =>
     i >= ROW_CAPS.mid && "[@media(max-height:959.98px)]:hidden",
     i >= ROW_CAPS.tall && "hidden",
   );
+
+/**
+ * The locale key for a menu line: derived from the sentence itself, never from an item id. A menu line is a
+ * generated value (`MENU_LINES[id] ?? shortLine(desc)`), so an id-keyed entry would keep pointing at the stale
+ * English in en.json after the description changed — translateOr takes that English before the item's own words,
+ * and the English would quietly regress. A key derived from the line misses instead, and the fallback is the
+ * freshly built line, so English stays byte-identical by construction.
+ */
+export const menuLineKey = (line: string) => `menu.line.${keySnake(line)}`;
+
+/** A line in the language of this render, falling back to the item's own words (silent, like all catalog data). */
+const lineIn = (lang: Lang, line: string | undefined): string | undefined =>
+  line ? translateOr(lang, menuLineKey(line), line) : undefined;
 
 function NewBadge() {
   return (
@@ -56,6 +71,8 @@ export function trackSizes(span: number, inset = 0): string {
  * the tracks its column takes, when more than one (Canvas' Start here), for its picture's srcset.
  */
 export function LeadCard({ e, col, row = 0, span = 1, current, inside, now, className }: { e: MegaItem; col: number; row?: number; span?: number; current: boolean; inside?: boolean; now: number; className?: string }) {
+  const { lang } = useI18n();
+  const lineTr = lineIn(lang, e.line);
   return (
     <IntentLink
       href={e.href}
@@ -82,8 +99,8 @@ export function LeadCard({ e, col, row = 0, span = 1, current, inside, now, clas
           <span className="truncate text-[14px] leading-[18px] font-semibold md:max-lg:text-[13px]">{e.label}</span>
           {isNew(e, now) && <NewBadge />}
         </span>
-        <span title={e.line} className="truncate text-[12px] leading-4 text-muted-foreground md:max-lg:hidden">
-          {e.line}
+        <span title={lineTr} className="truncate text-[12px] leading-4 text-muted-foreground md:max-lg:hidden">
+          {lineTr}
         </span>
       </span>
     </IntentLink>
@@ -98,6 +115,8 @@ export function LeadCard({ e, col, row = 0, span = 1, current, inside, now, clas
  */
 function Row({ e, col, row, current, inside, now, className }: { e: MegaItem; col: number; row: number; current: boolean; inside?: boolean; now: number; className?: string }) {
   const fresh = isNew(e, now);
+  const { lang } = useI18n();
+  const lineTr = lineIn(lang, e.line);
   return (
     <IntentLink
       href={e.href}
@@ -105,7 +124,7 @@ function Row({ e, col, row, current, inside, now, className }: { e: MegaItem; co
       data-row={row}
       aria-current={current ? "page" : undefined}
       data-active={inside ? "" : undefined}
-      title={e.line ? `${e.label}: ${e.line}` : e.label}
+      title={e.line ? `${e.label}: ${lineTr}` : e.label}
       className={cn("nav-row nav-mark-start -mx-2 flex min-h-11 items-center gap-3 rounded-[10px] px-2 py-1 md:max-lg:min-h-10 md:max-lg:py-0.5 [@media(pointer:coarse)]:min-h-11", className)}
     >
       {/* Six columns leave a row its name and line below 1440 px, and its name alone below 1280 px. Its picture loads
@@ -121,7 +140,7 @@ function Row({ e, col, row, current, inside, now, className }: { e: MegaItem; co
             there and starts its own. Its basis leaves 48 px: the badge (about 34 px) and the 4 px gap, with room to spare.
             A wider badge needs a smaller basis, or the line falls to a third line and is hidden. */}
         <span className={cn("min-w-0 flex-1 truncate text-[12px] leading-4 text-muted-foreground max-xl:hidden", fresh ? "basis-[calc(100%-48px)]" : "basis-full")}>
-          {e.line}
+          {lineTr}
         </span>
       </span>
     </IntentLink>
@@ -191,20 +210,22 @@ function SubLinks({ e, col, row, current, under }: { e: MegaItem; col: number; r
  * load with the panel; a later row's when it shows (lazy: a row hidden by the window's height never fetches its own).
  */
 function Tile({ e, col, row, current, eager }: { e: MegaItem; col: number; row: number; current: boolean; eager: boolean }) {
+  const { lang } = useI18n();
+  const lineTr = lineIn(lang, e.line);
   return (
     <IntentLink
       href={e.href}
       data-col={col}
       data-row={row}
       aria-current={current ? "page" : undefined}
-      title={e.line ? `${e.label}: ${e.line}` : e.label}
+      title={e.line ? `${e.label}: ${lineTr}` : e.label}
       className="nav-row nav-mark-under -m-1.5 flex min-w-0 flex-col gap-1.5 rounded-[12px] p-1.5 [container-type:inline-size]"
     >
       {/* 16:9, its height rounded down to the 4 px grid, so a second row of tiles sits on a whole pixel. */}
       <CoverThumb cover={e.cover} size="tile16" icon={e.icon} eager={eager} sizes={trackSizes(1)} className="aspect-auto h-[round(down,56.25cqw,4px)]" />
       <span className="flex min-w-0 flex-col">
         <span className={cn("truncate text-[13px] leading-[18px] font-medium", current && "font-semibold")}>{e.label}</span>
-        <span className="truncate text-[12px] leading-4 text-muted-foreground">{e.line}</span>
+        <span className="truncate text-[12px] leading-4 text-muted-foreground">{lineTr}</span>
       </span>
     </IntentLink>
   );
