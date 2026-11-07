@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { fadeInOnLoad, MOTION, newPlace, reducedMotion, revealOnScroll, tabRowOf } from "@/lib/ui-motion";
+import { fadeInOnLoad, MOTION, newPlace, reducedMotion, revealOnScroll, tabRowOf, whenReactOwns } from "@/lib/ui-motion";
 
 /** What a loading placeholder looks like in the page (route skeletons say aria-busy; the Skeleton primitive has its slot). */
 const SKELETON = '[aria-busy="true"], [data-slot="skeleton"], .animate-skeleton';
@@ -173,13 +173,16 @@ export function PageMotion() {
           if (n instanceof Element && (n.matches("[data-reveal]") || n.querySelector("[data-reveal]"))) scanReveals();
           if (p || !swapped.has(r.target) || !(n instanceof HTMLElement) || isSkeleton(n)) continue;
           if (n.closest(OWN_MOTION) || n.querySelector(OWN_MOTION)) continue;
-          n.dataset.motionReveal = "";
-          const done = (e: AnimationEvent) => {
-            if (e.target !== n) return;
-            n.removeEventListener("animationend", done);
-            delete n.dataset.motionReveal;
-          };
-          n.addEventListener("animationend", done);
+          // Until React has read the block (a streamed one is HTML first) its attributes are left as they were written.
+          whenReactOwns(n, () => {
+            n.dataset.motionReveal = "";
+            const done = (e: AnimationEvent) => {
+              if (e.target !== n) return;
+              n.removeEventListener("animationend", done);
+              delete n.dataset.motionReveal;
+            };
+            n.addEventListener("animationend", done);
+          });
         }
       }
     });

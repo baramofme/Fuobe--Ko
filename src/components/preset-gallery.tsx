@@ -16,6 +16,7 @@ import { presetOwnSetup } from "@/lib/pool-rules";
 import { OwnSetupChip } from "@/components/own-setup";
 import type { OwnSetup } from "@/lib/own-setup";
 import { useEngineMode, useStatus, useViewer } from "@/lib/api";
+import { useHydrated } from "@/lib/api";
 import { categoryFrom, skippedInAll } from "@/lib/gallery-category";
 import { matchesSearch, previewFlip, readMoreTap, searchText, TAP_TO_READ, type PresetCardData } from "@/lib/preset-cards";
 import { cn } from "@/lib/utils";
@@ -303,11 +304,17 @@ export function PresetGallery({
   const stale = q.trim().toLowerCase() !== query;
   const lead = (leading ?? []).filter((c) => cat === "All" && runsOn !== "cloud" && (!query || matchesSearch(`${c.title} ${c.line} ${c.words ?? ""}`.toLowerCase(), query)));
   // One fetch of the viewer's chips (the GPU pre-flight); each card gets one string.
-  const badges = useGpuBadges().data;
-  const viewer = useViewer().data;
+  const badgeData = useGpuBadges().data;
+  const viewerData = useViewer().data;
+  const statusData = useStatus().data;
+  // A cache another boundary filled can answer before this one has hydrated: the first render must be the server's
+  // HTML, so these reads wait for hydration. Until then the line below stays the unseen placeholder it ships as.
+  const hydrated = useHydrated();
+  const badges = hydrated ? badgeData : undefined;
+  const viewer = hydrated ? viewerData : undefined;
   const visitor = !!viewer && viewer.publicSignup && !viewer.owner;
   // Hosted runs: everything here runs without a GPU of one's own, so there is no "Connect your GPU to see" line.
-  const hosted = !!useStatus().data?.viewer?.hosted;
+  const hosted = hydrated && !!statusData?.viewer?.hosted;
 
   return (
     <div className="space-y-4">

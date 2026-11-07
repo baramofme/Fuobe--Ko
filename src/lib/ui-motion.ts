@@ -203,6 +203,47 @@ function targetOf(t: Element | string | null | undefined): Element | null {
 const REVEAL_SAFETY = 3000;
 
 /**
+ * Whether React has taken this node over: it drew it, or it finished hydrating it (its keys name the node). Until then
+ * the node is the server's HTML, not React's: changing it before React reads it is exactly the difference its own
+ * render won't match — a hydration error that rebuilds the whole section. So motion waits.
+ */
+export function reactOwns(el: Element): boolean {
+  for (const k in el) if (k.startsWith("__reactFiber$") || k.startsWith("__reactProps$")) return true;
+  return false;
+}
+
+/**
+ * Runs `run` once React owns `el` — at once if it already does, else on a later frame until it does (content that
+ * streams in after the first paint is read by React a moment after it lands). Returns a cancel that stops the wait.
+ */
+export function whenReactOwns(el: Element, run: () => void): () => void {
+  if (reactOwns(el)) {
+    run();
+    return () => {};
+  }
+  // No frames to wait for (no browser: a server render, or a test): nothing streams in here, so nothing to wait for.
+  if (typeof requestAnimationFrame === "undefined") {
+    run();
+    return () => {};
+  }
+  let raf = 0;
+  let stopped = false;
+  const check = () => {
+    if (stopped) return;
+    if (reactOwns(el)) {
+      run();
+      return;
+    }
+    raf = requestAnimationFrame(check);
+  };
+  check();
+  return () => {
+    stopped = true;
+    if (raf) cancelAnimationFrame(raf);
+  };
+}
+
+/**
  * Sections marked data-reveal that start below the screen fade in and settle 8 px when they first come on screen
  * (their data-reveal-item children follow, 40 ms apart, 6 steps at most). Never hidden: a section on screen or above
  * it, any section under reduced motion, on a page opened at a #part, or in a print. A jump within the page (a "#…"
@@ -215,22 +256,28 @@ export function revealOnScroll(root: ParentNode, { reduce = reducedMotion() }: {
   /** Each section still waiting (on its first look or on its scroll), with what stops that wait. */
   const pending = new Map<HTMLElement, () => void>();
   for (const el of root.querySelectorAll<HTMLElement>("[data-reveal]:not([data-reveal=in]):not([data-reveal=wait]):not([data-reveal=now]):not([data-reveal=look])")) {
-    el.dataset.reveal = "look";
+    // Until React has read the section (it may still be streamed HTML), its state is left exactly as it was written.
     pending.set(
       el,
-      firstSight(el, (where) => {
-        if (where !== "below") {
-          pending.delete(el);
-          el.dataset.reveal = "in";
-          return;
-        }
-        el.querySelectorAll<HTMLElement>("[data-reveal-item]").forEach((item, i) => item.style.setProperty("--i", String(Math.min(i, STAGGER_CAP))));
-        el.dataset.reveal = "wait";
+      whenReactOwns(el, () => {
+        el.dataset.reveal = "look";
         pending.set(
           el,
-          onceVisible(el, () => {
-            pending.delete(el);
-            el.dataset.reveal = "in";
+          firstSight(el, (where) => {
+            if (where !== "below") {
+              pending.delete(el);
+              el.dataset.reveal = "in";
+              return;
+            }
+            el.querySelectorAll<HTMLElement>("[data-reveal-item]").forEach((item, i) => item.style.setProperty("--i", String(Math.min(i, STAGGER_CAP))));
+            el.dataset.reveal = "wait";
+            pending.set(
+              el,
+              onceVisible(el, () => {
+                pending.delete(el);
+                el.dataset.reveal = "in";
+              }),
+            );
           }),
         );
       }),
@@ -328,11 +375,15 @@ export function fadeInOnLoad(img: HTMLImageElement, { offScreenOnly = false }: {
     img.removeEventListener("error", fail);
     delete img.dataset.fade;
   };
-  img.addEventListener("load", show);
-  img.addEventListener("error", fail);
-  // It may have finished between the check and the listeners: then it simply shows.
-  if (img.complete) return fail();
-  img.dataset.fade = "wait";
+  const begin = () => {
+    img.addEventListener("load", show);
+    img.addEventListener("error", fail);
+    // It may have finished between the check and the listeners: then it simply shows.
+    if (img.complete) return fail();
+    img.dataset.fade = "wait";
+  };
+  // Until React has read the picture (a streamed one is HTML first), it is left exactly as it was written.
+  whenReactOwns(img, begin);
 }
 
 /**
