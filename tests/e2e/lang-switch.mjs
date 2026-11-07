@@ -682,6 +682,124 @@ step("marketing: the voice chip follows the switch (UGC format)");
   await page.close();
 }
 
+step("marketing: the run blocker follows the switch (Generate tooltip, the phone's line, the toast)");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "marketing-blocker");
+  await openRoute(page, `${app}/marketing`);
+
+  // Under the composer the blocker reads itself on phones — the sm:hidden line. It is hidden on a desktop
+  // viewport, yet the same words sit in the DOM: read them there, it is the line a phone would show.
+  const phoneLine = () => page.evaluate(() => {
+    const line = [...document.querySelectorAll("p[aria-live]")].find((p) => p.classList.contains("sm:hidden"));
+    return line ? line.textContent.trim() : null;
+  });
+  const tipOn = async (name) => {
+    await page.getByRole("button", { name, exact: true }).first().hover().catch(() => {});
+    await page.getByRole("tooltip").first().waitFor({ state: "visible", timeout: 4_000 }).catch(() => {});
+    return page.getByRole("tooltip").first().innerText().catch(() => "");
+  };
+  const toastWords = () => page.locator("[data-sonner-toast]").first().innerText().catch(() => "");
+  // A blocked Generate is aria-disabled: it tells a screen reader it won't run, yet a person's click still lands
+  // and the composer answers with the refusal as a toast. force says what the person does, not what the reader gets.
+  const pressSend = (name) => page.getByRole("button", { name, exact: true }).first().click({ force: true }).catch(() => {});
+
+  // This Fuobe answers an empty browser as its owner: with no product on the Ads format, Generate is blocked on the product rule.
+  check("the send button is named Generate", await page.getByRole("button", { name: "Generate", exact: true }).first().isVisible().catch(() => false), "");
+  const tipEn = await tipOn("Generate");
+  check("the Generate tooltip says the product blocker in English", tipEn === "Attach a product to generate", tipEn);
+  const lineEn = await phoneLine();
+  check("the phone's line (hidden here) says the same English words", lineEn === "Attach a product to generate", String(lineEn));
+  await pressSend("Generate");
+  await page.waitForTimeout(600);
+  const toastEn = await toastWords();
+  check("the toast repeats the English blocker", toastEn === "Attach a product to generate", toastEn);
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 6_000 }).catch(() => {});
+
+  // 한국어, one click, no reload.
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(400);
+  check("still the same page (no reload happened)", page.url().endsWith("/marketing"), page.url());
+
+  check("the send button is named 생성", await page.getByRole("button", { name: "생성", exact: true }).first().isVisible().catch(() => false), "");
+  const tipKo = await tipOn("생성");
+  check("the Generate tooltip reads the Korean blocker", tipKo === "생성하려면 제품을 첨부해 주세요", tipKo);
+  const lineKo = await phoneLine();
+  check("the phone's line reads the Korean blocker", lineKo === "생성하려면 제품을 첨부해 주세요", String(lineKo));
+  check("no English blocker words left on the line", !/Attach a product|isn't available|Enter a valid/.test(lineKo ?? ""), String(lineKo));
+  // The refusal carries one id, so the Korean toast replaces the English one in place.
+  await pressSend("생성");
+  await page.waitForTimeout(600);
+  const toastKo = await toastWords();
+  check("the toast repeats the Korean words", toastKo === "생성하려면 제품을 첨부해 주세요", toastKo);
+  await page.keyboard.press("Escape");
+  await page.close();
+}
+
+step("marketing: the bad-website blocker says the panel's words on the line and in the toast (SaaS format)");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "marketing-bad-site");
+  await openRoute(page, `${app}/marketing`);
+  const phoneLine = () => page.evaluate(() => {
+    const line = [...document.querySelectorAll("p[aria-live]")].find((p) => p.classList.contains("sm:hidden"));
+    return line ? line.textContent.trim() : null;
+  });
+  const tipOn = async (name) => {
+    await page.getByRole("button", { name, exact: true }).first().hover().catch(() => {});
+    await page.getByRole("tooltip").first().waitFor({ state: "visible", timeout: 4_000 }).catch(() => {});
+    return page.getByRole("tooltip").first().innerText().catch(() => "");
+  };
+  const toastWords = () => page.locator("[data-sonner-toast]").first().innerText().catch(() => "");
+  const pressSend = (name) => page.getByRole("button", { name, exact: true }).first().click({ force: true }).catch(() => {});
+
+  // Video mode first, in English: the SaaS shoot wants a website, so a typed bad link blocks the run with the
+  // words the panel's refusal already uses — the blocker side is a key of its own with the same words.
+  await page.getByRole("radio", { name: "Video mode", exact: true }).first().click();
+  await page.waitForTimeout(300);
+  const formatTrigger = page.getByRole("button", { name: /^Format: / }).first();
+  await formatTrigger.waitFor({ timeout: 15_000 });
+  await formatTrigger.click();
+  await page.getByRole("dialog", { name: "Format" }).getByRole("button", { name: "Product motion · SaaS", exact: true }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole("button", { name: "Add a website or social link", exact: true }).first().click();
+  const siteEn = page.locator('[role="dialog"][aria-label="Website or social link"]');
+  await siteEn.first().waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+  await siteEn.locator("input").first().fill("nope");
+  await page.waitForTimeout(300);
+  const lineEn = await phoneLine();
+  check("the phone's line says the website blocker in English", lineEn === "Enter a valid website URL", String(lineEn));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  const tipEn = await tipOn("Generate");
+  check("the Generate tooltip says the website blocker in English", tipEn === "Enter a valid website URL", tipEn);
+  await pressSend("Generate");
+  await page.waitForTimeout(600);
+  const toastEn = await toastWords();
+  check("the toast repeats the website blocker", toastEn === "Enter a valid website URL", toastEn);
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 6_000 }).catch(() => {});
+
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(400);
+  check("still the same page (no reload happened)", page.url().endsWith("/marketing"), page.url());
+
+  // The chip kept the typed value across the switch and names it in Korean; the blocker says the panel's Korean words.
+  check("the Website chip reads “웹사이트: nope” with the value kept", await page.getByRole("button", { name: "웹사이트: nope", exact: true }).first().isVisible().catch(() => false), "");
+  const lineKo = await phoneLine();
+  check("the phone's line reads the Korean website words", lineKo === "올바른 웹사이트 주소를 입력해 주세요", String(lineKo));
+  const tipKo = await tipOn("생성");
+  check("the Generate tooltip reads the Korean website words", tipKo === "올바른 웹사이트 주소를 입력해 주세요", tipKo);
+  await pressSend("생성");
+  await page.waitForTimeout(600);
+  const toastKo = await toastWords();
+  check("the toast repeats the Korean website words", toastKo === "올바른 웹사이트 주소를 입력해 주세요", toastKo);
+  check("no English website blocker left on the line", !/Enter a valid website|Attach a product/.test(lineKo ?? ""), String(lineKo));
+  await page.keyboard.press("Escape");
+  await page.close();
+}
+
 step("nothing was missed on the way");
 {
   const i18nNoise = noise.filter((l) => /\[i18n\]/.test(l));
