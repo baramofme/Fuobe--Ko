@@ -2515,6 +2515,7 @@
   "library.folder.newIn": "“{name}” 안의 새 폴더",
   "library.folder.edit": "폴더 수정",
   "library.folder.new": "새 폴더",
+  "library.folder.createBtn": "폴더 만들기",
   "library.folder.nameColour": "이름과 색상",
   "library.folder.nameExample": "예: “봄 캠페인”",
   "library.folder.nameField": "폴더 이름",

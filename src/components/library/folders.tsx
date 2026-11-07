@@ -124,7 +124,7 @@ export function useMoveFolder(all: Folder[]) {
     const error = folderMoveErrorKey(all, id, target?.id ?? null);
     if (error) return void toast(error);
     actions.update(id, { parentId: target?.id ?? null }).then(
-      () => toast.success(target ? tt("library.folder.movedInto", { name: f.name, target: target.name }) : tt("library.folder.movedTop", { name: f.name })),
+      () => toast.success(target ? tt("library.folder.moveInto", { name: f.name, target: target.name }) : tt("library.folder.movedTop", { name: f.name })),
       (e: Error) => toastError(e),
     );
   };

@@ -2515,6 +2515,7 @@
   "library.folder.newIn": "New folder in “{name}”",
   "library.folder.edit": "Edit folder",
   "library.folder.new": "New folder",
+  "library.folder.createBtn": "Create folder",
   "library.folder.nameColour": "Name and colour",
   "library.folder.nameExample": "e.g. “Spring campaign”",
   "library.folder.nameField": "Folder name",
