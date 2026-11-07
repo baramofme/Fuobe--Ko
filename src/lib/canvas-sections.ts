@@ -6,10 +6,26 @@ import type { CanvasNodeType, Outline } from "@/lib/catalog/canvas";
 import type { Engine } from "@/lib/catalog/types";
 import type { CoverFrame, TemplateCover } from "@/lib/template-covers";
 
-/** The sections in order, with the words visitors read (a template's `group` is the key). */
+/**
+ * The sections in order, with the words visitors read (a template's `group` is the key). The originals stay for the
+ * data layer and the tests; the render sites resolve the `titleKey`/`noteKey` siblings (key ?? original) so a language
+ * switch re-renders them — never capture `t()` at import time here.
+ */
 export const TEMPLATE_SECTIONS = [
-  { key: "", title: "Films and campaigns", note: "Ready boards that make a finished piece. Each one runs as it is." },
-  { key: "effect-films", title: "Effect films", note: "Your photo, a new scene, then a moving shot." },
+  {
+    key: "",
+    title: "Films and campaigns",
+    titleKey: "canvas.sections.films",
+    note: "Ready boards that make a finished piece. Each one runs as it is.",
+    noteKey: "canvas.sections.filmsNote",
+  },
+  {
+    key: "effect-films",
+    title: "Effect films",
+    titleKey: "canvas.sections.effectFilms",
+    note: "Your photo, a new scene, then a moving shot.",
+    noteKey: "canvas.sections.effectFilmsNote",
+  },
 ] as const;
 
 export type TemplateSectionKey = Exclude<(typeof TEMPLATE_SECTIONS)[number]["key"], "">;
@@ -79,7 +95,10 @@ const order = (hasCover: Viewing["hasCover"]) => (a: TemplateCardData, b: Templa
 export interface TemplateSection {
   key: TemplateSectionKey | "";
   title: string;
+  /** The render site resolves this key (t(titleKey ?? title)); the original stays byte-identical for tests. */
+  titleKey: string;
   note: string;
+  noteKey: string;
   items: TemplateCardData[];
 }
 
@@ -88,7 +107,9 @@ export function templateSections(templates: TemplateCardData[], v: Viewing): Tem
   return TEMPLATE_SECTIONS.map((s) => ({
     key: s.key,
     title: s.title,
+    titleKey: s.titleKey,
     note: s.note,
+    noteKey: s.noteKey,
     items: templates.filter((t) => t.section === s.key && t.starter !== false && shownTo(t, v)).sort(order(v.hasCover)),
   })).filter((s) => s.items.length > 0);
 }

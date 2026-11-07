@@ -232,9 +232,9 @@ function ListInner({ templates, intro }: { templates: TemplateCardData[]; intro?
         <section key={s.key || "films"} aria-labelledby={`tpl-${s.key || "films"}`}>
           <div className="mb-3">
             <h3 id={`tpl-${s.key || "films"}`} className="font-heading text-[20px] leading-tight">
-              {s.title}
+              {t(s.titleKey ?? s.title)}
             </h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{s.note}</p>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{t(s.noteKey ?? s.note)}</p>
           </div>
           <CardGrid items={s.items} card={card} />
         </section>

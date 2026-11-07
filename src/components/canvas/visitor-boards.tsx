@@ -15,6 +15,7 @@ import type { CanvasSummary } from "@/lib/catalog/canvas";
 import { deleteDraft, DRAFT_EVENT, getDraft, listDrafts, putDraft, type DraftSummary } from "@/lib/canvas-drafts";
 import { timeAgo } from "@/lib/format";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { Schematic } from "./template-card";
 import { accountCanvasApi, useAccountCanvases } from "./use-canvas";
 
@@ -43,6 +44,7 @@ function draftsSnapshot(): DraftSummary[] {
 const NONE: DraftSummary[] = [];
 
 function BoardCard({ b, onRename, onDelete }: { b: Board; onRename: () => void; onDelete: () => void }) {
+  const { t } = useI18n();
   const href = b.where === "account" ? `/canvas/saved/${b.c.id}` : `/canvas/draft/${b.d.id}`;
   const nodes = b.where === "account" ? b.c.nodeCount : b.d.nodeCount;
   const when = b.where === "account" ? b.c.updatedAt : b.d.updatedAt;
@@ -61,25 +63,25 @@ function BoardCard({ b, onRename, onDelete }: { b: Board; onRename: () => void; 
         <h3 className="mt-2 truncate pr-9 text-[14px] font-medium">{nameOf(b)}</h3>
         <p className="flex items-center gap-1 text-[12px] text-muted-foreground">
           {b.where === "account" ? <Cloud className="size-3" aria-hidden /> : <HardDrive className="size-3" aria-hidden />}
-          {b.where === "account" ? "Saved" : "In this browser"} · Edited {timeAgo(when)} · {nodes} node{nodes === 1 ? "" : "s"}
+          {b.where === "account" ? t("canvas.visitorBoards.saved") : t("canvas.visitorBoards.inThisBrowser")} · {t("canvas.edited", { time: timeAgo(when) })}{t(nodes === 1 ? "canvas.nodeSingular" : "canvas.nodePlural", { count: nodes })}
         </p>
       </Link>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             className="absolute right-0 bottom-5 grid size-8 place-items-center rounded-md text-muted-foreground opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 data-[state=open]:opacity-100"
-            aria-label={`Actions for ${nameOf(b)}`}
+            aria-label={t("canvas.actionsAria", { name: nameOf(b) })}
           >
             <MoreHorizontal className="size-4" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem onSelect={onRename}>
-            <Pencil /> Rename
+            <Pencil /> {t("canvas.rename")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-            <Trash2 /> Delete
+            <Trash2 /> {t("canvas.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -92,6 +94,7 @@ function BoardCard({ b, onRename, onDelete }: { b: Board; onRename: () => void; 
  * each opening in the editor, with Rename and Delete; and "Start blank". Nothing shows while it has none.
  */
 export function VisitorBoards({ account }: { account: boolean }) {
+  const { t } = useI18n();
   const qc = useQueryClient();
   const drafts = useSyncExternalStore(subscribe, draftsSnapshot, () => NONE);
   const saved = useAccountCanvases({ enabled: account });
@@ -132,9 +135,9 @@ export function VisitorBoards({ account }: { account: boolean }) {
     <section aria-labelledby="your-canvases" className="mt-6">
       <div className="flex flex-wrap items-center gap-3">
         <h2 id="your-canvases" className="font-heading text-[22px] leading-tight">
-          Your canvases
+          {t("canvas.mine")}
         </h2>
-        {!account && <p className="text-[13px] text-muted-foreground">Kept in this browser. Create a free account to keep them anywhere.</p>}
+        {!account && <p className="text-[13px] text-muted-foreground">{t("canvas.visitorBoards.guestNote")}</p>}
       </div>
       <div className="mt-4 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {boards.map((b) => (
@@ -152,15 +155,15 @@ export function VisitorBoards({ account }: { account: boolean }) {
           href="/canvas/try/blank"
           className="flex aspect-[16/10] flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-[14px] font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
         >
-          <Plus className="size-5" /> Start blank
+          <Plus className="size-5" /> {t("canvas.startBlank")}
         </Link>
       </div>
 
       <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Rename canvas</DialogTitle>
-            <DialogDescription className="sr-only">Give this canvas a new name</DialogDescription>
+            <DialogTitle>{t("canvas.renameTitle")}</DialogTitle>
+            <DialogDescription className="sr-only">{t("canvas.renameDesc")}</DialogDescription>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -168,16 +171,16 @@ export function VisitorBoards({ account }: { account: boolean }) {
               const b = renaming!;
               const name = draft.trim();
               setRenaming(null);
-              if (name && name !== nameOf(b)) void rename(b, name).then(() => toast.success("Renamed", { duration: 1500 }), (err) => toastError(err));
+              if (name && name !== nameOf(b)) void rename(b, name).then(() => toast.success(t("canvas.renamed"), { duration: 1500 }), (err) => toastError(err));
             }}
           >
-            <Input autoFocus value={draft} maxLength={80} onChange={(e) => setDraft(e.target.value)} aria-label="Name" />
+            <Input autoFocus value={draft} maxLength={80} onChange={(e) => setDraft(e.target.value)} aria-label={t("canvas.nameAria")} />
             <DialogFooter className="mt-4">
               <Button type="button" variant="ghost" onClick={() => setRenaming(null)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={!draft.trim()}>
-                Save
+                {t("common.save")}
               </Button>
             </DialogFooter>
           </form>
@@ -187,20 +190,20 @@ export function VisitorBoards({ account }: { account: boolean }) {
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{deleting ? nameOf(deleting) : ""}”?</AlertDialogTitle>
-            <AlertDialogDescription>The board is removed for good.</AlertDialogDescription>
+            <AlertDialogTitle>{t("canvas.deleteTitle", { name: deleting ? nameOf(deleting) : "" })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("canvas.visitorBoards.deleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
                 const b = deleting!;
                 setDeleting(null);
-                void remove(b).then(() => toast("Deleted", { duration: 1500 }), (e) => toastError(e));
+                void remove(b).then(() => toast(t("canvas.deleted"), { duration: 1500 }), (e) => toastError(e));
               }}
             >
-              Delete
+              {t("canvas.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

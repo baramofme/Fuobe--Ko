@@ -11,7 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { recipeToCanvas } from "@/lib/catalog/canvas-recipe";
 import type { RecipeView } from "@/lib/recipe";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { useCanvasActions } from "./use-canvas";
+
+/** The fallback a skill's recipe gets when its own error text is missing (the data-layer original; the render site
+ * resolves the sibling key, so a language switch re-renders it — byte-identical under vitest's default English). */
+const UNREADABLE = "This skill can't be read";
 
 /**
  * Canvas → Skills (package W5): the skills that run by themselves, each drawn as a canvas on request ("Open as canvas"
@@ -19,6 +24,7 @@ import { useCanvasActions } from "./use-canvas";
  * a canvas can't hold yet says why instead.
  */
 export function SkillCanvases({ visitor }: { visitor: boolean }) {
+  const { t } = useI18n();
   const skills = useSkills();
   const router = useRouter();
   const { create } = useCanvasActions();
@@ -30,7 +36,7 @@ export function SkillCanvases({ visitor }: { visitor: boolean }) {
       retry: false,
       queryFn: async () => {
         const res = await fetch(`/api/assist/skills/${encodeURIComponent(s.name)}/recipe`);
-        if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "This skill can't be read");
+        if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? UNREADABLE);
         return (await res.json()) as RecipeView;
       },
     })),
@@ -57,8 +63,8 @@ export function SkillCanvases({ visitor }: { visitor: boolean }) {
   if (!list.length)
     return (
       <div className="mt-6 rounded-2xl border border-dashed px-5 py-8 text-center">
-        <p className="text-[15px] font-medium">No skill runs by itself yet</p>
-        <p className="mx-auto mt-1 max-w-md text-[13px] text-muted-foreground">Save a canvas as a skill from its menu, or make one from results in the Library. Each one shows here, ready to open as a canvas.</p>
+        <p className="text-[15px] font-medium">{t("canvas.skillCanvases.emptyTitle")}</p>
+        <p className="mx-auto mt-1 max-w-md text-[13px] text-muted-foreground">{t("canvas.skillCanvases.emptyNote")}</p>
       </div>
     );
   return (
@@ -78,7 +84,7 @@ export function SkillCanvases({ visitor }: { visitor: boolean }) {
             {q.isLoading ? (
               <Skeleton className="h-8 w-32" />
             ) : q.isError ? (
-              <p className="text-[12px] text-muted-foreground">{(q.error as Error).message}</p>
+              <p className="text-[12px] text-muted-foreground">{(q.error as Error).message === UNREADABLE ? t("canvas.skillCanvases.unreadable") : (q.error as Error).message}</p>
             ) : drawn?.readOnly ? (
               <p className="flex items-start gap-1.5 text-[12px] text-muted-foreground">
                 <Info className="mt-px size-3.5 shrink-0" aria-hidden /> {drawn.readOnly}.
@@ -86,11 +92,12 @@ export function SkillCanvases({ visitor }: { visitor: boolean }) {
             ) : (
               <div className="mt-auto flex flex-wrap items-center gap-2">
                 <span className="text-[12px] text-muted-foreground">
-                  {q.data!.recipe.steps.length} step{q.data!.recipe.steps.length === 1 ? "" : "s"} · {q.data!.recipe.params.length} input{q.data!.recipe.params.length === 1 ? "" : "s"}
+                  {t(q.data!.recipe.steps.length === 1 ? "canvas.skillCanvases.stepSingular" : "canvas.skillCanvases.stepPlural", { count: q.data!.recipe.steps.length })}
+                  {t(q.data!.recipe.params.length === 1 ? "canvas.skillCanvases.inputSingular" : "canvas.skillCanvases.inputPlural", { count: q.data!.recipe.params.length })}
                 </span>
                 {!visitor && (
                   <Button size="sm" className="ml-auto rounded-full" onClick={() => void open(q.data!)} disabled={!!busy}>
-                    {busy === s.name ? <Loader2 className="animate-spin" /> : <Workflow />} Open as canvas
+                    {busy === s.name ? <Loader2 className="animate-spin" /> : <Workflow />} {t("canvas.skillCanvases.openAsCanvas")}
                   </Button>
                 )}
               </div>
