@@ -727,11 +727,11 @@ export function planGeneration(
   if (op === "audio-join" && maxAudios && (req.inputs?.audios?.length ?? 0) > maxAudios) throw new Error(`${model.name} joins up to ${maxAudios} clips at a time — join the rest in a second step`);
   const requires = model.options.requires;
   const images = req.inputs?.images?.length ?? 0;
-  if (requires?.images && images < requires.images && !(requires.promptInstead && prompt && images === requires.images - 1)) throw new Error(requires.msg);
-  if (requires?.prompt && !prompt) throw new Error(requires.msg);
-  if (requires?.mask && !req.inputs?.mask) throw new Error(requires.msg);
-  if (requires?.video && !req.inputs?.video) throw new Error(requires.msg);
-  if (requires?.points && !params.points?.length) throw new Error(requires.msg);
+  if (requires?.images && images < requires.images && !(requires.promptInstead && prompt && images === requires.images - 1)) throw new Error(tr(requires.msgKey ?? requires.msg));
+  if (requires?.prompt && !prompt) throw new Error(tr(requires.msgKey ?? requires.msg));
+  if (requires?.mask && !req.inputs?.mask) throw new Error(tr(requires.msgKey ?? requires.msg));
+  if (requires?.video && !req.inputs?.video) throw new Error(tr(requires.msgKey ?? requires.msg));
+  if (requires?.points && !params.points?.length) throw new Error(tr(requires.msgKey ?? requires.msg));
   if (op === "bg-remove-video" || op === "depth-video") checkVideoToolOptions(model, op, prompt, params);
   // Remove background on a model that makes both files: the picker's default (the cut-out) unless asked, so the job
   // makes the one file the picker showed, not both.

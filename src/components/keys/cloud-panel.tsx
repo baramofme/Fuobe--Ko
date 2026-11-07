@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { VendorMark } from "@/components/studio/vendor-mark";
 import { askToSignUp, useStatus } from "@/lib/api";
 import { addProviderKeyLabel, CLOUD_PANEL_EVENT, CLOUD_PANEL_STAY_EVENT, CLOUD_SHOWCASE, cloudPanelWords, panelProviders, visitorEngine, type CloudPanelAsk } from "@/lib/engine-ux";
+import { useI18n } from "@/lib/i18n";
 import { openAddKey } from "./your-keys";
 
 /**
@@ -16,6 +17,7 @@ import { openAddKey } from "./your-keys";
  * on Open source until a key is saved. Mounted once, in the app's providers.
  */
 export function CloudPanel() {
+  const { t } = useI18n();
   const [ask, setAsk] = useState<CloudPanelAsk | null>(null);
   const engine = visitorEngine(useStatus().data);
   useEffect(() => {
@@ -52,7 +54,7 @@ export function CloudPanel() {
               <VendorMark vendor={m.vendor} engine="cloud" />
               <span className="min-w-0">
                 <span className="block text-[13px] leading-snug font-medium">{m.name}</span>
-                <span className="block text-[12px] leading-snug text-muted-foreground">{m.why}</span>
+                <span className="block text-[12px] leading-snug text-muted-foreground">{t(m.whyKey)}</span>
               </span>
             </li>
           ))}

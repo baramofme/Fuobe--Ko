@@ -53,11 +53,11 @@ export function visitorEngineLabel(side: "open" | "cloud", e: VisitorEngine): st
 }
 
 /** A few Cloud models by name, each with why someone would pick it (checked against the model list in tests). */
-export const CLOUD_SHOWCASE: readonly { id: string; name: string; vendor: string; why: string }[] = [
-  { id: "nano-banana-pro", name: "Nano Banana Pro", vendor: "Google", why: "Clean text in pictures, and edits from several photos, up to 4K." },
-  { id: "gpt-image-2-5", name: "GPT Image 2.5 Flare", vendor: "OpenAI", why: "Exact layouts, and edits that follow long instructions." },
-  { id: "veo-3-1", name: "Veo 3.1", vendor: "Google", why: "Real-looking video with sound and speech." },
-  { id: "kling-4", name: "Kling 4.0", vendor: "Kuaishou", why: "Takes of 3 to 30 seconds, with several shots." },
+export const CLOUD_SHOWCASE: readonly { id: string; name: string; vendor: string; why: string; whyKey: string }[] = [
+  { id: "nano-banana-pro", name: "Nano Banana Pro", vendor: "Google", why: "Clean text in pictures, and edits from several photos, up to 4K.", whyKey: "studio.engine.showcaseNanoBananaPro" },
+  { id: "gpt-image-2-5", name: "GPT Image 2.5 Flare", vendor: "OpenAI", why: "Exact layouts, and edits that follow long instructions.", whyKey: "studio.engine.showcaseGptImageFlare" },
+  { id: "veo-3-1", name: "Veo 3.1", vendor: "Google", why: "Real-looking video with sound and speech.", whyKey: "studio.engine.showcaseVeo31" },
+  { id: "kling-4", name: "Kling 4.0", vendor: "Kuaishou", why: "Takes of 3 to 30 seconds, with several shots.", whyKey: "studio.engine.showcaseKling4" },
 ];
 
 /** The Cloud panel's words. `model`: the Cloud model it was opened for, if any. */

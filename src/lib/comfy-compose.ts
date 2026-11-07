@@ -94,7 +94,8 @@ import { RESTORE_EXTRA_KEYS, restoreGraph, restoreJob, type RestoreJob } from "@
 import { getMaker, makerPrompt, OPEN_TARGET_PROBLEM, ORIGINALS, swapTarget } from "@/lib/catalog/genjutsu";
 import { CLICK_OPEN_PROBLEM, HAND_OFF, REMOVE_SCENE, REVIEW_EXTRA, reuseOf, targetPhrase, type RemovalReview } from "@/lib/catalog/remove-object";
 import { H3_REMOVAL_WORKFLOW } from "@/lib/catalog/character-swap";
-import { RECOLOR_TAP_FIRST, recolorItem, recolorTouches, tapFrame } from "@/lib/catalog/recolor";
+import { recolorItem, recolorTouches, tapFrame } from "@/lib/catalog/recolor";
+import { t as tr } from "@/lib/i18n/store";
 import type { GenInput, Operation } from "@/lib/catalog/types";
 import type { MediaInfo } from "@/lib/media-probe";
 import { encodePng } from "@/lib/png-encode";
@@ -928,7 +929,7 @@ export async function composeWorkflow(endpointTemplate: string, input: GenInput,
   if (manifest.capability === "recolor") {
     const photo = ctx.media?.(String(values.image ?? ""));
     const touches = recolorTouches(input.points, recolorItem(extra), photo?.width && photo.height ? { width: photo.width, height: photo.height } : undefined, tapFrame(extra));
-    if (!touches) throw new ComposeError(RECOLOR_TAP_FIRST);
+    if (!touches) throw new ComposeError(tr("studio.req.tapRecolour"));
     values.touches = touches;
     for (const k of ["frameWidth", "frameHeight", "recolorItem", "touches"]) delete extra[k];
   }

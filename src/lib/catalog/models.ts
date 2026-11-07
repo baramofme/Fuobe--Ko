@@ -261,7 +261,7 @@ const open: ModelDef[] = [
     kind: "image",
     tagline: "Only the tapped piece takes the new colour; its fabric, folds and shine stay · 20 GB GPU · non-commercial weights",
     routes: [{ ...comfy("edit", "qwen-image-21-recolor", "SAM 3.1 mask from the taps, 25 steps, pasted back"), unsized: true, maxImages: 1 }],
-    options: { maxImages: 1, seed: true, requires: { images: 1, points: true, msg: RECOLOR_TAP_FIRST } },
+    options: { maxImages: 1, seed: true, requires: { images: 1, points: true, msg: RECOLOR_TAP_FIRST, msgKey: "studio.req.tapRecolour" } },
     hidden: true,
   }),
 
@@ -997,7 +997,7 @@ const open: ModelDef[] = [
     options: {
       seed: true,
       resolutions: [...REGEN_TIERS],
-      requires: { prompt: true, msg: "Regenerate redraws the clip from words: describe what is in it" },
+      requires: { prompt: true, msg: "Regenerate redraws the clip from words: describe what is in it", msgKey: "studio.req.regenerateWords" },
       promptPlaceholder: REGEN_COPY.prompt,
       controls: [
         {
@@ -1360,7 +1360,7 @@ const open: ModelDef[] = [
     tagline: "Paint what to remove on the first frame, and it's gone from the shot · 81 frames a run (Video tools → Remove object does whole clips) · 24 GB GPU",
     badges: ["new"],
     routes: [comfy("remove-object", "video-inpaint-wan-vace-painted", "first-frame mask (white = remove) tracked by SAM 3.1; the last frame's mask starts the next window")],
-    options: { seed: true, negativePrompt: true, requires: { mask: true, msg: "Paint what to remove on the first frame" } },
+    options: { seed: true, negativePrompt: true, requires: { mask: true, msg: "Paint what to remove on the first frame", msgKey: "studio.req.paintRemoveFirst" } },
   }),
   o({
     id: "oss-void-remove",
@@ -1397,7 +1397,7 @@ const open: ModelDef[] = [
     tagline: "Paint where it goes on the first frame, and your reference stays there for the whole shot (a still or slow camera) · 81 frames a run (Genjutsu does whole clips) · 24 GB GPU",
     badges: ["new"],
     routes: [comfy("video-insert", "video-insert-wan-vace", "painted region (white = where it goes) held for every frame + Wan 2.1 VACE 14B with the first reference image")],
-    options: { seed: true, negativePrompt: true, maxImages: 1, requires: { mask: true, msg: "Paint where it goes on the first frame" } },
+    options: { seed: true, negativePrompt: true, maxImages: 1, requires: { mask: true, msg: "Paint where it goes on the first frame", msgKey: "studio.req.paintWhereFirst" } },
   }),
   // H3 Relay 2.0 (akatz-ai/h3-relay): Akatz Labs' newer node pack for the same Character swap, native loops instead of the
   // pack's controller (Genjutsu's Character swap lists it as an alternative). It needs the pack installed (H3_RELAY=1).
@@ -1679,7 +1679,7 @@ const open: ModelDef[] = [
     kind: "image",
     tagline: "Puts the whole head from image 2, hair included, on the person in image 1; everything else stays the shot's own pixels · 20 GB GPU · non-commercial",
     routes: [comfy("edit", "head-swap-qwen-image-21", "BFS head LoRA V1.1; the new head pasted back onto the shot")],
-    options: { seed: true, maxImages: 2, requires: { images: 2, msg: "Add the photo to keep, then a photo of the head" } },
+    options: { seed: true, maxImages: 2, requires: { images: 2, msg: "Add the photo to keep, then a photo of the head", msgKey: "studio.req.photoKeepHead" } },
     hidden: true,
   }),
   o({
@@ -1900,7 +1900,7 @@ const open: ModelDef[] = [
     tagline: "Pulls the element you name (“the guitar”) onto its own layer · 24 GB GPU, 41 GB download",
     badges: ["new"],
     routes: [comfy("layers", "layers-qwen-image-layered-control", "prompt = the element to separate")],
-    options: { seed: true, requires: { prompt: true, msg: "Name the element to pull out, e.g. “the guitar”" } },
+    options: { seed: true, requires: { prompt: true, msg: "Name the element to pull out, e.g. “the guitar”", msgKey: "studio.req.nameElement" } },
   }),
   // Moodboards: generate in the look of reference images (op t2i with the references attached)
   o({
@@ -1912,7 +1912,7 @@ const open: ModelDef[] = [
     tagline: "A new image in the look of your moodboard (1–2 collages): palette, light, grain, mood · 24 GB GPU",
     badges: ["new", "top", "fast"],
     routes: [comfy("t2i", "style-ref-qwen-edit-2511", "Qwen-Image-Edit-2511 + Lightning, 4 steps")],
-    options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K"], maxImages: 2, seed: true, requires: { images: 1, msg: "Add 1–2 moodboard images to take the style from" } },
+    options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K"], maxImages: 2, seed: true, requires: { images: 1, msg: "Add 1–2 moodboard images to take the style from", msgKey: "studio.req.moodboardTwo" } },
     defaults: { aspectRatio: "1:1", resolution: "1K" },
   }),
   o({
@@ -1924,7 +1924,7 @@ const open: ModelDef[] = [
     tagline: "Fast style transfer from up to 4 references, 4 steps · 10 GB GPU",
     badges: ["new", "fast"],
     routes: [comfy("t2i", "style-ref-flux2-klein-4b")],
-    options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K"], maxImages: 4, seed: true, requires: { images: 1, msg: "Add 1–4 style reference images" } },
+    options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K"], maxImages: 4, seed: true, requires: { images: 1, msg: "Add 1–4 style reference images", msgKey: "studio.req.styleRefsFour" } },
     defaults: { aspectRatio: "1:1", resolution: "1K" },
   }),
   o({
@@ -1936,7 +1936,7 @@ const open: ModelDef[] = [
     tagline: "Trained for style reference (1–2 images) · 20 GB GPU",
     badges: ["new"],
     routes: [comfy("t2i", "style-ref-krea2", "Krea 2 Turbo + style_reference LoRA")],
-    options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K"], maxImages: 2, seed: true, requires: { images: 1, msg: "Add 1–2 moodboard images to take the style from" } },
+    options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K"], maxImages: 2, seed: true, requires: { images: 1, msg: "Add 1–2 moodboard images to take the style from", msgKey: "studio.req.moodboardTwo" } },
     defaults: { aspectRatio: "1:1", resolution: "1K" },
   }),
   o({
@@ -1947,7 +1947,7 @@ const open: ModelDef[] = [
     kind: "image",
     tagline: "Style-only reference on FLUX.1 [dev] · 20 GB GPU",
     routes: [comfy("t2i", "style-ref-uso-flux1")],
-    options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K"], maxImages: 2, seed: true, requires: { images: 1, msg: "Add 1–2 moodboard images to take the style from" } },
+    options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K"], maxImages: 2, seed: true, requires: { images: 1, msg: "Add 1–2 moodboard images to take the style from", msgKey: "studio.req.moodboardTwo" } },
     defaults: { aspectRatio: "1:1", resolution: "1K" },
   }),
   // Soul HEX: the palette in the prompt + a ColorTransfer lock to a swatch rendered from params.palette
@@ -2606,7 +2606,7 @@ const open: ModelDef[] = [
       aspectRatios: ["auto", ...VID_AR],
       seed: true,
       maxImages: 1,
-      requires: { images: 1, video: true, msg: "Add the still and the render of the path (Cinema's 3D scene records it when you film a path)" },
+      requires: { images: 1, video: true, msg: "Add the still and the render of the path (Cinema's 3D scene records it when you film a path)", msgKey: "studio.req.stillAndPath" },
     },
     defaults: { resolution: "480p", aspectRatio: "auto" },
   }),
@@ -2649,7 +2649,7 @@ const open: ModelDef[] = [
       seed: true,
       maxImages: 11,
       aspectRatios: ["9:16"],
-      requires: { images: 1, msg: "Add the still to film" },
+      requires: { images: 1, msg: "Add the still to film", msgKey: "studio.req.addStillFilm" },
     },
     defaults: { aspectRatio: "9:16" },
   }),
@@ -2669,7 +2669,7 @@ const open: ModelDef[] = [
       note: "apple/DepthPro ccd1350a: research use only; it \"does not include any commercial exploitation, product development or use in any commercial product or service\"",
       checked: "2026-11-02",
     },
-    options: { maxImages: 1, requires: { images: 1, msg: "Add the still" } },
+    options: { maxImages: 1, requires: { images: 1, msg: "Add the still", msgKey: "studio.req.addStill" } },
   }),
   o({
     id: "oss-vggt-omega",
@@ -2686,7 +2686,7 @@ const open: ModelDef[] = [
       note: "facebook/VGGT-Omega 1041e80f: FAIR Noncommercial Research License; a gated download that Meta approves by hand",
       checked: "2026-11-02",
     },
-    options: { maxImages: 1, requires: { images: 1, msg: "Add the still" } },
+    options: { maxImages: 1, requires: { images: 1, msg: "Add the still", msgKey: "studio.req.addStill" } },
   }),
   // N7-9: the person's mask in a picture (SAM 3.1), for WorldCast's still and views.
   o({
@@ -2698,7 +2698,7 @@ const open: ModelDef[] = [
     tagline: "A black-and-white mask of the person in a picture · 4 GB GPU · Meta SAM License",
     hidden: true,
     routes: [comfy("bg-remove", "image-person-mask-sam3", "SAM 3.1 finds the person: white where they are")],
-    options: { maxImages: 1, requires: { images: 1, msg: "Add the picture" } },
+    options: { maxImages: 1, requires: { images: 1, msg: "Add the picture", msgKey: "studio.req.addPicture" } },
   }),
   o({
     id: "oss-tryon-klein",
@@ -2710,7 +2710,7 @@ const open: ModelDef[] = [
     badges: ["new", "fast"],
     routes: [comfy("edit", "tryon-flux2-klein-4b", "try-on LoRA; old outfit masked out first")],
     // The graph loads the try-on LoRA itself; carrying it here lets Settings → Models & licences switch it off (as Fuobe Try-On's).
-    options: { maxImages: 3, seed: true, requires: { images: 2, msg: "Add a photo of the person, then the garment" }, ...(TRYON_LORA && { loras: [loraRef(TRYON_LORA)] }) },
+    options: { maxImages: 3, seed: true, requires: { images: 2, msg: "Add a photo of the person, then the garment", msgKey: "studio.req.personThenGarment" }, ...(TRYON_LORA && { loras: [loraRef(TRYON_LORA)] }) },
   }),
   // Outfit Swap (the open route of the Outfit Swap app): AusBoss's Outfit Swap LoRA on Qwen-Image 2.1 keeps the person
   // picture in place, so only the clothes change. With an outfit photo Qwen3-VL describes it first; without one the words
@@ -2728,7 +2728,7 @@ const open: ModelDef[] = [
       maxImages: 2,
       seed: true,
       promptOptional: true,
-      requires: { images: 2, promptInstead: true, msg: "Add your photo and the outfit's, or describe the outfit" },
+      requires: { images: 2, promptInstead: true, msg: "Add your photo and the outfit's, or describe the outfit", msgKey: "studio.req.photoOrOutfit" },
     },
     hidden: true,
   }),
@@ -2742,7 +2742,7 @@ const open: ModelDef[] = [
     tagline: "Cuts your product out and relights it into the scene you describe (White_to_Scene LoRA, 4 steps) · 24 GB GPU",
     badges: ["new"],
     routes: [comfy("edit", "product-shot-qwen-edit-2509", "BiRefNet cut-out on white → Qwen-Image-Edit 2509 + White_to_Scene LoRA")],
-    options: { seed: true, negativePrompt: true, maxImages: 1, requires: { prompt: true, msg: "Describe the scene to put the product in, e.g. “on a marble counter, morning light”" } },
+    options: { seed: true, negativePrompt: true, maxImages: 1, requires: { prompt: true, msg: "Describe the scene to put the product in, e.g. “on a marble counter, morning light”", msgKey: "studio.req.describeScene" } },
   }),
   // Steam It (the open route of the Steam It app): the clothes found and pressed, every other pixel kept.
   o({
@@ -2753,7 +2753,7 @@ const open: ModelDef[] = [
     kind: "image",
     tagline: "Finds the clothes and presses them smooth; the person, pose and background stay exactly as they were · 20 GB GPU · non-commercial weights",
     routes: [{ ...comfy("edit", "steam-it-qwen-image-21", "SAM 3.1 finds the clothes; Qwen-Image 2.1 repaints only them, 25 steps, pasted back"), unsized: true, maxImages: 1 }],
-    options: { seed: true, maxImages: 1, requires: { images: 1, msg: "Add a photo of the outfit" } },
+    options: { seed: true, maxImages: 1, requires: { images: 1, msg: "Add a photo of the outfit", msgKey: "studio.req.outfitPhoto" } },
     hidden: true,
   }),
   // Cinema Studio grid and Soul Cast (used by those studios)
@@ -2931,7 +2931,7 @@ const DOP_OPTIONS: ModelOptions = {
   negativePrompt: true,
   endFrame: true,
   maxImages: 1,
-  requires: { images: 1, msg: "Add a start frame: Fuobe DoP moves the camera through your picture" },
+  requires: { images: 1, msg: "Add a start frame: Fuobe DoP moves the camera through your picture", msgKey: "studio.req.startFrameDop" },
 };
 
 /** Fuobe Evolution's change intensity as a composer control on the GPU graph's own field (its denoise; fal's hosted VACE has none). */
@@ -3038,7 +3038,7 @@ const originals: ModelDef[] = [
     ],
     engineDefaults: { open: { resolution: "720p" } },
     // The GPU graph needs two keyframes; in the cloud each gap's clip runs on its own (a start and an end frame).
-    engineOptions: { open: { requires: { images: 2, msg: "Add at least two keyframes: the in-betweens go between them" } } },
+    engineOptions: { open: { requires: { images: 2, msg: "Add at least two keyframes: the in-betweens go between them", msgKey: "studio.inbetween.needTwo" } } },
     engineNote: "In the cloud every frame is kept and the animation plays at 16 fps; speeds ×2–×4 and 24 fps playback run on your GPU",
   },
   // Fuobe Cinema (O6): Cinema Studio 4.0's Original (src/lib/catalog/cinema.ts compiles the Director into the prompt and
@@ -3129,7 +3129,7 @@ const originals: ModelDef[] = [
         durations: [3, 4, 5],
         imageLabels: ["direction frame (the clip's first frame as it should look)"],
         controls: [intensityControl("denoise", denoiseFor)],
-        requires: { images: 1, msg: "Add the direction frame: the clip's first frame as it should look (Video tools → Evolution makes it for you)" },
+        requires: { images: 1, msg: "Add the direction frame: the clip's first frame as it should look (Video tools → Evolution makes it for you)", msgKey: "studio.req.directionFrame" },
       },
     },
   },
@@ -3174,7 +3174,7 @@ const originals: ModelDef[] = [
         promptOptional: true,
         defaultPrompt: TRYON_PROMPT,
         imageLabels: ["person photo", "garment (a top, dress or whole outfit)", "bottom (optional)"],
-        requires: { images: 2, msg: "Add a photo of the person, then the garment" },
+        requires: { images: 2, msg: "Add a photo of the person, then the garment", msgKey: "studio.req.personThenGarment" },
         ...(TRYON_LORA && { loras: [loraRef(TRYON_LORA)] }),
       },
     }),
@@ -3208,7 +3208,7 @@ const originals: ModelDef[] = [
       options: { seed: true, negativePrompt: true, resolutions: ["480p", "720p"], maxImages: 1 },
     }),
     // The GPU graph follows a restyled first frame it can't make itself (fal's route runs without one, on the words).
-    engineOptions: { open: { requires: { images: 1, msg: "Add the clip's first frame in the new look: Wan 2.2 Fun VACE carries it through every frame" } } },
+    engineOptions: { open: { requires: { images: 1, msg: "Add the clip's first frame in the new look: Wan 2.2 Fun VACE carries it through every frame", msgKey: "studio.req.vaceFirstFrame" } } },
   },
   // Fuobe Angles (O11): the Angles recipe from the parity research, Qwen-Image-Edit 2509 with dx8152's Multiple-angles LoRA. The camera is the
   // hosted route's own fields on both engines (rotate −90…90°, positive = left; tilt −1…1; move forward 0–10; a wide-angle lens in

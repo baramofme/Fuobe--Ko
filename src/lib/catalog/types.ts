@@ -865,7 +865,7 @@ export interface ModelOptions {
    * (the open Fly path's render). promptInstead: words stand in for the last of the images (Outfit Swap: a photo of the
    * outfit, or the outfit described).
    */
-  requires?: { images?: number; promptInstead?: boolean; prompt?: boolean; mask?: boolean; points?: boolean; video?: boolean; msg: string };
+  requires?: { images?: number; promptInstead?: boolean; prompt?: boolean; mask?: boolean; points?: boolean; video?: boolean; msg: string; msgKey?: string };
   /** Output formats it can write (params.format: SDR to HDR, export). */
   formats?: VideoFormat[];
   /** Depth maps: the colour maps it draws (params.colormap; see COLORMAPS). Unset = grayscale only. */
