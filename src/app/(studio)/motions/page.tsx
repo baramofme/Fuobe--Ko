@@ -5,19 +5,27 @@ import { PresetGallery } from "@/components/preset-gallery";
 import { MOTIONS } from "@/lib/catalog";
 import { toPresetCard } from "@/lib/preset-card-data";
 import { featuredGallery } from "@/lib/preset-featured";
+import { getServerLang } from "@/lib/i18n/server-lang";
+import { translate } from "@/lib/i18n/store";
 
-export const metadata: Metadata = {
-  title: "Camera motions",
-  description: "Director-grade camera moves for any image: crash zooms, orbits, bullet time and more, filmed by Fuobe DoP.",
-};
+/** Server-rendered metadata: the title and description follow the cookie's language on the server. */
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getServerLang();
+  return {
+    title: translate(lang, "motions.metaTitle"),
+    description: translate(lang, "motions.metaDesc"),
+    alternates: { canonical: "/motions" },
+  };
+}
 
-export default function Page() {
+export default async function Page() {
+  const lang = await getServerLang();
   return (
     <PageShell>
       <AreaBackLink id="motions" />
       <PageHeader
-        title="Camera motions"
-        description="Pick a camera move, add a start frame, and Fuobe DoP films it."
+        title={translate(lang, "motions.title")}
+        description={translate(lang, "motions.line")}
       />
       <PresetGallery {...featuredGallery(MOTIONS.map(toPresetCard))} href="/video?preset={id}" noun="moves" />
     </PageShell>

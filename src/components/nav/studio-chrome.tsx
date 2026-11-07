@@ -13,6 +13,7 @@ import { PhoneSheets } from "./phone-sheets";
 import { PhoneTabs } from "./phone-tabs";
 import { SearchPaletteProvider } from "./search-context";
 import { TopBar } from "./top-bar";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 /**
  * Inline script that runs while the HTML is parsed: the server renders one shell for everyone, this marks the page
@@ -40,6 +41,7 @@ function ChromeState() {
 
 /** The first stop for keyboard users: jumps past the menus to the page (WCAG 2.4.1). */
 function SkipLink() {
+  const { t } = useI18n();
   return (
     <a
       href="#content"
@@ -52,7 +54,7 @@ function SkipLink() {
       }}
       className="sr-only rounded-md bg-background px-3 py-2 text-[13px] font-medium shadow-strong focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:outline-2 focus:outline-ring"
     >
-      Skip to content
+      {t("skip.toContent")}
     </a>
   );
 }

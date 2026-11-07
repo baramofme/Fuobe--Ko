@@ -11,11 +11,15 @@ import { featuredGallery } from "@/lib/preset-featured";
 import { getServerLang } from "@/lib/i18n/server-lang";
 import { translate } from "@/lib/i18n/store";
 
-export const metadata: Metadata = {
-  title: "Apps",
-  description: "One-click AI apps for faces, products, styles and fun, each with a real before and after.",
-  alternates: { canonical: "/apps" },
-};
+/** Server-rendered metadata: the title and description follow the cookie's language on the server. */
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getServerLang();
+  return {
+    title: translate(lang, "apps.metaTitle"),
+    description: translate(lang, "apps.metaDesc"),
+    alternates: { canonical: "/apps" },
+  };
+}
 
 /** Apps as an area page: Home's Apps section to start, then every app in the gallery (search and categories). */
 export default async function Page() {
