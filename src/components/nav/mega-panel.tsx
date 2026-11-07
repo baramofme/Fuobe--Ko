@@ -45,6 +45,15 @@ export const menuLineKey = (line: string) => `menu.line.${keySnake(line)}`;
 const lineIn = (lang: Lang, line: string | undefined): string | undefined =>
   line ? translateOr(lang, menuLineKey(line), line) : undefined;
 
+/**
+ * A tile or row's name in the language of this render. Preset tiles resolve through `preset.<snake(name)>.name`;
+ * NavEntry items (studios) resolve through `labelKeyOf(e.id)` (which reads `nav.<id>`). Preset keys that exist in the
+ * locale win, so English stays byte-identical by construction. Items whose name key exists in neither locale fall
+ * through to `e.label` — the fallback rule.
+ */
+const nameIn = (lang: Lang, e: MegaItem): string =>
+  translateOr(lang, `preset.${keySnake(e.label)}.name`, translateOr(lang, labelKeyOf(e.id), e.label));
+
 function NewBadge() {
   const { t } = useI18n();
   return (
@@ -74,6 +83,7 @@ export function trackSizes(span: number, inset = 0): string {
 export function LeadCard({ e, col, row = 0, span = 1, current, inside, now, className }: { e: MegaItem; col: number; row?: number; span?: number; current: boolean; inside?: boolean; now: number; className?: string }) {
   const { lang } = useI18n();
   const lineTr = lineIn(lang, e.line);
+  const nameTr = nameIn(lang, e);
   return (
     <IntentLink
       href={e.href}
@@ -97,7 +107,7 @@ export function LeadCard({ e, col, row = 0, span = 1, current, inside, now, clas
       />
       <span className="nav-mark-start flex min-w-0 flex-col gap-0.5 px-[11px] pt-2.5 pb-3 md:max-lg:py-2">
         <span className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-[14px] leading-[18px] font-semibold md:max-lg:text-[13px]">{e.label}</span>
+          <span className="truncate text-[14px] leading-[18px] font-semibold md:max-lg:text-[13px]">{nameTr}</span>
           {isNew(e, now) && <NewBadge />}
         </span>
         <span title={lineTr} className="truncate text-[12px] leading-4 text-muted-foreground md:max-lg:hidden">
@@ -118,6 +128,7 @@ function Row({ e, col, row, current, inside, now, className }: { e: MegaItem; co
   const fresh = isNew(e, now);
   const { lang } = useI18n();
   const lineTr = lineIn(lang, e.line);
+  const nameTr = nameIn(lang, e);
   return (
     <IntentLink
       href={e.href}
@@ -125,7 +136,7 @@ function Row({ e, col, row, current, inside, now, className }: { e: MegaItem; co
       data-row={row}
       aria-current={current ? "page" : undefined}
       data-active={inside ? "" : undefined}
-      title={e.line ? `${e.label}: ${lineTr}` : e.label}
+      title={e.line ? `${nameTr}: ${lineTr}` : nameTr}
       className={cn("nav-row nav-mark-start -mx-2 flex min-h-11 items-center gap-3 rounded-[10px] px-2 py-1 md:max-lg:min-h-10 md:max-lg:py-0.5 [@media(pointer:coarse)]:min-h-11", className)}
     >
       {/* Six columns leave a row its name and line below 1440 px, and its name alone below 1280 px. Its picture loads
@@ -134,7 +145,7 @@ function Row({ e, col, row, current, inside, now, className }: { e: MegaItem; co
       {/* Centred while it fits; a name on two lines starts at the top and pushes the line out of the 36 px box. */}
       <span data-row-text className="flex max-h-9 min-w-0 flex-1 flex-wrap items-center gap-x-1 overflow-hidden [align-content:safe_center] max-xl:flex-nowrap">
         <span data-row-name className={cn("line-clamp-2 min-w-0 text-[13px] leading-[18px] font-medium", (current || inside) && "font-semibold")}>
-          {e.label}
+          {nameTr}
         </span>
         {fresh && <NewBadge />}
         {/* After a badge that wrapped, the line fills the rest of the second line; after one beside the name it can't fit
@@ -216,19 +227,20 @@ function SubLinks({ e, col, row, current, under }: { e: MegaItem; col: number; r
 function Tile({ e, col, row, current, eager }: { e: MegaItem; col: number; row: number; current: boolean; eager: boolean }) {
   const { lang } = useI18n();
   const lineTr = lineIn(lang, e.line);
+  const nameTr = nameIn(lang, e);
   return (
     <IntentLink
       href={e.href}
       data-col={col}
       data-row={row}
       aria-current={current ? "page" : undefined}
-      title={e.line ? `${e.label}: ${lineTr}` : e.label}
+      title={e.line ? `${nameTr}: ${lineTr}` : nameTr}
       className="nav-row nav-mark-under -m-1.5 flex min-w-0 flex-col gap-1.5 rounded-[12px] p-1.5 [container-type:inline-size]"
     >
       {/* 16:9, its height rounded down to the 4 px grid, so a second row of tiles sits on a whole pixel. */}
       <CoverThumb cover={e.cover} size="tile16" icon={e.icon} eager={eager} sizes={trackSizes(1)} className="aspect-auto h-[round(down,56.25cqw,4px)]" />
       <span className="flex min-w-0 flex-col">
-        <span className={cn("truncate text-[13px] leading-[18px] font-medium", current && "font-semibold")}>{e.label}</span>
+        <span className={cn("truncate text-[13px] leading-[18px] font-medium", current && "font-semibold")}>{nameTr}</span>
         <span className="truncate text-[12px] leading-4 text-muted-foreground">{lineTr}</span>
       </span>
     </IntentLink>
