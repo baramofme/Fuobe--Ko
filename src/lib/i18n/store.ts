@@ -135,3 +135,21 @@ export function translate(lang: Lang, key: string, params?: Params): string {
 export function t(key: string, params?: Params): string {
   return translate(getLang(), key, params);
 }
+
+/**
+ * A data string (a catalog name, a description, a category, a caption) whose words may exist under a derived key.
+ * Order: the language's own value, else English (byte-identical to the catalog), else the item's own words — so an
+ * item nobody translated reads exactly as authored, with no warning (catalog data is meant to fall back silently).
+ */
+export function translateOr(lang: Lang, key: string, fallback: string, params?: Params): string {
+  const value = locales[lang]?.[key];
+  if (value !== undefined) return interpolate(value, params);
+  const english = locales[DEFAULT_LANG][key];
+  if (english !== undefined) return interpolate(english, params);
+  return fallback;
+}
+
+/** Key fragment from any string: lower-case, runs of non-alphanumerics collapse to one underscore, edges trimmed. */
+export function keySnake(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
