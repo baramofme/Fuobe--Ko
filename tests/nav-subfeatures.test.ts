@@ -108,8 +108,8 @@ describe("the catalogue of studio features", () => {
     for (const id of STUDIO_SUBS.marketing.ids) expect(suite, id).toContain(`href: "${entry(id)!.href}", label: "${entry(id)!.label}"`);
     const rail = read("src/components/assist/shell.tsx");
     for (const id of STUDIO_SUBS.assist.ids) expect(rail, id).toContain(`href="${entry(id)!.href}" icon={`);
-    for (const id of STUDIO_SUBS.assist.ids) expect(rail, id).toContain(`label="${entry(id)!.label}"`);
-    expect(read("src/components/canvas/canvas-list.tsx")).toContain(entry("canvas-skills")!.label);
+    for (const id of STUDIO_SUBS.assist.ids) expect(rail, id).toContain(`label={tr("assist.rail.${id.replace(/^assist-/, "")}")}`);
+    expect(read("src/components/canvas/canvas-list.tsx")).toContain(`t("canvas.skillsTitle")`);
     expect(read("src/components/cinema/blockout-panel.tsx")).toContain(`>${entry("cinema-blockout")!.label}<`);
   });
 });
