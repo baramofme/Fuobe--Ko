@@ -113,7 +113,7 @@ function makeVideo(src: string): HTMLVideoElement {
 const STEP = 0.1;
 
 export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(function VideoTrimmer(
-  { src, value, onChange, min, max, duration: knownDuration, label = "Part of the clip", hint, onMeta, onUnreadable, noPreview, className },
+  { src, value, onChange, min, max, duration: knownDuration, label, hint, onMeta, onUnreadable, noPreview, className },
   ref,
 ) {
   const video = useRef<HTMLVideoElement>(null);
@@ -123,6 +123,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
   const [thumbs, setThumbs] = useState<string[]>([]);
   const [unsupported, setUnsupported] = useState(false);
   const { t } = useI18n();
+  const shownLabel = label ?? t("studio.trim.partOfClip");
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [now, setNow] = useState(0);
@@ -359,7 +360,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
               type="button"
               onClick={togglePlay}
               disabled={!range}
-              aria-label={playing ? "Pause" : "Play the selection"}
+              aria-label={playing ? t("studio.trim.pause") : t("studio.trim.playSelection")}
               title={playing ? t("studio.trim.pause") : t("studio.trim.playSelection")}
               className="grid size-8 shrink-0 place-items-center rounded-full bg-white/20 backdrop-blur transition-colors hover:bg-white/30 disabled:opacity-50"
             >
@@ -372,7 +373,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
             <button
               type="button"
               onClick={() => setMuted((m) => !m)}
-              aria-label={muted ? "Unmute" : "Mute"}
+              aria-label={muted ? t("studio.trim.unmute") : t("studio.trim.mute")}
               className="ml-auto grid size-8 place-items-center rounded-full bg-white/15 backdrop-blur hover:bg-white/25"
             >
               {muted ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
@@ -381,7 +382,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
         </div>
       )}
 
-      <div role="group" aria-label={label} className="space-y-2">
+      <div role="group" aria-label={shownLabel} className="space-y-2">
         <div
           ref={track}
           onPointerDown={onPointerDown}
@@ -423,7 +424,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
                   data-trim={edge}
                   role="slider"
                   tabIndex={0}
-                  aria-label={edge === "start" ? "Start of selection" : "End of selection"}
+                  aria-label={edge === "start" ? t("studio.trim.startOfSelection") : t("studio.trim.endOfSelection")}
                   aria-valuemin={0}
                   aria-valuemax={Math.round(d * 10) / 10}
                   aria-valuenow={edge === "start" ? range.startTime : range.endTime}
@@ -443,13 +444,13 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-muted-foreground">
-          <TimeField label="Start" value={range?.startTime} disabled={!range} onCommit={(t) => range && commit(setEdge(range, "start", t, limits), t)} />
+          <TimeField label={t("studio.trim.start")} value={range?.startTime} disabled={!range} onCommit={(t) => range && commit(setEdge(range, "start", t, limits), t)} />
           <span className="font-mono tabular-nums text-foreground" aria-live="polite">
             {range ? t("studio.trim.sSelected", { n: len.toFixed(1) }) : t("studio.trim.readingClip")}
           </span>
-          <TimeField label="End" value={range?.endTime} disabled={!range} onCommit={(t) => range && commit(setEdge(range, "end", t, limits), t)} />
+          <TimeField label={t("studio.trim.end")} value={range?.endTime} disabled={!range} onCommit={(t) => range && commit(setEdge(range, "end", t, limits), t)} />
           {line && <span className="w-full text-[12px] text-brand-text sm:ml-auto sm:w-auto">{line}</span>}
-          {unsupported && <span className="w-full text-[12px]">This browser can&apos;t show frames of this clip — pick the part by time.</span>}
+          {unsupported && <span className="w-full text-[12px]">{t("studio.trim.noFramesBrowser")}</span>}
         </div>
       </div>
     </div>
@@ -458,6 +459,7 @@ export const VideoTrimmer = forwardRef<VideoTrimmerHandle, VideoTrimmerProps>(fu
 
 /** A seconds field that commits on Enter or blur (typing "12.5" or "0:12.5"). */
 function TimeField({ label, value, disabled, onCommit }: { label: string; value?: number; disabled?: boolean; onCommit: (t: number) => void }) {
+  const { t: i18nT } = useI18n();
   const [draft, setDraft] = useState<string | null>(null);
   const shown = draft ?? (value !== undefined ? value.toFixed(1) : "");
   const done = () => {
@@ -475,7 +477,7 @@ function TimeField({ label, value, disabled, onCommit }: { label: string; value?
         inputMode="decimal"
         disabled={disabled}
         value={shown}
-        aria-label={`${label} (seconds)`}
+        aria-label={i18nT("studio.trim.labelSeconds", { label })}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={done}
         onKeyDown={(e) => {

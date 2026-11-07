@@ -195,7 +195,7 @@ export function Viewer({
   const giveFocusBack = () => {
     const back =
       (opener.current?.isConnected ? opener.current : null) ??
-      document.querySelector<HTMLElement>(`[data-gen-id="${CSS.escape(g.id)}"] button[aria-label^="Open"]`);
+      document.querySelector<HTMLElement>(`[data-gen-id="${CSS.escape(g.id)}"] button[data-open-tile]`);
     back?.focus({ preventScroll: true });
   };
   const run = useActionRunner({ onReuse: onReuse && ((x) => (onReuse(x), onClose())), onCompare: () => setComparing((v) => !v), onDeleted: onClose });

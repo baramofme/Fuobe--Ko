@@ -238,6 +238,7 @@ step("studio: the composer's labels switch to Korean");
   await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(200);
   check("the run button reads “Generate” in English", await page.getByRole("button", { name: "Generate" }).first().isVisible().catch(() => false), "");
+  check("the attach button reads “Add media” in English", await page.getByRole("button", { name: "Add media" }).first().isVisible().catch(() => false), "");
   const trigger = page.locator('button:has(svg.lucide-globe)').locator("visible=true").first();
   await trigger.waitFor({ timeout: 15_000 });
   await trigger.click();
@@ -245,6 +246,8 @@ step("studio: the composer's labels switch to Korean");
   await page.waitForTimeout(400);
   check("the run button reads “생성” after the switch", await page.getByRole("button", { name: "생성" }).first().isVisible().catch(() => false), "");
   check("no English “Generate” left in the composer", !(await page.getByRole("button", { name: "Generate" }).first().isVisible().catch(() => false)), "");
+  check("the attach button reads “미디어 추가” after the switch", await page.getByRole("button", { name: "미디어 추가" }).first().isVisible().catch(() => false), "");
+  check("no English “Add media” left in the composer", !(await page.getByRole("button", { name: "Add media" }).first().isVisible().catch(() => false)), "");
   await page.close();
 }
 

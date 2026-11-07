@@ -17,7 +17,7 @@ import { dropHeld, holdFile, readHeld } from "@/lib/held-files";
 import { cn } from "@/lib/utils";
 import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import type { SketchMode, Stroke } from "./sketch-editor";
-import { t as storeT } from "@/lib/i18n";
+import { t as storeT, useI18n } from "@/lib/i18n";
 
 export interface SlotValue {
   /** Client-side identity for list items (references) and in-flight uploads. */
@@ -81,7 +81,7 @@ const upload = (file: File, signal?: AbortSignal): Promise<Asset> => postFile(fi
 export async function fileToSlot(file: File, onChange: (v: SlotValue | null) => void, kind?: MediaKind, opts: { signal?: AbortSignal } = {}): Promise<void> {
   const k: MediaKind = kind ?? kindOfFile(file);
   if (file.size > MAX_MB * 1024 * 1024) {
-    toast.error(`That file's over ${MAX_MB} MB. Try a smaller one.`);
+    toast.error(storeT("studio.media.sizeOverMb", { max: MAX_MB }));
     return;
   }
   const preview = URL.createObjectURL(file);
@@ -102,7 +102,7 @@ export async function fileToSlot(file: File, onChange: (v: SlotValue | null) => 
     if (opts.signal?.aborted || (e as Error).name === "AbortError") return;
     onChange(null);
     // Refused with its own card ("Create a free account", "Connect your GPU"): nothing on top of it.
-    toastError(e, "Upload failed. Please try again.");
+    toastError(e, storeT("studio.media.uploadFailed"));
   } finally {
     revoke();
   }
@@ -114,7 +114,7 @@ export async function fileToSlot(file: File, onChange: (v: SlotValue | null) => 
  */
 export function heldSlot(file: File, id: string, kind?: MediaKind): SlotValue | null {
   if (file.size > MAX_MB * 1024 * 1024) {
-    toast.error(`That file's over ${MAX_MB} MB. Try a smaller one.`);
+    toast.error(storeT("studio.media.sizeOverMb", { max: MAX_MB }));
     return null;
   }
   const k: MediaKind = kind ?? kindOfFile(file);
@@ -129,7 +129,7 @@ export function heldSlot(file: File, id: string, kind?: MediaKind): SlotValue | 
 export async function uploadHeld(v: SlotValue): Promise<SlotValue | null> {
   const file = v.held ? await readHeld(v.held) : null;
   if (!file) {
-    toast(`Add ${v.name ? `“${v.name}”` : "your file"} again: it wasn't kept through sign-up.`);
+    toast(v.name ? storeT("studio.media.addNamedAgain", { name: `“${v.name}”` }) : storeT("studio.media.addAgainNoName"));
     return null;
   }
   try {
@@ -141,7 +141,7 @@ export async function uploadHeld(v: SlotValue): Promise<SlotValue | null> {
     void dropHeld(v.held!);
     return { ...(v.sketch && { sketch: v.sketch }), ...(v.id && { id: v.id }), ref: asset.url, preview: asset.url, kind: asset.kind ?? v.kind, name: v.name };
   } catch (e) {
-    toastError(e, "Upload failed. Please try again.");
+    toastError(e, storeT("studio.media.uploadFailed"));
     return null;
   }
 }
@@ -191,13 +191,14 @@ export function SlotPreview({ value, className }: { value: Pick<SlotValue, "kind
 /** Grid of your uploads and results of one kind (or several). A guest's is empty, and says how to fill it. */
 export function LibraryGrid({ kinds, onPick }: { kinds: MediaKind[]; onPick: (v: SlotValue) => void }) {
   const [kind, setKind] = useState<MediaKind>(kinds[0] ?? "image");
+  const { t } = useI18n();
   const assets = useAssets(undefined, kind);
   const guest = useIsGuest();
   const here = usePathname();
   return (
     <div className="space-y-2">
       {kinds.length > 1 && (
-        <TabRow role="tablist" aria-label="Kind" fade={false} className="w-fit">
+        <TabRow role="tablist" aria-label={t("studio.media.kindGroup")} fade={false} className="w-fit">
           {kinds.map((k) => (
             <button
               key={k}
@@ -207,7 +208,7 @@ export function LibraryGrid({ kinds, onPick }: { kinds: MediaKind[]; onPick: (v:
               className={cn(TAB_PILL, "capitalize")}
               {...onAttr(k === kind)}
             >
-              {k === "image" ? "Images" : k === "video" ? "Videos" : k === "audio" ? "Audio" : k}
+              {k === "image" ? t("studio.media.tabImages") : k === "video" ? t("studio.media.tabVideos") : k === "audio" ? t("studio.media.tabAudio") : k}
             </button>
           ))}
         </TabRow>
@@ -222,7 +223,7 @@ export function LibraryGrid({ kinds, onPick }: { kinds: MediaKind[]; onPick: (v:
             <button
               key={a.id}
               className="aspect-square overflow-hidden rounded-md bg-muted ring-primary transition outline-none hover:ring-2 focus-visible:ring-2"
-              aria-label={a.name ?? `${a.kind} from your library`}
+              aria-label={a.name ?? t("studio.media.libraryItem", { kind: a.kind })}
               onClick={() => onPick({ ref: a.url, preview: a.url, kind: a.kind, name: a.name ?? undefined, source: a.source })}
             >
               <SlotPreview value={{ preview: a.url, kind: a.kind }} />
@@ -232,12 +233,12 @@ export function LibraryGrid({ kinds, onPick }: { kinds: MediaKind[]; onPick: (v:
       ) : guest ? (
         <p className="px-1 py-6 text-center text-sm text-muted-foreground">
           <Link href={signInHref("signup", here)} className="text-brand-text underline underline-offset-2">
-            Sign up free
+            {t("studio.media.signUpFree")}
           </Link>{" "}
-          to keep your uploads and results here.
+          {t("studio.media.keepUploadsHere")}
         </p>
       ) : (
-        <p className="px-1 py-6 text-center text-sm text-muted-foreground">Nothing here yet. Uploads and results show up here.</p>
+        <p className="px-1 py-6 text-center text-sm text-muted-foreground">{t("studio.media.nothingYet")}</p>
       )}
     </div>
   );
@@ -245,6 +246,7 @@ export function LibraryGrid({ kinds, onPick }: { kinds: MediaKind[]; onPick: (v:
 
 function LibraryPicker({ kind, onPick }: { kind: MediaKind; onPick: (v: SlotValue) => void }) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -257,7 +259,7 @@ function LibraryPicker({ kind, onPick }: { kind: MediaKind; onPick: (v: SlotValu
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-2" align="start" collisionPadding={12}>
-        <p className="px-1 pb-2 text-[13px] font-medium">From your library</p>
+        <p className="px-1 pb-2 text-[13px] font-medium">{t("studio.media.fromLibrary")}</p>
         {open && (
           <LibraryGrid
             kinds={[kind]}
@@ -304,6 +306,7 @@ export function MediaSlot({
   /** Filled, keep the slot's role on the thumbnail ("Target", "Face"), so two photos can be told apart. */
   caption?: boolean;
 }) {
+  const { t } = useI18n();
   const handleFile = (f: File) => {
     // A tile takes its own kind only (a clip dropped on the Image tile would land as a video there).
     if (kindOfFile(f) !== kind) return void toast(wrongKindMessage(kind));
@@ -346,14 +349,14 @@ export function MediaSlot({
                 </span>
               )}
               {value.uploading && (
-                <div className="absolute inset-0 grid place-items-center rounded-xl bg-background/60" role="status" aria-label="Uploading">
+                <div className="absolute inset-0 grid place-items-center rounded-xl bg-background/60" role="status" aria-label={t("studio.media.uploading")}>
                   <Loader2 className="size-4 animate-spin" />
                 </div>
               )}
               <button
                 onClick={() => onChange(null)}
                 className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-foreground text-background shadow-soft"
-                aria-label={`Remove ${label}`}
+                aria-label={t("studio.media.removeNamed", { label })}
               >
                 <X className="size-3" />
               </button>
@@ -362,7 +365,7 @@ export function MediaSlot({
             <button
               type="button"
               onClick={() => refused() || input.current?.click()}
-              aria-label={`${label}${required ? " (required)" : ""}: upload`}
+              aria-label={required ? t("studio.media.uploadRequiredAria", { label }) : t("studio.media.uploadAria", { label })}
               className={cn(
                 "flex size-full flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-border-strong text-muted-foreground transition-colors hover:border-primary hover:bg-brand-faint hover:text-brand-text",
                 over && "border-primary bg-brand-faint text-brand-text",
@@ -387,8 +390,7 @@ export function MediaSlot({
         </div>
       </TooltipTrigger>
       <TooltipContent>
-        {label}
-        {required ? " (required)" : " (optional)"} — click, drop or paste
+        {required ? t("studio.media.slotTooltipRequired", { label }) : t("studio.media.slotTooltipOptional", { label })}
       </TooltipContent>
     </Tooltip>
   );

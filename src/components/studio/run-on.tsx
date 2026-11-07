@@ -21,7 +21,7 @@ export function RunOnList({
   onPick,
   footer = RUN_ON_FOOTER,
   disabled,
-  label = "Run on",
+  label,
   className,
 }: {
   rows: readonly RunOnRow[];
@@ -33,9 +33,10 @@ export function RunOnList({
   label?: string;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className={cn("space-y-0.5", className)}>
-      <div role="radiogroup" aria-label={label} className="space-y-0.5">
+      <div role="radiogroup" aria-label={label ?? t("studio.runOn.title")} className="space-y-0.5">
         {rows.map((r) => (
           <button
             key={r.id}
@@ -140,7 +141,7 @@ export function RunOnChip({
       className="w-[min(92vw,320px)] p-1.5"
       trigger={<RunOnButton text={text} short={short} aria-label={ariaLabel} data-run-on-chip="" className={className} />}
     >
-      {!mobile && <p className="px-2.5 pt-1 pb-1.5 text-[13px] font-semibold">Run on</p>}
+      {!mobile && <p className="px-2.5 pt-1 pb-1.5 text-[13px] font-semibold">{t("studio.runOn.title")}</p>}
       <RunOnList
         rows={rows}
         disabled={pending}

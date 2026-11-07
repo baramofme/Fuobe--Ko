@@ -33,7 +33,7 @@ const ROWS: [file: string, label: string][] = [
   ["src/components/moodboards/moodboards-view.tsx", 'aria-label="Moodboards"'],
   ["src/components/moodboards/moodboard-panel.tsx", 'aria-label="Moodboards"'],
   ["src/components/swap-studio/workbench.tsx", 'aria-label="Stages"'],
-  ["src/components/studio/preset-chips.tsx", 'aria-label="Categories"'],
+  ["src/components/studio/preset-chips.tsx", 'aria-label={t("studio.preset.categories")}'],
   ["src/components/dub/dub-studio.tsx", 'aria-label="Languages"'],
   ["src/components/cinema/soul-builders.tsx", 'aria-label="Cast details"'],
   ["src/components/cinema/director-panel.tsx", 'aria-label="Camera"'],
@@ -42,12 +42,12 @@ const ROWS: [file: string, label: string][] = [
   ["src/components/cinema/side-panel.tsx", 'aria-label="Panel"'],
   ["src/components/canvas/canvas-editor.tsx", 'aria-label="View"'],
   ["src/components/ads/ad-editor.tsx", 'aria-label="Format"'],
-  ["src/components/studio/media-slot.tsx", 'aria-label="Kind"'],
+  ["src/components/studio/media-slot.tsx", 'aria-label={t("studio.media.kindGroup")}'],
   ["src/components/genjutsu/look-picker.tsx", 'aria-label="Where the look comes from"'],
   // The sheet's group chips (the label names the family shown) and its family switch.
   ["src/components/nav/studios-sheet.tsx", '"Show the studios for one goal"'],
   ["src/components/nav/studios-sheet.tsx", 'aria-label="What to show"'],
-  ["src/components/nav/search-palette.tsx", 'aria-label="Show the studios for one goal"'],
+  ["src/components/nav/search-palette.tsx", 'aria-label={t("search.goalsAria")}'],
 ];
 
 describe("tab and chip rows", () => {

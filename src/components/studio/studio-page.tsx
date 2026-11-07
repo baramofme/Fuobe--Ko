@@ -273,7 +273,7 @@ function ExampleLoader({ cards, surface, baseFor, children }: { cards: ExampleCa
                 setPending(null);
               }}
             >
-              Replace
+              {t("studio.page.replace")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -679,8 +679,8 @@ function StudioBody({ header, tabs, examples }: { header?: React.ReactNode; tabs
         <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center bg-overlay p-8">
           <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-primary bg-background px-12 py-10 shadow-heavy">
             <Upload className="size-6 text-brand-text" />
-            <p className="font-medium">Drop to attach</p>
-            <p className="text-[13px] text-muted-foreground">Images, videos or audio · up to 200 MB</p>
+            <p className="font-medium">{t("studio.page.dropToAttach")}</p>
+            <p className="text-[13px] text-muted-foreground">{t("studio.page.attachSubtitle")}</p>
           </div>
         </div>
       )}

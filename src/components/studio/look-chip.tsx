@@ -55,24 +55,24 @@ export default function LookChip({
     return pool.filter((l) => (words ? `${l.name} ${l.description}`.toLowerCase().includes(words) : tab === "All presets" || l.categories.includes(tab)));
   }, [q, set, tab]);
   return (
-    <ClearableChip active={!!value} onClear={() => onChange(undefined)} clearLabel={none ? `Back to ${none.toLowerCase()}` : "Back to the General look"}>
+    <ClearableChip active={!!value} onClear={() => onChange(undefined)} clearLabel={none ? `Back to ${none.toLowerCase()}` : t("studio.look.backToGeneral")}>
       <ResponsivePanel
         open={open}
         onOpenChange={setOpen}
         title={t("studio.look.look")}
-        description="Soul's looks on open weights: words, LoRAs and a grade"
+        description={t("studio.look.description")}
         className="w-[min(92vw,480px)] p-2"
         trigger={
-          <Chip icon={picked ? undefined : Sparkles} active={!!value} aria-label={`Look: ${picked?.name ?? none ?? "General"}`}>
+          <Chip icon={picked ? undefined : Sparkles} active={!!value} aria-label={t("studio.look.chipAria", { name: picked?.name ?? none ?? t("studio.look.general") })}>
             {picked && <CuratedCover m={{ name: "", ...curatedLook(picked.id) }} className="size-4 rounded-full" sizes="16px" />}
-            <span className="max-w-32 truncate">{picked?.name ?? none ?? "Look"}</span>
+            <span className="max-w-32 truncate">{picked?.name ?? none ?? t("studio.look.look")}</span>
             {strength < 1 && <span className="text-muted-foreground tabular-nums">{pct(strength)}</span>}
           </Chip>
         }
       >
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {/* Filters of the grid below (not tabs with panels): a radio group each, arrow keys move and pick. */}
-          <div role="radiogroup" aria-label="Soul version" onKeyDown={radioKeys} className="inline-flex shrink-0 rounded-full bg-muted p-0.5">
+          <div role="radiogroup" aria-label={t("studio.look.soulVersion")} onKeyDown={radioKeys} className="inline-flex shrink-0 rounded-full bg-muted p-0.5">
             {FAMILIES.map(([f, label]) => (
               <button
                 key={f}
@@ -105,21 +105,21 @@ export default function LookChip({
           </label>
         </div>
         {!q && (
-          <div role="radiogroup" aria-label="Look categories" onKeyDown={radioKeys} className="scrollbar-none -mx-0.5 mb-2 flex gap-1 overflow-x-auto px-0.5">
-            {tabs.map((t) => (
+          <div role="radiogroup" aria-label={t("studio.look.lookCategories")} onKeyDown={radioKeys} className="scrollbar-none -mx-0.5 mb-2 flex gap-1 overflow-x-auto px-0.5">
+            {tabs.map((tabName) => (
               <button
-                key={t}
+                key={tabName}
                 type="button"
                 role="radio"
-                aria-checked={tab === t}
-                tabIndex={radioTab(tab === t)}
-                onClick={() => setTab(t)}
+                aria-checked={tab === tabName}
+                tabIndex={radioTab(tab === tabName)}
+                onClick={() => setTab(tabName)}
                 className={cn(
                   "h-7 shrink-0 rounded-full px-2.5 text-[12px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                  tab === t ? "bg-brand-faint text-brand-text" : "text-muted-foreground hover:bg-accent",
+                  tab === tabName ? "bg-brand-faint text-brand-text" : "text-muted-foreground hover:bg-accent",
                 )}
               >
-                {t}
+                {tabName === "All presets" ? t("studio.look.allPresets") : tabName}
               </button>
             ))}
           </div>
@@ -143,7 +143,7 @@ export default function LookChip({
                   <span
                     aria-hidden
                     className="absolute right-1 bottom-1 grid size-4 place-items-center rounded-full bg-black/45 text-white"
-                    title="Its LoRA downloads from civitai: add your free civitai key in Settings → LoRAs"
+                    title={t("studio.look.civitaiTip")}
                   >
                     <KeyRound className="size-2.5" aria-hidden />
                   </span>
@@ -163,8 +163,8 @@ export default function LookChip({
               {picked.hd && " Made for Fuobe Soul HD (cleaner lettering)."}
             </p>
             <label className="flex items-center gap-3 px-0.5">
-              <span className="shrink-0 text-[12px] text-muted-foreground">Strength</span>
-              <Slider value={[Math.round(strength * 100)]} min={0} max={100} step={5} onValueChange={([v]) => onStrength(v / 100)} aria-label="Look strength" className="flex-1" />
+              <span className="shrink-0 text-[12px] text-muted-foreground">{t("studio.look.strength")}</span>
+              <Slider value={[Math.round(strength * 100)]} min={0} max={100} step={5} onValueChange={([v]) => onStrength(v / 100)} aria-label={t("studio.look.lookStrength")} className="flex-1" />
               <span className="w-9 shrink-0 text-right text-[12px] tabular-nums">{pct(strength)}</span>
             </label>
           </div>

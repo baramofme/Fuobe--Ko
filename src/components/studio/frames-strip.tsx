@@ -99,7 +99,7 @@ export function FramesStrip({
     <div role="group" aria-labelledby={titleId} aria-describedby={hintId} data-frames-strip className="space-y-1.5 px-1 pt-1 pb-2">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-1">
         <span id={titleId} className="text-[13px] font-medium">
-          Frames
+          {t("studio.frames.title")}
         </span>
         <span id={hintId} className="order-last basis-full text-[12px] leading-snug text-muted-foreground sm:order-none sm:basis-auto">
           {FRAMES_HINT}
@@ -108,15 +108,16 @@ export function FramesStrip({
           {style && (
             <label htmlFor={styleId} className="mr-1 flex cursor-pointer items-center gap-1.5 text-[12px] font-medium">
               <Switch id={styleId} checked={style.on} onCheckedChange={style.onChange} aria-describedby={`${styleId}-hint`} />
-              Animation
+              {t("studio.frames.animation")}
               <span id={`${styleId}-hint`} className="sr-only">
-                The in-betweens drawn in an anime style, with a timing for each gap{style.engine === "open" ? ", free on your GPU" : ""}
+                {t("studio.frames.animHintSr")}
+                {style.engine === "open" ? t("studio.frames.animHintGpu") : ""}
               </span>
             </label>
           )}
           {animation ? (
             <span className="rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium tabular-nums" aria-live="polite" data-animation-length>
-              {lengthLabel(length)} · {totalFrames(animation.timing)} frames
+              {lengthLabel(length)} · {t("studio.frames.framesCount", { n: totalFrames(animation.timing) })}
             </span>
           ) : (
             <LengthStepper value={duration} options={durations} onDuration={onDuration} />
@@ -155,9 +156,9 @@ export function FramesStrip({
         ))}
         {frames.length < MAX_KEYFRAMES && (
           <div className="flex shrink-0 flex-col items-center gap-1">
-            <MediaSlot slotKey="frames" label={frames.length ? "Add frame" : "Start frame"} kind="image" required={!frames.length} value={null} onChange={(v) => v && onAddPick(v)} onFile={onAddFile} />
+            <MediaSlot slotKey="frames" label={frames.length ? t("studio.frames.addFrame") : t("studio.frames.startFrameLabel")} kind="image" required={!frames.length} value={null} onChange={(v) => v && onAddPick(v)} onFile={onAddFile} />
             <span className="text-[11px] text-muted-foreground tabular-nums">
-              {frames.length} of {MAX_KEYFRAMES}
+              {t("studio.frames.countOf", { n: frames.length, max: MAX_KEYFRAMES })}
             </span>
           </div>
         )}
@@ -204,7 +205,7 @@ function LengthStepper({ value, options, onDuration }: { value: number; options:
   const lower = i < 0 ? sorted.findLast((x) => x < value) : sorted[i - 1];
   const higher = i < 0 ? sorted.find((x) => x > value) : sorted[i + 1];
   return (
-    <div role="group" aria-label="Clip length" className="flex items-center gap-0.5 rounded-full bg-muted p-0.5">
+    <div role="group" aria-label={t("studio.frames.clipLength")} className="flex items-center gap-0.5 rounded-full bg-muted p-0.5">
       <button
         type="button"
         onClick={() => lower !== undefined && onDuration(lower)}
@@ -246,6 +247,7 @@ function FrameTile({
   onChange: (v: SlotValue | null) => void;
   onFile: (f: File) => void;
 }) {
+  const { t } = useI18n();
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const name = index === 0 ? "the start frame" : `frame ${index + 1}`;
@@ -290,7 +292,7 @@ function FrameTile({
           </TooltipContent>
         </Tooltip>
         {value.uploading && (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-xl bg-background/60" role="status" aria-label="Uploading">
+          <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-xl bg-background/60" role="status" aria-label={t("studio.media.uploading")}>
             <Loader2 className="size-4 animate-spin" />
           </div>
         )}
@@ -316,7 +318,7 @@ function FrameTile({
           }}
         />
       </div>
-      <span className="text-[11px] font-medium text-muted-foreground tabular-nums">{index === 0 ? "Start" : secondsLabel(time)}</span>
+      <span className="text-[11px] font-medium text-muted-foreground tabular-nums">{index === 0 ? t("studio.frames.start") : secondsLabel(time)}</span>
     </div>
   );
 }
@@ -342,6 +344,7 @@ function Ruler({
   /** An animation: the last keyframe can move later (the film grows with it). */
   lastFree?: boolean;
 }) {
+  const { t } = useI18n();
   const track = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState<number | null>(null);
   const secondsAt = (clientX: number) => {
@@ -363,7 +366,7 @@ function Ruler({
           const base = "absolute top-1/2 size-7 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border-2 border-background bg-muted shadow-soft ring-1 ring-border";
           if (i === 0)
             return (
-              <span key={f.value.id ?? i} role="img" aria-label="Frame 1, the start frame, at 0 s" className={base} style={{ left: 0 }}>
+              <span key={f.value.id ?? i} role="img" aria-label={t("studio.frames.startFrame")} className={base} style={{ left: 0 }}>
                 {thumb}
               </span>
             );
@@ -375,7 +378,7 @@ function Ruler({
               key={f.value.id ?? i}
               type="button"
               role="slider"
-              aria-label={`Frame ${i + 1} time`}
+              aria-label={t("studio.frames.frameTime", { n: i + 1 })}
               aria-valuemin={lo}
               aria-valuemax={hi}
               aria-valuenow={times[i]}
@@ -445,6 +448,9 @@ function GapChip({ index, gap, fps, engine, onChange }: { index: number; gap: Ga
   const visitor = useLikelyVisitor();
   const engineMode = useEngine()[2];
   const gpuHint = !visitor && engineMode === "both";
+  // The gap's own length in seconds, for the tip's words (the unit lives in the string, as the trimmer's does).
+  const playsRaw = Math.round(gapSeconds(gap, fps) * 10) / 10;
+  const plays = playsRaw % 1 ? playsRaw.toFixed(1) : playsRaw.toFixed(0);
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -460,24 +466,24 @@ function GapChip({ index, gap, fps, engine, onChange }: { index: number; gap: Ga
       </PopoverTrigger>
       <PopoverContent className="w-72 space-y-3 p-3" align="center">
         <p className="text-[13px] font-medium">
-          Keyframes {index + 1} → {index + 2}
+          {t("studio.frames.keyframePair", { a: index + 1, b: index + 2 })}
         </p>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[12px] text-muted-foreground">Frames drawn</span>
-          <div role="group" aria-label="Frames drawn" className="flex items-center gap-0.5 rounded-full bg-muted p-0.5">
-            <button type="button" aria-label="Fewer frames" disabled={gap.frames <= MIN_GAP_FRAMES} onClick={() => onChange(stepGap(gap, -1))} className="grid size-6 place-items-center rounded-full hover:bg-background disabled:opacity-40">
+          <span className="text-[12px] text-muted-foreground">{t("studio.frames.framesDrawn")}</span>
+          <div role="group" aria-label={t("studio.frames.framesDrawn")} className="flex items-center gap-0.5 rounded-full bg-muted p-0.5">
+            <button type="button" aria-label={t("studio.frames.fewer")} disabled={gap.frames <= MIN_GAP_FRAMES} onClick={() => onChange(stepGap(gap, -1))} className="grid size-6 place-items-center rounded-full hover:bg-background disabled:opacity-40">
               <Minus className="size-3" />
             </button>
             <span className="min-w-10 text-center text-[12px] font-medium tabular-nums">{gap.frames}</span>
-            <button type="button" aria-label="More frames" disabled={gap.frames >= MAX_GAP_FRAMES} onClick={() => onChange(stepGap(gap, 1))} className="grid size-6 place-items-center rounded-full hover:bg-background disabled:opacity-40">
+            <button type="button" aria-label={t("studio.frames.more")} disabled={gap.frames >= MAX_GAP_FRAMES} onClick={() => onChange(stepGap(gap, 1))} className="grid size-6 place-items-center rounded-full hover:bg-background disabled:opacity-40">
               <Plus className="size-3" />
             </button>
           </div>
         </div>
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[12px] text-muted-foreground">Speed</span>
-            <div role="radiogroup" aria-label="Speed" className="flex items-center gap-0.5 rounded-full bg-muted p-0.5">
+            <span className="text-[12px] text-muted-foreground">{t("studio.frames.speed")}</span>
+            <div role="radiogroup" aria-label={t("studio.frames.speed")} className="flex items-center gap-0.5 rounded-full bg-muted p-0.5">
               {SPEEDS.map((sp) => {
                 const allowed = can.speeds.includes(sp);
                 return (
@@ -498,12 +504,12 @@ function GapChip({ index, gap, fps, engine, onChange }: { index: number; gap: Ga
             </div>
           </div>
           <p className="text-[11px] leading-snug text-muted-foreground">
-            {engine === "open" ? "Faster keeps every 2nd, 3rd or 4th frame, for a snappier move." : `In the cloud every frame is kept.${gpuHint ? " ×2–×4 are on your GPU." : ""}`} This gap plays for {lengthLabel(gapSeconds(gap, fps))}.
+            {engine === "open" ? t("studio.frames.fasterHint") : t("studio.frames.cloudTip", { gpu: gpuHint ? t("studio.frames.cloudTipGpu") : "" })} {t("studio.frames.gapPlaysFor", { n: plays })}
           </p>
         </div>
         <label className="block space-y-1">
-          <span className="text-[12px] text-muted-foreground">What happens in this gap (optional)</span>
-          <Input value={gap.prompt ?? ""} maxLength={500} placeholder="she jumps and lands" onChange={(e) => onChange({ ...gap, prompt: e.target.value || undefined })} className="h-8 text-[13px]" />
+          <span className="text-[12px] text-muted-foreground">{t("studio.frames.gapWhat")}</span>
+          <Input value={gap.prompt ?? ""} maxLength={500} placeholder={t("studio.frames.gapPromptPlaceholder")} onChange={(e) => onChange({ ...gap, prompt: e.target.value || undefined })} className="h-8 text-[13px]" />
         </label>
       </PopoverContent>
     </Popover>
@@ -512,12 +518,13 @@ function GapChip({ index, gap, fps, engine, onChange }: { index: number; gap: Ga
 
 /** The animation's playback rate and the still-mouth switch, under the ruler. */
 function AnimationOptions({ animation }: { animation: FramesAnimation }) {
+  const { t } = useI18n();
   const mouthId = useId();
   const rates = ENGINE_TIMING[animation.engine].rates;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 text-[12px]">
-      <div role="radiogroup" aria-label="Playback" className="flex items-center gap-1.5">
-        <span className="text-muted-foreground">Playback</span>
+      <div role="radiogroup" aria-label={t("studio.frames.playback")} className="flex items-center gap-1.5">
+        <span className="text-muted-foreground">{t("studio.frames.playback")}</span>
         <div className="flex items-center gap-0.5 rounded-full bg-muted p-0.5">
           {rates.map((r) => (
             <button
@@ -528,14 +535,14 @@ function AnimationOptions({ animation }: { animation: FramesAnimation }) {
               onClick={() => animation.onTiming({ ...animation.timing, fps: r })}
               className={cn("h-6 rounded-full px-2 font-medium tabular-nums", animation.timing.fps === r ? "bg-background shadow-soft" : "hover:bg-background/60")}
             >
-              {r} fps{r === 16 && rates.length > 1 ? " · true time" : ""}
+              {r} fps{r === 16 && rates.length > 1 ? ` · ${t("studio.frames.trueTime")}` : ""}
             </button>
           ))}
         </div>
       </div>
       <label htmlFor={mouthId} className="flex cursor-pointer items-center gap-1.5">
         <Switch id={mouthId} checked={animation.stillMouth} onCheckedChange={animation.onStillMouth} />
-        Keep mouth still
+        {t("studio.frames.keepMouthStill")}
       </label>
     </div>
   );

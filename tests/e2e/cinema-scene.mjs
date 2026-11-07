@@ -68,7 +68,7 @@ try {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`${app}/cinema/${project.id}`, { waitUntil: "load", timeout: 120_000 });
-  const tile = page.locator(`[aria-label^="Open"]`).first();
+  const tile = page.locator(`[data-open-tile]`).first();
   await tile.waitFor({ timeout: 90_000 });
   await tile.hover();
   await page.getByRole("button", { name: "Create 3D scene" }).first().click();

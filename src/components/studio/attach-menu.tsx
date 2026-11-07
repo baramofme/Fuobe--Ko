@@ -13,7 +13,7 @@ import { useModKey } from "@/lib/keys";
 import { ACCEPT, LibraryGrid, type SlotValue } from "./media-slot";
 import { ResponsivePanel } from "./responsive-panel";
 
-const KIND_WORD: Record<MediaKind, string> = { image: "images", video: "videos", audio: "audio", text: "text", model3d: "3D models" };
+const KIND_KEYS: Record<MediaKind, string> = { image: "studio.attach.kindImages", video: "studio.attach.kindVideos", audio: "studio.attach.kindAudio", text: "studio.attach.kindText", model3d: "studio.attach.kindModel3d" };
 
 /**
  * Read pasteable media from the clipboard. Needs the browser's clipboard permission and a secure
@@ -56,16 +56,18 @@ export function AttachMenu({ kinds, onFiles, onPick }: { kinds: MediaKind[]; onF
       onFiles(files);
       setOpen(false);
     } catch {
-      toast(`Press ${mod === "⌘" ? "⌘V" : "Ctrl+V"} in the prompt to paste`);
+      toast(t("studio.attach.pasteHint", { mod: mod === "⌘" ? "⌘V" : "Ctrl+V" }));
     }
   };
-  const words = kinds.map((k) => KIND_WORD[k]);
+  const words = kinds.map((k) => t(KIND_KEYS[k]));
+  // The kinds read as one list: commas, then the language's own "or" before the last one.
+  const kindsText = words.length < 2 ? words.join("") : words.slice(0, -1).join(", ") + t("studio.attach.orWord") + words[words.length - 1];
   return (
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
       title={t("studio.attach.add")}
-      description={`Attach ${words.join(", ").replace(/, ([^,]*)$/, " or $1")}`}
+      description={t("studio.attach.describe", { kinds: kindsText })}
       className="w-[min(92vw,360px)] p-2.5"
       tooltip={t("studio.attach.tooltip")}
       trigger={
@@ -81,10 +83,10 @@ export function AttachMenu({ kinds, onFiles, onPick }: { kinds: MediaKind[]; onF
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-1.5">
           <Button variant="secondary" className="h-10 justify-start gap-2" onClick={() => refused() || input.current?.click()}>
-            <Upload /> Upload
+            <Upload /> {t("studio.attach.upload")}
           </Button>
           <Button variant="secondary" className="h-10 justify-start gap-2" onClick={paste}>
-            <ClipboardPaste /> Paste
+            <ClipboardPaste /> {t("studio.attach.paste")}
             <span className="ml-auto hidden items-center gap-0.5 sm:flex">
               <Kbd>{mod}</Kbd>
               <Kbd>V</Kbd>

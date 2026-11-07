@@ -154,9 +154,9 @@ export function PresetChip({ type, value, onChange, engine }: { type: "motion" |
   // The picked preset's poster in place of its icon, as the Look chip shows its look.
   const cover = selected && presetCover(selected.id);
   const Icon = cover ? undefined : selected ? (PRESET_ICONS[selected.look.icon] ?? Film) : value && !catalog.complete ? Loader2 : Film;
-  const noun = type === "motion" ? "camera motion" : "effect";
+  const noun = type === "motion" ? t("studio.preset.nounMotion") : t("studio.preset.nounEffect");
   return (
-    <ClearableChip active={!!value} onClear={() => onChange(undefined)} clearLabel={`Clear ${selected?.name ?? noun}`}>
+    <ClearableChip active={!!value} onClear={() => onChange(undefined)} clearLabel={t("studio.preset.clearAria", { name: selected?.name ?? noun })}>
       <Popover
         open={open}
         onOpenChange={(o) => {
@@ -252,11 +252,12 @@ export function MixChip({
                   <span className="font-medium">{primary.name}</span>
                   <span className="text-muted-foreground tabular-nums">{pct(strength)}</span>
                 </div>
-                <Slider min={0.1} max={1} step={0.05} value={[strength]} onValueChange={([v]) => onChange({ presetStrength: v })} aria-label={`${primary.name} strength`} />
+                <Slider min={0.1} max={1} step={0.05} value={[strength]} onValueChange={([v]) => onChange({ presetStrength: v })} aria-label={t("studio.preset.strengthAria", { name: primary.name })} />
               </div>
             ) : (
               <p className="text-[12px] text-muted-foreground">
-                <span className="font-medium text-foreground">{primary.name}</span> runs at full strength{strengthOn ? `; its strength can be set on ${strengthOn}` : ""}.
+                <span className="font-medium text-foreground">{primary.name}</span>
+                {strengthOn ? t("studio.preset.fullStrengthSuffixOn", { on: strengthOn }) : t("studio.preset.fullStrengthSuffix")}
               </p>
             )}
             {second && mix && (
@@ -265,7 +266,7 @@ export function MixChip({
                   <span className="font-medium">{second.name}</span>
                   <span className="text-muted-foreground tabular-nums">{pct(mix.strength)}</span>
                 </div>
-                <Slider min={0.1} max={1} step={0.05} value={[mix.strength]} onValueChange={([v]) => onChange({ mix: { ...mix, strength: v } })} aria-label={`${second.name} strength`} />
+                <Slider min={0.1} max={1} step={0.05} value={[mix.strength]} onValueChange={([v]) => onChange({ mix: { ...mix, strength: v } })} aria-label={t("studio.preset.strengthAria", { name: second.name })} />
               </div>
             )}
           </div>

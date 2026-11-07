@@ -210,28 +210,28 @@ export function RunPlaceChip({
           )}
           {place.setup && place.needs && place.needs !== "signup" && (
             <Button size="sm" className="w-full" onClick={() => (setOpen(false), press(place.setup))}>
-              {place.needs === "key" ? "Add your key" : "Connect your GPU"}
+              {place.needs === "key" ? t("studio.runPlace.addYourKey") : t("studio.composer.connectGpu")}
             </Button>
           )}
           {!place.setup && place.needs === "gpu" && (
             <Button size="sm" className="w-full" onClick={() => (setOpen(false), window.dispatchEvent(new Event(CONNECT_GPU_EVENT)))}>
-              Connect your GPU
+              {t("studio.composer.connectGpu")}
             </Button>
           )}
           {!place.setup && place.needs === "key" && (
             <Button size="sm" className="w-full" onClick={() => (setOpen(false), openAddKey("fal"))}>
-              Add your key
+              {t("studio.runPlace.addYourKey")}
             </Button>
           )}
           {rows && (
             <div className="border-t pt-2">
-              <p className="px-2.5 pb-1 text-[12px] font-medium text-muted-foreground">Run on</p>
+              <p className="px-2.5 pb-1 text-[12px] font-medium text-muted-foreground">{t("studio.runOn.title")}</p>
               <RunOnList rows={rows.rows} disabled={setRunOn.isPending} onPick={(id) => setRunOn.mutate({ runOn: id })} />
             </div>
           )}
           {canSwitch && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-              <span className="text-[12px] font-medium text-muted-foreground">Engine</span>
+              <span className="text-[12px] font-medium text-muted-foreground">{t("studio.engine.engine")}</span>
               <EngineSwitch value={engine!} onChange={onEngine!} size="sm" compact={false} />
             </div>
           )}

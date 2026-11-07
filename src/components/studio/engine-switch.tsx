@@ -22,6 +22,10 @@ const OPTIONS: { value: Engine; label: string; icon: typeof Cloud; tip: string }
   { value: "open", label: "Open source", icon: Cpu, tip: "Open-weight models running on your ComfyUI server" },
 ];
 
+/** The engine's own name and its tooltip words, translated by the option value (labels key-mapped like the composer's). */
+const ENGINE_LABEL_KEYS: Record<Engine, string> = { cloud: "studio.engine.cloud", open: "studio.engine.openSource" };
+const ENGINE_TIP_KEYS: Record<Engine, string> = { cloud: "studio.engine.cloudDesc", open: "studio.engine.openSourceDesc" };
+
 /**
  * A side's tooltip words: an account's own (who pays, where it runs), else the side's own; with hosted runs on (`place`:
  * their place name), open models run free there.
@@ -104,7 +108,7 @@ export function EngineSwitch({
         <o.icon className="size-3.5" />
         <span className={cn(compact && "hidden sm:inline")}>{text}</span>
         {/* A phone has room for two words: what to do about the lock. */}
-        {compact && !wordless && !selfHostedOnly && locked?.addKey && <span className="sm:hidden">Add key</span>}
+        {compact && !wordless && !selfHostedOnly && locked?.addKey && <span className="sm:hidden">{t("studio.engine.addKeyShort")}</span>}
       </>
     );
     // An account opens "Add your key" right here (a plain click; Settings → Your keys in a new tab), or Your GPU when
@@ -163,7 +167,7 @@ export function EngineSwitch({
               role="radio"
               aria-checked={value === o.value}
               tabIndex={radioTab(value === o.value)}
-              aria-label={o.label}
+              aria-label={t(ENGINE_LABEL_KEYS[o.value])}
               onClick={() => onChange(o.value)}
               className={cn(
                 "relative z-10 flex items-center justify-center gap-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors",
@@ -173,13 +177,13 @@ export function EngineSwitch({
             >
               <o.icon className="size-3.5" />
               {/* One name at every size ("Open" alone read like a verb next to Home's send button). */}
-              <span className={cn(compact && "hidden sm:inline")}>{o.label}</span>
+              <span className={cn(compact && "hidden sm:inline")}>{t(ENGINE_LABEL_KEYS[o.value])}</span>
             </button>
           </TooltipTrigger>
           <TooltipContent>
             {/* One span: the tooltip lays its children out in a row. */}
             <span>
-              <span className="font-medium">{o.label}</span> · {engineTip(o.value, account, place)}
+              <span className="font-medium">{t(ENGINE_LABEL_KEYS[o.value])}</span> · {engineTip(o.value, account, place)}
             </span>
           </TooltipContent>
         </Tooltip>
@@ -266,7 +270,7 @@ function VisitorSwitch({
         const o = OPTIONS.find((x) => x.value === side)!;
         const on = shown === side;
         const caption = side === "open" ? engineCaption.open(place) : engineCaption.cloud;
-        const short = side === "open" ? "Free" : "Key";
+        const short = side === "open" ? t("studio.engine.freeShort") : t("studio.engine.keyShort");
         return (
           <Tooltip key={side}>
             <TooltipTrigger asChild>
@@ -289,7 +293,7 @@ function VisitorSwitch({
               >
                 <span className="flex items-center gap-1.5 text-[13px] font-medium whitespace-nowrap">
                   <o.icon className="size-3.5" />
-                  <span className={cn(compact && "hidden sm:inline")}>{o.label}</span>
+                  <span className={cn(compact && "hidden sm:inline")}>{t(ENGINE_LABEL_KEYS[o.value])}</span>
                 </span>
                 <span
                   className={cn(
@@ -306,7 +310,7 @@ function VisitorSwitch({
             </TooltipTrigger>
             <TooltipContent className="max-w-72">
               <span>
-                <span className="font-medium">{o.label}</span> · {side === "cloud" && keyless ? CLOUD_KEYLESS_TIP : engineTip(side, account, place)}
+                <span className="font-medium">{t(ENGINE_LABEL_KEYS[o.value])}</span> · {side === "cloud" && keyless ? CLOUD_KEYLESS_TIP : engineTip(side, account, place)}
               </span>
             </TooltipContent>
           </Tooltip>

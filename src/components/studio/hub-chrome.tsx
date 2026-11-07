@@ -8,10 +8,57 @@ import { PhoneNavButton } from "@/components/nav/phone-nav-button";
 import { OwnSetupMark } from "@/components/own-setup";
 import { EngineSwitch } from "@/components/studio/engine-switch";
 import { useEngine, useLikelyVisitor } from "@/lib/api";
-import { HUB_MODES, HUB_TITLE, hubOfPath, modeHref, modeOfPath, type HubKind } from "@/lib/hubs";
+import { HUB_MODES, hubOfPath, modeHref, modeOfPath, type HubKind } from "@/lib/hubs";
 import { prefetchOptions, useIdlePrefetch } from "@/lib/idle-prefetch";
 import { isPlainClick, useTappedTab } from "@/lib/use-tapped-tab";
 import { onAttr, reducedMotion, TAB_PILL, TabRow } from "@/components/ui/tab-row";
+import { useI18n } from "@/lib/i18n";
+
+/** The hub's title and each mode's tab, translated by the English label from src/lib/hubs (key-mapped like the composer's labels). */
+const HUB_TITLE_KEYS: Record<HubKind, string> = {
+  upscale: "studio.hub.upscale",
+  audio: "studio.hub.audio",
+  "video-tools": "studio.hub.videoTools",
+};
+const MODE_LABEL_KEYS: Record<string, string> = {
+  Image: "studio.hub.image",
+  Video: "studio.hub.video",
+  "FPS Boost": "studio.hub.fpsBoost",
+  "SDR to HDR": "studio.hub.sdrToHdr",
+  Export: "studio.hub.export",
+  "Clean up voice": "studio.hub.cleanUpVoice",
+  Speech: "studio.hub.speech",
+  Dialogue: "studio.hub.dialogue",
+  "Voice change": "studio.hub.voiceChange",
+  "Design a voice": "studio.hub.designAVoice",
+  "Edit speech": "studio.hub.editSpeech",
+  Translate: "studio.hub.translate",
+  Transcribe: "studio.hub.transcribe",
+  "Split soundtrack": "studio.hub.splitSoundtrack",
+  "Sound effects": "studio.hub.soundEffects",
+  Music: "studio.hub.music",
+  "Extend & remix": "studio.hub.extendRemix",
+  "Loop / extend": "studio.hub.loopExtend",
+  Join: "studio.hub.join",
+  "Sound for video": "studio.hub.soundForVideo",
+  "Remove background": "studio.hub.removeBackground",
+  "Green screen": "studio.hub.greenScreen",
+  "Remove object": "studio.hub.removeObject",
+  "Remove dialogue": "studio.hub.removeDialogue",
+  "Remove a person": "studio.hub.removePerson",
+  Evolution: "studio.hub.evolution",
+  "Restore & colourise": "studio.hub.restoreColourise",
+  Relight: "studio.hub.relight",
+  "Depth map": "studio.hub.depthMap",
+  Captions: "studio.hub.captions",
+  Trim: "studio.hub.trim",
+  "Join clips": "studio.hub.joinClips",
+  "Match colors": "studio.hub.matchColors",
+};
+const hubModeLabel = (t: (key: string) => string, label: string): string => {
+  const key = MODE_LABEL_KEYS[label];
+  return key ? t(key) : label;
+};
 
 /**
  * The frame of a hub (Audio, Video tools, Upscale): the sticky title bar and the mode tabs live in the hub's layout, shared
@@ -103,6 +150,7 @@ function HubTabs({
   const router = useRouter();
   const ref = useRef<HTMLElement>(null);
   const activeRef = useRef<HTMLAnchorElement>(null);
+  const { t } = useI18n();
   const visitor = useLikelyVisitor();
   // The tab just tapped: the current one from the next frame on, until the route moves (then the path says).
   const [tapped, tap] = useTappedTab<string>(pathname);
@@ -137,7 +185,7 @@ function HubTabs({
   );
 
   return (
-    <nav aria-label="Modes" className="border-b">
+    <nav aria-label={t("studio.hub.modes")} className="border-b">
       <TabRow ref={ref} className="m-0 px-4 py-1.5 sm:px-6">
         {modes.map((m) => {
           const on = m.id === active;
@@ -157,7 +205,7 @@ function HubTabs({
               className={TAB_PILL}
               {...onAttr(on)}
             >
-              {m.label}
+              {hubModeLabel(t, m.label)}
               {m.ownSetup && <OwnSetupMark setup={m.ownSetup} />}
               <TabWaiting onWaiting={onWaiting} />
             </Link>
@@ -208,6 +256,7 @@ function HubEngine({ kind, mode }: { kind: HubKind; mode: string | undefined }) 
 export function HubFrame({ kind, skeleton, children }: { kind: HubKind; skeleton: React.ReactNode; children: React.ReactNode }) {
   // Made once: the context's value never changes (see SlotStore).
   const [store] = useState(createSlotStore);
+  const { t } = useI18n();
   const slotRef = useCallback((el: HTMLElement | null) => store.set(el), [store]);
   const [mode, setMode] = useState<string | undefined>(undefined);
   const [waiting, setWaiting] = useState(false);
@@ -227,7 +276,7 @@ export function HubFrame({ kind, skeleton, children }: { kind: HubKind; skeleton
     <div className="flex min-h-content min-w-0 flex-col" data-hub={kind}>
       <div className="max-md:sticky top-chrome z-20 bg-background/85 backdrop-blur" data-hub-chrome>
         <header className="flex h-14 items-center gap-2 px-4 sm:px-6">
-          <h1 className="min-w-0 truncate font-heading text-[22px] leading-[1.15]">{HUB_TITLE[kind]}</h1>
+          <h1 className="min-w-0 truncate font-heading text-[22px] leading-[1.15]">{t(HUB_TITLE_KEYS[kind])}</h1>
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <div ref={slotRef} className="contents" />
             <HubEngine kind={kind} mode={mode} />

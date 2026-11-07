@@ -100,9 +100,10 @@ function AspectChoices({ options, value, onChange, unavailable }: { options: str
   const opts = options.map((o) => ({ value: o, unavailable: unavailable(o) }));
   const note = useUnavailableNote(opts);
   const held = unavailable(value);
+  const { t } = useI18n();
   return (
     <div>
-      <div role="radiogroup" aria-label="Aspect ratio" onKeyDown={radioKeys} className="grid grid-cols-4 gap-1 sm:grid-cols-5">
+      <div role="radiogroup" aria-label={t("studio.settings.aspectRatio")} onKeyDown={radioKeys} className="grid grid-cols-4 gap-1 sm:grid-cols-5">
         {opts.map((o) => {
           const off = note.isUnavailable(o);
           const sel = value === o.value && !off;
@@ -293,8 +294,9 @@ export function SettingsChip(props: SettingsPanelProps) {
 
 /** Output formats as a list of choices, each with what it's for (the parity studio's SDR to HDR copy). */
 function FormatChoices({ formats, value, onChange, via }: { formats: VideoFormat[]; value: VideoFormat; onChange: (f: VideoFormat) => void; via?: (f: VideoFormat) => string | undefined }) {
+  const { t } = useI18n();
   return (
-    <div role="radiogroup" aria-label="Format" onKeyDown={radioKeys} className="grid gap-1">
+    <div role="radiogroup" aria-label={t("studio.settings.format")} onKeyDown={radioKeys} className="grid gap-1">
       {formats.map((f) => {
         const sel = value === f;
         const info = FORMAT_INFO[f];

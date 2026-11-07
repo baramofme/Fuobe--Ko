@@ -360,7 +360,7 @@ function LayoutBoard({
   /** Plan layout: a first draft from the whole picture's words, on this canvas (POST /api/layout/plan); Undo takes it back. */
   const plan = async () => {
     const words = caption.trim();
-    if (!words) return void toast("Describe the whole picture first, then plan its layout");
+    if (!words) return void toast(t("studio.layout.describeFirst"));
     setPlanning(true);
     try {
       const res = await fetch("/api/layout/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ words, width: size.width, height: size.height }) });
@@ -397,14 +397,14 @@ function LayoutBoard({
               disabled={planning || !caption.trim()}
               aria-describedby="layout-plan-hint"
             >
-              {planning ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />} Plan layout
+              {planning ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />} {t("studio.layout.planLayout")}
             </Button>
           )}
         </div>
         <Textarea id="layout-caption" value={caption} onChange={(e) => setCaption(e.target.value)} rows={2} placeholder={t("studio.layout.wordsPlaceholder")} className="min-h-0 resize-none text-[13px]" />
         {!visitor && (
           <p id="layout-plan-hint" className="text-[11px] leading-snug text-muted-foreground">
-            Plan layout turns these words into boxes to start from: “a sale poster for my candle shop, 30% off”.
+            {t("studio.layout.planHint")}
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2">
@@ -414,7 +414,7 @@ function LayoutBoard({
           <Segmented
             label={t("studio.layout.canvas")}
             labelledBy="layout-canvas-label"
-            options={CANVASES.map((c) => ({ ...c, label: t(CANVAS_KEYS[c.value]), unavailable: c.value !== "single" && !summaryReads.canvas && model ? { why: `${model.name} reads the boxes and the caption only: ask for ${c.label.toLowerCase()} in the caption` } : undefined }))}
+            options={CANVASES.map((c) => ({ ...c, label: t(CANVAS_KEYS[c.value]), unavailable: c.value !== "single" && !summaryReads.canvas && model ? { why: t("studio.layout.readsBoxesCaptionOnly", { model: model.name, canvas: t(CANVAS_KEYS[c.value]).toLowerCase() }) } : undefined }))}
             value={canvasType}
             onChange={setCanvasType}
           />
@@ -424,7 +424,7 @@ function LayoutBoard({
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           disabled={!summaryReads.tags}
-          placeholder={summaryReads.tags || !model ? "Style tags (optional): poster, flat design" : `${model.name} reads no style tags: put the style in the caption`}
+          placeholder={summaryReads.tags || !model ? t("studio.layout.styleTagsPlaceholder") : t("studio.layout.noStyleTags", { model: model.name })}
           className="h-8 text-[13px] disabled:cursor-not-allowed"
         />
       </div>
@@ -496,7 +496,7 @@ function LayoutBoard({
           </Button>
         </div>
         <DialogDescription id="layout-editor-hint" className="w-full text-[12px] leading-snug text-muted-foreground max-sm:sr-only">
-          Drag to draw a box, then say what goes in it; hold Shift to draw over another box. With a box picked, arrow keys move it, Alt+arrows resize it (Shift for bigger steps) and Delete removes it. Layout prompts are experimental in MOSS-Image&apos;s own guide: boxes guide the picture, they don&apos;t pin it.
+          {t("studio.layout.hint")}
         </DialogDescription>
       </header>
 
@@ -559,7 +559,7 @@ function LayoutBoard({
                 />
               )}
               {!items.length && !ghost && (
-                <p className="pointer-events-none absolute inset-0 grid place-items-center p-4 text-center text-[13px] text-muted-foreground">Drag here to draw your first box</p>
+                <p className="pointer-events-none absolute inset-0 grid place-items-center p-4 text-center text-[13px] text-muted-foreground">{t("studio.layout.dragFirstBox")}</p>
               )}
             </div>
           </div>
@@ -753,7 +753,7 @@ function ImportPanel({ onImport, onCancel }: { onImport: (text: string) => void;
       <p className="text-[12px] leading-snug text-muted-foreground">
         {t("studio.layout.importHint")}
       </p>
-      <Textarea aria-label="Layout to import" value={text} onChange={(e) => setText(e.target.value)} rows={8} className="font-mono text-[12px]" placeholder='{"summary": …, "items": […]}' />
+      <Textarea aria-label={t("studio.layout.importAria")} value={text} onChange={(e) => setText(e.target.value)} rows={8} className="font-mono text-[12px]" placeholder='{"summary": …, "items": […]}' />
       <input
         ref={file}
         type="file"

@@ -224,7 +224,7 @@ export function FailedTile({ g, ratio, onRetry, onReuse }: { g: Generation; rati
           <p className={cn("shrink-0 text-[13px] leading-snug font-medium break-words", narrow ? "line-clamp-4" : "line-clamp-5")}>{g.error || POOL_WORDS.failed}</p>
         ) : (
           <>
-            <p className="shrink-0 text-[13px] font-medium">{g.status === "canceled" ? "Canceled" : "Couldn't generate this one"}</p>
+            <p className="shrink-0 text-[13px] font-medium">{g.status === "canceled" ? t("studio.feed.canceled") : t("studio.feed.failed")}</p>
             {g.error && <p className={cn("shrink-0 text-[12px] leading-snug break-words whitespace-pre-line text-muted-foreground", narrow ? "line-clamp-4" : "line-clamp-5")}>{g.error}</p>}
             {/* An account's own GPU or key: what came back, small, for the curious (the first thing cut when room is short). */}
             <TroubleDetails details={trouble?.details} className="min-h-0" />
@@ -373,7 +373,8 @@ const OutputTile = memo(function OutputTile({ g, index, ratio, layered, count }:
       {layered ? <LayersStack g={g} /> : <MediaThumb output={o} g={g} inset={!canHover || g.favorite} />}
       <button
         type="button"
-        aria-label={`Open “${userTitle(g)}”${count > 1 ? ` · ${index + 1} of ${count}` : ""}`}
+        data-open-tile=""
+        aria-label={count > 1 ? t("studio.feed.openTileOf", { title: userTitle(g), index: index + 1, count }) : t("studio.feed.openTile", { title: userTitle(g) })}
         onClick={(e) => {
           e.stopPropagation();
           feed.open(g, index);
@@ -462,7 +463,7 @@ export const GenerationGroup = memo(function GenerationGroup({ g, newest, first 
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               {g.engine === "open" ? <Cpu className="size-3" /> : <Cloud className="size-3" />}
-              {g.provider === "mock" ? "Placeholder" : g.provider === "local" ? "Browser" : g.place === "pool" ? site : g.engine === "open" ? "Open source" : "Cloud"}
+              {g.provider === "mock" ? t("studio.feed.sourcePlaceholder") : g.provider === "local" ? t("studio.feed.sourceBrowser") : g.place === "pool" ? site : g.engine === "open" ? t("studio.feed.sourceOpenSource") : t("studio.feed.sourceCloud")}
             </span>
             {meta.map((m, i) => (
               <span key={i} className="before:mr-1.5 before:content-['·']">
@@ -472,15 +473,15 @@ export const GenerationGroup = memo(function GenerationGroup({ g, newest, first 
             <span className="before:mr-1.5 before:content-['·']">{timeAgo(g.createdAt)}</span>
             {/* A run its provider never took (a refused key, an empty balance) cost nothing: said, not priced. */}
             {/* On this studio's GPUs (hosted runs): the billing service's words for its charge, or that it cost nothing. */}
-            {g.stage === "checking" ? <span className="before:mr-1.5 before:content-['·']">Checking</span> : null}
+            {g.stage === "checking" ? <span className="before:mr-1.5 before:content-['·']">{t("studio.feed.stageChecking")}</span> : null}
             {g.place === "pool" ? (
               g.notCharged ? (
-                <span className="before:mr-1.5 before:content-['·']">Not charged</span>
+                <span className="before:mr-1.5 before:content-['·']">{t("studio.feed.notCharged")}</span>
               ) : g.charge ? (
                 <span className="before:mr-1.5 before:content-['·']">{g.charge}</span>
               ) : null
             ) : g.costUsd && g.notBilled ? (
-              <span className="before:mr-1.5 before:content-['·']">Not billed</span>
+              <span className="before:mr-1.5 before:content-['·']">{t("studio.feed.notBilled")}</span>
             ) : g.costUsd ? (
               <span className="font-mono before:mr-1.5 before:content-['·']">{formatCost(g.costUsd)}</span>
             ) : null}
@@ -494,44 +495,44 @@ export const GenerationGroup = memo(function GenerationGroup({ g, newest, first 
               title={t("studio.feed.loadDraft")}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[12px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
             >
-              <RotateCcw className="size-3.5" /> Reuse
+              <RotateCcw className="size-3.5" /> {t("studio.feed.reuse")}
             </button>
           )}
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <button className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="More">
+              <button className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={t("studio.feed.more")}>
                 <MoreHorizontal className="size-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onSelect={() => void copyWithToast(g.prompt ?? "", "Prompt copied")}
+                onSelect={() => void copyWithToast(g.prompt ?? "", t("studio.feed.promptCopied"))}
               >
-                <Copy /> Copy prompt
+                <Copy /> {t("studio.feed.copyPrompt")}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => feed.retry(g)}>
-                <RotateCcw /> Run again
+                <RotateCcw /> {t("studio.feed.runAgain")}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => void favorite(g)}>
-                <Heart /> {g.favorite ? "Remove from favorites" : "Add to favorites"}
+                <Heart /> {g.favorite ? t("studio.feed.removeFromFav") : t("studio.feed.addToFav")}
               </DropdownMenuItem>
               {single && !layered && (
                 <DropdownMenuItem asChild>
                   <a href={downloadHref(single.url, singleName)} download={singleName}>
-                    <Download /> Download
+                    <Download /> {t("studio.feed.download")}
                   </a>
                 </DropdownMenuItem>
               )}
               {g.status === "succeeded" && g.outputs.length > 1 && (
                 <DropdownMenuItem asChild>
                   <a href={`/api/generations/zip?ids=${g.id}`} download>
-                    <FolderDown /> Download all ({g.outputs.length})
+                    <FolderDown /> {t("studio.feed.downloadAll", { count: g.outputs.length })}
                   </a>
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={() => void trash([g])}>
-                <Trash2 /> Delete
+                <Trash2 /> {t("studio.feed.delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
