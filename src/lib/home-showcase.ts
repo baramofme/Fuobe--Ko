@@ -14,7 +14,8 @@ import { TEMPLATES } from "@/lib/catalog/marketing";
 import type { ModelDef } from "@/lib/catalog/types";
 import type { Manifest } from "@/lib/comfy";
 import { homeBento, openModelsOf } from "@/lib/home-bento";
-import { NAV_ENTRIES, studioCount } from "@/lib/nav-model";
+import { NAV_ENTRIES, labelKeyOf, lineKeyOf, studioCount } from "@/lib/nav-model";
+import type { Params } from "@/lib/i18n/store";
 import { HUB_MODES } from "@/lib/hubs";
 import { modelHref } from "@/lib/palette-index";
 import { cacheLife } from "next/cache";
@@ -168,6 +169,13 @@ export const HOME_STUDIOS: { href: string; id?: string; line: (f: HomeFacts) => 
   { href: "/kinetic", id: "kinetic-runway-titles", line: () => "Motion graphics in your brand: titles, offers and end cards." },
   { href: "/image", id: "app-poster", line: modelLine("/image") },
 ];
+
+/** The home cards whose line counts something: the same nav line key takes the count as a parameter. */
+const HOME_LINE_PARAMS: Record<string, (f: HomeFacts) => Params> = {
+  "/cinema": (f) => ({ moves: f.cinemaMoves }),
+  "/marketing": (f) => ({ templates: f.adTemplates }),
+  "/mixed-media": (f) => ({ looks: f.mixedLooks }),
+};
 
 /** Destinations with a section of their own on Home, so they aren't pills as well. */
 export const HOME_OWN_SECTIONS = ["/assist", "/motions", "/effects", "/apps", "/live-edit"];
@@ -382,9 +390,23 @@ export async function homeShowcase() {
           : { src: side === "before" ? card.preview.poster : (card.preview.rest?.src ?? card.preview.poster) };
       return { id, name: card.name, before: still("before"), after: still("after"), thumb: thumbOf(card.preview.poster), tags: [...tags], zoom, href: presetHref(id) };
     }),
-    studios: HOME_STUDIOS.map((s) => ({ href: s.href, label: navLabel(s.href), line: s.line(facts), card: s.id ? homeCard(s.id) : undefined })),
+    studios: HOME_STUDIOS.map((s) => {
+      const id = s.href.slice(1);
+      const lineParams = HOME_LINE_PARAMS[s.href]?.(facts);
+      // The English label and line stay for the tests, search and JSON-LD that read them; the render resolves keys at
+      // render time from the lang prop (this is cached server data, so the language isn't decided here).
+      return {
+        href: s.href,
+        label: navLabel(s.href),
+        line: s.line(facts),
+        card: s.id ? homeCard(s.id) : undefined,
+        labelKey: labelKeyOf(id),
+        lineKey: lineKeyOf(id),
+        ...(lineParams ? { lineParams } : {}),
+      };
+    }),
     audioTools: audioTools(),
-    pills: homePills(),
+    pills: homePills().map((p) => ({ ...p, labelKey: labelKeyOf(p.href.slice(1)) })),
     newModels: newOpenModels(),
     skills: skills.starters,
   };

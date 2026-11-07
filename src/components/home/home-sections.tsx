@@ -488,9 +488,14 @@ export function StudiosSection({ facts, studios, audioTools, pills, lang = DEFAU
       title={translate(lang, "home.studios.title")}
       count={facts.destinations}
       line={translate(lang, "home.studios.line")}
-      cards={studios}
+      cards={studios.map((s) => ({
+        href: s.href,
+        label: translate(lang, s.labelKey),
+        line: s.lineKey ? translate(lang, s.lineKey, s.lineParams) : s.line,
+        card: s.card,
+      }))}
       audioTools={audioTools}
-      pills={pills.map((p) => ({ ...p, icon: navIcon(p.href) }))}
+      pills={pills.map((p) => ({ href: p.href, label: translate(lang, p.labelKey), icon: navIcon(p.href) }))}
       pillsLabel={translate(lang, "home.studios.pillsLabel")}
       all={area("studios").href}
       allCount={studioCount()}
