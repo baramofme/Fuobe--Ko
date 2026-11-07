@@ -28,7 +28,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useFolderActions, useIsVisitor } from "@/lib/api";
-import { childFolders, DEFAULT_FOLDER_COLOR, FOLDER_COLORS, folderMoveError, folderPath, folderSwatch, folderTree, MAX_FOLDER_DEPTH, type Folder } from "@/lib/library";
+import { useI18n } from "@/lib/i18n/use-i18n";
+import { t as tr } from "@/lib/i18n/store";
+import { childFolders, DEFAULT_FOLDER_COLOR, FOLDER_COLORS, folderMoveError, folderMoveErrorKey, folderPath, folderSwatch, folderTree, MAX_FOLDER_DEPTH, type Folder } from "@/lib/library";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
 
@@ -48,8 +50,6 @@ export function readDrag(e: React.DragEvent): string[] | null {
     return null;
   }
 }
-
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 /**
  * A drop target for dragged cards and folders (folder cards, breadcrumbs). `over` is null while
@@ -116,14 +116,15 @@ function useFolderDrag(folder: Folder) {
 
 /** Move a folder (drag and drop, the Move to menu) and say where it went, or why it didn't. */
 export function useMoveFolder(all: Folder[]) {
+  const { t: tt } = useI18n();
   const actions = useFolderActions();
   return (id: string, target: Folder | null) => {
     const f = all.find((x) => x.id === id);
     if (!f) return;
-    const error = folderMoveError(all, id, target?.id ?? null);
+    const error = folderMoveErrorKey(all, id, target?.id ?? null);
     if (error) return void toast(error);
     actions.update(id, { parentId: target?.id ?? null }).then(
-      () => toast.success(target ? `Moved “${f.name}” into “${target.name}”` : `Moved “${f.name}” to the top of your Library`),
+      () => toast.success(target ? tt("library.folder.movedInto", { name: f.name, target: target.name }) : tt("library.folder.movedTop", { name: f.name })),
       (e: Error) => toastError(e),
     );
   };
@@ -146,6 +147,7 @@ export function FolderDialog({
   onOpenChange: (v: boolean) => void;
   onSaved?: (f: Folder) => void;
 }) {
+  const { t: tt } = useI18n();
   const actions = useFolderActions();
   const [name, setName] = useState(folder?.name ?? "");
   const [color, setColor] = useState(folder?.color ?? parent?.color ?? DEFAULT_FOLDER_COLOR);
@@ -157,7 +159,7 @@ export function FolderDialog({
       const f = folder ? await actions.update(folder.id, { name, color }) : await actions.create({ name, color, parentId: parent?.id ?? null });
       onOpenChange(false);
       onSaved?.(f);
-      if (!folder) toast.success(parent ? `Created “${f.name}” in “${parent.name}”` : `Created “${f.name}”`);
+      if (!folder) toast.success(parent ? tt("library.folder.createdIn", { name: f.name, parent: parent.name }) : tt("library.folder.created", { name: f.name }));
     } catch (e) {
       toastError(e);
     } finally {
@@ -175,8 +177,8 @@ export function FolderDialog({
           input.current?.select();
         }}
       >
-        <DialogTitle className="font-heading text-[22px] font-normal break-words">{folder ? "Edit folder" : parent ? `New folder in “${parent.name}”` : "New folder"}</DialogTitle>
-        <DialogDescription className="sr-only">Name and colour</DialogDescription>
+        <DialogTitle className="font-heading text-[22px] font-normal break-words">{folder ? tt("library.folder.edit") : parent ? tt("library.folder.newIn", { name: parent.name }) : tt("library.folder.new")}</DialogTitle>
+        <DialogDescription className="sr-only">{tt("library.folder.nameColour")}</DialogDescription>
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -189,19 +191,19 @@ export function FolderDialog({
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={60}
-            placeholder="e.g. “Spring campaign”"
-            aria-label="Folder name"
+            placeholder={tt("library.folder.nameExample")}
+            aria-label={tt("library.folder.nameField")}
             className="h-10 w-full rounded-lg border bg-background px-3 text-[15px] outline-none focus:border-primary focus:ring-4 focus:ring-brand-faint"
           />
-          <div role="radiogroup" aria-label="Colour" className="flex flex-wrap gap-2">
+          <div role="radiogroup" aria-label={tt("library.folder.colour")} className="flex flex-wrap gap-2">
             {FOLDER_COLORS.map((c) => (
               <button
                 key={c.id}
                 type="button"
                 role="radio"
                 aria-checked={color === c.id}
-                aria-label={c.label}
-                title={c.label}
+                aria-label={tt(c.labelKey)}
+                title={tt(c.labelKey)}
                 onClick={() => setColor(c.id)}
                 className={cn("grid size-8 place-items-center rounded-full ring-offset-2 ring-offset-background transition", color === c.id && "ring-2 ring-foreground")}
                 style={{ background: folderSwatch(c.id) }}
@@ -212,10 +214,10 @@ export function FolderDialog({
           </div>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => onOpenChange(false)} className="h-9 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:bg-accent">
-              Cancel
+              {tt("common.cancel")}
             </button>
             <button type="submit" disabled={busy || !name.trim()} className="h-9 rounded-full bg-primary px-4 text-[13px] font-medium text-primary-foreground disabled:opacity-50">
-              {folder ? "Save" : "Create folder"}
+              {folder ? tt("common.save") : tt("library.folder.createBtn")}
             </button>
           </div>
         </form>
@@ -232,9 +234,9 @@ async function downloadFolder(f: Folder, steps?: boolean) {
   const url = `/api/folders/${encodeURIComponent(f.id)}/zip${steps ? "?steps=1" : ""}`;
   const res = await fetch(`${url}${steps ? "&" : "?"}check=1`).catch(() => null);
   const body = ((await res?.json().catch(() => null)) ?? {}) as { files?: number; error?: string };
-  if (!res?.ok) return void toast(body.error ?? "Couldn't make the zip. Try again in a moment.");
+  if (!res?.ok) return void toast(body.error ?? tr("library.folder.zipFail"));
   downloadUrl(url);
-  toast(`Downloading “${f.name}” · ${plural(body.files ?? 0, "file")}`);
+  toast(tr("library.folder.downloading", { name: f.name, files: tr("library.plural.files", { n: body.files ?? 0, s: (body.files ?? 0) === 1 ? "" : "s" }) }));
 }
 
 /**
@@ -243,6 +245,7 @@ async function downloadFolder(f: Folder, steps?: boolean) {
  * the Library shows helper steps, so the zip takes them too.
  */
 function FolderMenu({ folder, all, onOpen, onGone, steps, triggerClassName }: { folder: Folder; all: Folder[]; onOpen?: () => void; onGone?: () => void; steps?: boolean; triggerClassName: string }) {
+  const { t: tt, lang } = useI18n();
   const actions = useFolderActions();
   const move = useMoveFolder(all);
   const share = useShare();
@@ -250,38 +253,38 @@ function FolderMenu({ folder, all, onOpen, onGone, steps, triggerClassName }: { 
   const parent = folder.parentId ? all.find((f) => f.id === folder.parentId) : undefined;
   // Open dialogs once the menu has closed and handed focus back, so the dialog keeps it.
   const later = (d: "edit" | "new" | "delete") => () => setTimeout(() => setDialog(d), 0);
-  const moved = [folder.count ? plural(folder.count, "item") : "", folder.folders ? plural(folder.folders, "folder") : ""].filter(Boolean).join(" and ");
+  const moved = [folder.count ? tt("library.plural.items", { n: folder.count, s: folder.count === 1 ? "" : "s" }) : "", folder.folders ? tt("library.plural.folders", { n: folder.folders, s: folder.folders === 1 ? "" : "s" }) : ""].filter(Boolean).join(lang === "ko" ? " 및 " : " and ");
   return (
     // Clicks in the menu and its dialogs (portals bubble through React) never reach the card, which opens the folder.
     <span className="contents" onClick={(e) => e.stopPropagation()}>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <button className={triggerClassName} aria-label={`Actions for ${folder.name}`}>
+          <button className={triggerClassName} aria-label={tt("library.folder.actions", { name: folder.name })}>
             <MoreHorizontal className="size-4" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" collisionPadding={12} className="min-w-52">
           {onOpen && (
             <DropdownMenuItem onSelect={onOpen}>
-              <FolderOpen /> Open
+              <FolderOpen /> {tt("library.folder.open")}
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onSelect={later("new")} disabled={!roomInside(all, folder)}>
-            <FolderPlus /> New folder inside
+            <FolderPlus /> {tt("library.folder.newInside")}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={later("edit")}>
-            <Pencil /> Rename or recolour
+            <Pencil /> {tt("library.folder.rename")}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void actions.update(folder.id, { pinned: !folder.pinnedAt }).catch((e: Error) => toastError(e))}>
-            {folder.pinnedAt ? <PinOff /> : <Pin />} {folder.pinnedAt ? "Unpin" : "Pin to top"}
+            {folder.pinnedAt ? <PinOff /> : <Pin />} {folder.pinnedAt ? tt("library.bulk.unpin") : tt("library.folder.pinTop")}
           </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <FolderInput /> Move to
+              <FolderInput /> {tt("library.bulk.moveTo")}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent collisionPadding={12} className="max-h-72 min-w-48 overflow-y-auto">
               <DropdownMenuItem disabled={!folder.parentId} onSelect={() => move(folder.id, null)}>
-                <ChevronLeft /> Top of the Library
+                <ChevronLeft /> {tt("library.folder.topOfLibrary")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {folderTree(all).map(({ folder: t, depth }) => (
@@ -292,16 +295,16 @@ function FolderMenu({ folder, all, onOpen, onGone, steps, triggerClassName }: { 
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuItem onSelect={() => void downloadFolder(folder, steps)}>
-            <Download /> Download (.zip)
+            <Download /> {tt("library.folder.downloadZip")}
           </DropdownMenuItem>
           {share && (
             <DropdownMenuItem onSelect={() => share.share({ kind: "folder", id: folder.id, title: folder.name })}>
-              <Share2 /> Share link…
+              <Share2 /> {tt("library.folder.shareLink")}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={later("delete")}>
-            <Trash2 /> Delete folder
+            <Trash2 /> {tt("library.folder.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -310,22 +313,22 @@ function FolderMenu({ folder, all, onOpen, onGone, steps, triggerClassName }: { 
       <AlertDialog open={dialog === "delete"} onOpenChange={(v) => !v && setDialog(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="break-words">Delete “{folder.name}”?</AlertDialogTitle>
+            <AlertDialogTitle className="break-words">{tt("library.folder.deleteQ", { name: folder.name })}</AlertDialogTitle>
             <AlertDialogDescription>
-              The folder goes away; nothing in it is deleted.
-              {moved && ` Its ${moved} move ${parent ? `to “${parent.name}”` : "to the top of your Library"}.`}
+              {tt("library.folder.deleteDesc")}
+              {moved && tt("library.folder.itsMove", { moved, to: parent ? tt("library.folder.moveToName", { name: parent.name }) : tt("library.folder.toTop") })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tt("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 await actions.remove(folder.id);
-                toast("Folder deleted");
+                toast(tt("library.folder.deleted"));
                 onGone?.();
               }}
             >
-              Delete folder
+              {tt("library.folder.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -335,11 +338,12 @@ function FolderMenu({ folder, all, onOpen, onGone, steps, triggerClassName }: { 
 }
 
 function FolderCard({ folder, all, onOpen, onDropIds, steps }: { folder: Folder; all: Folder[]; onOpen: () => void; onDropIds: (ids: string[]) => void; steps?: boolean }) {
+  const { t: tt } = useI18n();
   const move = useMoveFolder(all);
   const drag = useFolderDrag(folder);
-  const drop = useDropTarget({ items: onDropIds, folder: (id) => move(id, folder), folderError: (id) => folderMoveError(all, id, folder.id) });
+  const drop = useDropTarget({ items: onDropIds, folder: (id) => move(id, folder), folderError: (id) => folderMoveErrorKey(all, id, folder.id) });
   const canHover = useCanHover();
-  const meta = [plural(folder.count, "item"), folder.folders ? plural(folder.folders, "folder") : ""].filter(Boolean).join(" · ");
+  const meta = [tt("library.plural.items", { n: folder.count, s: folder.count === 1 ? "" : "s" }), folder.folders ? tt("library.plural.folders", { n: folder.folders, s: folder.folders === 1 ? "" : "s" }) : ""].filter(Boolean).join(" · ");
   return (
     <div
       {...drop.props}
@@ -358,7 +362,7 @@ function FolderCard({ folder, all, onOpen, onDropIds, steps }: { folder: Folder;
           e.stopPropagation();
           onOpen();
         }}
-        aria-label={`Open ${folder.name}`}
+        aria-label={tt("library.folder.openCard", { name: folder.name })}
         className="pointer-events-none absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
       <span className="pointer-events-none relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg" style={{ background: folderSwatch(folder.color) }}>
@@ -368,9 +372,9 @@ function FolderCard({ folder, all, onOpen, onDropIds, steps }: { folder: Folder;
       <span className="pointer-events-none relative min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1">
           <span className="truncate text-[13px] font-medium">{folder.name}</span>
-          {folder.pinnedAt && <Pin className="size-3 shrink-0 text-muted-foreground" aria-label="Pinned" />}
+          {folder.pinnedAt && <Pin className="size-3 shrink-0 text-muted-foreground" aria-label={tt("library.section.pinned")} />}
         </span>
-        <span className={cn("block truncate text-[12px] text-muted-foreground", !!drop.over && "text-destructive")}>{drop.over === "" ? "Drop to move here" : drop.over || meta}</span>
+        <span className={cn("block truncate text-[12px] text-muted-foreground", !!drop.over && "text-destructive")}>{drop.over === "" ? tt("library.folder.dropMove") : drop.over || meta}</span>
       </span>
       <FolderMenu
         folder={folder}
@@ -389,12 +393,13 @@ function FolderCard({ folder, all, onOpen, onDropIds, steps }: { folder: Folder;
 
 /** The folders inside `parent` (the library root with null), pinned first, and a New folder tile. `steps`: Show steps is on. */
 export function FolderStrip({ all, parent, onOpen, onMove, steps }: { all: Folder[]; parent: Folder | null; onOpen: (f: Folder) => void; onMove: (ids: string[], f: Folder) => void; steps?: boolean }) {
+  const { t: tt } = useI18n();
   const [creating, setCreating] = useState(false);
   // Folders are the studio's library, its owner's: a guest or an account isn't offered one the server would refuse.
   const visitor = useIsVisitor();
   const kids = childFolders(all, parent?.id ?? null);
   return (
-    <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 py-1" role="list" aria-label={parent ? `Folders in ${parent.name}` : "Folders"}>
+    <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 py-1" role="list" aria-label={parent ? tt("library.folder.foldersIn", { name: parent.name }) : tt("library.folder.folders")}>
       {kids.map((f) => (
         <div role="listitem" key={f.id} className="shrink-0">
           <FolderCard folder={f} all={all} onOpen={() => onOpen(f)} onDropIds={(ids) => onMove(ids, f)} steps={steps} />
@@ -409,7 +414,7 @@ export function FolderStrip({ all, parent, onOpen, onMove, steps }: { all: Folde
             <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-muted">
               <FolderPlus className="size-5" />
             </span>
-            <span className="text-[13px] font-medium">{parent ? "New folder inside" : "New folder"}</span>
+            <span className="text-[13px] font-medium">{parent ? tt("library.folder.newInside") : tt("library.folder.new")}</span>
           </button>
         </div>
       )}
@@ -420,8 +425,9 @@ export function FolderStrip({ all, parent, onOpen, onMove, steps }: { all: Folde
 
 /** One breadcrumb: opens its folder, and takes dropped cards and folders. */
 function Crumb({ target, all, label, onGo, onMoveItems, back }: { target: Folder | null; all: Folder[]; label: string; onGo: () => void; onMoveItems: (ids: string[], target: Folder | null) => void; back?: boolean }) {
+  const { t: tt } = useI18n();
   const move = useMoveFolder(all);
-  const drop = useDropTarget({ items: (ids) => onMoveItems(ids, target), folder: (id) => move(id, target), folderError: (id) => folderMoveError(all, id, target?.id ?? null) });
+  const drop = useDropTarget({ items: (ids) => onMoveItems(ids, target), folder: (id) => move(id, target), folderError: (id) => folderMoveErrorKey(all, id, target?.id ?? null) });
   return (
     <button
       onClick={onGo}
@@ -435,7 +441,7 @@ function Crumb({ target, all, label, onGo, onMoveItems, back }: { target: Folder
       )}
     >
       {back && <ChevronLeft className="size-4 shrink-0" />}
-      <span className="truncate">{drop.over === "" ? `Move to ${label}` : label}</span>
+      <span className="truncate">{drop.over === "" ? tt("library.crumb.moveTo", { label }) : label}</span>
     </button>
   );
 }
@@ -458,13 +464,14 @@ export function FolderHeader({
   /** Show steps is on (the folder's zip takes them too). */
   steps?: boolean;
 }) {
+  const { t: tt } = useI18n();
   const ancestors = folderPath(all, folder.id).slice(0, -1);
   // Deep folders show the two nearest crumbs; the ones above fold into "…".
   const shown = ancestors.slice(-2);
   return (
     <div className="min-w-0 flex-1">
-      <nav aria-label="Folder path" className="flex min-w-0 items-center gap-0.5 overflow-hidden">
-        <Crumb target={null} all={all} label="Library" back onGo={() => onGo(null)} onMoveItems={onMoveItems} />
+      <nav aria-label={tt("library.folder.path")} className="flex min-w-0 items-center gap-0.5 overflow-hidden">
+        <Crumb target={null} all={all} label={tt("library.heading")} back onGo={() => onGo(null)} onMoveItems={onMoveItems} />
         {ancestors.length > shown.length && (
           <>
             <ChevronRight className="size-3.5 shrink-0 text-subtle-foreground" />
@@ -483,8 +490,8 @@ export function FolderHeader({
       <div className="mt-1 flex min-w-0 items-center gap-2">
         <span className="size-3 shrink-0 rounded-full" style={{ background: folderSwatch(folder.color) }} />
         <h1 className="min-w-0 truncate font-heading text-[28px] leading-tight">{folder.name}</h1>
-        {folder.pinnedAt && <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned" />}
-        <span className="shrink-0 font-mono text-[12px] text-muted-foreground" aria-label={plural(folder.count, "item")}>
+        {folder.pinnedAt && <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label={tt("library.section.pinned")} />}
+        <span className="shrink-0 font-mono text-[12px] text-muted-foreground" aria-label={tt("library.plural.items", { n: folder.count, s: folder.count === 1 ? "" : "s" })}>
           {folder.count}
         </span>
         <FolderMenu
@@ -501,6 +508,7 @@ export function FolderHeader({
 
 /** "Move to folder" choices for the bulk bar: every folder as a tree, out of folders, then a new one. */
 export function MoveMenuItems({ folders, current, onMove, onNew }: { folders: Folder[]; current?: string; onMove: (folderId: string | null, name: string) => void; onNew: () => void }) {
+  const { t: tt } = useI18n();
   return (
     <>
       {folderTree(folders).map(({ folder: f, depth }) => (
@@ -509,14 +517,14 @@ export function MoveMenuItems({ folders, current, onMove, onNew }: { folders: Fo
         </DropdownMenuItem>
       ))}
       {current && (
-        <DropdownMenuItem onSelect={() => onMove(null, "Library")}>
-          <ChevronLeft /> Take out of folders
+        <DropdownMenuItem onSelect={() => onMove(null, tt("library.heading"))}>
+          <ChevronLeft /> {tt("library.folder.takeOutOf")}
         </DropdownMenuItem>
       )}
       {folders.length > 0 && <DropdownMenuSeparator />}
       {/* After the menu has closed and handed focus back, so the dialog keeps it. */}
       <DropdownMenuItem onSelect={() => setTimeout(onNew, 0)}>
-        <FolderPlus /> New folder…
+        <FolderPlus /> {tt("library.folder.newEllipsis")}
       </DropdownMenuItem>
     </>
   );

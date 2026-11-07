@@ -17,6 +17,7 @@ import {
 import { assetUsage, useDeleteUpload } from "@/lib/api";
 import type { Generation } from "@/lib/catalog/types";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 type Check = { state: "checking" } | { state: "free" } | { state: "used"; usedBy: string } | { state: "error"; message: string };
 
@@ -26,6 +27,7 @@ type Check = { state: "checking" } | { state: "free" } | { state: "used"; usedBy
  * Something: say where, so the person knows what to remove first.
  */
 export function UploadDeleteProvider({ children }: { children: React.ReactNode }) {
+  const { t: tt } = useI18n();
   const remove = useDeleteUpload();
   const [pending, setPending] = useState<{ g: Generation; after?: () => void; check: Check } | null>(null);
   const ask = useCallback((g: Generation, after?: () => void) => {
@@ -35,25 +37,25 @@ export function UploadDeleteProvider({ children }: { children: React.ReactNode }
       .catch((e: Error) => setPending((p) => (p?.g.id === g.id ? { ...p, check: { state: "error", message: e.message } } : p)));
   }, []);
   const check = pending?.check;
-  const name = pending?.g.request.prompt?.trim() || "this upload";
+  const name = pending?.g.request.prompt?.trim() || tt("library.uploadDelete.thisUpload");
   return (
     <UploadDeleteContext.Provider value={ask}>
       {children}
       <AlertDialog open={!!pending} onOpenChange={(v) => !v && setPending(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="break-words">{check?.state === "used" ? "This upload is still in use" : `Delete “${name}”?`}</AlertDialogTitle>
+            <AlertDialogTitle className="break-words">{check?.state === "used" ? tt("library.uploadDelete.inUse") : tt("library.uploadDelete.title", { name })}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div>
                 {check?.state === "checking" && (
                   <span className="inline-flex items-center gap-1.5">
-                    <Loader2 className="size-3.5 animate-spin" /> Checking where it&apos;s used…
+                    <Loader2 className="size-3.5 animate-spin" /> {tt("library.uploadDelete.checking")}
                   </span>
                 )}
-                {check?.state === "free" && "Nothing in your library uses it. The file is removed for good and can't be recovered."}
+                {check?.state === "free" && tt("library.uploadDelete.freeDesc")}
                 {check?.state === "used" && (
                   <>
-                    It&apos;s used by {check.usedBy}. Keep the upload, or delete what uses it first: removing the file now would break that.
+                    {tt("library.uploadDelete.usedDesc", { usedBy: check.usedBy })}
                   </>
                 )}
                 {check?.state === "error" && check.message}
@@ -62,23 +64,23 @@ export function UploadDeleteProvider({ children }: { children: React.ReactNode }
           </AlertDialogHeader>
           <AlertDialogFooter>
             {check?.state === "used" || check?.state === "error" ? (
-              <AlertDialogCancel>OK</AlertDialogCancel>
+              <AlertDialogCancel>{tt("library.ok")}</AlertDialogCancel>
             ) : (
               <>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{tt("common.cancel")}</AlertDialogCancel>
                 <AlertDialogAction
                   variant="destructive"
                   disabled={check?.state !== "free"}
                   onClick={() => {
                     if (!pending) return;
                     remove.mutate(pending.g.id, {
-                      onSuccess: () => toast("Upload deleted"),
+                      onSuccess: () => toast(tt("library.uploadDelete.deleted")),
                       onError: (e) => toastError(e),
                     });
                     pending.after?.();
                   }}
                 >
-                  Delete upload
+                  {tt("library.uploadDelete.btn")}
                 </AlertDialogAction>
               </>
             )}

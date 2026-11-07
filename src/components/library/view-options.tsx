@@ -5,6 +5,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 export type Layout = "square" | "masonry" | "list";
 
@@ -55,11 +56,17 @@ export function useViewPrefs(): [ViewPrefs, (patch: Partial<ViewPrefs>) => void]
   return [prefs, set];
 }
 
-const LAYOUTS: { id: Layout; label: string; icon: typeof LayoutGrid }[] = [
-  { id: "square", label: "Square", icon: LayoutGrid },
-  { id: "masonry", label: "Masonry", icon: Rows3 },
-  { id: "list", label: "List", icon: LayoutList },
+const LAYOUTS: { id: Layout; label: string; labelKey: string; icon: typeof LayoutGrid }[] = [
+  { id: "square", label: "Square", labelKey: "library.layout.square", icon: LayoutGrid },
+  { id: "masonry", label: "Masonry", labelKey: "library.layout.masonry", icon: Rows3 },
+  { id: "list", label: "List", labelKey: "library.layout.list", icon: LayoutList },
 ];
+
+/** The reasons the library hands over, as keys where we have them. */
+const STACKS_OFF_KEYS: Record<string, string> = {
+  "Trash lists every run on its own": "library.stacksOff.trash",
+  "Uploads lists every file on its own": "library.stacksOff.uploads",
+};
 
 function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: string; icon?: typeof LayoutGrid }[]; onChange: (v: T) => void; label: string }) {
   return (
@@ -92,35 +99,36 @@ export function ViewOptions({
   /** Why batches aren't stacked on this tab (Trash, Uploads): the switch says so, and is off, instead of flipping for nothing. */
   noStacks?: string;
 }) {
+  const { t: tt } = useI18n();
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="inline-flex h-8 items-center gap-1.5 rounded-full bg-secondary px-3 text-[13px] font-medium text-secondary-foreground transition-colors hover:bg-accent" aria-label="View options">
-          <SlidersHorizontal className="size-3.5" /> <span className="hidden sm:inline">View</span>
+        <button className="inline-flex h-8 items-center gap-1.5 rounded-full bg-secondary px-3 text-[13px] font-medium text-secondary-foreground transition-colors hover:bg-accent" aria-label={tt("library.viewOptions")}>
+          <SlidersHorizontal className="size-3.5" /> <span className="hidden sm:inline">{tt("library.view")}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" collisionPadding={12} className="w-[min(92vw,300px)] space-y-4">
         <div className="space-y-1.5">
-          <p className="text-[12px] font-medium text-muted-foreground">Layout</p>
-          <Segmented label="Layout" value={prefs.layout} options={LAYOUTS} onChange={(layout) => onChange({ layout })} />
+          <p className="text-[12px] font-medium text-muted-foreground">{tt("library.layout")}</p>
+          <Segmented label={tt("library.layout")} value={prefs.layout} options={LAYOUTS.map((l) => ({ ...l, label: tt(l.labelKey) }))} onChange={(layout) => onChange({ layout })} />
         </div>
         {prefs.layout !== "list" && (
           <>
             <div className="space-y-1.5">
-              <p className="text-[12px] font-medium text-muted-foreground">Previews</p>
+              <p className="text-[12px] font-medium text-muted-foreground">{tt("library.previews")}</p>
               <Segmented
-                label="Previews"
+                label={tt("library.previews")}
                 value={prefs.fit ? "fit" : "fill"}
                 options={[
-                  { id: "fill", label: "Fill" },
-                  { id: "fit", label: "Fit" },
+                  { id: "fill", label: tt("library.fill") },
+                  { id: "fit", label: tt("library.fit") },
                 ]}
                 onChange={(v) => onChange({ fit: v === "fit" })}
               />
             </div>
             <label className="block space-y-1.5">
               <span className="flex justify-between text-[12px] font-medium text-muted-foreground">
-                Card size <span className="font-mono">{prefs.size}px</span>
+                {tt("library.cardSize")} <span className="font-mono">{prefs.size}px</span>
               </span>
               <input
                 type="range"
@@ -135,13 +143,13 @@ export function ViewOptions({
           </>
         )}
         <label className="flex items-center justify-between gap-3 text-[13px]">
-          Split by date
+          {tt("library.splitByDate")}
           <Switch checked={prefs.splitByDate} onCheckedChange={(splitByDate) => onChange({ splitByDate })} />
         </label>
         <label className={cn("flex items-center justify-between gap-3 text-[13px]", noStacks && "cursor-not-allowed")}>
           <span className={cn(noStacks && "text-muted-foreground")}>
-            Stack batches
-            <span className="block text-[12px] text-muted-foreground">{noStacks ?? "Storyboards, films and takes as one card"}</span>
+            {tt("library.stackBatches")}
+            <span className="block text-[12px] text-muted-foreground">{noStacks ? (STACKS_OFF_KEYS[noStacks] ? tt(STACKS_OFF_KEYS[noStacks]) : noStacks) : tt("library.stacks.hint")}</span>
           </span>
           <Switch checked={!noStacks && prefs.stacks} disabled={!!noStacks} onCheckedChange={(stacks) => onChange({ stacks })} />
         </label>

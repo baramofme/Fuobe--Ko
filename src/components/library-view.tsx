@@ -126,14 +126,14 @@ function stabilize(prev: Map<string, LibraryEntry>, next: LibraryEntry[]): { lis
 }
 
 /** An upload, shaped like a finished generation so the cards and the viewer can show it. */
-function uploadAsGeneration(a: Asset): Generation {
+function uploadAsGeneration(a: Asset, modelName: string, uploadWord: string): Generation {
   return {
     id: a.id,
     batchId: null,
     feature: "upload",
     presetId: null,
     modelId: "upload",
-    modelName: "Your upload",
+    modelName,
     engine: "open",
     provider: "local",
     op: a.kind === "video" ? "v2v" : "edit",
@@ -142,7 +142,7 @@ function uploadAsGeneration(a: Asset): Generation {
     progress: 1,
     message: null,
     prompt: null,
-    request: { feature: "upload", modelId: "upload", prompt: a.name ?? "Upload" },
+    request: { feature: "upload", modelId: "upload", prompt: a.name ?? uploadWord },
     outputs: [{ url: a.url, kind: a.kind, contentType: a.contentType, assetId: a.id }],
     error: null,
     costUsd: null,
@@ -314,20 +314,20 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
   const mainItems = useMemo(() => {
     if (!uploadsTab) return lib.data?.pages.flat() ?? [];
     // Uploads search by file name.
-    const all = (uploads.data?.pages.flat() ?? []).map(uploadAsGeneration);
+    const all = (uploads.data?.pages.flat() ?? []).map((a) => uploadAsGeneration(a, tt("library.upload.model"), tt("library.upload.fallback")));
     return dq ? all.filter((g) => g.request.prompt?.toLowerCase().includes(dq.toLowerCase())) : all;
-  }, [uploadsTab, uploads.data, lib.data, dq]);
+  }, [uploadsTab, uploads.data, lib.data, dq, tt]);
   const items = useMemo(() => (pinnedItems.length ? [...pinnedItems, ...mainItems] : mainItems), [pinnedItems, mainItems]);
   const stacks = prefs.stacks && !trash && !uploadsTab;
-  const entries = useStableEntries(useMemo(() => buildEntries(mainItems, { stacks }), [mainItems, stacks]));
+  const entries = useStableEntries(useMemo(() => buildEntries(mainItems, { stacks }), [mainItems, stacks, tt]));
   // Its own stack keys: a batch with pinned and unpinned members has a stack in both sections, expanded and selected apart.
-  const pinnedEntries = useStableEntries(useMemo(() => buildEntries(pinnedItems, { stacks, prefix: "pinned:" }), [pinnedItems, stacks]));
+  const pinnedEntries = useStableEntries(useMemo(() => buildEntries(pinnedItems, { stacks, prefix: "pinned:" }), [pinnedItems, stacks, tt]));
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const sections = useMemo(() => {
     const when = (e: LibraryEntry) => Math.max(...members(e).map((g) => (trash ? (g.deletedAt ?? g.createdAt) : g.createdAt)));
-    const rest = prefs.splitByDate ? splitByDate(entries, when) : [{ key: 0, label: pinnedEntries.length ? "Everything else" : "", items: entries }];
-    return pinnedEntries.length ? [{ key: -1, label: "Pinned", items: pinnedEntries }, ...rest] : rest;
-  }, [entries, pinnedEntries, prefs.splitByDate, trash]);
+    const rest = prefs.splitByDate ? splitByDate(entries, when) : [{ key: 0, label: pinnedEntries.length ? tt("library.section.everythingElse") : "", items: entries }];
+    return pinnedEntries.length ? [{ key: -1, label: tt("library.section.pinned"), items: pinnedEntries }, ...rest] : rest;
+  }, [entries, pinnedEntries, prefs.splitByDate, trash, tt]);
 
   // --- Selection ---------------------------------------------------------------------------
   const [selecting, setSelecting] = useState(false);
@@ -451,7 +451,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
     const gens = list.map((id) => latest.current.items.find((g) => g.id === id)).filter((g): g is Generation => !!g);
     if (!gens.length) return;
     const n = await actions.move(gens, folderIdTo);
-    if (n) toast.success(folderIdTo ? `Moved ${n} to “${name}”` : `Took ${n} out of the folder`);
+    if (n) toast.success(folderIdTo ? tt("library.movedTo", { n, name }) : tt("library.tookOutOf", { n }));
     clear();
   };
 
@@ -496,99 +496,99 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
   const sameReview = selectedGens.length && selectedGens.every((g) => (g.review ?? null) === (selectedGens[0].review ?? null)) ? (selectedGens[0].review ?? null) : undefined;
   // The bar's Like, Pin and Review (as buttons, or in ⋯ on phones).
   const like = () => void actions.favoriteMany(selectedGens, !allFav);
-  const pinAll = () => void actions.pin(selectedGens, !allPinned).then((n) => n && toast(allPinned ? `Unpinned ${n}` : `Pinned ${n} to the top`));
-  const review = (r: ReviewStatus | null) => void actions.review(selectedGens, r).then((n) => n && toast(r ? `Marked ${n} as ${reviewInfo(r)?.label}` : `Cleared the review status of ${n}`));
+  const pinAll = () => void actions.pin(selectedGens, !allPinned).then((n) => n && toast(allPinned ? tt("library.unpinned", { n }) : tt("library.pinnedTop", { n })));
+  const review = (r: ReviewStatus | null) => void actions.review(selectedGens, r).then((n) => n && toast(r ? tt("library.markedAs", { n, label: tt(reviewInfo(r)!.labelKey) }) : tt("library.clearedReview", { n })));
 
   const empty = () => {
     if (dq) {
       return (
-        <Empty title={`No matches for “${dq}”`}>
-          Try another word.{" "}
+        <Empty title={tt("library.empty.noMatches", { q: dq })}>
+          {tt("library.empty.tryAnother")}{" "}
           <button onClick={() => setQ("")} className="text-brand-text underline underline-offset-2">
-            Clear search
+            {tt("library.clearSearch")}
           </button>
         </Empty>
       );
     }
     if (filters.pinned && !dq) {
       return (
-        <Empty title="Nothing pinned here yet">
-          Pin results from their ⋯ menu (or select some and choose Pin) to keep them at the top.{" "}
+        <Empty title={tt("library.empty.nothingPinned")}>
+          {tt("library.empty.pinHint")}{" "}
           <button onClick={() => setFilters({ ...filters, pinned: false })} className="text-brand-text underline underline-offset-2">
-            Show everything
+            {tt("library.empty.showEverything")}
           </button>
         </Empty>
       );
     }
     if (hasFilters(filters)) {
       return (
-        <Empty title="Nothing matches your filters">
+        <Empty title={tt("library.empty.noFilterMatch")}>
           <button onClick={() => setFilters(NO_FILTERS)} className="text-brand-text underline underline-offset-2">
-            Clear filters
+            {tt("library.filter.clear")}
           </button>
         </Empty>
       );
     }
-    if (trash) return <Empty title="Trash is empty">Generations you delete stay here for {TRASH_DAYS} days, then go for good.</Empty>;
+    if (trash) return <Empty title={tt("library.empty.trashEmpty")}>{tt("library.empty.trashStays", { n: TRASH_DAYS })}</Empty>;
     if (folder?.folders) {
       return (
-        <Empty title="Nothing here directly">
-          What&apos;s in this folder is in the folders above.{" "}
+        <Empty title={tt("library.empty.nothingDirectly")}>
+          {tt("library.empty.inSubfolders")}{" "}
           <button onClick={() => setFilters({ ...filters, subfolders: true })} className="text-brand-text underline underline-offset-2">
-            Show their results here
+            {tt("library.empty.showSubs")}
           </button>
         </Empty>
       );
     }
-    if (folder) return <Empty title="This folder is empty">Drag cards onto it, or select some and choose Move to folder.</Empty>;
-    if (tab.id === "favorites") return <Empty title="Nothing liked yet">Mark the ones you like with the heart to keep them here.</Empty>;
+    if (folder) return <Empty title={tt("library.empty.folderEmpty")}>{tt("library.empty.folderHint")}</Empty>;
+    if (tab.id === "favorites") return <Empty title={tt("library.empty.nothingLiked")}>{tt("library.empty.likeHint")}</Empty>;
     if (uploadsTab && guest)
       return (
-        <Empty title="No uploads yet">
+        <Empty title={tt("library.empty.noUploads")}>
           <Link href={signInHref("signup", "/library?tab=uploads")} className="text-brand-text underline underline-offset-2">
-            Sign up free
+            {tt("library.signUp")}
           </Link>{" "}
-          to add your own files.
+          {tt("library.empty.addFilesRest")}
         </Empty>
       );
     if (uploadsTab && cantUpload)
       return (
-        <Empty title="No uploads yet">
+        <Empty title={tt("library.empty.noUploads")}>
           <Link href="/connect" className="text-brand-text underline underline-offset-2">
-            Connect your GPU
+            {tt("common.connectGpu")}
           </Link>
           {/* "Add your fal.ai key" opens here, over the Library; a studio of open-source models only takes no keys. */}
           {seen.paidAllowed !== false && (
             <>
               {" "}
-              or{" "}
+              {tt("library.or")}{" "}
               <button type="button" onClick={() => openAddKey("fal")} className="text-brand-text underline underline-offset-2">
-                add a key
+                {tt("library.addKey")}
               </button>
             </>
           )}{" "}
-          to add your own files.
+          {tt("library.empty.addFilesRest")}
         </Empty>
       );
-    if (uploadsTab) return <Empty title="No uploads yet">Files you add to a studio show up here.</Empty>;
+    if (uploadsTab) return <Empty title={tt("library.empty.noUploads")}>{tt("library.empty.uploadsStudioHint")}</Empty>;
     // Nothing made yet: "Make your first" leads on All (a visitor's cards only those with their cover), then one quiet line.
     if (tab.id === "all" && starters.some((s) => starterShown(s, !owner)))
       return (
         <>
           <StarterSection surface="library" starters={given} />
           <p className="mt-8 text-center text-[14px] text-muted-foreground">
-            Everything you make lands here.{" "}
+            {tt("library.empty.everythingLands")}{" "}
             <Link href="/image" className="text-brand-text underline underline-offset-2">
-              Create an image
+              {tt("library.createImage")}
             </Link>
           </p>
         </>
       );
     return (
-      <Empty title="Your creations will appear here">
-        Generate something and it lands here.{" "}
+      <Empty title={tt("library.empty.creationsAppear")}>
+        {tt("library.empty.generateHint")}{" "}
         <Link href="/image" className="text-brand-text underline underline-offset-2">
-          Create an image
+          {tt("library.createImage")}
         </Link>
       </Empty>
     );
@@ -598,9 +598,9 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
     <PageShell wide>
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 pb-5">
         {folder ? (
-          <FolderHeader folder={folder} all={allFolders} steps={filters.steps} onGo={(f) => go({ folder: f?.id })} onMoveItems={(list, to) => void moveTo(list, to?.id ?? null, to?.name ?? "Library")} />
+          <FolderHeader folder={folder} all={allFolders} steps={filters.steps} onGo={(f) => go({ folder: f?.id })} onMoveItems={(list, to) => void moveTo(list, to?.id ?? null, to?.name ?? tt("library.heading"))} />
         ) : foldersLoading ? (
-          <div className="flex min-w-0 flex-col gap-1.5" aria-busy="true" aria-label="Loading folder">
+          <div className="flex min-w-0 flex-col gap-1.5" aria-busy="true" aria-label={tt("library.loadingFolder")}>
             <Skeleton className="h-7 w-28 rounded-full" />
             <Skeleton className="h-8 w-48 rounded-lg" />
           </div>
@@ -695,7 +695,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
               >
                 {tabLabel(t.id)}
                 {n ? (
-                  <span className="tab-count min-w-4" aria-label={`${n} items`}>
+                  <span className="tab-count min-w-4" aria-label={tt("library.countItems", { n })}>
                     {n}
                   </span>
                 ) : null}
@@ -711,7 +711,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
           {folders.data ? (
             <FolderStrip all={allFolders} parent={folder ?? null} steps={filters.steps} onOpen={(f) => go({ folder: f.id })} onMove={(list, f) => void moveTo(list, f.id, f.name)} />
           ) : (
-            <div className="-mx-1 flex gap-2 overflow-hidden px-1 py-1" aria-busy="true" aria-label="Loading folders">
+            <div className="-mx-1 flex gap-2 overflow-hidden px-1 py-1" aria-busy="true" aria-label={tt("library.loadingFolders")}>
               <div className="flex w-[min(44vw,160px)] shrink-0 items-center gap-2.5 rounded-xl border border-dashed p-2">
                 <Skeleton className="size-11 shrink-0 rounded-lg" />
                 <Skeleton className="h-3 w-16" />
@@ -728,10 +728,10 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
           {tab.id === "all" && !folderId && !dq && <SkillSuggestions />}
           {trash && (
             <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
-              <span>Items stay here for {TRASH_DAYS} days.</span>
+              <span>{tt("library.trash.stays", { n: TRASH_DAYS })}</span>
               {items.length > 0 && (
                 <button onClick={() => setConfirmEmpty(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-medium text-destructive hover:bg-accent">
-                  <Trash2 className="size-3.5" /> Empty trash
+                  <Trash2 className="size-3.5" /> {tt("library.trash.emptyBtn")}
                 </button>
               )}
             </div>
@@ -743,10 +743,10 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
       {sharedTab ? (
         <SharedLinks />
       ) : missingFolder ? (
-        <Empty title="This folder no longer exists">
-          It may have been deleted; what was in it is back in your Library.{" "}
+        <Empty title={tt("library.folder.gone")}>
+          {tt("library.folder.goneHint")}{" "}
           <button onClick={() => go({ folder: undefined })} className="text-brand-text underline underline-offset-2">
-            Back to Library
+            {tt("library.folder.backToLibrary")}
           </button>
         </Empty>
       ) : loading && !items.length ? (
@@ -760,7 +760,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
       ) : (
         <div className={cn("space-y-7 transition-opacity", refreshing && "opacity-70")}>
           {sections.map((s) => (
-            <section key={s.key} aria-label={s.label || "Results"} className="group/section">
+            <section key={s.key} aria-label={s.label || tt("library.section.results")} className="group/section">
               {s.label && (
                 <div className="mb-2.5 flex items-center gap-3">
                   <h2 className="flex items-center gap-1.5 text-[13px] font-medium">
@@ -798,7 +798,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
                           <p className="text-[12px] text-muted-foreground">{e.label}</p>
                         </div>
                         <button onClick={() => api.expand(e.key)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground">
-                          <ChevronUp className="size-4" /> Collapse
+                          <ChevronUp className="size-4" /> {tt("library.collapse")}
                         </button>
                       </div>
                       <div className={cn(prefs.layout === "list" ? "flex flex-col gap-0.5" : "grid grid-cols-[repeat(auto-fill,minmax(min(170px,calc(50vw-40px)),1fr))] gap-2")}>
@@ -827,10 +827,10 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
                 disabled={isFetchingNextPage}
                 className="inline-flex h-9 items-center gap-2 rounded-full bg-secondary px-4 text-[13px] font-medium hover:bg-accent disabled:opacity-60"
               >
-                {isFetchingNextPage && <Loader2 className="size-3.5 animate-spin" />} Load more
+                {isFetchingNextPage && <Loader2 className="size-3.5 animate-spin" />} {tt("library.loadMore")}
               </button>
             ) : (
-              <p className="text-[12px] text-muted-foreground">{items.length > 12 ? "That's everything" : ""}</p>
+              <p className="text-[12px] text-muted-foreground">{items.length > 12 ? tt("library.everything") : ""}</p>
             )}
           </div>
         </div>
@@ -839,17 +839,18 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
 
       {(selecting || selected.size > 0) && !uploadsTab && !sharedTab && (
         <div className="pointer-events-none fixed inset-x-0 bottom-chrome z-30 flex justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div role="toolbar" aria-label="Selection" className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border bg-background p-1.5 shadow-strong">
+          <div role="toolbar" aria-label={tt("library.bulk.selection")} className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border bg-background p-1.5 shadow-strong">
             {/* Phones show just the count, so every action fits at 390 px. */}
             <span className="shrink-0 px-2.5 text-[13px] font-medium whitespace-nowrap">
               {selectedGens.length ? (
                 <>
                   {selectedGens.length}
-                  <span className="hidden sm:inline"> selected</span>
+                  <span className="hidden sm:inline">{tt("library.bulk.selectedWord")}</span>
                 </>
               ) : (
                 <>
-                  Select<span className="hidden sm:inline"> items</span>
+                  {tt("library.select")}
+                  <span className="hidden sm:inline">{tt("library.bulk.itemsWord")}</span>
                 </>
               )}
             </span>
@@ -858,47 +859,47 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
               <button
                 onClick={() => setSelected(new Set(items.map((g) => g.id)))}
                 className={cn(BAR, "text-brand-text")}
-                aria-label={`Select all ${items.length}`}
-                title={`Select all ${items.length} shown here (${keyCombo("A", { mod })})`}
+                aria-label={tt("library.bulk.selectAll", { n: items.length })}
+                title={tt("library.bulk.selectAllTitle", { n: items.length, combo: keyCombo("A", { mod }) })}
               >
-                <CheckCheck className="size-4" /> <span className="hidden sm:inline">Select all</span> <span className="font-mono text-[11px] tabular-nums">{items.length}</span>
+                <CheckCheck className="size-4" /> <span className="hidden sm:inline">{tt("library.bulk.selectAllWord")}</span> <span className="font-mono text-[11px] tabular-nums">{items.length}</span>
               </button>
             )}
             {trash ? (
               <>
-                <BarButton icon={ArchiveRestore} label="Restore" disabled={!selectedGens.length} onClick={() => void actions.restore(selectedGens).then((n) => (n && toast(`Restored ${n}`), clear()))} />
-                <BarButton icon={Trash2} label="Delete forever" destructive disabled={!selectedGens.length} onClick={() => confirmForever?.(selectedGens, clear)} />
+                <BarButton icon={ArchiveRestore} label={tt("library.bulk.restore")} disabled={!selectedGens.length} onClick={() => void actions.restore(selectedGens).then((n) => (n && toast(tt("library.restored", { n })), clear()))} />
+                <BarButton icon={Trash2} label={tt("library.bulk.deleteForever")} destructive disabled={!selectedGens.length} onClick={() => confirmForever?.(selectedGens, clear)} />
               </>
             ) : (
               <>
                 <BarButton
                   icon={Download}
-                  label="Download"
+                  label={tt("library.bulk.download")}
                   disabled={!selectedGens.some((g) => g.status === "succeeded")}
                   onClick={async () => {
                     const done = selectedGens.filter((g) => g.status === "succeeded").map((g) => g.id);
                     // A signed-in account zips its own runs, fewer at a time, one zip at a time. It asks first, so a refusal is said, not a failed download.
                     const max = account && !owner ? ACCOUNT_ZIP_MAX_RUNS : BULK_MAX;
                     if (!(await downloadZip(`/api/generations/zip?ids=${done.slice(0, max).join(",")}`))) return;
-                    if (done.length > max) toast(`The zip has the first ${max} of ${done.length}`, { description: "Select the rest and download them as a second zip." });
+                    if (done.length > max) toast(tt("library.zipFirst", { max, total: done.length }), { description: tt("library.zipRest") });
                   }}
                 />
                 {/* The steps behind the selected results as a skill (a whole stack when its batch is selected). Stays on phones. */}
                 {skillBuilder && (
                   <BarButton
                     icon={BookmarkPlus}
-                    label="Make a skill"
+                    label={tt("library.bulk.makeSkill")}
                     disabled={!selectedGens.some((g) => g.status === "succeeded")}
                     onClick={() => skillBuilder.open(selectedGens.filter((g) => g.status === "succeeded").map((g) => g.id))}
                   />
                 )}
                 {/* Like, Pin and Review fold into ⋯ on phones, so the bar fits 390 px with Publish. */}
-                <BarButton icon={Heart} label={allFav ? "Unlike" : "Like"} disabled={!selectedGens.length} onClick={like} className="max-sm:hidden" />
-                <BarButton icon={allPinned ? PinOff : Pin} label={allPinned ? "Unpin" : "Pin"} disabled={!selectedGens.length} onClick={pinAll} className="max-sm:hidden" />
+                <BarButton icon={Heart} label={allFav ? tt("library.bulk.unlike") : tt("library.bulk.like")} disabled={!selectedGens.length} onClick={like} className="max-sm:hidden" />
+                <BarButton icon={allPinned ? PinOff : Pin} label={allPinned ? tt("library.bulk.unpin") : tt("library.bulk.pin")} disabled={!selectedGens.length} onClick={pinAll} className="max-sm:hidden" />
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild disabled={!selectedGens.length}>
-                    <button className={cn(BAR, "max-sm:hidden")} disabled={!selectedGens.length} aria-label="Review status" title="Review status">
-                      <CircleDot className="size-4" /> <span className="hidden sm:inline">Review</span>
+                    <button className={cn(BAR, "max-sm:hidden")} disabled={!selectedGens.length} aria-label={tt("library.review.status")} title={tt("library.review.status")}>
+                      <CircleDot className="size-4" /> <span className="hidden sm:inline">{tt("library.bulk.review")}</span>
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="center" collisionPadding={12} className="min-w-44">
@@ -907,20 +908,20 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
                 </DropdownMenu>
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild disabled={!selectedGens.length}>
-                    <button className={cn(BAR, "sm:hidden")} disabled={!selectedGens.length} aria-label="Like, pin or review" title="Like, pin or review">
+                    <button className={cn(BAR, "sm:hidden")} disabled={!selectedGens.length} aria-label={tt("library.bulk.likePinReview")} title={tt("library.bulk.likePinReview")}>
                       <MoreHorizontal className="size-4" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="top" align="center" collisionPadding={12} className="min-w-44">
                     <DropdownMenuItem onSelect={like}>
-                      <Heart /> {allFav ? "Unlike" : "Like"}
+                      <Heart /> {allFav ? tt("library.bulk.unlike") : tt("library.bulk.like")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={pinAll}>
-                      {allPinned ? <PinOff /> : <Pin />} {allPinned ? "Unpin" : "Pin to the top"}
+                      {allPinned ? <PinOff /> : <Pin />} {allPinned ? tt("library.bulk.unpin") : tt("library.bulk.pinTop")}
                     </DropdownMenuItem>
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
-                        <CircleDot /> Review status
+                        <CircleDot /> {tt("library.review.status")}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="min-w-44">
                         <ReviewMenuItems value={sameReview} onPick={review} />
@@ -931,7 +932,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
                 {share && (
                   <BarButton
                     icon={Globe}
-                    label="Publish"
+                    label={tt("library.bulk.publish")}
                     disabled={!selectedGens.some((g) => g.status === "succeeded")}
                     onClick={() => share.publish(selectedGens.filter((g) => g.status === "succeeded"))}
                   />
@@ -940,8 +941,8 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
                   <>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild disabled={!selectedGens.length}>
-                        <button className={BAR} disabled={!selectedGens.length} aria-label="Move to">
-                          <FolderInput className="size-4" /> <span className="hidden sm:inline">Move to</span>
+                        <button className={BAR} disabled={!selectedGens.length} aria-label={tt("library.bulk.moveTo")}>
+                          <FolderInput className="size-4" /> <span className="hidden sm:inline">{tt("library.bulk.moveTo")}</span>
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent side="top" align="center" collisionPadding={12}>
@@ -950,7 +951,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
                     </DropdownMenu>
                     <BarButton
                       icon={Trash2}
-                      label="Move to Trash"
+                      label={tt("library.bulk.moveToTrash")}
                       destructive
                       disabled={!selectedGens.length}
                       onClick={() => {
@@ -964,7 +965,7 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
                 {account && !owner && !uploadsTab && (
                   <BarButton
                     icon={Trash2}
-                    label="Delete for good…"
+                    label={tt("library.bulk.deleteForGood")}
                     destructive
                     disabled={!selectedGens.some((g) => g.feature !== "upload")}
                     onClick={() => askDeleteForGood(selectedGens.filter((g) => g.feature !== "upload"), clear)}
@@ -973,8 +974,8 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
               </>
             )}
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
-            <button onClick={clear} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Unselect all, Esc" aria-keyshortcuts="Escape">
-              <X className="size-3.5" /> <span className="hidden sm:inline">Unselect all</span> <Kbd className="hidden sm:inline-flex">Esc</Kbd>
+            <button onClick={clear} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={tt("library.bulk.unselectAllEsc")} aria-keyshortcuts="Escape">
+              <X className="size-3.5" /> <span className="hidden sm:inline">{tt("library.bulk.unselectAll")}</span> <Kbd className="hidden sm:inline-flex">Esc</Kbd>
             </button>
           </div>
         </div>
@@ -995,18 +996,18 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
       <AlertDialog open={confirmEmpty} onOpenChange={setConfirmEmpty}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Empty the Trash?</AlertDialogTitle>
-            <AlertDialogDescription>Everything in it, including what your filters hide, is deleted with its files and can&apos;t be recovered.</AlertDialogDescription>
+            <AlertDialogTitle>{tt("library.trash.confirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{tt("library.trash.confirmDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tt("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
-                void actions.emptyTrash().then(() => toast("Trash emptied"));
+                void actions.emptyTrash().then(() => toast(tt("library.trashEmptied")));
               }}
             >
-              Empty trash
+              {tt("library.trash.emptyBtn")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1028,18 +1029,19 @@ function Inner({ starters: given }: { starters: StarterCardData[] }) {
 
 /** A date header's "Select" / "Unselect": shown on hover from a mouse, always while selecting or on touch. */
 function SectionSelect({ label, ids, selected, quiet, onToggle }: { label: string; ids: string[]; selected: ReadonlySet<string>; quiet: boolean; onToggle: (ids: string[]) => void }) {
+  const { t: tt } = useI18n();
   const all = ids.length > 0 && ids.every((id) => selected.has(id));
   return (
     <button
       type="button"
       onClick={() => onToggle(ids)}
-      aria-label={`${all ? "Unselect" : "Select"} ${label}, ${ids.length}`}
+      aria-label={tt(all ? "library.section.unselect" : "library.section.select", { label, n: ids.length })}
       className={cn(
         "inline-flex h-6 items-center gap-1 rounded-full px-2 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
         quiet && "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/section:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100",
       )}
     >
-      {all ? "Unselect" : "Select"}
+      {all ? tt("library.section.unselectWord") : tt("library.select")}
     </button>
   );
 }

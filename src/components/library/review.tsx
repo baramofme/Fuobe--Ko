@@ -6,6 +6,7 @@ import { useGenerationActions } from "@/lib/api";
 import type { Generation, ReviewStatus } from "@/lib/catalog/types";
 import { REVIEW_STATUSES, reviewInfo } from "@/lib/library";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 /** The status colour (the parity studio's), ringed so the lime stays visible on a light card. */
 export function ReviewDot({ status, className }: { status: ReviewStatus; className?: string }) {
@@ -17,15 +18,16 @@ export function ReviewDot({ status, className }: { status: ReviewStatus; classNa
  * card, the name shows only from 200 px wide (two-column phone cards get the dot).
  */
 export function ReviewBadge({ status, className, narrow }: { status: ReviewStatus | null | undefined; className?: string; narrow?: boolean }) {
+  const { t: tt } = useI18n();
   const info = reviewInfo(status);
   if (!info) return null;
   return (
     <span
       className={cn("inline-flex h-5 shrink-0 items-center gap-1 rounded-full bg-background/90 px-1.5 text-[11px] font-medium whitespace-nowrap text-foreground backdrop-blur", className)}
-      title={`Review: ${info.label}`}
-      aria-label={`Review: ${info.label}`}
+      title={tt("library.review.badge", { label: tt(info.labelKey) })}
+      aria-label={tt("library.review.badge", { label: tt(info.labelKey) })}
     >
-      <ReviewDot status={info.id} /> <span className={cn(narrow && "hidden @min-[200px]:inline")}>{info.label}</span>
+      <ReviewDot status={info.id} /> <span className={cn(narrow && "hidden @min-[200px]:inline")}>{tt(info.labelKey)}</span>
     </span>
   );
 }
@@ -37,14 +39,15 @@ const NoStatusDot = () => <span className="mx-1 size-2 shrink-0 rounded-full bor
  * `value` undefined: nothing is checked (a selection with mixed statuses).
  */
 export function ReviewMenuItems({ value, onPick }: { value?: ReviewStatus | null; onPick: (status: ReviewStatus | null) => void }) {
+  const { t: tt } = useI18n();
   return (
     <DropdownMenuRadioGroup value={value === undefined ? "" : (value ?? "none")} onValueChange={(v) => onPick(v === "none" ? null : (v as ReviewStatus))}>
       <DropdownMenuRadioItem value="none">
-        <NoStatusDot /> No status
+        <NoStatusDot /> {tt("library.review.noStatus")}
       </DropdownMenuRadioItem>
       {REVIEW_STATUSES.map((s) => (
         <DropdownMenuRadioItem key={s.id} value={s.id}>
-          <ReviewDot status={s.id} className="mx-1" /> {s.label}
+          <ReviewDot status={s.id} className="mx-1" /> {tt(s.labelKey)}
         </DropdownMenuRadioItem>
       ))}
     </DropdownMenuRadioGroup>
@@ -53,19 +56,20 @@ export function ReviewMenuItems({ value, onPick }: { value?: ReviewStatus | null
 
 /** The viewer's review picker: a result's status, changed in place. */
 export function ReviewSelect({ g }: { g: Generation }) {
+  const { t: tt } = useI18n();
   const actions = useGenerationActions();
   return (
     <Select value={g.review ?? "none"} onValueChange={(v) => void actions.review([g], v === "none" ? null : (v as ReviewStatus))}>
-      <SelectTrigger size="sm" aria-label="Review status" className="h-7 min-w-0 text-[13px]">
+      <SelectTrigger size="sm" aria-label={tt("library.review.status")} className="h-7 min-w-0 text-[13px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end">
         <SelectItem value="none">
-          <NoStatusDot /> No status
+          <NoStatusDot /> {tt("library.review.noStatus")}
         </SelectItem>
         {REVIEW_STATUSES.map((s) => (
           <SelectItem key={s.id} value={s.id}>
-            <ReviewDot status={s.id} /> {s.label}
+            <ReviewDot status={s.id} /> {tt(s.labelKey)}
           </SelectItem>
         ))}
       </SelectContent>

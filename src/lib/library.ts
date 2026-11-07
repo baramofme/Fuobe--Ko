@@ -4,6 +4,7 @@
  * and batch stacks. Pure: no React, no database.
  */
 import { OPERATION_LABELS, type Generation, type GenerationStatus, type MediaKind, type OutputFile, type ReviewStatus } from "./catalog/types";
+import { getLang, t as tr } from "./i18n/store";
 
 // ---------------------------------------------------------------------------
 // Filters (GET /api/generations query ⇄ client-side matching for live cache updates)
@@ -150,11 +151,11 @@ export function isHelperFeature(feature: string): boolean {
 // ---------------------------------------------------------------------------
 // Review status (the parity studio's Assets: In progress, Needs review, Approved, Rejected)
 
-export const REVIEW_STATUSES: { id: ReviewStatus; label: string; color: string }[] = [
-  { id: "in-progress", label: "In progress", color: "#029dfe" },
-  { id: "needs-review", label: "Needs review", color: "#fe7802" },
-  { id: "approved", label: "Approved", color: "#d1fe17" },
-  { id: "rejected", label: "Rejected", color: "#ef4444" },
+export const REVIEW_STATUSES: { id: ReviewStatus; label: string; labelKey: string; color: string }[] = [
+  { id: "in-progress", label: "In progress", labelKey: "library.review.inProgress", color: "#029dfe" },
+  { id: "needs-review", label: "Needs review", labelKey: "library.review.needsReview", color: "#fe7802" },
+  { id: "approved", label: "Approved", labelKey: "library.review.approved", color: "#d1fe17" },
+  { id: "rejected", label: "Rejected", labelKey: "library.review.rejected", color: "#ef4444" },
 ];
 
 export type ReviewFilter = ReviewStatus | "none";
@@ -224,6 +225,14 @@ function subtreeHeight(all: FolderLink[], id: string, seen = new Set<string>()):
   return 1 + Math.max(0, ...kids.map((k) => subtreeHeight(all, k.id, seen)));
 }
 
+/** The refusal words as locale keys, for the browser's toasts and drop chips. */
+const MOVE_ERR_KEYS: Record<string, string> = {
+  "That folder doesn't exist anymore": "library.folder.moveErr.gone",
+  "Cannot move into itself": "library.folder.moveErr.itself",
+  "Already in this folder": "library.folder.moveErr.alreadyIn",
+  "Cannot move into a subfolder": "library.folder.moveErr.subfolder",
+};
+
 /** Why folder `id` can't go into `parentId` (null: the library root), in the parity research's words; null when it can. */
 export function folderMoveError(all: FolderLink[], id: string, parentId: string | null): string | null {
   const f = all.find((x) => x.id === id);
@@ -233,6 +242,16 @@ export function folderMoveError(all: FolderLink[], id: string, parentId: string 
   if (parentId && folderAndDescendants(all, id).includes(parentId)) return "Cannot move into a subfolder";
   if (folderPath(all, parentId).length + subtreeHeight(all, id) > MAX_FOLDER_DEPTH) return `Folders go ${MAX_FOLDER_DEPTH} levels deep at most`;
   return null;
+}
+
+/** The same refusal, translated for display (the drop chip, the toast). en stays byte-identical. */
+export function folderMoveErrorKey(all: FolderLink[], id: string, parentId: string | null): string | null {
+  const err = folderMoveError(all, id, parentId);
+  if (!err) return null;
+  const mapped = MOVE_ERR_KEYS[err];
+  if (mapped) return tr(mapped);
+  const deep = /^Folders go (\d+) levels deep at most$/.exec(err);
+  return deep ? tr("library.folder.moveErr.depth", { n: Number(deep[1]) }) : err;
 }
 
 /** Every folder in tree order with its depth (0 at the root), for Move menus. */
@@ -275,13 +294,13 @@ export function zipSegment(name: string): string {
 
 /** The parity studio's seven folder swatches, as oklch hues (lime is the default). */
 export const FOLDER_COLORS = [
-  { id: "lime", label: "Lime", hue: 125, chroma: 0.21 },
-  { id: "cyan", label: "Cyan", hue: 205, chroma: 0.12 },
-  { id: "slate", label: "Slate", hue: 255, chroma: 0.03 },
-  { id: "violet", label: "Violet", hue: 290, chroma: 0.15 },
-  { id: "purple", label: "Purple", hue: 310, chroma: 0.16 },
-  { id: "pink", label: "Pink", hue: 350, chroma: 0.16 },
-  { id: "yellow", label: "Yellow", hue: 95, chroma: 0.16 },
+  { id: "lime", label: "Lime", labelKey: "library.folder.color.lime", hue: 125, chroma: 0.21 },
+  { id: "cyan", label: "Cyan", labelKey: "library.folder.color.cyan", hue: 205, chroma: 0.12 },
+  { id: "slate", label: "Slate", labelKey: "library.folder.color.slate", hue: 255, chroma: 0.03 },
+  { id: "violet", label: "Violet", labelKey: "library.folder.color.violet", hue: 290, chroma: 0.15 },
+  { id: "purple", label: "Purple", labelKey: "library.folder.color.purple", hue: 310, chroma: 0.16 },
+  { id: "pink", label: "Pink", labelKey: "library.folder.color.pink", hue: 350, chroma: 0.16 },
+  { id: "yellow", label: "Yellow", labelKey: "library.folder.color.yellow", hue: 95, chroma: 0.16 },
 ] as const;
 export type FolderColor = (typeof FOLDER_COLORS)[number]["id"];
 export const DEFAULT_FOLDER_COLOR: FolderColor = "lime";
@@ -369,11 +388,11 @@ export function dayStart(ts: number): number {
 export function dayLabel(ts: number, now = Date.now()): string {
   const day = dayStart(ts);
   const today = dayStart(now);
-  if (day === today) return "Today";
-  if (day === dayStart(today - DAY / 2)) return "Yesterday";
+  if (day === today) return tr("library.date.today");
+  if (day === dayStart(today - DAY / 2)) return tr("library.date.yesterday");
   const d = new Date(ts);
   const sameYear = d.getFullYear() === new Date(now).getFullYear();
-  return d.toLocaleDateString("en-US", sameYear ? { weekday: "short", month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString(getLang() === "ko" ? "ko-KR" : "en-US", sameYear ? { weekday: "short", month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function splitByDate<T>(items: T[], ts: (t: T) => number, now = Date.now()): { key: number; label: string; items: T[] }[] {
@@ -413,8 +432,8 @@ export function userTitle(g: Pick<Generation, "request" | "presetName" | "prompt
   const words = g.request.prompt?.trim() || g.presetName || g.prompt?.trim();
   if (words && words !== g.op && !isData(words)) return words;
   const what = OPERATION_LABELS[g.op];
-  const into = g.op === "translate" && g.request.params?.targetLanguage ? ` into ${g.request.params.targetLanguage}` : "";
-  return what ? `${what}${into}${g.modelName ? ` · ${g.modelName}` : ""}` : (g.modelName ?? "Untitled");
+  const into = g.op === "translate" && g.request.params?.targetLanguage ? tr("library.op.translateInto", { lang: g.request.params.targetLanguage }) : "";
+  return what ? `${what}${into}${g.modelName ? ` · ${g.modelName}` : ""}` : (g.modelName ?? tr("library.untitled"));
 }
 
 /** A chained step's prompt that is data, not words (a translation fed a transcript's cue list). */
@@ -447,11 +466,11 @@ export function stackLabel(items: Generation[]): string {
   const frames = items.filter((g) => g.request.frame).length;
   const films = items.filter((g) => g.op === "concat" && g.request.step?.label?.startsWith("Film")).length;
   const shots = items.filter((g) => /^Shot \d+/.test(g.request.step?.label ?? "")).length;
-  if (frames) return `Storyboard · ${frames} frame${frames === 1 ? "" : "s"}${films ? " + film" : ""}`;
-  if (films && shots) return `Film · ${shots} shots`;
-  if (items.some((g) => g.request.step)) return `${items.length} steps`;
-  if (items.every((g) => g.request.prompt === items[0].request.prompt && g.modelId === items[0].modelId)) return `${items.length} takes`;
-  return `${items.length} results`;
+  if (frames) return tr(films ? "library.stack.storyboardFilm" : "library.stack.storyboard", { n: frames, s: frames === 1 ? "" : "s" });
+  if (films && shots) return tr("library.stack.film", { n: shots });
+  if (items.some((g) => g.request.step)) return tr("library.stack.steps", { n: items.length });
+  if (items.every((g) => g.request.prompt === items[0].request.prompt && g.modelId === items[0].modelId)) return tr("library.stack.takes", { n: items.length });
+  return tr("library.stack.results", { n: items.length });
 }
 
 /**
