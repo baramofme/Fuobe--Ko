@@ -6,6 +6,8 @@ import { IntentLink } from "@/components/intent-link";
 import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import { reducedMotion } from "@/lib/ui-motion";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/use-i18n";
+import { keySnake, translateOr } from "@/lib/i18n/store";
 
 /**
  * Shows a pair's two pictures together: when neither has loaded yet (after hydration, or a tab just picked), the pair
@@ -129,8 +131,13 @@ export function BeforeAfter({ pairs }: { pairs: BeforeAfterPair[] }) {
   const peeked = useRef(false);
   const frame = useRef(0);
   const id = useId();
+  const { lang, t: tr } = useI18n();
   const pair = pairs[tab];
-  const [beforeTag, afterTag] = pair.tags;
+  /** Words that may exist under a derived key: the app's name for its tab, and each side's tag. The data's own words
+   *  stay the fallback — a pair nobody translated reads exactly as authored. */
+  const nameOf = (p: BeforeAfterPair) => translateOr(lang, `preset.${keySnake(p.name)}.name`, p.name);
+  const tagOf = (tag: string) => translateOr(lang, `ba.tag.${keySnake(tag)}`, tag);
+  const [beforeTag, afterTag] = pair.tags.map(tagOf);
 
   useEffect(() => {
     const el = box.current;
@@ -214,7 +221,7 @@ export function BeforeAfter({ pairs }: { pairs: BeforeAfterPair[] }) {
         ref={box}
         id={`${id}-panel`}
         role="tabpanel"
-        aria-label={`${pair.name}: ${beforeTag} and ${afterTag}`}
+        aria-label={tr("ba.panelAria", { name: nameOf(pair), before: beforeTag, after: afterTag })}
         className="relative isolate aspect-[4/3] cursor-ew-resize touch-pan-y overflow-hidden rounded-xl bg-muted select-none lg:max-xl:w-[512px] lg:max-xl:shrink-0"
         onPointerDown={(e) => {
           if (e.button !== 0) return;
@@ -260,11 +267,11 @@ export function BeforeAfter({ pairs }: { pairs: BeforeAfterPair[] }) {
           <span
             role="slider"
             tabIndex={0}
-            aria-label={`Compare ${beforeTag.toLowerCase()} and ${afterTag.toLowerCase()}`}
+            aria-label={tr("ba.sliderAria", { before: beforeTag.toLowerCase(), after: afterTag.toLowerCase() })}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={value}
-            aria-valuetext={`${beforeTag} ${value}%, ${afterTag} ${100 - value}%`}
+            aria-valuetext={tr("ba.valueText", { before: beforeTag, value, after: afterTag, pct: 100 - value })}
             onKeyDown={(e) => {
               const big = e.shiftKey ? 25 : 5;
               const next =
@@ -285,7 +292,7 @@ export function BeforeAfter({ pairs }: { pairs: BeforeAfterPair[] }) {
       <div className="min-w-0 lg:max-xl:flex-1">
         <TabRow
           role="tablist"
-          aria-label="Apps to compare"
+          aria-label={tr("ba.appsAria")}
           fade={false}
           className="mt-2 lg:max-xl:mt-0 lg:max-xl:flex-col lg:max-xl:items-stretch"
           onKeyDown={(e) => {
@@ -318,18 +325,18 @@ export function BeforeAfter({ pairs }: { pairs: BeforeAfterPair[] }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.thumb} alt="" width={20} height={20} loading="lazy" decoding="async" style={{ scale: p.zoom }} />
               </span>
-              <span className="truncate">{p.name}</span>
+              <span className="truncate">{nameOf(p)}</span>
             </button>
           ))}
         </TabRow>
         <div className="mt-2 flex items-center justify-between gap-3 text-[12px] text-muted-foreground lg:max-xl:mt-4 lg:max-xl:flex-col lg:max-xl:items-start lg:max-xl:gap-1.5 lg:max-xl:px-1">
-          <span>Drag to compare</span>
+          <span>{tr("ba.drag")}</span>
           <IntentLink
             href={pair.href}
             // 44 px to tap: its hit area reaches past the words.
             className="relative inline-flex items-center gap-1 font-medium text-brand-text underline-offset-2 after:absolute after:-inset-x-1 after:-inset-y-3.5 after:content-[''] hover:underline"
           >
-            Try {pair.name} <ArrowRight className="size-3.5" />
+            {tr("ba.try", { name: nameOf(pair) })} <ArrowRight className="size-3.5" />
           </IntentLink>
         </div>
       </div>

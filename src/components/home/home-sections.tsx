@@ -32,7 +32,7 @@ import { studioCount } from "@/lib/nav-model";
 import { staggered, type AutoPlay } from "@/lib/preview-playback";
 import { cn } from "@/lib/utils";
 import { plainTagline } from "@/lib/plain-tagline";
-import { DEFAULT_LANG, translate, type Lang } from "@/lib/i18n/store";
+import { DEFAULT_LANG, keySnake, translate, translateOr, type Lang } from "@/lib/i18n/store";
 import { getServerLang } from "@/lib/i18n/server-lang";
 import type { PresetCardData } from "@/lib/preset-cards";
 
@@ -251,7 +251,9 @@ export async function AppsSection({ facts, beforeAfter, reveals, start }: Pick<H
           <BeforeAfter pairs={beforeAfter} />
         </div>
         <Cards
-          items={reveals}
+          // A reveal's caption is the data's own words; its translation, if anyone wrote one, lives under a key made
+          // from it. Read it here, where this render's language is known (the showcase itself is cached and blind to it).
+          items={reveals.map((r) => ({ ...r, caption: translateOr(lang, `home.cap.${keySnake(r.caption)}`, r.caption) }))}
           className="self-start sm:grid-cols-3 lg:grid-cols-4 xl:contents"
           item={(i) => (i < 6 ? "xl:col-span-7" : "xl:col-span-6")}
         />
@@ -675,29 +677,31 @@ export async function StartSection() {
   );
 }
 
-/** The footer's own pages; the code is on GitHub. */
+/** The footer's own pages; the code is on GitHub. The labels are the English words the tests and search read; each
+ *  renders through its key, so the footer follows the language the person chose. */
 const FOOTER_PAGES = [
-  { href: "/privacy", label: "Privacy" },
-  { href: "/terms", label: "Terms" },
-  { href: "/settings/licences", label: "Thanks & licences" },
+  { href: "/privacy", label: "Privacy", labelKey: "footer.privacy" },
+  { href: "/terms", label: "Terms", labelKey: "footer.terms" },
+  { href: "/settings/licences", label: "Thanks & licences", labelKey: "footer.thanks" },
 ];
 
-export function HomeFooter() {
+export async function HomeFooter() {
+  const lang = await getServerLang();
   const link = "transition-colors hover:text-foreground";
   return (
     <footer className="mt-12 flex flex-wrap items-end justify-between gap-4 border-t pt-8 pb-4">
       <div>
         <p className="font-heading text-[22px] leading-none">Fuobe</p>
-        <p className="mt-1.5 text-[12px] text-muted-foreground">Open source under the MIT licence.</p>
+        <p className="mt-1.5 text-[12px] text-muted-foreground">{translate(lang, "footer.licence")}</p>
       </div>
-      <nav aria-label="About Fuobe" className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
+      <nav aria-label={translate(lang, "footer.about")} className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
         {FOOTER_PAGES.map((i) => (
           <Link key={i.href} href={i.href} prefetch={false} className={link}>
-            {i.label}
+            {translate(lang, i.labelKey)}
           </Link>
         ))}
         <a href={FUOBE_REPO} target="_blank" rel="noopener" className={link}>
-          GitHub
+          {translate(lang, "footer.github")}
         </a>
       </nav>
     </footer>

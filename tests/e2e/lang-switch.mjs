@@ -310,6 +310,67 @@ step("studio: the new labels follow the switch (Frames)");
   await page.close();
 }
 
+step("apps: the home chrome reads Korean under the cookie (after hydration)");
+{
+  // Same two-step language as the server render: load, save ko, then navigate so the cookie is sent and every
+  // section — the before/after widget, its captions and the footer — reads in Korean once the page settles.
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "apps");
+  await page.goto(`${app}/`, { waitUntil: "load" });
+  await page.evaluate(() => {
+    document.cookie = "fuobe_lang=ko; path=/; max-age=31536000; samesite=lax";
+    localStorage.setItem("fuobe.lang", "ko");
+  });
+  await page.goto(`${app}/apps`, { waitUntil: "load" });
+  await page.waitForTimeout(1500);
+  const start = page.locator('section[aria-labelledby="apps-start"]');
+  for (const want of ["스케치에서 실물로", "재조명", "메이크업 스튜디오"])
+    check(`the tab reads “${want}”`, await start.getByRole("tab", { name: want }).first().isVisible().catch(() => false), "");
+  for (const gone of ["Sketch to Real", "Relight", "Makeup Studio", "Drag to compare"])
+    check(`no English “${gone}” left in the section`, !(await start.getByText(gone, { exact: true }).first().isVisible().catch(() => false)), "");
+  check("the drag line reads 밀어서 비교", await start.getByText("밀어서 비교", { exact: true }).first().isVisible().catch(() => false), "");
+  const tablistAria = await start.locator('[role="tablist"]').first().getAttribute("aria-label");
+  check(`the tablist name is “비교할 앱”`, tablistAria === "비교할 앱", `aria=${tablistAria}`);
+  const panelAria = await start.locator('[role="tabpanel"]').first().getAttribute("aria-label");
+  check("the panel is named by its app and tags", panelAria === "스케치에서 실물로: 스케치와 사진", `aria=${panelAria}`);
+  const slider = start.locator('[role="slider"]').first();
+  const sliderAria = await slider.getAttribute("aria-label");
+  check("the slider is named in Korean", sliderAria === "스케치와 사진 비교", `aria=${sliderAria}`);
+  const valueText = await slider.getAttribute("aria-valuetext");
+  check("the slider's position text speaks Korean too", /^스케치 \d+% · 사진 \d+%$/.test(valueText || ""), `valuetext=${valueText}`);
+  check("a reveal caption reads in Korean", await start.getByText("아무 사진에나 그 옷을 입혀 보세요").first().isVisible().catch(() => false), "");
+  check("no English reveal caption left", !(await start.getByText("Wear the outfit from any photo").first().isVisible().catch(() => false)), "");
+  const footer = page.locator("footer").last();
+  check("the footer says it is open source in Korean", await footer.getByText("MIT 라이선스로 공개된 오픈소스입니다.").first().isVisible().catch(() => false), "");
+  for (const [want, gone] of [["개인정보", "Privacy"], ["약관", "Terms"], ["감사 & 라이선스", "Thanks & licences"], ["GitHub 소스", "GitHub"]])
+    check(`the footer links read “${want}”`, (await footer.getByRole("link", { name: want }).count()) > 0, "");
+  const aboutAria = await footer.locator("nav").first().getAttribute("aria-label");
+  check("the footer's own name is Korean", aboutAria === "Fuobe 소개", `aria=${aboutAria}`);
+  await page.close();
+}
+
+step("apps: the widget follows the switch without a reload");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "apps-switch");
+  await openRoute(page, `${app}/apps`);
+  const start = page.locator('section[aria-labelledby="apps-start"]');
+  check("the tab starts in English", await start.getByRole("tab", { name: "Sketch to Real" }).first().isVisible().catch(() => false), "");
+  check("the drag line starts in English", await start.getByText("Drag to compare", { exact: true }).first().isVisible().catch(() => false), "");
+  const trigger = page.locator('button:has(svg.lucide-globe)').locator("visible=true").first();
+  await trigger.waitFor({ timeout: 15_000 });
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(400);
+  check("still the same page (no reload happened)", page.url().endsWith("/apps"), page.url());
+  check("the tab reads 스케치에서 실물로 right after the click", await start.getByRole("tab", { name: "스케치에서 실물로" }).first().isVisible().catch(() => false), "");
+  check("no English tab name left", !(await start.getByRole("tab", { name: "Sketch to Real" }).first().isVisible().catch(() => false)), "");
+  const aria = await start.locator('[role="tablist"]').first().getAttribute("aria-label");
+  check("the tablist name went Korean on the same render", aria === "비교할 앱", `aria=${aria}`);
+  check("the drag line went Korean", await start.getByText("밀어서 비교", { exact: true }).first().isVisible().catch(() => false), "");
+  await page.close();
+}
+
 step("nothing was missed on the way");
 {
   const i18nNoise = noise.filter((l) => /\[i18n\]/.test(l));
