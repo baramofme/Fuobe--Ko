@@ -15,6 +15,8 @@ import type { Engine } from "@/lib/catalog/types";
 import { formatCost } from "@/lib/format";
 import { checkValues, isMediaType, type RecipeEstimate, type RecipeParam, type RecipeView } from "@/lib/recipe";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/use-i18n";
+import { t as trStore } from "@/lib/i18n/store";
 import { useRecipeActions } from "./hooks";
 import { RecipeField } from "./run-skill-dialog";
 import { SkillIcon } from "./skill-icon";
@@ -98,18 +100,18 @@ export function skillTask(view: RecipeView, inputs: SkillInputs): { task: Schedu
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
   useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(timer);
   }, [value, ms]);
   return v;
 }
 
 /** "About $0.62 a run on Cloud", "Free on your GPU", "Placeholder results, free". */
 function priceText(e: RecipeEstimate): string {
-  if (e.demo) return "Placeholder results, free: placeholders are on in Settings";
-  if (e.total === null) return "Some prices vary";
-  const where = e.engine === "open" ? "on your GPU" : "on Cloud";
-  return e.total === 0 ? `Free ${where}` : `About ${formatCost(e.total)} a run ${where}`;
+  if (e.demo) return trStore("assist.composer.schedulePriceDemo");
+  if (e.total === null) return trStore("assist.transcript.pricesVary");
+  const where = e.engine === "open" ? trStore("assist.composer.schedulePriceWhereGpu") : trStore("assist.composer.schedulePriceWhereCloud");
+  return e.total === 0 ? trStore("assist.composer.schedulePriceFreeWhere", { where }) : trStore("assist.composer.schedulePriceAbout", { cost: formatCost(e.total), where });
 }
 
 export function SkillTaskFields({
@@ -139,20 +141,21 @@ export function SkillTaskFields({
   onEngine: (e: Engine) => void;
   tried: boolean;
 }) {
+  const { t: tr } = useI18n();
   const pickId = useId();
   const actions = useRecipeActions();
-  const t = view ? skillTask(view, inputs) : null;
-  const body = t ? JSON.stringify({ values: t.priced, engine }) : "";
+  const taskNow = view ? skillTask(view, inputs) : null;
+  const body = taskNow ? JSON.stringify({ values: taskNow.priced, engine }) : "";
   const key = useDebounced(body, 400);
   const price = useQuery({
     queryKey: ["assist-recipe-estimate", name, "schedule", key],
-    enabled: !!view && !!t?.ok && key === body && view.engines.includes(engine),
+    enabled: !!view && !!taskNow?.ok && key === body && view.engines.includes(engine),
     retry: false,
     placeholderData: keepPreviousData,
     queryFn: () => actions.estimate(view!.name, JSON.parse(key)),
   });
-  const est = t?.ok ? price.data : undefined;
-  const estError = t?.ok ? (price.error ? (price.error as Error).message : (est?.errors[0] ?? est?.runs.flatMap((r) => r.errors)[0])) : undefined;
+  const est = taskNow?.ok ? price.data : undefined;
+  const estError = taskNow?.ok ? (price.error ? (price.error as Error).message : (est?.errors[0] ?? est?.runs.flatMap((r) => r.errors)[0])) : undefined;
   const listed = !!name && !!skills?.some((s) => s.name === name);
   const set = (patch: Partial<SkillInputs>) => onInputs({ ...inputs, ...patch });
 
@@ -160,21 +163,21 @@ export function SkillTaskFields({
     <div className="space-y-4">
       <div className="space-y-2">
         <label htmlFor={pickId} className="text-sm font-medium">
-          Skill
+          {tr("assist.composer.scheduleSkillLabel")}
         </label>
         {skills === null ? (
           <Skeleton className="h-9 w-full" />
         ) : skills.length === 0 ? (
           <p className="rounded-xl bg-muted/60 px-3.5 py-2.5 text-[13px] text-muted-foreground">
-            No skills that run by themselves yet. Make one from a result you like (its ⋯ menu → Make a skill), or save a chat as a skill, then schedule it here.{" "}
+            {tr("assist.composer.scheduleNoSkills")}{" "}
             <Link href="/assist/skills" className="font-medium text-brand-text underline-offset-2 hover:underline">
-              Open Skills
+              {tr("assist.composer.scheduleOpenSkills")}
             </Link>
           </p>
         ) : (
           <Select value={listed ? name! : undefined} onValueChange={onName}>
             <SelectTrigger id={pickId} className="w-full">
-              <SelectValue placeholder="Pick a skill" />
+              <SelectValue placeholder={tr("assist.composer.schedulePickSkillPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {skills.map((s) => (
@@ -187,7 +190,7 @@ export function SkillTaskFields({
         )}
         {name && skills && !listed && (
           <p role="alert" className="flex items-start gap-1.5 text-[12px] text-amber-700 dark:text-amber-300">
-            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" /> /{name} is switched off or doesn&apos;t run by itself any more — pick another skill.
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" /> {tr("assist.composer.scheduleSkillOff", { name })}
           </p>
         )}
       </div>
@@ -196,8 +199,8 @@ export function SkillTaskFields({
 
       {listed && view && (
         <>
-          <p className="text-[12px] text-muted-foreground">No AI model plans these runs: each one starts {view.title}&apos;s saved steps with the inputs below.</p>
-          {view.recipe.params.length === 0 && <p className="text-[13px] text-muted-foreground">It takes no inputs: each run makes the same steps.</p>}
+          <p className="text-[12px] text-muted-foreground">{tr("assist.composer.scheduleNoPlanner", { title: view.title })}</p>
+          {view.recipe.params.length === 0 && <p className="text-[13px] text-muted-foreground">{tr("assist.composer.scheduleTakesNoInputs")}</p>}
           {view.recipe.params.map((p) =>
             isMediaType(p.type) ? (
               <FileInput
@@ -207,7 +210,7 @@ export function SkillTaskFields({
                 onSource={(s) => set({ sources: { ...inputs.sources, [p.id]: s } })}
                 slot={slotOf(p as FileParam, inputs)}
                 onSlot={(v) => set({ slots: { ...inputs.slots, [p.id]: v } })}
-                error={tried ? t?.errors[p.id] : undefined}
+                error={tried ? taskNow?.errors[p.id] : undefined}
               />
             ) : (
               <RecipeField
@@ -217,7 +220,7 @@ export function SkillTaskFields({
                 onChange={(v) => set({ values: { ...inputs.values, [p.id]: v } })}
                 slot={null}
                 onSlot={() => {}}
-                error={tried ? t?.errors[p.id] : undefined}
+                error={tried ? taskNow?.errors[p.id] : undefined}
               />
             ),
           )}
@@ -228,18 +231,18 @@ export function SkillTaskFields({
               view.engines.length === 1 && (
                 <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-[12px] font-medium text-muted-foreground">
                   {view.engines[0] === "open" ? <Cpu className="size-3.5" /> : <Cloud className="size-3.5" />}
-                  {view.engines[0] === "open" ? "Runs on your GPU · open source" : "Runs in the cloud"}
+                  {view.engines[0] === "open" ? tr("assist.composer.scheduleRunsGpu") : tr("assist.composer.scheduleRunsCloud")}
                 </span>
               )
             )}
             <p className={cn("min-w-0 text-[13px] break-words", estError ? "text-destructive" : "text-muted-foreground")} aria-live="polite">
               {!view.engines.length
-                ? (view.why ?? "This skill can't run here as it is.")
-                : !t?.ok
-                  ? t?.uploading
-                    ? "Uploading…"
-                    : "Fill in the inputs to see the price"
-                  : (estError ?? (est && !price.isFetching && key === body ? priceText(est) : "Pricing…"))}
+                ? (view.why ?? tr("assist.composer.scheduleCantRun"))
+                : !taskNow?.ok
+                  ? taskNow?.uploading
+                    ? tr("assist.composer.scheduleUploading")
+                    : tr("assist.composer.scheduleFillInputs")
+                  : (estError ?? (est && !price.isFetching && key === body ? priceText(est) : tr("assist.composer.schedulePricing")))}
             </p>
           </div>
         </>
@@ -264,19 +267,20 @@ function FileInput({
   onSlot: (v: SlotValue | null) => void;
   error?: string;
 }) {
+  const { t: tr } = useI18n();
   const labelId = useId();
-  const options: { id: Source; label: string }[] = [
-    { id: "newest", label: "Newest upload (when it runs)" },
-    { id: "file", label: "This file" },
+  const options: { id: Source; labelKey: string }[] = [
+    { id: "newest", labelKey: "assist.composer.scheduleSrcNewest" },
+    { id: "file", labelKey: "assist.composer.scheduleSrcThisFile" },
     // An input the skill can do without: leave it out, or use the file the skill comes with.
-    ...(needed(p) ? [] : [{ id: "none" as const, label: p.default !== undefined ? "The skill's own" : "None" }]),
+    ...(needed(p) ? [] : [{ id: "none" as const, labelKey: p.default !== undefined ? "assist.composer.scheduleSrcOwn" : "assist.composer.scheduleSrcNone" }]),
   ];
-  const kind = p.type === "image" ? "image" : p.type === "video" ? "video" : "audio file";
+  const kind = p.type === "image" ? tr("assist.composer.scheduleKindImage") : p.type === "video" ? tr("assist.composer.scheduleKindVideo") : tr("assist.composer.scheduleKindAudioFile");
   return (
     <div className="space-y-2">
       <p id={labelId} className="text-sm font-medium">
         {p.label}
-        {p.required && p.default === undefined ? "" : <span className="font-normal text-muted-foreground"> · optional</span>}
+        {p.required && p.default === undefined ? "" : <span className="font-normal text-muted-foreground">{tr("assist.composer.scheduleOptional")}</span>}
       </p>
       <div role="radiogroup" aria-labelledby={labelId} onKeyDown={radioKeys} className="flex w-fit max-w-full flex-wrap gap-1 rounded-2xl bg-muted p-0.5">
         {options.map((o) => (
@@ -289,22 +293,27 @@ function FileInput({
             onClick={() => onSource(o.id)}
             className={cn("h-8 rounded-full px-3 text-[13px] font-medium text-muted-foreground transition-colors", source === o.id && "bg-background text-foreground shadow-soft")}
           >
-            {o.label}
+            {tr(o.labelKey)}
           </button>
         ))}
       </div>
       {source === "newest" ? (
         <p className="text-[12px] text-muted-foreground">
-          Each run takes the newest {kind} in <span className="font-medium text-foreground">Library → Uploads</span> at that moment, whatever put it there: upload a new one
-          before it runs, and that&apos;s the one it takes.
-          {needed(p) ? "" : p.default !== undefined ? ` With no ${kind} there yet, it uses the skill's own.` : ` With no ${kind} there yet, the run goes ahead without one.`}
+          {tr("assist.composer.scheduleNewestPre")}
+          <span className="font-medium text-foreground">{tr("assist.composer.scheduleLibraryUploads")}</span>
+          {tr("assist.composer.scheduleNewestIn")}
+          {kind}
+          {tr("assist.composer.scheduleNewestPost")}
+          {needed(p) ? "" : p.default !== undefined ? tr("assist.composer.scheduleNoKindOwn", { kind }) : tr("assist.composer.scheduleNoKindGo", { kind })}
         </p>
       ) : source === "none" ? (
-        <p className="text-[12px] text-muted-foreground">{p.default !== undefined ? `Every run uses the skill's own ${kind}.` : "Every run goes without one."}</p>
+        <p className="text-[12px] text-muted-foreground">{p.default !== undefined ? tr("assist.composer.scheduleOwnNote", { kind }) : tr("assist.composer.scheduleGoWithout")}</p>
       ) : (
         <div className="flex items-center gap-3">
           <MediaSlot label={p.label} kind={p.type} value={slot} onChange={onSlot} required={p.required} />
-          <p className="min-w-0 flex-1 text-[12px] text-muted-foreground">Every run uses this {p.type === "image" ? "picture" : p.type === "video" ? "clip" : "sound file"}. Upload one, or pick it from your Library.</p>
+          <p className="min-w-0 flex-1 text-[12px] text-muted-foreground">
+            {tr("assist.composer.scheduleEveryUsesThis", { what: p.type === "image" ? tr("assist.composer.scheduleWhatPicture") : p.type === "video" ? tr("assist.composer.scheduleWhatClip") : tr("assist.composer.scheduleWhatSound") })}
+          </p>
         </div>
       )}
       {error && (

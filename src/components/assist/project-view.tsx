@@ -53,6 +53,7 @@ import { isPlaceholder, PLACEHOLDER_CHIP } from "@/lib/demo-mode";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { ChatMenu } from "./chat-menu";
 import { useChatActions, useChats, useProject, useProjectActions, useProjectAssets, useSkills } from "./hooks";
 import { MemoryView } from "./memory-view";
@@ -65,6 +66,7 @@ const SOURCE_ICON: Record<SourceKind, typeof FileText> = { link: Link2, file: Fi
 
 /** A project's home (Supercomputer's Projects): its composer, chats, sources, memory and settings. */
 export function ProjectView({ id }: { id: string }) {
+  const { t: tr } = useI18n();
   const project = useProject(id);
   if (project.isLoading)
     return (
@@ -76,12 +78,13 @@ export function ProjectView({ id }: { id: string }) {
   if (!project.data) {
     const status = (project.error as { status?: number } | null)?.status;
     if (project.error && status !== 404) return <ErrorState error={project.error} retry={() => void project.refetch()} />;
-    return <NotFoundState title="No such project">It may have been deleted. Its chats are with your other chats in Assist.</NotFoundState>;
+    return <NotFoundState title={tr("assist.composer.noSuchProject")}>{tr("assist.composer.noSuchProjectDesc")}</NotFoundState>;
   }
   return <Project p={project.data} />;
 }
 
 function Project({ p }: { p: AssistProject }) {
+  const { t: tr } = useI18n();
   const router = useRouter();
   const [engine, setEngine] = useEngine();
   const [askFirst, setAskFirst] = useState(true);
@@ -104,18 +107,18 @@ function Project({ p }: { p: AssistProject }) {
         <ProjectDot project={p} className="ml-1" />
         <h1 className="min-w-0 truncate font-heading text-[22px] leading-none">{p.name}</h1>
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => setSettings(true)} aria-label="Project settings">
-            <Settings2 /> <span className="hidden sm:inline">Settings</span>
+          <Button variant="ghost" size="sm" onClick={() => setSettings(true)} aria-label={tr("assist.composer.projectSettingsAria")}>
+            <Settings2 /> <span className="hidden sm:inline">{tr("nav.settings")}</span>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="More">
+              <Button variant="ghost" size="icon-sm" aria-label={tr("nav.more")}>
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem variant="destructive" onSelect={() => setConfirm(true)}>
-                <Trash2 /> Delete project
+                <Trash2 /> {tr("assist.composer.deleteProject")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -124,20 +127,20 @@ function Project({ p }: { p: AssistProject }) {
       </header>
       <div className="mx-auto w-full max-w-[860px] min-w-0 flex-1 px-4 pb-16 sm:px-6">
         <div className="mx-auto max-w-[760px] pt-[6vh] sm:pt-[9vh]">
-          <h2 className="text-center font-heading text-display text-balance">What are we creating in {p.name}?</h2>
+          <h2 className="text-center font-heading text-display text-balance">{tr("assist.composer.whatCreating", { name: p.name })}</h2>
           <button onClick={() => setSettings(true)} className="mx-auto mt-2 block max-w-xl text-center text-[14px] text-pretty text-muted-foreground hover:text-foreground">
-            {p.instructions ? <span className="line-clamp-2">{p.instructions}</span> : "Add instructions so every chat here knows the brief →"}
+            {p.instructions ? <span className="line-clamp-2">{p.instructions}</span> : tr("assist.composer.addInstructions")}
           </button>
           <div className="mt-6">
             <AssistComposer
               key={draft.key}
               initialText={draft.text}
               skills={available}
-              placeholder="Describe the job — chats here follow the project's instructions and can use its sources"
+              placeholder={tr("assist.composer.projectPlaceholder")}
               onSend={async (text, attachments) => {
-                const t = await actions.start({ text, attachments, engine, autoApprove: !askFirst, projectId: p.id, mode: choice ?? undefined });
-                if (t.note) toast(t.note);
-                router.push(`/assist?c=${t.id}`);
+                const created = await actions.start({ text, attachments, engine, autoApprove: !askFirst, projectId: p.id, mode: choice ?? undefined });
+                if (created.note) toast(created.note);
+                router.push(`/assist?c=${created.id}`);
               }}
               footer={<NewChatControls choice={choice} setChoice={setChoice} can={can} engine={engine} setEngine={setEngine} askFirst={askFirst} setAskFirst={setAskFirst} />}
             />
@@ -148,19 +151,19 @@ function Project({ p }: { p: AssistProject }) {
           {/* Five tabs are wider than a phone: the row scrolls by itself, not the page. */}
           <TabsList className="max-w-full justify-start overflow-x-auto scrollbar-none">
             <TabsTrigger value="chats" className="px-3">
-              Chats <span className="font-mono text-[11px] text-muted-foreground">{chats.data?.threads.length || ""}</span>
+              {tr("assist.composer.tabChats")} <span className="font-mono text-[11px] text-muted-foreground">{chats.data?.threads.length || ""}</span>
             </TabsTrigger>
             <TabsTrigger value="assets" className="px-3">
-              Assets
+              {tr("assist.composer.tabAssets")}
             </TabsTrigger>
             <TabsTrigger value="sources" className="px-3">
-              Sources <span className="font-mono text-[11px] text-muted-foreground">{p.sources.length || ""}</span>
+              {tr("assist.composer.tabSources")} <span className="font-mono text-[11px] text-muted-foreground">{p.sources.length || ""}</span>
             </TabsTrigger>
             <TabsTrigger value="memory" className="px-3">
-              Memory
+              {tr("assist.transcript.memoryWord")}
             </TabsTrigger>
             <TabsTrigger value="scheduled" className="px-3">
-              Scheduled
+              {tr("assist.composer.tabScheduled")}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="chats">
@@ -172,14 +175,14 @@ function Project({ p }: { p: AssistProject }) {
                   <li key={t.id} className="relative">
                     <Link href={`/assist?c=${t.id}`} className="flex items-center gap-3 py-3 pr-12 pl-4 transition-colors hover:bg-accent">
                       <span className="min-w-0 flex-1 truncate text-[14px]">{t.title}</span>
-                      <span className="shrink-0 text-[12px] text-muted-foreground">{t.status === "running" ? "Working…" : t.status === "waiting" ? "Waiting for you" : timeAgo(t.updatedAt)}</span>
+                      <span className="shrink-0 text-[12px] text-muted-foreground">{t.status === "running" ? tr("assist.rail.working") : t.status === "waiting" ? tr("assist.transcript.waitingForYou") : timeAgo(t.updatedAt)}</span>
                     </Link>
                     <ChatMenu chat={t} className="absolute top-1/2 right-2 -translate-y-1/2" />
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] text-muted-foreground">No chats yet — start one above. It&apos;ll know this project&apos;s instructions and sources.</p>
+              <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] text-muted-foreground">{tr("assist.composer.noChatsYet")}</p>
             )}
           </TabsContent>
           <TabsContent value="assets">
@@ -200,24 +203,24 @@ function Project({ p }: { p: AssistProject }) {
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {p.name}?</AlertDialogTitle>
-            <AlertDialogDescription>Its instructions, sources and project memory are deleted. Its {p.chats || ""} chat{p.chats === 1 ? "" : "s"} move to your other chats, and everything they made stays in your Library.</AlertDialogDescription>
+            <AlertDialogTitle>{tr("assist.composer.deleteConfirmTitle", { name: p.name })}</AlertDialogTitle>
+            <AlertDialogDescription>{p.chats === 1 ? tr("assist.composer.deleteDescOne", { n: p.chats }) : tr("assist.composer.deleteDescMany", { n: p.chats ?? "" })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tr("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={async () => {
                 try {
                   await projectActions.remove(p.id);
-                  toast("Project deleted", { duration: 1500 });
+                  toast(tr("assist.composer.projectDeletedToast"), { duration: 1500 });
                   router.push("/assist");
                 } catch (e) {
                   toastError(e);
                 }
               }}
             >
-              Delete project
+              {tr("assist.composer.deleteProject")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -228,6 +231,7 @@ function Project({ p }: { p: AssistProject }) {
 
 /** What the project's chats made: their finished results, newest first, opening in the viewer. */
 function Assets({ p, active }: { p: AssistProject; active: boolean }) {
+  const { t: tr } = useI18n();
   const assets = useProjectAssets(p.id, active);
   const [open, setOpen] = useState<{ at: number; i: number } | null>(null);
   const list = assets.data ?? [];
@@ -242,18 +246,18 @@ function Assets({ p, active }: { p: AssistProject; active: boolean }) {
         ))}
       </div>
     );
-  if (assets.isError) return <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] text-muted-foreground">Couldn&apos;t load the assets: {(assets.error as Error).message}</p>;
-  if (!tiles.length) return <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] text-muted-foreground">Nothing made here yet — what this project&apos;s chats create shows up here.</p>;
+  if (assets.isError) return <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] text-muted-foreground">{tr("assist.composer.assetsError", { msg: (assets.error as Error).message })}</p>;
+  if (!tiles.length) return <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] text-muted-foreground">{tr("assist.composer.nothingMade")}</p>;
   const cur = open ? list[open.at] : null;
   return (
     <>
       <p className="mb-3 text-[13px] text-muted-foreground">
-        {tiles.length} result{tiles.length === 1 ? "" : "s"} from this project&apos;s chats. Everything is in your Library too.
+        {tiles.length === 1 ? tr("assist.composer.assetsCountOne", { n: tiles.length }) : tr("assist.composer.assetsCountMany", { n: tiles.length })}
       </p>
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {tiles.map(({ a, at, o, i }) => (
           <li key={`${a.generation.id}-${i}`} className="relative">
-            <button onClick={() => setOpen({ at, i })} className="group relative block aspect-square w-full overflow-hidden rounded-xl bg-muted" aria-label={`Open ${a.generation.request.prompt?.slice(0, 60) || "result"} (from ${a.chatTitle})`}>
+            <button onClick={() => setOpen({ at, i })} className="group relative block aspect-square w-full overflow-hidden rounded-xl bg-muted" aria-label={tr("assist.composer.openAssetAria", { desc: a.generation.request.prompt?.slice(0, 60) || tr("assist.transcript.fallbackResult"), title: a.chatTitle })}>
               <MediaThumb output={o} g={a.generation} className="transition duration-300 group-hover:scale-[1.03]" tag={isPlaceholder(a.generation) && o.kind === "text" ? PLACEHOLDER_CHIP : undefined} />
             </button>
             {/* Beside the tile, not in it (a button can't hold the chip's own button): the ways to the real thing. */}
@@ -275,6 +279,7 @@ function Assets({ p, active }: { p: AssistProject; active: boolean }) {
 }
 
 function Sources({ p }: { p: AssistProject }) {
+  const { t: tr } = useI18n();
   const actions = useProjectActions();
   const elements = useElements();
   const file = useRef<HTMLInputElement>(null);
@@ -289,8 +294,8 @@ function Sources({ p }: { p: AssistProject }) {
     setBusy(what);
     try {
       const s = await fn();
-      if (s.status === "error") toast.warning(`Added ${s.title}, but Assist can't read it`, { description: s.error });
-      else toast.success(`Added ${s.title}`, { duration: 1500 });
+      if (s.status === "error") toast.warning(tr("assist.composer.addedCantRead", { title: s.title }), { description: s.error });
+      else toast.success(tr("assist.composer.addedToast", { title: s.title }), { duration: 1500 });
       return true;
     } catch (e) {
       toastError(e);
@@ -303,13 +308,13 @@ function Sources({ p }: { p: AssistProject }) {
   return (
     <div className="space-y-3">
       <p className="text-[13px] text-pretty text-muted-foreground">
-        {p.sources.length} of {MAX_PROJECT_SOURCES} sources. Assist sees the list in every chat here and reads a source when it needs it.
+        {tr("assist.composer.sourcesCount", { n: p.sources.length, max: MAX_PROJECT_SOURCES })}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Popover open={linkOpen} onOpenChange={setLinkOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" disabled={full || !!busy}>
-              {busy === "link" ? <Loader2 className="animate-spin" /> : <Link2 />} Link
+              {busy === "link" ? <Loader2 className="animate-spin" /> : <Link2 />} {tr("assist.composer.linkWord")}
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" collisionPadding={12} className="w-[min(92vw,380px)]">
@@ -324,11 +329,11 @@ function Sources({ p }: { p: AssistProject }) {
               }}
               className="space-y-2"
             >
-              <Label htmlFor={linkId}>Add a web page</Label>
+              <Label htmlFor={linkId}>{tr("assist.composer.addWebPage")}</Label>
               <Input id={linkId} value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://yourbrand.com/about" autoFocus />
-              <p className="text-[12px] text-muted-foreground">Fuobe reads the page&apos;s text now; you can refresh it later.</p>
+              <p className="text-[12px] text-muted-foreground">{tr("assist.composer.pageReadNote")}</p>
               <Button type="submit" size="sm" className="w-full" disabled={!link.trim() || busy === "link"}>
-                {busy === "link" && <Loader2 className="animate-spin" />} Add link
+                {busy === "link" && <Loader2 className="animate-spin" />} {tr("assist.composer.addLink")}
               </Button>
             </form>
           </PopoverContent>
@@ -345,12 +350,12 @@ function Sources({ p }: { p: AssistProject }) {
           }}
         />
         <Button variant="outline" size="sm" disabled={full || !!busy} onClick={() => file.current?.click()}>
-          {busy === "file" ? <Loader2 className="animate-spin" /> : <Paperclip />} File
+          {busy === "file" ? <Loader2 className="animate-spin" /> : <Paperclip />} {tr("assist.composer.fileWord")}
         </Button>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" disabled={full || !!busy}>
-              <AtSign /> Element
+              <AtSign /> {tr("assist.composer.elementWord")}
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" collisionPadding={12} className="w-[min(92vw,320px)] p-1.5">
@@ -381,9 +386,9 @@ function Sources({ p }: { p: AssistProject }) {
               </ul>
             ) : (
               <p className="px-3 py-4 text-center text-[13px] text-muted-foreground">
-                No elements yet —{" "}
+                {tr("assist.composer.noElementsPre")}{" "}
                 <Link href="/elements" className="text-brand-text underline underline-offset-2">
-                  save a character or product
+                  {tr("assist.composer.saveCharacter")}
                 </Link>
                 .
               </p>
@@ -391,7 +396,7 @@ function Sources({ p }: { p: AssistProject }) {
           </PopoverContent>
         </Popover>
         <Button variant="outline" size="sm" disabled={full || !!busy} onClick={() => setNoteOpen(true)}>
-          <NotebookPen /> Note
+          <NotebookPen /> {tr("assist.composer.noteWord")}
         </Button>
       </div>
       {p.sources.length ? (
@@ -402,7 +407,7 @@ function Sources({ p }: { p: AssistProject }) {
         </ul>
       ) : (
         <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-[13px] text-pretty text-muted-foreground">
-          Add up to {MAX_PROJECT_SOURCES} sources — your website, a brand guide, a script, product photos, saved characters — and every chat here can use them.
+          {tr("assist.composer.sourcesEmptyHint", { max: MAX_PROJECT_SOURCES })}
         </p>
       )}
       <NoteDialog open={noteOpen} onOpenChange={setNoteOpen} onSave={(title, text) => run("note", () => actions.addSource(p.id, { kind: "text", title, text }))} />
@@ -411,6 +416,7 @@ function Sources({ p }: { p: AssistProject }) {
 }
 
 function SourceRow({ s, projectId }: { s: ProjectSource; projectId: string }) {
+  const { t: tr } = useI18n();
   const actions = useProjectActions();
   const [busy, setBusy] = useState(false);
   const Icon = SOURCE_ICON[s.kind];
@@ -434,7 +440,7 @@ function SourceRow({ s, projectId }: { s: ProjectSource; projectId: string }) {
         ) : (
           <p className="mt-0.5 line-clamp-2 text-[12px] break-words text-muted-foreground">
             {s.kind === "link" && s.url ? `${new URL(s.url).hostname} · ` : ""}
-            {s.excerpt ?? (s.kind === "video" || s.kind === "audio" || s.kind === "image" ? "Assist can pass it to models as an input" : "")}
+            {s.excerpt ?? (s.kind === "video" || s.kind === "audio" || s.kind === "image" ? tr("assist.composer.sourcePassInput") : "")}
           </p>
         )}
       </div>
@@ -443,13 +449,13 @@ function SourceRow({ s, projectId }: { s: ProjectSource; projectId: string }) {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Fetch ${s.title} again`}
+            aria-label={tr("assist.composer.fetchAgainAria", { title: s.title })}
             disabled={busy}
             onClick={async () => {
               setBusy(true);
               try {
                 const r = await actions.refreshSource(projectId, s.id);
-                toast(r.status === "ready" ? "Updated" : "Still can't read it", { duration: 1500 });
+                toast(r.status === "ready" ? tr("assist.composer.updatedToast") : tr("assist.composer.stillCantRead"), { duration: 1500 });
               } catch (e) {
                 toastError(e);
               } finally {
@@ -460,7 +466,7 @@ function SourceRow({ s, projectId }: { s: ProjectSource; projectId: string }) {
             <RotateCw className={cn(busy && "animate-spin")} />
           </Button>
         )}
-        <Button variant="ghost" size="icon-sm" className="hover:text-destructive" aria-label={`Remove ${s.title}`} onClick={() => void actions.removeSource(projectId, s.id).catch((e) => toastError(e))}>
+        <Button variant="ghost" size="icon-sm" className="hover:text-destructive" aria-label={tr("assist.composer.removeSourceAria", { title: s.title })} onClick={() => void actions.removeSource(projectId, s.id).catch((e) => toastError(e))}>
           <Trash2 />
         </Button>
       </div>
@@ -469,6 +475,7 @@ function SourceRow({ s, projectId }: { s: ProjectSource; projectId: string }) {
 }
 
 function NoteDialog({ open, onOpenChange, onSave }: { open: boolean; onOpenChange: (o: boolean) => void; onSave: (title: string, text: string) => Promise<boolean> }) {
+  const { t: tr } = useI18n();
   const ids = { title: useId(), text: useId() };
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
@@ -491,23 +498,23 @@ function NoteDialog({ open, onOpenChange, onSave }: { open: boolean; onOpenChang
           }}
         >
           <DialogHeader>
-            <DialogTitle className="font-heading text-[24px] font-normal">Add a note</DialogTitle>
-            <DialogDescription>A brief, a script, brand rules — any text the project&apos;s chats should know.</DialogDescription>
+            <DialogTitle className="font-heading text-[24px] font-normal">{tr("assist.composer.addNoteTitle")}</DialogTitle>
+            <DialogDescription>{tr("assist.composer.addNoteDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor={ids.title}>Title</Label>
-            <Input id={ids.title} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} placeholder="e.g. Brand voice" />
+            <Label htmlFor={ids.title}>{tr("assist.composer.noteTitleLabel")}</Label>
+            <Input id={ids.title} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} placeholder={tr("assist.composer.noteTitlePlaceholder")} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor={ids.text}>Text</Label>
+            <Label htmlFor={ids.text}>{tr("library.tab.text")}</Label>
             <Textarea id={ids.text} value={text} onChange={(e) => setText(e.target.value)} rows={8} maxLength={20_000} />
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tr("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy || !text.trim()}>
-              {busy && <Loader2 className="animate-spin" />} Add note
+              {busy && <Loader2 className="animate-spin" />} {tr("assist.composer.addNoteSubmit")}
             </Button>
           </DialogFooter>
         </form>

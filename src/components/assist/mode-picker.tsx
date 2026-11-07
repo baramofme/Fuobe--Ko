@@ -19,6 +19,8 @@ import {
 } from "@/lib/assist";
 import { cn } from "@/lib/utils";
 import { radioKeys, radioTab } from "@/components/studio/radio-keys";
+import { t as trStore } from "@/lib/i18n/store";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 const KEY = "fuobe:assist-mode";
 
@@ -67,6 +69,7 @@ export function useModeChoice(defaultMode?: AssistModeChoice["mode"]): [AssistMo
   ];
 }
 
+/** Mode and model names stay English on purpose (a name/badge, not a sentence — the parent's fixed decision). */
 export function modeChipLabel(c: AssistModeChoice | null, can?: AssistAvailability): string {
   if (!c) return "Mode";
   if (can?.aiOff) return "Offline";
@@ -115,7 +118,7 @@ function localOptions(can: AssistAvailability | undefined, on: (name: string) =>
     pick: { agent: "local" as const, provider: null, model: name, effort: null },
     icon: Cpu,
     title: <span className="block truncate font-mono text-[12px]">{name}</span>,
-    hint: /-cloud$|:cloud$/.test(name) ? `Ollama Cloud · paid, through ${can?.local.label ?? "Ollama"}` : `Local, through ${can?.local.label ?? "your local server"} · free`,
+    hint: /-cloud$|:cloud$/.test(name) ? trStore("assist.composer.ollamaCloudPaid", { label: can?.local.label ?? "Ollama" }) : trStore("assist.composer.localThroughFree", { label: can?.local.label ?? trStore("assist.composer.yourLocalServer") }),
     text: name,
     efforts: [],
   }));
@@ -161,6 +164,7 @@ export function ModePicker({
   disabled?: boolean;
   applyOnClose?: boolean;
 }) {
+  const { t: tr } = useI18n();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<AssistModeChoice | null>(null);
   const [find, setFind] = useState("");
@@ -188,11 +192,11 @@ export function ModePicker({
   // Manual: each connected provider's models (Claude's first when Anthropic is connected), the local server's, then the offline planner.
   const groups: { id: string; label: string; status?: string; models: ModelOption[] }[] = [
     ...(can?.manual?.groups ?? []).filter((g) => g.models.some((m) => m.agent !== "local")).map((g) => ({ id: g.id, label: g.label, status: g.status, models: g.models.map((m) => hostedOption(m, shown)) })),
-    ...(can?.local.models.length || can?.local.ok ? [{ id: "local", label: can.local.label, status: "On this machine", models: localOptions(can, (name) => agent === "local" && (shown?.model ?? can?.local.model) === name) }] : []),
+    ...(can?.local.models.length || can?.local.ok ? [{ id: "local", label: can.local.label, status: tr("assist.composer.onThisMachine"), models: localOptions(can, (name) => agent === "local" && (shown?.model ?? can?.local.model) === name) }] : []),
     {
       id: "offline",
-      label: "No LLM",
-      models: [{ key: "offline", on: agent === "offline", pick: { agent: "offline", provider: null, model: null, effort: null }, icon: Gauge, title: <span className="block text-[13px] font-medium">Offline planner</span>, hint: "Rules, no LLM — simple requests only", text: "offline planner", efforts: [] }],
+      label: tr("assist.composer.noLlm"),
+      models: [{ key: "offline", on: agent === "offline", pick: { agent: "offline", provider: null, model: null, effort: null }, icon: Gauge, title: <span className="block text-[13px] font-medium">{tr("assist.composer.offlinePlanner")}</span>, hint: tr("assist.composer.offlineHint"), text: "offline planner", efforts: [] }],
     },
   ];
   const all = groups.flatMap((g) => g.models);
@@ -220,7 +224,7 @@ export function ModePicker({
           // One width for "Smart", "Free" and "Mode": the label can change once availability loads, and the chips after it must not move.
           // Phones drop the chevron, so the composer's chips fit one row at 390 px.
           className="inline-flex h-8 max-w-[11rem] min-w-[6.5rem] shrink-0 items-center justify-center gap-1.5 rounded-full bg-secondary px-3 text-[13px] font-medium text-secondary-foreground transition-colors hover:bg-accent disabled:opacity-50 max-sm:min-w-[5rem] max-sm:px-2.5"
-          aria-label={`Mode: ${label}`}
+          aria-label={tr("assist.composer.modeChipAria", { label })}
         >
           <Icon className="size-3.5 shrink-0" />
           <span className="truncate">{label}</span>
@@ -230,14 +234,14 @@ export function ModePicker({
       <PopoverContent align="start" collisionPadding={12} className="max-h-[var(--radix-popover-content-available-height)] w-[min(92vw,360px)] overflow-y-auto overscroll-contain p-3">
         {can?.aiOff && (
           <p className="mb-3 rounded-lg bg-highlight/25 px-3 py-2 text-[12px]">
-            The AI helper is off in{" "}
+            {tr("assist.composer.aiOffPre")}
             <Link href="/settings" className="underline underline-offset-2">
-              Settings
+              {tr("nav.settings")}
             </Link>
-            , so every chat uses the offline planner.
+            {tr("assist.composer.aiOffPost")}
           </p>
         )}
-        <div role="radiogroup" aria-label="Mode" onKeyDown={radioKeys} className="grid grid-cols-3 gap-1 rounded-full bg-muted p-0.5">
+        <div role="radiogroup" aria-label={tr("studio.viewer.mode")} onKeyDown={radioKeys} className="grid grid-cols-3 gap-1 rounded-full bg-muted p-0.5">
           {ASSIST_MODES.map((m) => {
             const off = m.id === "smart" && smartOff;
             return (
@@ -264,7 +268,7 @@ export function ModePicker({
           <p className="mt-2 px-1 text-[12px] text-warning">
             {can?.smart?.text}{" "}
             <Link href="/settings#llm-providers" className="underline underline-offset-2">
-              Open Settings
+              {tr("assist.composer.openSettings")}
             </Link>
           </p>
         )}
@@ -276,8 +280,8 @@ export function ModePicker({
         )}
         {can?.openOnly && mode !== "free" && (
           <p className="mt-2 px-1 text-[11px] text-muted-foreground">
-            Open source only: open-weight models that cost nothing, on this machine or a provider&apos;s free ones
-            {can.claude ? ", and Claude (AI helper is set to Claude)." : ". Nothing goes to a paid API."}
+            {tr("assist.composer.openOnlyMain")}
+            {can.claude ? tr("assist.composer.openOnlyClaude") : tr("assist.composer.openOnlyPaid")}
           </p>
         )}
         {mode === "manual" && (
@@ -287,12 +291,12 @@ export function ModePicker({
                 type="search"
                 value={find}
                 onChange={(e) => setFind(e.target.value)}
-                placeholder="Find a model"
-                aria-label="Find a model"
+                placeholder={tr("assist.composer.findModel")}
+                aria-label={tr("assist.composer.findModel")}
                 className="h-8 w-full rounded-lg border bg-background px-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             )}
-            <div role="radiogroup" aria-label="Model" onKeyDown={radioKeys} className="max-h-[40vh] space-y-2 overflow-y-auto overscroll-contain">
+            <div role="radiogroup" aria-label={tr("studio.viewer.model")} onKeyDown={radioKeys} className="max-h-[40vh] space-y-2 overflow-y-auto overscroll-contain">
               {listed.map((g) => (
                 <div key={g.id} className="space-y-0.5">
                   <p className="px-2.5 pt-1 text-[11px] font-medium text-muted-foreground">
@@ -323,7 +327,7 @@ export function ModePicker({
             </div>
             {missing.length > 0 && (
               <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
-                Add a key:{" "}
+                {tr("assist.composer.addKeyPre")}{" "}
                 <Link href="/settings#llm-providers" className="underline underline-offset-2">
                   {missing.map((p) => p.label).join(" · ")}
                 </Link>
@@ -331,8 +335,8 @@ export function ModePicker({
             )}
             {efforts.length > 0 && (
               <div>
-                <p className="mb-1.5 px-1 text-[12px] font-medium">Effort</p>
-                <div role="radiogroup" aria-label="Effort" onKeyDown={radioKeys} className="grid grid-cols-5 gap-0.5 rounded-full bg-muted p-0.5">
+                <p className="mb-1.5 px-1 text-[12px] font-medium">{tr("assist.composer.effortLabel")}</p>
+                <div role="radiogroup" aria-label={tr("assist.composer.effortLabel")} onKeyDown={radioKeys} className="grid grid-cols-5 gap-0.5 rounded-full bg-muted p-0.5">
                   {ASSIST_EFFORTS.map((e) => {
                     const offered = efforts.includes(e.id);
                     return (
@@ -343,7 +347,7 @@ export function ModePicker({
                         aria-checked={effort === e.id}
                         tabIndex={radioTab(effort === e.id)}
                         disabled={!offered}
-                        title={offered ? undefined : "This model doesn't offer this level"}
+                        title={offered ? undefined : tr("assist.composer.effortNotOffered")}
                         onClick={() => set({ effort: e.id })}
                         className={cn("h-7 rounded-full text-[12px] font-medium transition-colors disabled:opacity-40", effort === e.id ? "bg-background text-foreground shadow-soft" : "text-muted-foreground enabled:hover:text-foreground")}
                       >
@@ -352,12 +356,12 @@ export function ModePicker({
                     );
                   })}
                 </div>
-                <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">Higher effort thinks longer and costs more per reply.</p>
+                <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">{tr("assist.composer.effortHint")}</p>
               </div>
             )}
           </div>
         )}
-        {pending && <p className="mt-3 border-t px-1 pt-2 text-[11px] text-muted-foreground">Applies to this chat when you close this menu.</p>}
+        {pending && <p className="mt-3 border-t px-1 pt-2 text-[11px] text-muted-foreground">{tr("assist.composer.appliesOnClose")}</p>}
       </PopoverContent>
     </Popover>
   );

@@ -13,6 +13,7 @@ import type { MediaKind } from "@/lib/catalog/types";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
 import { useEdgeFade } from "@/components/studio/use-edge-fade";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { SkillIcon } from "./skill-icon";
 
 interface Attachment {
@@ -44,6 +45,8 @@ export function AssistComposer({
   skills?: SkillSummary[];
   initialText?: string;
 }) {
+  // Some callbacks below name their own `t` — the hook's function is aliased to `tr` to stay callable.
+  const { t: tr } = useI18n();
   const [text, setText] = useState(initialText);
   const [files, setFiles] = useState<Attachment[]>([]);
   const [sending, setSending] = useState(false);
@@ -173,8 +176,8 @@ export function AssistComposer({
           onInteractOutside={(e) => box.current?.contains(e.target as Node) && e.preventDefault()}
           className="max-h-[min(18rem,var(--radix-popover-content-available-height))] w-[min(var(--radix-popover-trigger-width),40rem)] gap-0 overflow-y-auto rounded-2xl border bg-popover p-1 shadow-strong ring-0"
         >
-          <div role="listbox" id={listId} aria-label="Skills">
-            <p className="px-2.5 pt-1.5 pb-1 text-[11px] font-medium text-muted-foreground">Skills</p>
+          <div role="listbox" id={listId} aria-label={tr("assist.rail.skills")}>
+            <p className="px-2.5 pt-1.5 pb-1 text-[11px] font-medium text-muted-foreground">{tr("assist.rail.skills")}</p>
             {matches.map((s, i) => (
               <button
                 key={s.name}
@@ -213,7 +216,7 @@ export function AssistComposer({
                 <AudioLines className="m-auto mt-4 size-5 text-muted-foreground" />
               )}
               {!f.url && <Loader2 className="absolute inset-0 m-auto size-4 animate-spin text-foreground" />}
-              <button onClick={() => remove(f)} className="absolute top-0.5 right-0.5 grid size-4 place-items-center rounded-full bg-foreground/80 text-background" aria-label="Remove attachment">
+              <button onClick={() => remove(f)} className="absolute top-0.5 right-0.5 grid size-4 place-items-center rounded-full bg-foreground/80 text-background" aria-label={tr("assist.composer.removeAttachmentAria")}>
                 <X className="size-2.5" />
               </button>
             </div>
@@ -228,7 +231,7 @@ export function AssistComposer({
               <span key={n} className="inline-flex h-7 items-center gap-1.5 rounded-full bg-brand-faint pr-1 pl-1 text-[12px] font-medium text-brand-text">
                 <SkillIcon name={s.name} icon={s.icon} size="sm" className="size-5" />
                 {s.title}
-                <button type="button" onClick={() => unuse(n)} className="grid size-5 place-items-center rounded-full hover:bg-brand-faint-hover" aria-label={`Don't use ${s.title}`}>
+                <button type="button" onClick={() => unuse(n)} className="grid size-5 place-items-center rounded-full hover:bg-brand-faint-hover" aria-label={tr("assist.composer.dontUse", { name: s.title })}>
                   <X className="size-3" />
                 </button>
               </span>
@@ -272,7 +275,7 @@ export function AssistComposer({
         }}
         rows={1}
         placeholder={placeholder}
-        aria-label="Message"
+        aria-label={tr("assist.composer.messageAria")}
         // A textarea can't be a combobox (axe aria-allowed-role): it stays a text box that says it has a skills list ("/"), and names the open list and its active row.
         aria-haspopup={skills?.length ? "listbox" : undefined}
         aria-controls={menuOpen ? listId : undefined}
@@ -284,11 +287,11 @@ export function AssistComposer({
         <input ref={input} type="file" accept="image/*,video/*,audio/*" multiple hidden onChange={(e) => (add(e.target.files), (e.target.value = ""))} />
         <Tooltip>
           <TooltipTrigger asChild>
-            <button type="button" onClick={() => input.current?.click()} className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground max-sm:size-8" aria-label="Attach files">
+            <button type="button" onClick={() => input.current?.click()} className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground max-sm:size-8" aria-label={tr("assist.composer.attachAria")}>
               <Paperclip className="size-4" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>Attach photos, video or audio</TooltipContent>
+          <TooltipContent>{tr("assist.composer.attachTip")}</TooltipContent>
         </Tooltip>
         {!!skills?.length && (
           <Tooltip>
@@ -302,13 +305,13 @@ export function AssistComposer({
                   place(r.text, r.caret);
                 }}
                 className="hidden size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground sm:grid"
-                aria-label="Use a skill"
+                aria-label={tr("assist.composer.useSkill")}
               >
                 <Slash className="size-4" />
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              Use a skill <Kbd>/</Kbd>
+              {tr("assist.composer.useSkill")} <Kbd>/</Kbd>
             </TooltipContent>
           </Tooltip>
         )}
@@ -316,7 +319,7 @@ export function AssistComposer({
         <div ref={chipRow} style={fade} className="scrollbar-none -my-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-1 sm:flex-wrap sm:gap-1.5 sm:overflow-visible">
           {footer}
         </div>
-        <Button size="icon" className="size-10 shrink-0 rounded-full" disabled={!ready} onClick={() => void send()} aria-label="Send">
+        <Button size="icon" className="size-10 shrink-0 rounded-full" disabled={!ready} onClick={() => void send()} aria-label={tr("assist.composer.sendAria")}>
           {sending ? <Loader2 className="animate-spin" /> : <ArrowUp />}
         </Button>
       </div>

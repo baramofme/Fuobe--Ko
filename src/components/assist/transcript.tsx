@@ -14,6 +14,7 @@ import { isPlaceholder, PLACEHOLDER_CHIP } from "@/lib/demo-mode";
 import { formatCost } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { PlanJobs } from "./plan-jobs";
 import { SkillIcon } from "./skill-icon";
 
@@ -44,6 +45,7 @@ export function Prose({ text }: { text: string }) {
 }
 
 export function ApprovalCard({ item, live, onAnswer }: { item: Extract<AssistItem, { role: "approval" }>; live: boolean; onAnswer: (ok: boolean) => Promise<void> }) {
+  const { t: tr } = useI18n();
   const [busy, setBusy] = useState<boolean | null>(null);
   const runnable = planRunnable(item.jobs);
   const memoryOnly = item.jobs.length > 0 && item.jobs.every((j) => j.op === "memory");
@@ -51,14 +53,14 @@ export function ApprovalCard({ item, live, onAnswer }: { item: Extract<AssistIte
   const total = memoryOnly
     ? memoryCardLine(item.status)
     : !runnable && item.status === "pending"
-      ? "Can't run yet — fix what's marked above, or tell Assist what to change"
+      ? tr("assist.transcript.cantRunYet")
       : allDemo
-      ? "Placeholder run · free"
+      ? tr("assist.transcript.placeholderRunFree")
       : item.totalUsd === null
-        ? "Some prices vary"
+        ? tr("assist.transcript.pricesVary")
         : item.totalUsd === 0
-          ? "Free"
-          : `≈ ${formatCost(item.totalUsd)}`;
+          ? tr("studio.engine.freeShort")
+          : tr("assist.transcript.approx", { cost: formatCost(item.totalUsd) });
   const answer = async (ok: boolean) => {
     setBusy(ok);
     try {
@@ -76,17 +78,17 @@ export function ApprovalCard({ item, live, onAnswer }: { item: Extract<AssistIte
         <p className="min-w-0 flex-1 truncate text-[13px] font-medium">{item.summary}</p>
         {item.status === "approved" && (
           <span className="inline-flex items-center gap-1 text-[12px] font-medium text-brand-text">
-            <Check className="size-3" /> {memoryOnly ? "Saved" : "Approved"}
+            <Check className="size-3" /> {memoryOnly ? tr("assist.transcript.saved") : tr("library.review.approved")}
           </span>
         )}
-        {item.status === "declined" && <span className="text-[12px] text-muted-foreground">Skipped</span>}
+        {item.status === "declined" && <span className="text-[12px] text-muted-foreground">{tr("assist.transcript.skipped")}</span>}
       </div>
       <PlanJobs jobs={item.jobs} />
       {!!(item.opens?.length || item.notes?.length) && (
         <div className="space-y-1 border-t px-4 py-2.5 text-[12px] text-muted-foreground">
           {item.opens?.length ? (
             <p className="flex items-start gap-1.5">
-              <AppWindow className="mt-0.5 size-3.5 shrink-0" /> Opens in {item.opens.join(" and ")}, where you can keep working on it
+              <AppWindow className="mt-0.5 size-3.5 shrink-0" /> {tr("assist.transcript.opensIn", { names: item.opens.join(tr("assist.transcript.joinAnd")) })}
             </p>
           ) : null}
           {item.notes?.map((n, k) => (
@@ -101,10 +103,10 @@ export function ApprovalCard({ item, live, onAnswer }: { item: Extract<AssistIte
         {live && item.status === "pending" && (
           <div className="ml-auto flex gap-1.5">
             <Button variant="ghost" size="sm" disabled={busy !== null} onClick={() => void answer(false)}>
-              Not now
+              {tr("assist.transcript.notNow")}
             </Button>
             <Button size="sm" disabled={busy !== null || !runnable} onClick={() => void answer(true)}>
-              {busy ? <Loader2 className="animate-spin" /> : <Check />} {memoryOnly ? "Remember" : `Run${item.totalUsd && !allDemo ? ` · ${formatCost(item.totalUsd)}` : ""}`}
+              {busy ? <Loader2 className="animate-spin" /> : <Check />} {memoryOnly ? tr("assist.transcript.remember") : tr("assist.transcript.run") + (item.totalUsd && !allDemo ? tr("assist.transcript.runCost", { cost: formatCost(item.totalUsd) }) : "")}
             </Button>
           </div>
         )}
@@ -117,6 +119,7 @@ const STUDIO_ICON: Record<string, typeof ImageIcon> = { Layers, "Shorts Studio":
 
 /** A job a studio took: where it lives, and the way there. */
 function StudioCard({ text, studio, href }: { text: string; studio: string; href: string }) {
+  const { t: tr } = useI18n();
   const Icon = STUDIO_ICON[studio] ?? AppWindow;
   return (
     <div className="flex animate-fade-up flex-col gap-3 rounded-2xl border bg-background px-4 py-3 shadow-soft sm:flex-row sm:items-center">
@@ -126,12 +129,12 @@ function StudioCard({ text, studio, href }: { text: string; studio: string; href
         </span>
         <div className="min-w-0">
           <p className="text-[13px] font-medium break-words">{text}</p>
-          <p className="text-[12px] text-muted-foreground">Follow it and keep editing in {studio}.</p>
+          <p className="text-[12px] text-muted-foreground">{tr("assist.transcript.followIn", { studio })}</p>
         </div>
       </div>
       <Button asChild size="sm" variant="outline" className="w-full rounded-full sm:w-auto">
         <Link href={href}>
-          Open in {studio} <ArrowUpRight />
+          {tr("assist.transcript.openIn", { studio })} <ArrowUpRight />
         </Link>
       </Button>
     </div>
@@ -139,6 +142,7 @@ function StudioCard({ text, studio, href }: { text: string; studio: string; href
 }
 
 export function GenerationCards({ ids, all, storyboard, onOpen }: { ids: string[]; all: Map<string, Generation>; storyboard?: boolean; onOpen: (g: Generation, i: number) => void }) {
+  const { t: tr } = useI18n();
   const create = useCreateGeneration();
   const gens = ids.map((id) => all.get(id)).filter((g): g is Generation => !!g);
   if (!gens.length) return null;
@@ -158,7 +162,7 @@ export function GenerationCards({ ids, all, storyboard, onOpen }: { ids: string[
               onClick={() => onOpen(g, i)}
               className="group relative block w-full overflow-hidden rounded-xl bg-muted"
               style={{ aspectRatio: ratio }}
-              aria-label={`Open ${n ? `take ${n}: ` : ""}${g.request.prompt?.slice(0, 60) || "result"}`}
+              aria-label={tr("assist.transcript.openAria", { desc: `${n ? tr("assist.transcript.takePrefix", { n }) : ""}${g.request.prompt?.slice(0, 60) || tr("assist.transcript.fallbackResult")}` })}
             >
               {/* A text card says "Placeholder" in its own header row: on a narrow tile a corner badge would cover its label. */}
               <MediaThumb output={o} g={g} className="transition duration-300 group-hover:scale-[1.02]" tag={isPlaceholder(g) && o.kind === "text" ? PLACEHOLDER_CHIP : undefined} />
@@ -198,6 +202,7 @@ export function Transcript({
   onAnswer: (ok: boolean) => Promise<void>;
   onOpen: (g: Generation, i: number) => void;
 }) {
+  const { t: tr } = useI18n();
   const lastApproval = thread.items.findLast((i) => i.role === "approval")?.id;
   const skill = (n: string) => skills?.find((s) => s.name === n);
   return (
@@ -245,8 +250,8 @@ export function Transcript({
             if (item.connector)
               return (
                 <p key={item.id} className={cn("flex items-center gap-1.5 text-[12px]", item.failed ? "text-destructive" : "text-muted-foreground")}>
-                  <Plug className="size-3" aria-hidden /> <span className="sr-only">Connector:</span> {item.text}
-                  {item.failed && " — didn't work"}
+                  <Plug className="size-3" aria-hidden /> <span className="sr-only">{tr("assist.transcript.connectorSr")}</span> {item.text}
+                  {item.failed && tr("assist.transcript.didntWork")}
                 </p>
               );
             return item.href ? (
@@ -272,7 +277,7 @@ export function Transcript({
       })}
       {thread.status === "running" && (
         <p className="shimmer-text animate-shimmer-text flex items-center gap-2 text-[14px] font-medium">
-          <Sparkles className="size-3.5" /> Thinking…
+          <Sparkles className="size-3.5" /> {tr("assist.transcript.thinking")}
         </p>
       )}
     </div>

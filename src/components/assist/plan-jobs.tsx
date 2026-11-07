@@ -6,6 +6,8 @@ import type { PlannedJob } from "@/lib/assist";
 import { OPERATION_LABELS, type MediaKind, type Operation } from "@/lib/catalog/types";
 import { formatCost } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { t as trStore } from "@/lib/i18n/store";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 const KIND_ICON: Record<MediaKind | "storyboard" | "memory", typeof ImageIcon> = { image: ImageIcon, video: Video, audio: AudioLines, text: FileText, model3d: Box, storyboard: Clapperboard, memory: Brain };
 
@@ -13,16 +15,16 @@ const KIND_ICON: Record<MediaKind | "storyboard" | "memory", typeof ImageIcon> =
 export function jobPrice(j: PlannedJob): string {
   if (j.error) return "—";
   if (j.op === "memory") return "";
-  if (j.demo) return "Placeholder";
-  if (j.costUsd === 0) return "Free";
-  return j.costUsd === null ? "Price varies" : formatCost(j.costUsd);
+  if (j.demo) return trStore("assist.transcript.jobPlaceholder");
+  if (j.costUsd === 0) return trStore("studio.engine.freeShort");
+  return j.costUsd === null ? trStore("assist.transcript.priceVaries") : formatCost(j.costUsd);
 }
 
 function jobLine(j: PlannedJob): string {
-  if (j.op === "storyboard") return `Storyboard · ${j.count} frames`;
-  if (j.op === "memory") return j.note ?? "Memory";
+  if (j.op === "storyboard") return trStore("assist.transcript.storyboardFrames", { n: j.count });
+  if (j.op === "memory") return j.note ?? trStore("assist.transcript.memoryWord");
   const op = OPERATION_LABELS[j.op as Operation] ?? j.op;
-  return [j.note && j.note !== op ? j.note : op, j.count > 1 ? `${j.count} takes` : ""].filter(Boolean).join(" · ");
+  return [j.note && j.note !== op ? j.note : op, j.count > 1 ? trStore("assist.transcript.takesWord", { n: j.count }) : ""].filter(Boolean).join(" · ");
 }
 
 /**
@@ -30,6 +32,8 @@ function jobLine(j: PlannedJob): string {
  * (a dub, a faceless episode) fold after `fold` steps.
  */
 export function PlanJobs({ jobs, fold = 6, className }: { jobs: PlannedJob[]; fold?: number; className?: string }) {
+  // Subscribes to the language so the switch re-renders the job lines the helpers above read at call time.
+  const { t: tr } = useI18n();
   const [all, setAll] = useState(false);
   const shown = all ? jobs : jobs.slice(0, fold);
   return (
@@ -71,7 +75,7 @@ export function PlanJobs({ jobs, fold = 6, className }: { jobs: PlannedJob[]; fo
       </ul>
       {jobs.length > fold && (
         <button type="button" onClick={() => setAll((v) => !v)} className="w-full border-t px-4 py-2 text-left text-[12px] font-medium text-brand-text hover:bg-accent">
-          {all ? "Show fewer steps" : `Show all ${jobs.length} steps`}
+          {all ? tr("assist.transcript.showFewer") : tr("assist.transcript.showAll", { n: jobs.length })}
         </button>
       )}
     </>
