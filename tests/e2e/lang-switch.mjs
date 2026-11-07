@@ -516,6 +516,172 @@ step("more: RichItem row names switch to Korean (sub-xl viewport)");
   await page.close();
 }
 
+step("marketing: brand, words and settings follow the switch (Ads format)");
+{
+  // The Ads format is the one whose chrome holds the Words panel and the Brand chip beside the Settings chip.
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "marketing");
+  await openRoute(page, `${app}/marketing`);
+
+  const formatTrigger = page.getByRole("button", { name: "Format: Product shot · Standalone", exact: true });
+  await formatTrigger.waitFor({ timeout: 15_000 });
+  await formatTrigger.click();
+  await page.getByRole("dialog", { name: "Format" }).getByRole("button", { name: "Ads", exact: true }).click();
+  await page.waitForTimeout(300);
+
+  // English first: the three wired chips read their source bytes.
+  check("the Settings chip reads “Settings: 4:5”", await page.getByRole("button", { name: "Settings: 4:5", exact: true }).first().isVisible().catch(() => false), "");
+  check("the Brand chip reads “Brand kit”", await page.getByRole("button", { name: "Brand kit", exact: true }).first().isVisible().catch(() => false), "");
+  check("the Words chip reads “Headline and button text”", await page.getByRole("button", { name: "Headline and button text", exact: true }).first().isVisible().catch(() => false), "");
+
+  // The Words panel opens named by its title (the popover takes aria-label from it), labels English as authored.
+  await page.getByRole("button", { name: "Headline and button text", exact: true }).first().click();
+  const wordsEn = page.locator('[role="dialog"][aria-label="Words on the image"]');
+  check("the Words panel is named “Words on the image”", await wordsEn.first().waitFor({ state: "visible", timeout: 5_000 }).then(() => true, () => false), "");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  // 한국어, one click, no reload.
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(400);
+  check("still the same page (no reload happened)", page.url().endsWith("/marketing"), page.url());
+
+  // Chips: the accessible names switched on the same render; none of the English names left.
+  check("the Settings chip reads “설정: 4:5”", await page.getByRole("button", { name: /^설정: 4:5/ }).first().isVisible().catch(() => false), "");
+  check("no English “Settings: …” chip name left", (await page.getByRole("button", { name: /^Settings: / }).count()) === 0, "");
+  check("the Brand chip reads “브랜드 키트”", await page.getByRole("button", { name: "브랜드 키트", exact: true }).first().isVisible().catch(() => false), "");
+  check("no English “Brand kit” chip name left", (await page.getByRole("button", { name: /^Brand kit/ }).count()) === 0, "");
+  check("the Words chip reads “제목과 버튼 문구”", await page.getByRole("button", { name: "제목과 버튼 문구", exact: true }).first().isVisible().catch(() => false), "");
+  check("no English “Headline and button text” left", (await page.getByRole("button", { name: "Headline and button text", exact: true }).count()) === 0, "");
+  check("the Words chip's word is 제목", await page.getByRole("button", { name: "제목과 버튼 문구", exact: true }).first().getByText("제목", { exact: true }).first().isVisible().catch(() => false), "");
+
+  // Open the Words panel again: its name, both labels and the drawn switch read Korean now.
+  await page.getByRole("button", { name: "제목과 버튼 문구", exact: true }).first().click();
+  const wordsKo = page.locator('[role="dialog"][aria-label="그림에 들어갈 문구"]');
+  check("the Words panel is named 그림에 들어갈 문구", await wordsKo.first().waitFor({ state: "visible", timeout: 5_000 }).then(() => true, () => false), "");
+  check("its headline label reads 제목", await wordsKo.getByText("제목", { exact: true }).first().isVisible().catch(() => false), "");
+  check("its button label reads 버튼", await wordsKo.getByText("버튼", { exact: true }).first().isVisible().catch(() => false), "");
+  check("the drawn switch reads 모델이 그려 넣은 문구", await wordsKo.getByText("모델이 그려 넣은 문구", { exact: true }).first().isVisible().catch(() => false), "");
+  const phOne = await wordsKo.getByRole("textbox").first().getAttribute("placeholder");
+  check("the headline placeholder reads 예: 바삭하게, 완성", phOne === "예: 바삭하게, 완성", `placeholder=${phOne}`);
+  const phTwo = await wordsKo.getByRole("textbox").nth(1).getAttribute("placeholder");
+  check("the button placeholder reads 예: 지금 구매", phTwo === "예: 지금 구매", `placeholder=${phTwo}`);
+  check("no English Words panel name left", (await page.locator('[role="dialog"][aria-label="Words on the image"]').count()) === 0, "");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  // The Brand chip's popover: header and chrome went Korean; the English chrome strings are gone from it.
+  await page.getByRole("button", { name: "브랜드 키트", exact: true }).first().click();
+  const brandPop = page.getByRole("dialog").last();
+  await brandPop.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+  const brandText = await brandPop.evaluate((el) => el.innerText).catch(() => "");
+  check("the popover header reads 브랜드 키트", /브랜드 키트/.test(brandText), brandText.slice(0, 60));
+  check("no English brand chrome left in the popover", !/Brand kit|Add brand kit|No brand kit|\bManage\b/.test(brandText), brandText.slice(0, 120));
+  const foot = brandPop.locator("div.border-t").last();
+  const footVisible = await foot.isVisible().catch(() => false);
+  if (footVisible) check("the brand footer reads its Korean chrome", /브랜드 키트 (추가|없음)|관리/.test(await foot.evaluate((el) => el.innerText)), "");
+  await page.keyboard.press("Escape");
+  await page.close();
+}
+
+step("marketing: the website chip follows the switch (SaaS format)");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "marketing-saas");
+  await openRoute(page, `${app}/marketing`);
+
+  // Video mode first: the SaaS shoot lives in the video format list, and toggling re-fits the draft to a video format.
+  await page.getByRole("radio", { name: "Video mode", exact: true }).first().click();
+  await page.waitForTimeout(300);
+  const formatTrigger = page.getByRole("button", { name: /^Format: / }).first();
+  await formatTrigger.waitFor({ timeout: 15_000 });
+  await formatTrigger.click();
+  await page.getByRole("dialog", { name: "Format" }).getByRole("button", { name: "Product motion · SaaS", exact: true }).click();
+  await page.waitForTimeout(300);
+
+  // English first: the chip, then its panel with a typed bad link reading the English refusal.
+  check("the Website chip reads “Add a website or social link”", await page.getByRole("button", { name: "Add a website or social link", exact: true }).first().isVisible().catch(() => false), "");
+  check("the Website chip's word is Website", await page.getByRole("button", { name: "Add a website or social link", exact: true }).first().getByText("Website", { exact: true }).first().isVisible().catch(() => false), "");
+  check("the Settings chip reads “Settings: 16:9 · 5s”", await page.getByRole("button", { name: "Settings: 16:9 · 5s", exact: true }).first().isVisible().catch(() => false), "");
+  await page.getByRole("button", { name: "Add a website or social link", exact: true }).first().click();
+  const siteEn = page.locator('[role="dialog"][aria-label="Website or social link"]');
+  await siteEn.first().waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+  await siteEn.locator("input").first().fill("nope");
+  await page.waitForTimeout(300);
+  check("the bad-link refusal reads English first", await siteEn.getByText("Enter a valid website URL", { exact: true }).first().isVisible().catch(() => false), "");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(400);
+  check("still the same page (no reload happened)", page.url().endsWith("/marketing"), page.url());
+
+  // The chip kept the typed value across the switch and named it in Korean; the refusal switched with it.
+  check("the Website chip reads “웹사이트: nope” with the value kept", await page.getByRole("button", { name: "웹사이트: nope", exact: true }).first().isVisible().catch(() => false), "");
+  check("no English “Add a website or social link” left", (await page.getByRole("button", { name: "Add a website or social link", exact: true }).count()) === 0, "");
+  check("the Settings chip reads “설정: 16:9 · 5s”", await page.getByRole("button", { name: /^설정: 16:9 · 5s/ }).first().isVisible().catch(() => false), "");
+  await page.getByRole("button", { name: "웹사이트: nope", exact: true }).first().click();
+  const siteKo = page.locator('[role="dialog"][aria-label="웹사이트 또는 소셜 링크"]');
+  check("the panel is named 웹사이트 또는 소셜 링크", await siteKo.first().waitFor({ state: "visible", timeout: 5_000 }).then(() => true, () => false), "");
+  check("its link label reads 링크", await siteKo.getByText("링크", { exact: true }).first().isVisible().catch(() => false), "");
+  check("the bad-link refusal reads the Korean words", await siteKo.getByText("올바른 웹사이트 주소를 입력해 주세요", { exact: true }).first().isVisible().catch(() => false), "");
+  const siteText = await siteKo.first().evaluate((el) => el.innerText).catch(() => "");
+  check("no English refusal inside the Korean panel", !siteText.includes("Enter a valid website URL"), siteText.slice(0, 120));
+  const ph = await siteKo.locator("input").first().getAttribute("placeholder");
+  check("the www placeholder is the URL example, kept byte-for-byte in both languages", ph === "www.example.com", `placeholder=${ph}`);
+  await page.keyboard.press("Escape");
+  await page.close();
+}
+
+step("marketing: the voice chip follows the switch (UGC format)");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "marketing-ugc");
+  await openRoute(page, `${app}/marketing`);
+
+  // Video mode first: the UGC shoot lives in the video format list, and toggling re-fits the draft to a video format.
+  await page.getByRole("radio", { name: "Video mode", exact: true }).first().click();
+  await page.waitForTimeout(300);
+  const formatTrigger = page.getByRole("button", { name: /^Format: / }).first();
+  await formatTrigger.waitFor({ timeout: 15_000 });
+  await formatTrigger.click();
+  await page.getByRole("dialog", { name: "Format" }).getByRole("button", { name: "UGC video · Talking head", exact: true }).click();
+  await page.waitForTimeout(300);
+
+  // English first: the voice chip falls back to the store's “Voice” word (VoiceControl passes no label),
+  // and its tooltip — mounted only on hover — says which engine voices come from.
+  const voiceEn = page.getByRole("button", { name: /^Voice(: |$)/ }).first();
+  check("the voice chip reads the English Voice word", await voiceEn.waitFor({ state: "visible", timeout: 10_000 }).then(() => true, () => false), "");
+  const tipEnLoc = page.getByRole("tooltip").first();
+  // Hover the wrapper span, not the chip: beside it the Brand chip overlaps the composer's scrolling row and
+  // intercepts the pointer, so a hover on the button itself never reaches the tooltip trigger.
+  await page.locator("span.inline-flex").filter({ has: voiceEn }).first().hover().catch(() => {});
+  await tipEnLoc.waitFor({ state: "visible", timeout: 4_000 }).catch(() => {});
+  const tipEn = await tipEnLoc.innerText().catch(() => "");
+  check("the voice tooltip reads its English words first", /Voiceover by |Open-source voices/.test(tipEn), tipEn.slice(0, 80));
+
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(400);
+  check("still the same page (no reload happened)", page.url().endsWith("/marketing"), page.url());
+
+  // The chip word, the tooltip and the neighbouring chips all switched on the same render.
+  const voiceKo = page.getByRole("button", { name: /^보이스(: |$)/ }).first();
+  check("the voice chip reads the Korean 보이스 word", await voiceKo.first().isVisible().catch(() => false), "");
+  check("no English “Voice” chip word left", (await page.getByRole("button", { name: /^Voice(: |$)/ }).count()) === 0, "");
+  const tipKoLoc = page.getByRole("tooltip").first();
+  await page.locator("span.inline-flex").filter({ has: voiceKo }).first().hover().catch(() => {});
+  await tipKoLoc.waitFor({ state: "visible", timeout: 4_000 }).catch(() => {});
+  const tipKo = await tipKoLoc.innerText().catch(() => "");
+  check("the voice tooltip reads Korean now", /음성|복제합니다/.test(tipKo), tipKo.slice(0, 80));
+  check("the Brand chip is still there and reads 브랜드 키트", await page.getByRole("button", { name: "브랜드 키트", exact: true }).first().isVisible().catch(() => false), "");
+  check("the Settings chip reads the Korean 설정 name with the same summary", await page.getByRole("button", { name: /^설정: 9:16 · 15s/ }).first().isVisible().catch(() => false), "");
+  await page.keyboard.press("Escape");
+  await page.close();
+}
+
 step("nothing was missed on the way");
 {
   const i18nNoise = noise.filter((l) => /\[i18n\]/.test(l));

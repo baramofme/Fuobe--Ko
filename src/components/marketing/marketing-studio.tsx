@@ -15,7 +15,7 @@ import { BrandChip } from "@/components/brand/brand-dialog";
 import { inputCls } from "@/components/brand/fields";
 import { withoutOwnGpu } from "@/lib/catalog/engines";
 import { Switch } from "@/components/ui/switch";
-import { DRAWN_WORDS_HINT, DRAWN_WORDS_LABEL, FORMATS, formatModels, isCodeTemplate, looksLikeWebsite, pickable, MAX_PROMPT, openingAspect, TEMPLATE_INDEX, visibleTemplate, type FormatId, type MarketingCategory, type MarketingTemplate, type RunEstimate } from "@/lib/catalog/marketing";
+import { FORMATS, formatModels, isCodeTemplate, looksLikeWebsite, pickable, MAX_PROMPT, openingAspect, TEMPLATE_INDEX, visibleTemplate, type FormatId, type MarketingCategory, type MarketingTemplate, type RunEstimate } from "@/lib/catalog/marketing";
 import { SelfHostNote } from "@/components/self-host-note";
 import { StarterSection } from "@/components/starters/starter-section";
 import { useIsOwner, useLikelyVisitor, useModelAccess, usePlaceName } from "@/lib/api";
@@ -117,6 +117,7 @@ function withTemplate(d: Draft, t: MarketingTemplate | null, format?: FormatId):
 
 function SettingsPanel({ draft, set, models, engine }: { draft: Draft; set: (p: Partial<Draft>) => void; models: Record<string, ModelInfo>; engine: "cloud" | "open" }) {
   const [open, setOpen] = useState(false);
+  const { t: tr } = useI18n();
   const f = FORMATS[draft.format];
   // Models switched off in Settings → Models & licences leave the menu, and the pick falls back to one that is on.
   const access = useModelAccess();
@@ -133,10 +134,10 @@ function SettingsPanel({ draft, set, models, engine }: { draft: Draft; set: (p: 
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
-      title="Settings"
-      tooltip="Aspect ratio, length, batch and model"
+      title={tr("studio.settings.title")}
+      tooltip={tr("marketing.output.tooltip")}
       trigger={
-        <button type="button" className={cn(chipBase, chipIdle)} aria-label={`Settings: ${summary}`}>
+        <button type="button" className={cn(chipBase, chipIdle)} aria-label={tr("marketing.output.triggerAria", { summary })}>
           <SlidersHorizontal className="size-3.5" />
           <span className="hidden sm:inline">{summary}</span>
         </button>
@@ -144,8 +145,8 @@ function SettingsPanel({ draft, set, models, engine }: { draft: Draft; set: (p: 
     >
       <div className="space-y-4">
         <div>
-          <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">Aspect ratio</p>
-          <div role="radiogroup" aria-label="Aspect ratio" className="flex flex-wrap gap-1 rounded-2xl bg-muted p-0.5">
+          <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">{tr("studio.settings.aspectRatio")}</p>
+          <div role="radiogroup" aria-label={tr("studio.settings.aspectRatio")} className="flex flex-wrap gap-1 rounded-2xl bg-muted p-0.5">
             {f.aspectRatios.map((a) => (
               <button key={a} role="radio" aria-checked={draft.aspectRatio === a} onClick={() => set({ aspectRatio: a })} className={seg(draft.aspectRatio === a)}>
                 {a}
@@ -155,9 +156,9 @@ function SettingsPanel({ draft, set, models, engine }: { draft: Draft; set: (p: 
         </div>
         {f.durations && (
           <div>
-            <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">Length · {draft.duration}s</p>
-            {f.pipeline === "ugc" && <p className="-mt-1 mb-1.5 text-[11px] text-muted-foreground">The whole video: the script is sized to what&apos;s left after the hook and the product close-up</p>}
-            <input type="range" min={f.durations.min} max={f.durations.max} step={1} value={draft.duration ?? f.durations.default} onChange={(e) => set({ duration: Number(e.target.value) })} aria-label="Length in seconds" className="w-full accent-[var(--primary)]" />
+            <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">{tr("marketing.output.lengthLine", { seconds: draft.duration ?? f.durations.default })}</p>
+            {f.pipeline === "ugc" && <p className="-mt-1 mb-1.5 text-[11px] text-muted-foreground">{tr("marketing.output.ugcLengthNote")}</p>}
+            <input type="range" min={f.durations.min} max={f.durations.max} step={1} value={draft.duration ?? f.durations.default} onChange={(e) => set({ duration: Number(e.target.value) })} aria-label={tr("marketing.output.lengthSecondsAria")} className="w-full accent-[var(--primary)]" />
             <p className="mt-0.5 flex justify-between text-[11px] text-muted-foreground">
               <span>{f.durations.min}s</span>
               <span>{f.durations.max}s</span>
@@ -166,8 +167,8 @@ function SettingsPanel({ draft, set, models, engine }: { draft: Draft; set: (p: 
         )}
         {f.batch > 1 && (
           <div>
-            <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">{f.kind === "video" ? "Versions" : "Images"}</p>
-            <div role="radiogroup" aria-label="Batch size" className="inline-flex rounded-full bg-muted p-0.5">
+            <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">{f.kind === "video" ? tr("marketing.output.versions") : tr("studio.settings.images")}</p>
+            <div role="radiogroup" aria-label={tr("marketing.output.batchAria")} className="inline-flex rounded-full bg-muted p-0.5">
               {Array.from({ length: f.batch }, (_, i) => i + 1).map((n) => (
                 <button key={n} role="radio" aria-checked={draft.batch === n} onClick={() => set({ batch: n })} className={seg(draft.batch === n)}>
                   ×{n}
@@ -177,7 +178,7 @@ function SettingsPanel({ draft, set, models, engine }: { draft: Draft; set: (p: 
           </div>
         )}
         <div>
-          <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">Model</p>
+          <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">{tr("marketing.output.model")}</p>
           <div className="space-y-1">
             {choices.map((c) => (
               <button key={c.id} type="button" onClick={() => set({ modelId: c.id })} className={cn("w-full rounded-lg px-2.5 py-1.5 text-left hover:bg-accent", model.id === c.id && "bg-brand-faint")}>
@@ -200,38 +201,39 @@ function SettingsPanel({ draft, set, models, engine }: { draft: Draft; set: (p: 
 
 function TextPanel({ draft, set, template }: { draft: Draft; set: (p: Partial<Draft>) => void; template?: MarketingTemplate }) {
   const [open, setOpen] = useState(false);
+  const { t: tr } = useI18n();
   const has = draft.headline || draft.cta;
   const drawnId = "marketing-drawn-words";
   return (
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
-      title="Words on the image"
-      description="Set exactly, letter for letter: Fuobe Marketing Image and open-source results get them set on top in your brand fonts; GPT Image, Ideogram and Recraft draw them."
+      title={tr("marketing.words.panelTitle")}
+      description={tr("marketing.words.panelDesc")}
       trigger={
-        <button type="button" className={cn(chipBase, has ? chipOn : chipIdle, "max-w-44")} aria-label="Headline and button text">
+        <button type="button" className={cn(chipBase, has ? chipOn : chipIdle, "max-w-44")} aria-label={tr("marketing.words.triggerAria")}>
           <Type className="size-3.5" />
-          <span className="truncate">{draft.headline || template?.headline?.replace(/\{\w+\}/g, "…") || "Headline"}</span>
+          <span className="truncate">{draft.headline || template?.headline?.replace(/\{\w+\}/g, "…") || tr("marketing.words.headline")}</span>
         </button>
       }
     >
       <div className="space-y-3">
         <label className="block space-y-1.5">
-          <span className="text-[12px] font-medium text-muted-foreground">Headline</span>
-          <input value={draft.headline} onChange={(e) => set({ headline: e.target.value })} maxLength={140} placeholder={template?.headline?.replace("{product}", "your product").replace("{brand}", "your brand") ?? "e.g. Crunch, sorted"} className={inputCls} />
+          <span className="text-[12px] font-medium text-muted-foreground">{tr("marketing.words.headline")}</span>
+          <input value={draft.headline} onChange={(e) => set({ headline: e.target.value })} maxLength={140} placeholder={template?.headline?.replace("{product}", tr("marketing.words.placeholderProduct")).replace("{brand}", tr("marketing.words.placeholderBrand")) ?? tr("marketing.words.headlinePlaceholder")} className={inputCls} />
         </label>
         <label className="block space-y-1.5">
-          <span className="text-[12px] font-medium text-muted-foreground">Button</span>
-          <input value={draft.cta} onChange={(e) => set({ cta: e.target.value })} maxLength={40} placeholder={template?.cta ?? "e.g. Shop now"} className={inputCls} />
+          <span className="text-[12px] font-medium text-muted-foreground">{tr("marketing.words.button")}</span>
+          <input value={draft.cta} onChange={(e) => set({ cta: e.target.value })} maxLength={40} placeholder={template?.cta ?? tr("marketing.words.ctaPlaceholder")} className={inputCls} />
         </label>
         {/* Off by default: words set on top keep your exact fonts. On: a model that places boxes draws them in place. */}
         <div className="flex items-start gap-3 rounded-xl bg-muted/60 p-3">
           <div className="min-w-0 flex-1">
             <label htmlFor={drawnId} className="block text-[13px] font-medium">
-              {DRAWN_WORDS_LABEL}
+              {tr("marketing.words.drawnLabel")}
             </label>
             <p id={`${drawnId}-hint`} className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-              {DRAWN_WORDS_HINT}
+              {tr("marketing.words.drawnHint")}
             </p>
           </div>
           <Switch id={drawnId} checked={!!draft.drawnWords} onCheckedChange={(v) => set({ drawnWords: v, modelId: undefined })} aria-describedby={`${drawnId}-hint`} className="mt-0.5 shrink-0" />
@@ -244,25 +246,26 @@ function TextPanel({ draft, set, template }: { draft: Draft; set: (p: Partial<Dr
 /** SaaS motion's "Website or social link" (one of prompt / product / website). */
 function WebsitePanel({ draft, set }: { draft: Draft; set: (p: Partial<Draft>) => void }) {
   const [open, setOpen] = useState(false);
+  const { t: tr } = useI18n();
   const v = draft.website.trim();
   const bad = !!v && !looksLikeWebsite(v);
   return (
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
-      title="Website or social link"
-      description="What the video is about when there's no product photo: your site or a social profile."
+      title={tr("marketing.website.panelTitle")}
+      description={tr("marketing.website.panelDesc")}
       trigger={
-        <button type="button" className={cn(chipBase, v && !bad ? chipOn : chipIdle, "max-w-44")} aria-label={v ? `Website: ${v}` : "Add a website or social link"}>
+        <button type="button" className={cn(chipBase, v && !bad ? chipOn : chipIdle, "max-w-44")} aria-label={v ? tr("marketing.website.ariaValue", { value: v }) : tr("marketing.website.ariaNone")}>
           <Globe className="size-3.5" />
-          <span className="truncate">{v ? v.replace(/^https?:\/\//i, "") : "Website"}</span>
+          <span className="truncate">{v ? v.replace(/^https?:\/\//i, "") : tr("marketing.website.word")}</span>
         </button>
       }
     >
       <label className="block space-y-1.5">
-        <span className="text-[12px] font-medium text-muted-foreground">Link</span>
+        <span className="text-[12px] font-medium text-muted-foreground">{tr("marketing.website.linkLabel")}</span>
         <input value={draft.website} onChange={(e) => set({ website: e.target.value })} maxLength={300} inputMode="url" placeholder="www.example.com" aria-invalid={bad || undefined} className={cn(inputCls, bad && "border-destructive")} />
-        {bad && <span className="block text-[11px] text-destructive">Enter a valid website URL</span>}
+        {bad && <span className="block text-[11px] text-destructive">{tr("marketing.website.badUrl")}</span>}
       </label>
     </ResponsivePanel>
   );

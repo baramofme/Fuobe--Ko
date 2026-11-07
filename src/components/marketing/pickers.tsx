@@ -272,6 +272,7 @@ export const SettingPicker = ({ value, onChange }: { value: string | null; onCha
 
 /** The voiceover: a premade cloud voice, or (open source) a sample to clone. */
 export function VoiceControl({ engine, models, voice, sample, onVoice, onSample }: { engine: "cloud" | "open"; models: Record<string, ModelInfo>; voice?: string; sample: SlotValue | null; onVoice: (id?: string) => void; onSample: (v: SlotValue | null) => void }) {
+  const { t } = useI18n();
   const info = models[engine === "open" ? "oss-chatterbox" : "elevenlabs-v4"];
   if (!info) return null;
   const model = { id: info.id, name: info.name, options: { voices: info.voices, voiceClone: engine === "open" ? true : info.voiceClone } } as unknown as ModelDef;
@@ -283,7 +284,7 @@ export function VoiceControl({ engine, models, voice, sample, onVoice, onSample 
             model={model}
             voice={voice}
             sample={sample}
-            label="Voice"
+            // No label: VoicePicker falls back to t("studio.audio.voice"), which follows the language.
             onChange={(c) => {
               if (!c) return;
               if (c.kind === "preset") {
@@ -294,7 +295,7 @@ export function VoiceControl({ engine, models, voice, sample, onVoice, onSample 
           />
         </span>
       </TooltipTrigger>
-      <TooltipContent>{engine === "open" ? "Open-source voices are cloned from a short sample (Chatterbox)" : `Voiceover by ${info.name}`}</TooltipContent>
+      <TooltipContent>{engine === "open" ? t("marketing.voiceover.openHint") : t("marketing.voiceover.byModel", { model: info.name })}</TooltipContent>
     </Tooltip>
   );
 }
