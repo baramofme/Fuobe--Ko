@@ -293,7 +293,7 @@
   "assist.composer.scheduleSaved": "예약이 저장되었습니다",
   "assist.composer.scheduleSkillLabel": "스킬",
   "assist.composer.scheduleSkillOff": "/{name}이(가) 꺼져 있거나 더 이상 혼자 실행되지 않습니다 — 다른 스킬을 고르세요.",
-  "assist.composer.scheduleSmartFreeNote": " Smart은 연결한 모델 중 가장 좋은 것으로 계획합니다(유료 모델은 실행마다 과금); Free는 무료 모델을 쓰고, 그 다음 오프라인 계획기를 씁니다.",
+  "assist.composer.scheduleSmartFreeNote": " 스마트 플랜은 연결한 최상위 모델로 계획합니다(유료 모델을 연결했다면 실행마다 과금됩니다). 무료는 무료 모델을 쓰고, 이후 오프라인 계획기로 움직입니다.",
   "assist.composer.scheduleSpendUpTo": "최대 지출",
   "assist.composer.scheduleSrcNewest": "최신 업로드 (실행할 때)",
   "assist.composer.scheduleSrcNone": "안 씀",

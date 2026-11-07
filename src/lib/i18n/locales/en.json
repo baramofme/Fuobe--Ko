@@ -293,7 +293,7 @@
   "assist.composer.scheduleSaved": "Schedule saved",
   "assist.composer.scheduleSkillLabel": "Skill",
   "assist.composer.scheduleSkillOff": "/{name} is switched off or doesn't run by itself any more — pick another skill.",
-  "assist.composer.scheduleSmartFreeNote": "Smart plans with the best model you've connected (a paid one bills each run); Free uses free models, then the offline planner.",
+  "assist.composer.scheduleSmartFreeNote": " Smart plans with the best model you've connected (a paid one bills each run); Free uses free models, then the offline planner.",
   "assist.composer.scheduleSpendUpTo": "Spend up to",
   "assist.composer.scheduleSrcNewest": "Newest upload (when it runs)",
   "assist.composer.scheduleSrcNone": "None",
