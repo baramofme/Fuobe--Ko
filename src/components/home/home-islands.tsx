@@ -12,6 +12,7 @@ import { copyWithToast } from "@/lib/clipboard";
 import type { PresetCardData } from "@/lib/preset-cards";
 import type { AutoPlay } from "@/lib/preview-playback";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 const FADE_ROW = "fade-x scrollbar-none max-sm:-mx-4 max-sm:overflow-x-auto max-sm:px-4";
 
@@ -41,9 +42,10 @@ export function HomeRail({ className, children }: { className?: string; children
 
 /** Stops every preview playing by itself, on every page, for this visit; a hover still plays one. */
 export function PausePreviews({ className }: { className?: string }) {
+  const { t } = useI18n();
   const paused = usePreviewsPaused();
   const Icon = paused ? Play : Pause;
-  const label = paused ? "Play previews" : "Pause previews";
+  const label = paused ? t("home.islands.playPreviews") : t("home.islands.pausePreviews");
   return (
     <button
       type="button"
@@ -64,6 +66,7 @@ export function PausePreviews({ className }: { className?: string }) {
 
 /** The self-host card's Copy button: the commands go to the clipboard, and the icon turns to a check for a moment. */
 export function CopyCommand({ text }: { text: string }) {
+  const { t } = useI18n();
   const [done, setDone] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -71,7 +74,7 @@ export function CopyCommand({ text }: { text: string }) {
     <button
       type="button"
       onClick={async () => {
-        if (!(await copyWithToast(text, "Commands copied"))) return;
+        if (!(await copyWithToast(text, t("home.islands.commandsCopied")))) return;
         setDone(true);
         clearTimeout(timer.current);
         timer.current = setTimeout(() => setDone(false), 1500);
@@ -80,7 +83,7 @@ export function CopyCommand({ text }: { text: string }) {
     >
       {done ? <Check className="motion-confirm size-3" /> : <Copy className="size-3" />}
       <span key={done ? "done" : "copy"} className="motion-swap">
-        {done ? "Copied" : "Copy"}
+        {done ? t("home.islands.copied") : t("home.islands.copy")}
       </span>
     </button>
   );
@@ -160,8 +163,9 @@ export function StudioName({ label, line }: { label: string; line: string }) {
 
 /** Over Assist's heading, for everyone but the studio's owner: here, Assist is the owner's (AssistSection). */
 export function AssistTag() {
+  const { t } = useI18n();
   if (useIsOwner()) return null;
-  return <p className="mb-2 inline-flex h-6 items-center rounded-full bg-brand-faint px-2.5 text-[12px] font-medium text-brand-text">On your own Fuobe</p>;
+  return <p className="mb-2 inline-flex h-6 items-center rounded-full bg-brand-faint px-2.5 text-[12px] font-medium text-brand-text">{t("home.islands.onYourOwnFuobe")}</p>;
 }
 
 const ASSIST_ACTION =
@@ -169,14 +173,16 @@ const ASSIST_ACTION =
 
 /** The owner opens Assist; anyone else is shown how to run Fuobe themselves (the self-host card, StartSection). */
 export function AssistAction() {
+  const { t } = useI18n();
+  const owner = useIsOwner();
   const arrow = <ArrowRight className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />;
-  return useIsOwner() ? (
+  return owner ? (
     <IntentLink href="/assist" className={ASSIST_ACTION}>
-      Open Assist {arrow}
+      {t("home.islands.openAssist")} {arrow}
     </IntentLink>
   ) : (
     <a href="#home-start" className={ASSIST_ACTION}>
-      Run your own Fuobe {arrow}
+      {t("home.islands.runYourOwnFuobe")} {arrow}
     </a>
   );
 }
@@ -187,11 +193,12 @@ export function AssistAction() {
  */
 export function AssistExamples({ prompts, skills }: { prompts: string[]; skills: { name: string; title: string }[] }) {
   const owner = useIsOwner();
+  const { t } = useI18n();
   const row = "flex items-center justify-between gap-3 rounded-xl bg-muted/60 px-4 py-2.5 text-[13px]";
   const chip = "inline-flex h-8 items-center rounded-full border px-3 text-[13px]";
   return (
     <div className="min-w-0">
-      <h3 className="mb-2 font-sans text-[12px] text-muted-foreground">{owner ? "Try asking" : "Ask it things like"}</h3>
+      <h3 className="mb-2 font-sans text-[12px] text-muted-foreground">{owner ? t("home.islands.tryAsking") : t("home.islands.askItThingsLike")}</h3>
       <ul className="space-y-1.5">
         {prompts.map((s) => (
           <li key={s}>
@@ -208,7 +215,7 @@ export function AssistExamples({ prompts, skills }: { prompts: string[]; skills:
           </li>
         ))}
       </ul>
-      <h3 className="mt-5 mb-2 font-sans text-[12px] text-muted-foreground">{owner ? "Or start with a skill" : "Skills it starts from"}</h3>
+      <h3 className="mt-5 mb-2 font-sans text-[12px] text-muted-foreground">{owner ? t("home.islands.orStartWithSkill") : t("home.islands.skillsItStartsFrom")}</h3>
       <FadeRow>
         <ul className="flex gap-1.5 max-sm:w-max sm:flex-wrap">
           {skills.map((s) => (
@@ -234,6 +241,7 @@ export function AssistExamples({ prompts, skills }: { prompts: string[]; skills:
  * keeps its height, so nothing moves when it changes.
  */
 export function StartSteps() {
+  const { t } = useI18n();
   const hydrated = useHydrated();
   const data = useStatus().data;
   const status = hydrated ? data : undefined;
@@ -249,52 +257,52 @@ export function StartSteps() {
   );
   const steps: { title: string; text: string; action: React.ReactNode }[] = [
     {
-      title: "Look around.",
-      text: "Open every studio, preset and model, no account needed.",
+      title: t("home.islands.lookAround"),
+      text: t("home.islands.openNoAccount"),
       action: (
         <IntentLink href="/effects" className={link}>
-          Browse effects <ArrowRight className="size-3.5" />
+          {t("home.islands.browseEffects")} <ArrowRight className="size-3.5" />
         </IntentLink>
       ),
     },
     {
-      title: "Sign up free.",
-      text: place ? `Runs on ${place.text}, or on your own GPU.` : "A free account runs every open model on your own GPU.",
+      title: t("home.islands.signUpFreeTitle"),
+      text: place ? t("home.islands.runsOnPlace", { place: place.text }) : t("home.islands.freeAccountOwnGpu"),
       action:
         viewer?.kind === "account" ? (
-          done("You’re signed in")
+          done(t("home.islands.signedIn"))
         ) : owner ? (
           <IntentLink href="/settings#get-started" className={link}>
-            Connect ComfyUI or add a key <ArrowRight className="size-3.5" />
+            {t("home.islands.connectComfyOrKey")} <ArrowRight className="size-3.5" />
           </IntentLink>
         ) : (
           <a href={signInHref("signup")} className={link}>
-            Sign up free <ArrowRight className="size-3.5" />
+            {t("home.islands.signUpFree")} <ArrowRight className="size-3.5" />
           </a>
         ),
     },
     place
       ? {
-          title: "Make something.",
-          text: "Pick a studio and press Generate. Your own GPU or key is optional.",
+          title: t("home.islands.makeSomething"),
+          text: t("home.islands.pickStudioGenerate"),
           action: (
             <IntentLink href="/video" className={link}>
-              Open the Video studio <ArrowRight className="size-3.5" />
+              {t("home.islands.openVideoStudio")} <ArrowRight className="size-3.5" />
             </IntentLink>
           ),
         }
       : {
-          title: "Connect your ComfyUI.",
-          text: "Use the ComfyUI on your computer, or one you reach by link. Fuobe shows you everything it can run.",
+          title: t("home.islands.connectComfyTitle"),
+          text: t("home.islands.useComfyByLink"),
           action: viewer?.gpu.connected ? (
-            done("Your GPU is connected")
+            done(t("home.islands.gpuConnected"))
           ) : viewer?.kind === "account" ? (
             <button type="button" onClick={() => window.dispatchEvent(new Event(CONNECT_GPU_EVENT))} className={link}>
-              Connect your GPU <ArrowRight className="size-3.5" />
+              {t("home.islands.connectGpu")} <ArrowRight className="size-3.5" />
             </button>
           ) : (
             <IntentLink href="/connect" className={link}>
-              Connect your GPU <ArrowRight className="size-3.5" />
+              {t("home.islands.connectGpu")} <ArrowRight className="size-3.5" />
             </IntentLink>
           ),
         },
