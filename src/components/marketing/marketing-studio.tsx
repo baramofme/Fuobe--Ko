@@ -402,11 +402,11 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
   const blocker = visitor
     ? way
       ? `${way.label} · runs on ${site!.text}`
-      : "Marketing Studio isn't available here"
+      : tr("marketing.blocker.unavailable")
     : draft.product === null && f.product === "required"
-      ? "Attach a product to generate"
+      ? tr("marketing.blocker.attachProduct")
       : badSite
-        ? "Enter a valid website URL"
+        ? tr("marketing.blocker.badUrl")
         : est.data?.blocker;
   // Where the run happens and its price, as the studios say it (the chip by the send button); a guest or an account is
   // told the tool isn't available here, with no price.
@@ -450,7 +450,8 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
     if (blocker) {
       setEngaged(true);
       toast(blocker, { id: "marketing-blocker" });
-      setPulse(/product/i.test(blocker) ? "product" : /avatar/i.test(blocker) ? "avatar" : null);
+      // 한글 차단 문구도 제품 슬롯을 흔든다: 배선된 attachProduct은 한글에서 "제품"을 담는다.
+      setPulse(/product|제품/i.test(blocker) ? "product" : /avatar/i.test(blocker) ? "avatar" : null);
       setTimeout(() => setPulse(null), 1600);
       return;
     }
