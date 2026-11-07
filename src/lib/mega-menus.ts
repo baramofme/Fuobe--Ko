@@ -116,6 +116,10 @@ export interface MegaModel {
   count: number;
   /** "127 apps, grouped by what they change". */
   countLine: string;
+  /** The key whose words this count line is (`menu.countLine.<id>`), resolved at render with `translateOr`. */
+  countLineKey: string;
+  /** The numbers `{n}`/`{m}` in those words stand for. Inline type, so the server module graph doesn't pull in i18n's `Params`. */
+  countLineParams: Record<string, string | number>;
   /** The area page: "See all" at the top. `name` is the link's accessible name. */
   seeAll: { href: string; name: string };
   families?: MegaFamily[];
@@ -221,6 +225,8 @@ export function studiosMenu(kind: ViewerKind | undefined): MegaModel {
     id: "studios",
     count: n,
     countLine: `${n} studios, grouped by what you want to make`,
+    countLineKey: "menu.countLine.studios",
+    countLineParams: { n },
     seeAll: { href: MEGA_AREAS.studios.href, name: "See all studios" },
     columns: launcherColumns(kind).map((c) => ({
       id: c.group.id,

@@ -384,7 +384,7 @@ export function LauncherColumns({ kind, current, now }: { kind: ViewerKind | und
 /** The panel's body once it is shown or warmed: it reads the path (client only: the panel never renders on the server). */
 export function MegaPanel({ id, onClose, onSearch }: { id: MegaId; onClose: () => void; onSearch: () => void }) {
   const kind = useViewerKind();
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   const pathname = usePathname();
   const { model, failed, retry } = useMegaMenu(id, kind);
   const [now] = useState(() => Date.now());
@@ -402,7 +402,7 @@ export function MegaPanel({ id, onClose, onSearch }: { id: MegaId; onClose: () =
     <div className="max-w-[1680px] px-6 pt-5 pb-6 lg:pt-6 lg:pb-7">
       <div className="flex min-h-10 items-center gap-3 pb-4">
         <p className="text-[13px] text-muted-foreground" data-count-line>
-          {model ? (model.id === "studios" ? t("nav.studios.countLine", { count: model.count }) : model.countLine) : failed ? t("nav.couldNotLoadMenu") : " "}
+          {model ? translateOr(lang, model.countLineKey, model.countLine, model.countLineParams) : failed ? t("nav.couldNotLoadMenu") : " "}
         </p>
         {/* A plain link in Tab order before the grid; the grid's arrow keys skip it (it has no data-col). */}
         <IntentLink

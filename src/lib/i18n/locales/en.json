@@ -3367,5 +3367,9 @@
   "search.in": "In",
   "search.results": "results",
   "search.noResults": "No results",
-  "search.scopeClearAria": "Searching in {name}. Search everything instead"
+  "search.scopeClearAria": "Searching in {name}. Search everything instead",
+  "menu.countLine.apps": "{n} apps, grouped by what they change",
+  "menu.countLine.motions": "{n} camera motions and {m} effects, for any photo",
+  "menu.countLine.canvas": "{n} ready boards that run as they are",
+  "menu.countLine.studios": "{n} studios, grouped by what you want to make"
 }

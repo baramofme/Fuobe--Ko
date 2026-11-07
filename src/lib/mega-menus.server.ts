@@ -158,6 +158,8 @@ export function appsMenu(): MegaModel {
     id: "apps",
     count: APPS.length,
     countLine: `${APPS.length} apps, grouped by what they change`,
+    countLineKey: "menu.countLine.apps",
+    countLineParams: { n: APPS.length },
     seeAll: { href: "/apps", name: "See all apps" },
     columns: presetColumns(APPS, APP_GROUPS),
   };
@@ -168,6 +170,8 @@ export function motionsMenu(): MegaModel {
     id: "motions",
     count: MOTIONS.length + EFFECTS.length,
     countLine: `${MOTIONS.length} camera motions and ${EFFECTS.length} effects, for any photo`,
+    countLineKey: "menu.countLine.motions",
+    countLineParams: { n: MOTIONS.length, m: EFFECTS.length },
     seeAll: { href: "/motions-and-effects", name: "See all motions and effects" },
     families: [
       { id: "motions", label: "Camera motions", count: MOTIONS.length, href: "/motions", span: MOTION_GROUPS.length },
@@ -208,6 +212,8 @@ export function canvasMenu(): MegaModel {
     id: "canvas",
     count: n,
     countLine: `${n} ready boards that run as they are`,
+    countLineKey: "menu.countLine.canvas",
+    countLineParams: { n },
     seeAll: { href: "/canvas", name: "See all of Canvas" },
     columns: [
       {
