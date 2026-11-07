@@ -1495,7 +1495,7 @@ export function Composer({ docked }: { docked: boolean }) {
           onStrength={(v) => setDraft({ presetStrength: v })}
         />
       )}
-      {shownControls.length > 0 && <ControlsChip controls={shownControls} values={p.extra ?? {}} onChange={setExtra} title={t("studio.controls.options")} op={effectiveOp} setupOf={setupViewer ? (param, v) => controlSetup(model?.id, param, v) : undefined} />}
+      {shownControls.length > 0 && <ControlsChip controls={shownControls} values={p.extra ?? {}} onChange={setExtra} title={config.controlsTitle ? t("studio.controls.options") : undefined} op={effectiveOp} setupOf={setupViewer ? (param, v) => controlSetup(model?.id, param, v) : undefined} />}
       {opts.lightSphere && <LightSphereChip value={draft.slots.image} onChange={setLight} />}
       {effectiveOp === "insert-moment" && <InsertRangeChip clip={facts?.duration} start={p.startTime} resume={p.endTime} onChange={setInsertRange} />}
     </>
