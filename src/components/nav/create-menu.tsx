@@ -6,7 +6,7 @@ import { useId } from "react";
 import { IntentLink } from "@/components/intent-link";
 import { navActive, NEW_CREATION_HREF } from "@/lib/nav";
 import { area } from "@/lib/nav-areas";
-import { CREATE_COLUMNS, entry, visibleTo, type NavEntry, type ViewerKind } from "@/lib/nav-model";
+import { CREATE_COLUMNS, entry, labelKeyOf, visibleTo, type NavEntry, type ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { translateOr } from "@/lib/i18n/store";
@@ -82,7 +82,7 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
                   >
                     <NavIcon name={e.icon} className="nav-icon mt-px size-4 text-muted-foreground" />
                     <span className="flex min-w-0 flex-col">
-                      <span className={rowName(on)}>{e.label}</span>
+                      <span className={rowName(on)}>{translateOr(lang, labelKeyOf(e.id), e.label)}</span>
                       <span className={ROW_LINE}>{translateOr(lang, `nav.${e.id}.what`, e.what)}</span>
                     </span>
                   </IntentLink>
@@ -131,7 +131,7 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
                       <NavIcon name={e.icon} className="nav-icon size-[18px] text-foreground" />
                     </span>
                     <span className="flex min-w-0 flex-col">
-                      <span className={rowName(on, "text-[15px] leading-5 font-medium")}>{e.label}</span>
+                      <span className={rowName(on, "text-[15px] leading-5 font-medium")}>{translateOr(lang, labelKeyOf(e.id), e.label)}</span>
                       <span className="truncate text-[12.5px] leading-4 text-muted-foreground">{translateOr(lang, `nav.${e.id}.what`, e.what)}</span>
                     </span>
                   </IntentLink>

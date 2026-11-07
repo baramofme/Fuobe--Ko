@@ -110,6 +110,29 @@ function listen(page, tag) {
   page.on("pageerror", (e) => noise.push(`${tag} pageerror: ${e.message}`));
 }
 
+/**
+ * A menu's body, read as visible words only (innerText ignores attributes): column headings, row short-lines,
+ * See-all subs, the count line, the "See all" link, and row-name leaf spans (the first leaf span inside each
+ * link's flex-col wrapper, excluding muted short-lines).
+ */
+const readPanel = (p, sel) =>
+  p.evaluate((s) => {
+    const el = document.querySelector(s);
+    if (!el || !el.checkVisibility()) return null;
+    const lines = [...el.querySelectorAll("a span.truncate.text-muted-foreground")].map((x) => x.textContent.trim()).filter(Boolean);
+    const subs = [...el.querySelectorAll("a[data-sub] span.truncate")].map((x) => x.textContent.trim()).filter(Boolean);
+    const head = [...el.querySelectorAll("[data-group] > p")].map((x) => x.textContent.trim()).filter(Boolean);
+    const count = el.querySelector("[data-count-line]")?.textContent.trim() ?? null;
+    const seeAll = [...el.querySelectorAll("[data-see-all]")].map((x) => x.textContent.trim()).filter(Boolean);
+    const names = [...el.querySelectorAll("a span")].filter(x =>
+      !x.querySelector("span") &&
+      !x.classList.contains("text-muted-foreground") &&
+      x.textContent.trim() &&
+      x.checkVisibility()
+    ).map(x => x.textContent.trim());
+    return { text: el.innerText, lines, subs, head, count, seeAll, names };
+  }, sel);
+
 step("desktop: English by default");
 {
   const page = await browser.newPage({ ...DESKTOP });
@@ -377,20 +400,6 @@ step("nav hover: the row short-lines, column headings and chrome switch to Korea
   listen(page, "nav");
   await openRoute(page, `${app}/`);
 
-  // A menu's body, read as visible words only (innerText ignores attributes): the column headings, the row short-lines,
-  // the See-all subs, the count line and the "See all" link.
-  const readPanel = (p, sel) =>
-    p.evaluate((s) => {
-      const el = document.querySelector(s);
-      if (!el || !el.checkVisibility()) return null;
-      const lines = [...el.querySelectorAll("a span.truncate.text-muted-foreground")].map((x) => x.textContent.trim()).filter(Boolean);
-      const subs = [...el.querySelectorAll("a[data-sub] span.truncate")].map((x) => x.textContent.trim()).filter(Boolean);
-      const head = [...el.querySelectorAll("[data-group] > p")].map((x) => x.textContent.trim()).filter(Boolean);
-      const count = el.querySelector("[data-count-line]")?.textContent.trim() ?? null;
-      const seeAll = [...el.querySelectorAll("[data-see-all]")].map((x) => x.textContent.trim()).filter(Boolean);
-      return { text: el.innerText, lines, subs, head, count, seeAll };
-    }, sel);
-
   // Resting the pointer on the bar's item opens its menu (bar-intent's rest); a click stands in if hover didn't.
   async function openByHover(p, id) {
     await p.keyboard.press("Escape").catch(() => {});
@@ -424,6 +433,9 @@ step("nav hover: the row short-lines, column headings and chrome switch to Korea
   const enC = await readPanel(page, selC);
   check("the Create card reads “Make” and “Edit a picture”", /make/i.test(enC?.text || "") && /edit a picture/i.test(enC?.text || ""), "");
   check("a Create row line is English first", (enC?.lines || []).some((l) => /Text to image|Text or image to video/.test(l)), JSON.stringify(enC?.lines));
+  // Row names must read their English source labels byte-for-byte (pre-wiring invariant).
+  const EN_ROW = ["Image","Video","Assist","Canvas","Storyboard","Edit","Live edit","Inpaint"];
+  check("Create row names are English first", EN_ROW.every((n) => (enC?.names || []).includes(n)), JSON.stringify(enC?.names));
 
   // 한국어, one click, no reload.
   const menu = await openSelector(page);
@@ -455,6 +467,52 @@ step("nav hover: the row short-lines, column headings and chrome switch to Korea
   check("no English Create headings left", !/\bMake\b/.test(koC?.text || "") && !/Edit a picture/.test(koC?.text || ""), "");
   check("the Create row short-lines are all Korean", (koC?.lines || []).length > 0 && (koC?.lines || []).every((l) => /[가-힯]/.test(l)), JSON.stringify(koC?.lines));
   check("no English Create row line left", !(koC?.lines || []).some((l) => /Text to image|Text or image to video|Plan it with an agent|Wire models together/.test(l)), JSON.stringify(koC?.lines));
+  // Row names must be Korean after the switch, with no English names left.
+  check("Create row names are Korean after the switch", (koC?.names || []).length > 0 && (koC?.names || []).every((n) => /[가-힯]/.test(n)), JSON.stringify(koC?.names));
+  check("no English Create row name left", !(koC?.names || []).some((n) => /^(Image|Video|Assist|Canvas|Storyboard|Edit|Live edit|Inpaint)$/.test(n)), JSON.stringify(koC?.names));
+  await page.close();
+}
+
+step("more: RichItem row names switch to Korean (sub-xl viewport)");
+{
+  // More appears at widths below 1440; at sub-xl (< 1280) all five items are inside it.
+  const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+  listen(page, "more");
+  await openRoute(page, `${app}/`);
+
+  async function openMore(p) {
+    await p.keyboard.press("Escape").catch(() => {});
+    await p.waitForTimeout(200);
+    const trigger = p.locator('[data-top-bar] [data-bar-menu="more"]').locator("visible=true").first();
+    await trigger.waitFor({ state: "visible", timeout: 15_000 });
+    await trigger.hover();
+    const sel = '[data-bar-card="more"]';
+    let opened = await p.locator(sel).first().waitFor({ state: "visible", timeout: 6_000 }).then(() => true, () => false);
+    if (!opened) { await trigger.click(); await p.locator(sel).first().waitFor({ state: "visible", timeout: 6_000 }); }
+    await p.waitForTimeout(300);
+    return sel;
+  }
+
+  // English: the row names in More are their English source labels.
+  const selM = await openMore(page);
+  const enM = await readPanel(page, selM);
+  check("the More menu opens", !!enM, JSON.stringify(enM === null));
+  const EN_MORE = ["Apps", "Camera motions", "Effects", "Canvas", "Assist"];
+  check("More row names are English first", EN_MORE.every((n) => (enM?.names || []).includes(n)), JSON.stringify(enM?.names));
+
+  // 한국어 one click, no reload.
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(300);
+  check("still the same page (no reload happened)", page.url().endsWith("/"), page.url());
+
+  // Hover More again: every row name is Korean, no English name left.
+  const selM2 = await openMore(page);
+  const koM = await readPanel(page, selM2);
+  check("More row names are Korean after the switch", (koM?.names || []).length > 0 && (koM?.names || []).every((n) => /[가-힯]/.test(n)), JSON.stringify(koM?.names));
+  check("no English More row name left", !(koM?.names || []).some((n) => /^(Apps|Camera motions|Effects|Canvas|Assist)$/.test(n)), JSON.stringify(koM?.names));
+  // Byte-identity: nav.motions en label must not leak here as "Motions & effects" — the model label is "Camera motions", translated via nav.entry.motions → "카메라 움직임".
+  check("Camera motions is not shown as “Motions & effects” (byte-identity)", !(koM?.names || []).includes("Motions & effects"), JSON.stringify(koM?.names));
   await page.close();
 }
 
