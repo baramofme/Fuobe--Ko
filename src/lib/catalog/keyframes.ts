@@ -14,6 +14,7 @@
  * No catalog import (types only), so the composer can use it in the browser.
  */
 import type { Engine, GenerationRequest, ModelDef, ModelRoute, Operation } from "./types";
+import { t as tr } from "../i18n/store";
 
 /**
  * Up to 10 frames, as Kling 4.0's own app and FLUX 3 Max keyframes-to-video take. Frames mode runs on FLUX 3 Max in the
@@ -29,13 +30,12 @@ export const OPEN_MIN_GAP = 0.5;
 /** Clip lengths the open chain offers in Frames mode (it joins as many clips as the frames need). */
 export const CHAIN_DURATIONS = [3, 5, 8, 10, 15, 20, 30];
 
-export const FRAMES_HINT = "Up to 10 frames. The first is the start frame.";
 
 const EPS = 1e-6;
 const snap = (s: number) => Math.round(s / KEYFRAME_SNAP) * KEYFRAME_SNAP;
 const round1 = (s: number) => Math.round(s * 10) / 10;
 /** "2.5 s", "3 s". */
-export const secondsLabel = (s: number) => `${round1(s).toFixed(round1(s) % 1 ? 1 : 0)} s`;
+export const secondsLabel = (s: number) => tr("studio.frames.secondsShort", { n: round1(s).toFixed(round1(s) % 1 ? 1 : 0) });
 
 // ---------------------------------------------------------------------------
 // What a model does with frames
@@ -71,8 +71,8 @@ export const FRAMES_MODELS: Record<Engine, { id: string; name: string }> = {
  */
 export const chainedWaitMessage = (name: string, op?: Operation) =>
   op === "text-to-3d"
-    ? `${name} draws the object first, then builds it in 3D, from words typed in when it starts — give it a typed description, not another step's output`
-    : `${name} builds this film from several clips of the images you add when it starts — give it uploaded images and a typed prompt, not another step's output`;
+    ? tr("studio.pool.waitChained3d", { name })
+    : tr("studio.pool.waitChainedFilm", { name });
 
 /**
  * A keyframe film some of whose frames earlier steps make (Turnaround video: the sides the Angles app draws): every
@@ -87,9 +87,9 @@ export function framesWait(req: Pick<GenerationRequest, "chain">): boolean {
 export function framesBlocker(model: Pick<ModelDef, "name" | "engine" | "routes" | "options">, count: number): { message: string; slot?: "frames" } | null {
   const support = frameSupport(model);
   const alt = FRAMES_MODELS[model.engine].name;
-  if (support === "start") return { message: `${model.name} takes a start frame only — pick ${alt} to follow your frames, or turn Frames off` };
-  if (support === "none") return { message: `${model.name} can't start from frames — pick ${alt}, or turn Frames off` };
-  if (!count) return { message: "Add the start frame", slot: "frames" };
+  if (support === "start") return { message: tr("studio.frames.startOnlyBlock", { model: model.name, alt }) };
+  if (support === "none") return { message: tr("studio.frames.noFramesBlock", { model: model.name, alt }) };
+  if (!count) return { message: tr("studio.frames.needStart"), slot: "frames" };
   return null;
 }
 
@@ -109,23 +109,28 @@ export function framesNote(model: NoteModel, count: number, lastAt = 1, ctx: { s
   const theirs = suggested && keyframeChain(suggested);
   if (support === "all" && count >= 2 && chain && theirs && suggested.id !== model.id && theirs.endpoint === chain.endpoint) {
     const longer = chainTiming(suggested).maxSeconds > chainTiming(model).maxSeconds + EPS;
-    const more = longer ? ` and allows up to ${secondsLabel(chainTiming(suggested).maxSeconds)} between frames` : "";
-    const tail = ctx.tail ? " (only the stretch after the last frame is a fast clip)" : "";
-    return `${model.name} has no fast start/end-frame clips: the clips between frames render at ${suggested.name}'s full quality${tail} — ${suggested.name} takes as long${more}.`;
+    const more = longer ? tr("studio.frames.noteAllowsUpTo", { time: secondsLabel(chainTiming(suggested).maxSeconds) }) : "";
+    const tail = ctx.tail ? tr("studio.frames.noteTailOnly") : "";
+    return tr("studio.frames.noteNoFast", { model: model.name, alt: suggested.name, tail, more });
   }
   if (support !== "ends" || count < 2) return null;
   const alt = FRAMES_MODELS[model.engine].name;
   if (count > 2) {
     const middle = count - 2;
-    return `${model.name} takes a start and an end frame, so it uses frames 1 and ${count} and leaves out the ${middle === 1 ? "middle one" : `${middle} in between`} — ${alt} follows every frame.`;
+    return tr("studio.frames.noteEnds", {
+      model: model.name,
+      n: count,
+      middle: middle === 1 ? tr("studio.frames.noteMiddleOne") : tr("studio.frames.noteMiddleN", { n: middle }),
+      alt,
+    });
   }
-  return lastAt < 1 - EPS ? `${model.name} puts the last frame at the end of the clip — ${alt} keeps it at its time.` : null;
+  return lastAt < 1 - EPS ? tr("studio.frames.noteLastTime", { model: model.name, alt }) : null;
 }
 
 /** What a frame is to the clip, as Kling 4.0 names them: the start frame, the end frame (the last one, at the end), or a middle frame. */
-export function frameRole(i: number, count: number, at: number): "Start frame" | "End frame" | "Middle frame" {
-  if (i === 0) return "Start frame";
-  return i === count - 1 && at >= 1 - EPS ? "End frame" : "Middle frame";
+export function frameRole(i: number, count: number, at: number): string {
+  if (i === 0) return tr("studio.frames.roleStart");
+  return i === count - 1 && at >= 1 - EPS ? tr("studio.frames.roleEnd") : tr("studio.frames.roleMiddle");
 }
 
 /** Clip lengths to offer in Frames mode: the open chain's own list, else the model's. */
@@ -222,7 +227,6 @@ export function framesInputs(refs: string[], times: number[], support: FrameSupp
 // Checks and the open engine's plan
 
 /** The open chain starts its film on the first frame: nothing comes before it. */
-export const FIRST_AT_ZERO = "The first frame is the start frame — give it the time 0";
 
 export interface ChainTiming {
   /** The model's name, for messages. */
@@ -248,15 +252,15 @@ export function chainGapProblem(times: number[], duration: number, t: ChainTimin
   // One frame is one clip from it alone (a plain image-to-video), as long as the model makes.
   if (times.length === 1) {
     const one = round1(duration - times[0]);
-    return one > t.maxSeconds + EPS ? `One frame makes a clip of up to ${secondsLabel(t.maxSeconds)} on ${t.name} — add more frames or make the clip shorter` : null;
+    return one > t.maxSeconds + EPS ? tr("studio.frames.gapOneClip", { time: secondsLabel(t.maxSeconds), name: t.name }) : null;
   }
   for (let i = 1; i < times.length; i++) {
     const gap = round1(times[i] - times[i - 1]);
-    if (gap > t.maxSeconds + EPS) return `Frames ${i} and ${i + 1} are ${secondsLabel(gap)} apart — ${t.name} makes up to ${secondsLabel(t.maxSeconds)} between two frames. Move them closer or add a frame between them`;
-    if (gap < min - EPS) return `Frames ${i} and ${i + 1} are only ${secondsLabel(gap)} apart — keep at least ${secondsLabel(min)} between frames on ${t.name}`;
+    if (gap > t.maxSeconds + EPS) return tr("studio.frames.gapWide", { i, j: i + 1, time: secondsLabel(gap), name: t.name, max: secondsLabel(t.maxSeconds) });
+    if (gap < min - EPS) return tr("studio.frames.gapTight", { i, j: i + 1, time: secondsLabel(gap), min: secondsLabel(min), name: t.name });
   }
   const tail = round1(duration - (times[times.length - 1] ?? 0));
-  if (times.length > 1 && tail > t.maxSeconds + EPS) return `The clip runs ${secondsLabel(tail)} past the last frame — ${t.name} makes up to ${secondsLabel(t.maxSeconds)} from one frame. Move the last frame later or make the clip shorter`;
+  if (times.length > 1 && tail > t.maxSeconds + EPS) return tr("studio.frames.gapTail", { time: secondsLabel(tail), name: t.name, max: secondsLabel(t.maxSeconds) });
   return null;
 }
 
@@ -279,8 +283,8 @@ export interface KeyframeClip {
  * at 16 fps) however many clips there are. The film starts on the first frame, so its time is 0.
  */
 export function planKeyframeClips(times: number[], duration: number, t: ChainTiming & { fps: number; step: number; maxFrames?: number }): KeyframeClip[] {
-  if (times.length < 2) throw new Error("A keyframe film needs at least two frames");
-  if (Math.abs(times[0]) > EPS) throw new Error(FIRST_AT_ZERO);
+  if (times.length < 2) throw new Error(tr("studio.frames.needsTwoFrames"));
+  if (Math.abs(times[0]) > EPS) throw new Error(tr("studio.frames.firstAtZero"));
   const problem = chainGapProblem(times, duration, t);
   if (problem) throw new Error(problem);
   const min = t.minSeconds ?? OPEN_MIN_GAP;

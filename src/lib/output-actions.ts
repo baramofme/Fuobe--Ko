@@ -13,13 +13,14 @@ import { storedPath } from "./share";
 import { decodeMoss, LAYOUT_PARAM, readLayout, type LayoutDraft } from "./layout-prompt";
 import { REMOVE_DIALOGUE_FEATURE } from "./av/remove-dialogue";
 import { idolCameraStills, showableOutputs } from "./av/idol-camera-still";
-import { canEnhance, canRerender, ENHANCE_LABEL, REGEN_OFFERED, regenerateFamily, regenerateHref, rerenderLabel } from "./catalog/regenerate";
+import { canEnhance, canRerender, REGEN_OFFERED, regenerateFamily, regenerateHref, rerenderLabel } from "./catalog/regenerate";
 import { CLEAN_FEATURE } from "./av/clean-voice";
 import { exportsCleanly } from "./av/keying";
 import { anyAngleHref } from "./catalog/any-angle";
 import { isInstrumental, lyricsOf, songFormat, STEMS_FORMATS } from "./lyrics";
 import { CLEAN_DIALOGUE_FEATURE, cleanDialogueHref } from "./av/clean-dialogue";
 import { MAX_SIDE as MAX_WATERMARK_SIDE, WATERMARK_APP_ID, WATERMARK_FEATURE } from "./watermark";
+import { t } from "./i18n/store";
 
 export type OutputActionId =
   | "animate"
@@ -134,12 +135,12 @@ export function outputActions(g: Generation, index: number, ctx: ActionContext =
   if (!o) return [];
   const name = downloadName(g, o, index);
   const ext = extensionOf(o);
-  const file: OutputAction = { id: "download", label: o.kind === "text" ? `Download .${ext}` : "Download", placement: "bar", href: downloadHref(o.url, name), download: name };
+  const file: OutputAction = { id: "download", label: o.kind === "text" ? t("studio.actions.downloadExt", { ext }) : t("studio.actions.download"), placement: "bar", href: downloadHref(o.url, name), download: name };
   if (g.deletedAt) {
     return [
-      { id: "restore", label: "Restore", placement: "primary" },
+      { id: "restore", label: t("studio.actions.restore"), placement: "primary" },
       file,
-      { id: "delete-forever", label: "Delete forever", placement: "menu", destructive: true },
+      { id: "delete-forever", label: t("studio.actions.deleteForever"), placement: "menu", destructive: true },
     ];
   }
   const out: OutputAction[] = [];
@@ -148,36 +149,36 @@ export function outputActions(g: Generation, index: number, ctx: ActionContext =
   };
   // A Kinetic Motion result (a clip, a frame, a contact sheet or a version) opens its recipe in the Kinetic editor.
   // A visitor opens only their own (an owner's result shown on a public page would not open for them).
-  if (g.modelId === KINETIC_MODEL && g.status === "succeeded" && (!ctx.visitor || !!g.request.account)) link("remix-kinetic", "Remix in Kinetic", `/kinetic?from=${q(g.id)}`, "primary");
+  if (g.modelId === KINETIC_MODEL && g.status === "succeeded" && (!ctx.visitor || !!g.request.account)) link("remix-kinetic", t("studio.actions.remixKinetic"), `/kinetic?from=${q(g.id)}`, "primary");
   switch (o.kind) {
     case "image":
       if (isVector(g, o)) {
         // The hand-offs all send the picture to models that read pixels, and nothing rasterises an .svg on the way.
-        out.push({ ...file, label: "Download .svg" }, { id: "favorite", label: g.favorite ? "Unfavorite" : "Favorite", placement: "bar" });
+        out.push({ ...file, label: t("studio.actions.downloadSvg") }, { id: "favorite", label: g.favorite ? t("studio.actions.unfavorite") : t("studio.actions.favorite"), placement: "bar" });
         break;
       }
-      link("animate", "Animate", `/video?image=${q(o.url)}`, "primary");
-      out.push(file, { id: "favorite", label: g.favorite ? "Unfavorite" : "Favorite", placement: "bar" });
-      link("edit", "Edit", `/edit?image=${q(o.url)}`);
-      link("relight", "Relight", `/apps/app-relight?image=${q(o.url)}&gen=${q(g.id)}`);
-      link("live-edit", "Change it as you type", `/live-edit?image=${q(o.url)}&gen=${q(g.id)}&from=library`);
-      link("recolor", "Recolor", `/apps/app-tap-to-recolor?image=${q(o.url)}`);
-      link("upscale", "Upscale", `/upscale?image=${q(o.url)}`);
+      link("animate", t("studio.actions.animate"), `/video?image=${q(o.url)}`, "primary");
+      out.push(file, { id: "favorite", label: g.favorite ? t("studio.actions.unfavorite") : t("studio.actions.favorite"), placement: "bar" });
+      link("edit", t("studio.actions.edit"), `/edit?image=${q(o.url)}`);
+      link("relight", t("studio.actions.relight"), `/apps/app-relight?image=${q(o.url)}&gen=${q(g.id)}`);
+      link("live-edit", t("studio.actions.liveEdit"), `/live-edit?image=${q(o.url)}&gen=${q(g.id)}&from=library`);
+      link("recolor", t("studio.actions.recolor"), `/apps/app-tap-to-recolor?image=${q(o.url)}`);
+      link("upscale", t("studio.actions.upscale"), `/upscale?image=${q(o.url)}`);
       // Any Angle: the same photo from another camera (its 3D view is built once per photo).
-      link("new-angle", "New angle", anyAngleHref(o.url));
+      link("new-angle", t("studio.actions.newAngle"), anyAngleHref(o.url));
       // The Watermark Remover's own results go back through its brush instead; a picture known to be past its size limit isn't offered.
-      if (g.feature !== WATERMARK_FEATURE && !(Math.max(o.width ?? 0, o.height ?? 0, Number(o.meta?.width) || 0, Number(o.meta?.height) || 0) > MAX_WATERMARK_SIDE)) link("remove-watermark", "Remove watermark", `/apps/${WATERMARK_APP_ID}?image=${q(o.url)}`);
-      link("reference", "Use as reference", `/image?ref=${q(o.url)}`);
-      link("grade", "Color grade", `/color-grade?image=${q(o.url)}`);
-      link("layers", "Open in Layers", layersHref(g, o.url));
+      if (g.feature !== WATERMARK_FEATURE && !(Math.max(o.width ?? 0, o.height ?? 0, Number(o.meta?.width) || 0, Number(o.meta?.height) || 0) > MAX_WATERMARK_SIDE)) link("remove-watermark", t("studio.actions.removeWatermark"), `/apps/${WATERMARK_APP_ID}?image=${q(o.url)}`);
+      link("reference", t("studio.actions.reference"), `/image?ref=${q(o.url)}`);
+      link("grade", t("studio.actions.colorGrade"), `/color-grade?image=${q(o.url)}`);
+      link("layers", t("studio.actions.openLayers"), layersHref(g, o.url));
       // A picture drawn from a layout (or one fal's MOSS-Image planned itself) reopens as boxes in the Image studio.
-      if (editableLayout(g, index)) link("edit-layout", "Edit layout", editLayoutHref(g, index));
-      link("genjutsu", "Animate with Genjutsu", `/genjutsu?mode=motion&image=${q(o.url)}`);
-      link("make-3d", "Make it 3D", `/apps/app-photo-to-3d?image=${q(o.url)}`);
-      out.push({ id: "save-character", label: "Save as character", placement: "menu" });
+      if (editableLayout(g, index)) link("edit-layout", t("studio.actions.editLayout"), editLayoutHref(g, index));
+      link("genjutsu", t("studio.actions.genjutsuImage"), `/genjutsu?mode=motion&image=${q(o.url)}`);
+      link("make-3d", t("studio.actions.make3d"), `/apps/app-photo-to-3d?image=${q(o.url)}`);
+      out.push({ id: "save-character", label: t("studio.actions.saveCharacter"), placement: "menu" });
       break;
     case "video": {
-      link("extend", "Extend", `/extend?video=${q(o.url)}`, "primary");
+      link("extend", t("studio.actions.extend"), `/extend?video=${q(o.url)}`, "primary");
       out.push(file);
       // An HDR or export job's EXR frames ride along on its preview clip (meta.artifacts.exr): a stored zip, or
       // the provider's own link when it couldn't be kept (unreachable when the job finished; it expires).
@@ -185,40 +186,40 @@ export function outputActions(g: Generation, index: number, ctx: ActionContext =
       if (typeof exr === "string" && /^(\/api\/files\/|https?:\/\/)/.test(exr)) {
         const zip = name.replace(/\.[^.]+$/, "-exr.zip");
         const stored = exr.startsWith("/api/files/");
-        out.push({ id: "download-exr", label: stored ? "Download EXR frames (.zip)" : "Download EXR frames (.zip, provider link)", placement: "bar", href: stored ? downloadHref(exr, zip) : exr, download: zip });
+        out.push({ id: "download-exr", label: stored ? t("studio.actions.exrFramesZip") : t("studio.actions.exrProviderLink"), placement: "bar", href: stored ? downloadHref(exr, zip) : exr, download: zip });
       }
-      out.push({ id: "favorite", label: g.favorite ? "Unfavorite" : "Favorite", placement: "bar" });
-      link("reframe", "Reframe", `/reframe?video=${q(o.url)}`);
-      link("lipsync", "Lipsync", `/lipsync?video=${q(o.url)}`);
-      link("upscale", "Upscale", `/upscale/video?video=${q(o.url)}`);
+      out.push({ id: "favorite", label: g.favorite ? t("studio.actions.unfavorite") : t("studio.actions.favorite"), placement: "bar" });
+      link("reframe", t("studio.actions.reframe"), `/reframe?video=${q(o.url)}`);
+      link("lipsync", t("studio.actions.lipsync"), `/lipsync?video=${q(o.url)}`);
+      link("upscale", t("studio.actions.upscale"), `/upscale/video?video=${q(o.url)}`);
       // Old, faded or black-and-white footage (Fuobe Restore): Video tools → Restore & colourise with the clip in. It runs
       // on the viewer's own GPU or fal.ai key (own-setup.ts), and says so.
-      out.push({ id: "restore-video", label: "Restore & colourise", href: `/video-tools/restore?video=${q(o.url)}`, placement: "menu", ownSetup: "video-tools:restore" });
+      out.push({ id: "restore-video", label: t("studio.actions.restoreColourise"), href: `/video-tools/restore?video=${q(o.url)}`, placement: "menu", ownSetup: "video-tools:restore" });
       // A mask or clean foreground from Remove background or Green screen: on to ProRes 4444 or EXR for the edit (Export runs on
       // your GPU). A cut-out isn't offered: Export would drop its transparency (src/lib/av/keying.ts).
-      if (ctx.engineMode !== "cloud" && exportsCleanly(g.op, g.request?.params)) link("export-pro", "Export as ProRes or EXR", `/upscale/export?video=${q(o.url)}&format=prores_4444`);
-      link("add-sound", "Add sound", `/audio/video?video=${q(o.url)}`);
-      link("split-soundtrack", "Split soundtrack", `/audio/split?video=${q(o.url)}`);
-      link("remove-dialogue", "Remove dialogue", `/video-tools/remove-dialogue?video=${q(o.url)}`);
+      if (ctx.engineMode !== "cloud" && exportsCleanly(g.op, g.request?.params)) link("export-pro", t("studio.actions.exportPro"), `/upscale/export?video=${q(o.url)}&format=prores_4444`);
+      link("add-sound", t("studio.actions.addSoundtrack"), `/audio/video?video=${q(o.url)}`);
+      link("split-soundtrack", t("studio.actions.splitSoundtrack"), `/audio/split?video=${q(o.url)}`);
+      link("remove-dialogue", t("studio.actions.removeDialogue"), `/video-tools/remove-dialogue?video=${q(o.url)}`);
       // H3 Person Removal: Video tools → Remove a person with the clip in.
-      link("remove-person", "Remove a person", `/video-tools/remove-person?video=${q(o.url)}`);
+      link("remove-person", t("studio.actions.removePerson"), `/video-tools/remove-person?video=${q(o.url)}`);
       // Clean up voice on a video's soundtrack: results that carry sound, and uploads (a clip from a phone or a call).
-      if (g.feature === "upload" || (g.op && SOUNDED_VIDEO_OPS.has(g.op))) link("clean-voice", "Clean up voice", `/audio/clean?video=${q(o.url)}`);
+      if (g.feature === "upload" || (g.op && SOUNDED_VIDEO_OPS.has(g.op))) link("clean-voice", t("studio.actions.cleanVoice"), `/audio/clean?video=${q(o.url)}`);
       // Clean up dialogue (Split soundtrack's preset): the music and effects out from under the speech, or a cloud cleaner.
-      if ((g.feature === "upload" || (g.op && SOUNDED_VIDEO_OPS.has(g.op))) && g.feature !== CLEAN_DIALOGUE_FEATURE) link("clean-dialogue", "Clean up dialogue", cleanDialogueHref("video", o.url));
+      if ((g.feature === "upload" || (g.op && SOUNDED_VIDEO_OPS.has(g.op))) && g.feature !== CLEAN_DIALOGUE_FEATURE) link("clean-dialogue", t("studio.actions.cleanDialogue"), cleanDialogueHref("video", o.url));
       // Edit speech (AuK, your GPU only): change what someone says in a clip with sound.
-      if ((g.feature === "upload" || (g.op && SOUNDED_VIDEO_OPS.has(g.op))) && ctx.engineMode !== "cloud") link("edit-speech", "Edit speech", `/audio/edit-speech?video=${q(o.url)}`);
+      if ((g.feature === "upload" || (g.op && SOUNDED_VIDEO_OPS.has(g.op))) && ctx.engineMode !== "cloud") link("edit-speech", t("studio.actions.editSpeech"), `/audio/edit-speech?video=${q(o.url)}`);
       // A Fuobe DoP colour-grade effect: the clip opens in Color grading with its grade picked (one click to export).
       const dopGrade = gradeOf(o);
-      link("grade", dopGrade ? `Apply the ${dopGrade.name} grade` : "Color grade", `/color-grade?video=${q(o.url)}${dopGrade ? `&preset=${q(dopGrade.id)}` : ""}`);
-      link("genjutsu", "Use in Genjutsu", `/genjutsu?video=${q(o.url)}`);
+      link("grade", dopGrade ? t("studio.actions.gradeApply", { name: dopGrade.name }) : t("studio.actions.colorGrade"), `/color-grade?video=${q(o.url)}${dopGrade ? `&preset=${q(dopGrade.id)}` : ""}`);
+      link("genjutsu", t("studio.actions.genjutsuVideo"), `/genjutsu?video=${q(o.url)}`);
       break;
     }
     case "audio":
-      link("lipsync", "Lipsync", `/lipsync?audio=${q(o.url)}`, "primary");
-      out.push(file, { id: "favorite", label: g.favorite ? "Unfavorite" : "Favorite", placement: "bar" });
-      link("voice-change", "Change voice", `/audio/voice-change?audio=${q(o.url)}`);
-      link("loop-audio", "Loop / extend", `/audio/loop?audio=${q(o.url)}`);
+      link("lipsync", t("studio.actions.lipsync"), `/lipsync?audio=${q(o.url)}`, "primary");
+      out.push(file, { id: "favorite", label: g.favorite ? t("studio.actions.unfavorite") : t("studio.actions.favorite"), placement: "bar" });
+      link("voice-change", t("studio.actions.changeVoice"), `/audio/voice-change?audio=${q(o.url)}`);
+      link("loop-audio", t("studio.actions.loopAudio"), `/audio/loop?audio=${q(o.url)}`);
       // A song's cloud tools (Mureka, Audio → Extend & remix): any song, one of Mureka's own by its id. Not on an install
       // that runs open models only. Remix only where there are vocals to keep (with the song's lyrics, which it needs whole),
       // Stems only on an MP3 or M4A song (what Mureka separates).
@@ -227,40 +228,40 @@ export function outputActions(g: Generation, index: number, ctx: ActionContext =
         // and song/remix reference): an older song goes as its file (files/upload).
         const byId = typeof o.meta?.songId === "string" && Date.now() - (g.completedAt ?? g.createdAt) < MUREKA_SONG_ID_MS;
         const song = byId ? `&song=${q(o.meta!.songId as string)}` : "";
-        link("extend-song", "Extend song", `/audio/song?model=mureka-extend&audio=${q(o.url)}${song}`);
+        link("extend-song", t("studio.actions.extendSong"), `/audio/song?model=mureka-extend&audio=${q(o.url)}${song}`);
         if (!instrumentalSong(g)) {
           // The whole song's words: an extension's run holds only its new part's.
           const words = g.op === "song-extend" ? "" : lyricsOf(g.request?.params?.extra);
           const lyrics = words && q(words).length <= HANDOVER_LYRICS_MAX ? `&lyrics=${q(words)}` : "";
-          link("remix-song", "Remix", `/audio/song?model=mureka-remix&audio=${q(o.url)}${song}${lyrics}`);
+          link("remix-song", t("studio.actions.remix"), `/audio/song?model=mureka-remix&audio=${q(o.url)}${song}${lyrics}`);
         }
         const format = songFormat(o.contentType, o.url);
-        if (!format || STEMS_FORMATS.includes(format)) link("song-stems", "Stems", `/audio/song?model=mureka-stems&audio=${q(o.url)}`);
+        if (!format || STEMS_FORMATS.includes(format)) link("song-stems", t("studio.actions.stems"), `/audio/song?model=mureka-stems&audio=${q(o.url)}`);
       }
-      link("split-soundtrack", "Split soundtrack", `/audio/split?audio=${q(o.url)}`);
+      link("split-soundtrack", t("studio.actions.splitSoundtrack"), `/audio/split?audio=${q(o.url)}`);
       // Not on music or sound effects (it keeps only a voice), nor on a voice it already cleaned.
-      if (g.op !== "music" && g.op !== "sfx" && g.feature !== CLEAN_FEATURE) link("clean-voice", "Clean up voice", `/audio/clean?audio=${q(o.url)}`);
-      if (g.op !== "music" && g.op !== "sfx" && g.feature !== CLEAN_DIALOGUE_FEATURE) link("clean-dialogue", "Clean up dialogue", cleanDialogueHref("audio", o.url));
+      if (g.op !== "music" && g.op !== "sfx" && g.feature !== CLEAN_FEATURE) link("clean-voice", t("studio.actions.cleanVoice"), `/audio/clean?audio=${q(o.url)}`);
+      if (g.op !== "music" && g.op !== "sfx" && g.feature !== CLEAN_DIALOGUE_FEATURE) link("clean-dialogue", t("studio.actions.cleanDialogue"), cleanDialogueHref("audio", o.url));
       // Edit speech (AuK, your GPU only): change a word, the pitch, the pace or the mood of what was said.
-      if (g.op !== "music" && g.op !== "sfx" && ctx.engineMode !== "cloud") link("edit-speech", "Edit speech", `/audio/edit-speech?audio=${q(o.url)}`);
+      if (g.op !== "music" && g.op !== "sfx" && ctx.engineMode !== "cloud") link("edit-speech", t("studio.actions.editSpeech"), `/audio/edit-speech?audio=${q(o.url)}`);
       break;
     case "text":
-      out.push({ id: "copy-text", label: "Copy", placement: "primary" }, file, { id: "favorite", label: g.favorite ? "Unfavorite" : "Favorite", placement: "bar" });
-      if (ext !== "txt" && o.text) out.push({ id: "download-txt", label: "Download .txt", placement: "menu" });
+      out.push({ id: "copy-text", label: t("studio.actions.copy"), placement: "primary" }, file, { id: "favorite", label: g.favorite ? t("studio.actions.unfavorite") : t("studio.actions.favorite"), placement: "bar" });
+      if (ext !== "txt" && o.text) out.push({ id: "download-txt", label: t("studio.actions.downloadTxt"), placement: "menu" });
       if (cuesOf(o).length) {
-        if (ext !== "srt") out.push({ id: "download-srt", label: "Download .srt", placement: "menu" });
-        if (ext !== "vtt") out.push({ id: "download-vtt", label: "Download .vtt", placement: "menu" });
+        if (ext !== "srt") out.push({ id: "download-srt", label: t("studio.actions.downloadSrt"), placement: "menu" });
+        if (ext !== "vtt") out.push({ id: "download-vtt", label: t("studio.actions.downloadVtt"), placement: "menu" });
       }
       break;
     case "model3d": {
-      if (!ctx.inViewer) out.push({ id: "view-3d", label: "View in 3D", placement: "primary" });
-      out.push({ ...file, label: `Download .${ext}` }, { id: "favorite", label: g.favorite ? "Unfavorite" : "Favorite", placement: "bar" });
+      if (!ctx.inViewer) out.push({ id: "view-3d", label: t("studio.actions.viewIn3d"), placement: "primary" });
+      out.push({ ...file, label: t("studio.actions.downloadExt", { ext }) }, { id: "favorite", label: g.favorite ? t("studio.actions.unfavorite") : t("studio.actions.favorite"), placement: "bar" });
       // A GLB made from a splat (Photo to 3D): the splat too.
       const splat = o.meta?.role ? undefined : g.outputs.findIndex((x) => x !== o && x.kind === "model3d" && x.meta?.role === "splat");
       if (splat !== undefined && splat >= 0) {
         const s = g.outputs[splat];
         const splatName = downloadName(g, s, splat);
-        out.push({ id: "download-splat", label: `Download 3D splat (.${extensionOf(s)})`, placement: "menu", href: downloadHref(s.url, splatName), download: splatName });
+        out.push({ id: "download-splat", label: t("studio.actions.splatLabel", { ext: extensionOf(s) }), placement: "menu", href: downloadHref(s.url, splatName), download: splatName });
       }
       break;
     }
@@ -270,34 +271,34 @@ export function outputActions(g: Generation, index: number, ctx: ActionContext =
   if (g.feature === "upload") {
     // An upload's Regenerate (it has no words of its own) sits with its other hand-offs.
     // Open-H3 Regenerate needs a 48 GB card: the item says so (own-setup.ts), and a visitor runs it on its own GPU only.
-    if (o.kind === "video" && ctx.engineMode !== "cloud") out.push({ id: "regenerate", label: "Regenerate in 2K", placement: "menu", href: regenerateHref(o.url), ownSetup: "regenerate:upscale" });
-    return [...out.filter((a) => a.id !== "favorite"), { id: "delete-upload", label: "Delete for good…", placement: "menu", destructive: true }];
+    if (o.kind === "video" && ctx.engineMode !== "cloud") out.push({ id: "regenerate", label: t("studio.actions.regenerateIn2k"), placement: "menu", href: regenerateHref(o.url), ownSetup: "regenerate:upscale" });
+    return [...out.filter((a) => a.id !== "favorite"), { id: "delete-upload", label: t("studio.actions.deleteForGood"), placement: "menu", destructive: true }];
   }
-  if (g.outputs.length > 1) out.push({ id: "download-all", label: `Download all ${g.outputs.length} (.zip)`, placement: "menu", href: `/api/generations/zip?ids=${g.id}`, download: "" });
-  if (o.draftId) out.push({ id: "finalize", label: `Render this draft in 1080p${ctx.placeholders ? "" : " · a new paid render"}`, placement: "menu" });
+  if (g.outputs.length > 1) out.push({ id: "download-all", label: t("studio.actions.downloadAllN", { n: g.outputs.length }), placement: "menu", href: `/api/generations/zip?ids=${g.id}`, download: "" });
+  if (o.draftId) out.push({ id: "finalize", label: ctx.placeholders ? t("studio.actions.renderDraft") : t("studio.actions.renderDraftPaid"), placement: "menu" });
   // Finishing in 2K beside it: a fal H3 result renders again at 2K on the same hosted model (a new render, priced); a clip
   // made on your GPU (or uploaded) opens Upscale → Video on Open-H3 Regenerate, which runs on your GPU only. Other cloud
   // results keep their upscalers in Upscale.
   if (o.kind === "video" && g.status === "succeeded") {
     if (canRerender(g, ctx.engineMode)) out.push({ id: "rerender-2k", label: rerenderLabel(g.modelId), placement: "menu" });
-    else if ((g.engine === "open" || g.feature === "upload") && ctx.engineMode !== "cloud") out.push({ id: "regenerate", label: "Regenerate in 2K", placement: "menu", href: regenerateHref(o.url, g.feature === "upload" ? null : g.request.prompt), ownSetup: "regenerate:upscale" });
+    else if ((g.engine === "open" || g.feature === "upload") && ctx.engineMode !== "cloud") out.push({ id: "regenerate", label: t("studio.actions.regenerateIn2k"), placement: "menu", href: regenerateHref(o.url, g.feature === "upload" ? null : g.request.prompt), ownSetup: "regenerate:upscale" });
     // An Edit video result (up to 15 s): redrawn at 1080p on your GPU, from the edit's own words (a 48 GB card).
-    if (canEnhance(g, o, ctx.engineMode)) out.push({ id: "enhance-h3", label: ENHANCE_LABEL, placement: "menu", ownSetup: "regenerate:enhance" });
+    if (canEnhance(g, o, ctx.engineMode)) out.push({ id: "enhance-h3", label: t("studio.actions.enhanceH3"), placement: "menu", ownSetup: "regenerate:enhance" });
   }
-  if (ctx.compare) out.push({ id: "compare", label: "Compare with original", placement: "menu" });
-  if (ctx.reuse) out.push({ id: "reuse", label: "Reuse settings", placement: "menu" });
+  if (ctx.compare) out.push({ id: "compare", label: t("studio.actions.compare"), placement: "menu" });
+  if (ctx.reuse) out.push({ id: "reuse", label: t("studio.actions.reuse"), placement: "menu" });
   // The steps behind a finished result, as a skill that runs again with new inputs (src/components/skills).
-  if (g.status === "succeeded") out.push({ id: "make-skill", label: "Make a skill from this…", placement: "menu" });
+  if (g.status === "succeeded") out.push({ id: "make-skill", label: t("studio.actions.makeSkill"), placement: "menu" });
   // The Watermark Remover's prompt is its own fixed instruction, not the visitor's words: nothing to copy.
-  if (g.prompt && g.feature !== WATERMARK_FEATURE) out.push({ id: "copy-prompt", label: "Copy prompt", placement: "menu" });
+  if (g.prompt && g.feature !== WATERMARK_FEATURE) out.push({ id: "copy-prompt", label: t("studio.actions.copyPrompt"), placement: "menu" });
   // A read-only link (src/lib/share.ts): finished results whose files Fuobe keeps.
-  if (g.status === "succeeded" && g.outputs.some((x) => storedPath(x.url))) out.push({ id: "share", label: "Share link…", placement: "menu" });
+  if (g.status === "succeeded" && g.outputs.some((x) => storedPath(x.url))) out.push({ id: "share", label: t("studio.actions.shareLink"), placement: "menu" });
   // Library: pinned results stay at the top of their view; the review status is a sub-menu of its own.
-  out.push({ id: "pin", label: g.pinnedAt ? "Unpin" : "Pin to top", placement: "menu" }, { id: "review", label: "Review status", placement: "menu" });
+  out.push({ id: "pin", label: g.pinnedAt ? t("studio.actions.unpin") : t("studio.actions.pinTop"), placement: "menu" }, { id: "review", label: t("studio.actions.reviewStatus"), placement: "menu" });
   // The owner's goes to the Trash (restorable for 30 days), so it says so; a run still going is canceled first. An
   // account has no Trash: its delete is for good, so it says that and asks first.
-  if (ctx.account) out.push({ id: "delete-own", label: "Delete for good…", placement: "menu", destructive: true });
-  else out.push({ id: "delete", label: "Move to Trash", placement: "menu", destructive: true });
+  if (ctx.account) out.push({ id: "delete-own", label: t("studio.actions.deleteForGood"), placement: "menu", destructive: true });
+  else out.push({ id: "delete", label: t("studio.actions.trash"), placement: "menu", destructive: true });
   return out;
 }
 

@@ -16,8 +16,9 @@ import type {
   Pricing,
 } from "./types";
 import { billedClipSeconds, editClipsProblem, insertRangeProblem, sourceSeconds } from "./clip-windows";
-import { chainGapProblem, chainTiming, FIRST_AT_ZERO, frameTimes, keyframeChain, MAX_KEYFRAMES, spread } from "./keyframes";
+import { chainGapProblem, chainTiming, frameTimes, keyframeChain, MAX_KEYFRAMES, spread } from "./keyframes";
 import { requestTiming } from "@/lib/inbetween";
+import { t as tr } from "@/lib/i18n/store";
 import { cloudPath, fitLoras, gated, localOnly, loraCapacity, needsToken, routeLoraField, triggerOf } from "./loras";
 import { anglesPrompt, anglesWords, ANGLES_ORIGINAL } from "./open-tools";
 import { qmaRunPrompt } from "@/lib/qma";
@@ -954,16 +955,16 @@ function checkKeyframes(model: ModelDef, n: number, params: GenParams) {
   }
   const chain = keyframeChain(model);
   const max = chain ? MAX_KEYFRAMES : model.options.maxImages;
-  if (max && n > max) throw new Error(`${model.name} takes up to ${max} keyframes`);
+  if (max && n > max) throw new Error(tr("studio.frames.maxKeyframes", { model: model.name, n: max }));
   const times = params.keyframeTimes;
   const duration = params.duration ?? model.defaults?.duration;
   if (times?.length) {
-    if (times.length !== n) throw new Error(`Give each of the ${n} keyframes a time`);
-    if (times.some((t, i) => !Number.isFinite(t) || t < 0 || (i > 0 && t <= times[i - 1]))) throw new Error("Keyframe times start at 0 or later and go up");
+    if (times.length !== n) throw new Error(tr("studio.frames.eachKeyframeTime", { n }));
+    if (times.some((t, i) => !Number.isFinite(t) || t < 0 || (i > 0 && t <= times[i - 1]))) throw new Error(tr("studio.frames.timesGoUp"));
     // The open chain's film starts on the first frame (FLUX 3 Max can start it later).
-    if (chain && times[0] !== 0) throw new Error(FIRST_AT_ZERO);
+    if (chain && times[0] !== 0) throw new Error(tr("studio.frames.firstAtZero"));
     const last = times[times.length - 1];
-    if (duration !== undefined && last > duration) throw new Error(`The last keyframe is at ${last}s — make the clip at least that long`);
+    if (duration !== undefined && last > duration) throw new Error(tr("studio.frames.lastKeyframeLong", { n: last }));
   }
   if (chain && n > 1) {
     const length = duration ?? 5;

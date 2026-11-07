@@ -12,6 +12,8 @@
 /** Why a run made now waits to enter the line (server: pool-holds.ts). */
 export type HeldReason = "mine" | "today" | "service" | "hour" | "list" | "credits";
 
+import { t } from "./i18n/store";
+
 /**
  * A place in line (1: next) and the wait, about (`etaSeconds`, until the result; null: unknown). `unknown`: no GPU that
  * could run it can take it now, so it starts when one is free; `returnAt` (epoch ms): when the first of them is due
@@ -33,13 +35,13 @@ export interface LineFacts {
 
 /** "about 40 s", "about 2 min", "about 3 h". */
 export function aboutWords(seconds: number): string {
-  if (seconds < 60) return `about ${Math.max(5, Math.round(seconds / 5) * 5)} s`;
-  if (seconds < 90 * 60) return `about ${Math.max(1, Math.round(seconds / 60))} min`;
-  return `about ${Math.round(seconds / 3600)} h`;
+  if (seconds < 60) return t("studio.pool.aboutSec", { n: Math.max(5, Math.round(seconds / 5) * 5) });
+  if (seconds < 90 * 60) return t("studio.pool.aboutMin", { n: Math.max(1, Math.round(seconds / 60)) });
+  return t("studio.pool.aboutHour", { n: Math.round(seconds / 3600) });
 }
 
 /** "starts in about 7 h": when a run waiting for a time starts. */
-const startsWords = (startAt: number | undefined, now: number): string => `starts in ${aboutWords(Math.max(0, ((startAt ?? now) - now) / 1000))}`;
+const startsWords = (startAt: number | undefined, now: number): string => t("studio.pool.startsIn", { w: aboutWords(Math.max(0, ((startAt ?? now) - now) / 1000)) });
 
 /**
  * When the run would be done, or start, in words inside a sentence: "ready in about 40 s", "ready in seconds", "starts
@@ -47,17 +49,17 @@ const startsWords = (startAt: number | undefined, now: number): string => `start
  * yet): nothing is guessed.
  */
 export function waitWords(q: LineFacts, now = Date.now()): string | null {
-  if (q.light) return "ready in seconds";
-  if (q.held === "mine") return "starts after your other runs";
-  if (q.held === "list") return "starts as soon as you're in";
+  if (q.light) return t("studio.pool.readyInSeconds");
+  if (q.held === "mine") return t("studio.pool.startsAfterMine");
+  if (q.held === "list") return t("studio.pool.startsWhenIn");
   if (q.held === "today" || q.held === "hour" || q.held === "credits") return startsWords(q.startAt, now);
-  if (q.held === "service" && q.paused) return "starts when a GPU is free";
+  if (q.held === "service" && q.paused) return t("studio.pool.startsWhenFree");
   if (q.unknown) {
     const ms = q.returnAt ? q.returnAt - now : 0;
-    return ms > 0 ? `starts in ${aboutWords(ms / 1000)}` : "starts when a GPU is free";
+    return ms > 0 ? t("studio.pool.startsIn", { w: aboutWords(ms / 1000) }) : t("studio.pool.startsWhenFree");
   }
   const s = q.etaSeconds;
-  return s === null || !Number.isFinite(s) || s < 0 ? null : `ready in ${aboutWords(s)}`;
+  return s === null || !Number.isFinite(s) || s < 0 ? null : t("studio.pool.readyIn", { w: aboutWords(s) });
 }
 
 /** The same words opening a line of their own ("Ready in about 2 min"). */
@@ -72,9 +74,9 @@ export function noteWords(q: LineFacts, now = Date.now()): string | null {
   if (q.held === "service" && q.paused && q.note) return q.note;
   const wait = waitWords(q, now);
   if (!wait) return null;
-  if (q.held === "today") return `Lots of runs today · ${wait}`;
-  if (q.held === "credits") return `${capitalFirst(wait)}, when your free generations renew`;
-  if (q.held === "list") return "You're on the waiting list. Your runs start as soon as you're in.";
+  if (q.held === "today") return t("studio.pool.noteToday", { wait });
+  if (q.held === "credits") return t("studio.pool.noteCredits", { a: capitalFirst(wait) });
+  if (q.held === "list") return t("studio.pool.noteList");
   return capitalFirst(wait);
 }
 
@@ -86,14 +88,14 @@ export function noteWords(q: LineFacts, now = Date.now()): string | null {
 export function lineWords(q: LineFacts, now = Date.now()): string {
   if (q.held === "mine") {
     const s = q.etaSeconds;
-    return s !== null && Number.isFinite(s) && s >= 0 ? `In line · after your other runs · ready in ${aboutWords(s)}` : "In line · after your other runs";
+    return s !== null && Number.isFinite(s) && s >= 0 ? t("studio.pool.heldMineReady", { w: aboutWords(s) }) : t("studio.pool.heldMine");
   }
-  if (q.held === "list") return "In line · you're on the waiting list";
-  if (q.held && q.held !== "service") return `In line · ${waitWords(q, now)}`;
-  if (q.held === "service" && q.paused) return "In line · starts when a GPU is free";
+  if (q.held === "list") return t("studio.pool.heldList");
+  if (q.held && q.held !== "service") return t("studio.pool.lineJoin", { a: t("studio.pool.inLine"), b: waitWords(q, now) ?? "" });
+  if (q.held === "service" && q.paused) return t("studio.pool.lineJoin", { a: t("studio.pool.inLine"), b: t("studio.pool.startsWhenFree") });
   const n = Math.max(1, Math.floor(q.place));
   const ord = n % 100 >= 11 && n % 100 <= 13 ? "th" : (({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th");
-  const head = n === 1 ? "Next in line" : `In line · ${n}${ord}`;
+  const head = n === 1 ? t("studio.pool.nextInLine") : t("studio.pool.inLineNth", { n, ord });
   const wait = waitWords(q, now);
-  return wait ? `${head} · ${wait}` : head;
+  return wait ? t("studio.pool.lineJoin", { a: head, b: wait }) : head;
 }

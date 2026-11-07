@@ -28,7 +28,7 @@ export function CompareSlider({ before, after, alt }: { before: string; after: s
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={before}
-        alt="Original"
+        alt={t("studio.compare.original")}
         className="absolute inset-0 size-full object-contain"
         style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
         draggable={false}
@@ -38,8 +38,8 @@ export function CompareSlider({ before, after, alt }: { before: string; after: s
           <MoveHorizontal className="size-4" />
         </span>
       </div>
-      <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">Before</span>
-      <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">After</span>
+      <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">{t("studio.compare.before")}</span>
+      <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">{t("studio.compare.after")}</span>
       <input
         type="range"
         min={0}

@@ -51,7 +51,7 @@ export function VoicePicker({
   voice,
   sample,
   onChange,
-  label = "Voice",
+  label,
 }: {
   model: ModelDef;
   voice?: string;
@@ -62,6 +62,7 @@ export function VoicePicker({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const { t } = useI18n();
+  const voiceWord = label ?? t("studio.audio.voice");
   const file = useRef<HTMLInputElement>(null);
   const saved = (useElements().data ?? []).filter((e) => e.kind === "voice" && e.references[0]);
   const presets = model.options.voices ?? [];
@@ -86,7 +87,7 @@ export function VoicePicker({
       <PopoverTrigger asChild>
         <button type="button" className={cn(chip, current ? on : idle)}>
           <User className="size-3.5" />
-          {current ?? (clone ? `${label}: ${t("studio.audio.addSample")}` : label)}
+          {current ?? (clone ? `${voiceWord}: ${t("studio.audio.addSample")}` : voiceWord)}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-[min(92vw,340px)] p-1.5" align="start" side="top" collisionPadding={12}>
@@ -168,6 +169,7 @@ export function VoicePicker({
 
 /** Numeric model settings (stability, similarity, speed, strength…), sent as-is. Shown in the settings panel. */
 export function SliderControls({ model, values, onChange }: { model: ModelDef; values: Record<string, unknown>; onChange: (param: string, v?: number) => void }) {
+  const { t } = useI18n();
   const sliders = model.options.sliders ?? [];
   return (
     <div className="space-y-3.5">
@@ -180,8 +182,8 @@ export function SliderControls({ model, values, onChange }: { model: ModelDef; v
               <span>{s.label}</span>
               <span className="flex items-center gap-1.5">
                 {changed && (
-                  <button className="rounded text-[11px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50" onClick={() => onChange(s.param, undefined)} aria-label={`Reset ${s.label}`}>
-                    Reset
+                  <button className="rounded text-[11px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50" onClick={() => onChange(s.param, undefined)} aria-label={t("studio.audio.resetAria", { label: s.label })}>
+                    {t("studio.audio.reset")}
                   </button>
                 )}
                 <span className="text-[12px] text-muted-foreground tabular-nums">{Number(v.toFixed(2))}</span>
@@ -205,7 +207,7 @@ const display = (() => {
 const langLabel = (l: string) => (/^[a-z]{2,3}$/.test(l) ? (display?.of(l) ?? l) : l);
 
 /** Target language for dubbing / translation. */
-export function LanguageChip({ languages, value, onChange, label = "Translate to…" }: { languages: string[]; value?: string; onChange: (v: string) => void; label?: string }) {
+export function LanguageChip({ languages, value, onChange, label }: { languages: string[]; value?: string; onChange: (v: string) => void; label?: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const { t } = useI18n();
@@ -214,7 +216,7 @@ export function LanguageChip({ languages, value, onChange, label = "Translate to
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" className={cn(chip, value ? on : idle)}>
-          <Globe className="size-3.5" /> {value ? langLabel(value) : label}
+          <Globe className="size-3.5" /> {value ? langLabel(value) : label ?? t("studio.audio.translateTo")}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-1.5" align="start" side="top" collisionPadding={12}>
@@ -305,7 +307,7 @@ export function DialogueEditor({ model, lines, onChange }: { model: ModelDef; li
             <Minus className="size-3" /> {t("studio.audio.lastLine")}
           </button>
         )}
-        <span className="ml-auto font-mono text-[11px] text-muted-foreground">{chars} chars</span>
+        <span className="ml-auto font-mono text-[11px] text-muted-foreground">{t("studio.audio.charsCount", { n: chars })}</span>
       </div>
     </div>
   );

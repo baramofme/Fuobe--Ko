@@ -1,5 +1,6 @@
 import type { ComfyNode, ComfyWorkflow } from "@/lib/comfy";
 import { gapSelection, MAX_KEYS, MIN_KEYS, type GapTiming } from "@/lib/inbetween";
+import { t as tr } from "@/lib/i18n/store";
 
 /**
  * Fuobe Animation on your GPU (wan22-inbetween-anisora): N keyframes become N − 1 Wan 2.2 start/end-frame passes in ONE
@@ -24,9 +25,9 @@ const PASS_NODES = ["p", "f", "h", "l", "d", "s"] as const;
 const link = (id: string, slot = 0) => [id, slot];
 
 export function expandInbetweenWorkflow(wf: ComfyWorkflow, keyframes: string[], passes: InbetweenPass[]): ComfyWorkflow {
-  if (keyframes.length < MIN_KEYS) throw new Error("Add at least two keyframes: the in-betweens go between them");
-  if (keyframes.length > MAX_KEYS) throw new Error(`Up to ${MAX_KEYS} keyframes`);
-  if (passes.length !== keyframes.length - 1) throw new Error(`${keyframes.length} keyframes need ${keyframes.length - 1} passes`);
+  if (keyframes.length < MIN_KEYS) throw new Error(tr("studio.inbetween.needTwo"));
+  if (keyframes.length > MAX_KEYS) throw new Error(tr("studio.inbetween.maxKeys", { n: MAX_KEYS }));
+  if (passes.length !== keyframes.length - 1) throw new Error(tr("studio.inbetween.passesNeeded", { n: keyframes.length, m: keyframes.length - 1 }));
   for (const id of ["k1", "k2", ...PASS_NODES.map((p) => `${p}1`), "first", "batch", "video", "save"])
     if (!wf[id]) throw new Error(`Not the in-between workflow (no node ${id})`);
   const out: ComfyWorkflow = {};

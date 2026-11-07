@@ -113,7 +113,7 @@ describe("the composer's Layout mode helpers", () => {
     const base = { models, engine: "cloud" as const, engines: ["cloud" as const], query: "", recent: ["nano-banana-pro"], starred: [], best: [] };
     expect(groupModels(base).groups.map((g) => g.id)).toEqual(["recent", "all"]);
     const laid = groupModels({ ...base, boxes: true }).groups;
-    expect(laid[0]).toMatchObject({ id: "boxes", label: "Reads your boxes" });
+    expect(laid[0]).toMatchObject({ id: "boxes", label: "studio.model.groupReadsBoxes" });
     expect(laid[0].models.map((m) => m.id)).toEqual(["moss-image", "flux-3", "ideogram-4-5"]);
     // A search ranks them first among equal matches too.
     const hits = groupModels({ ...base, boxes: true, query: "image" }).groups[0].models.map((m) => m.id);

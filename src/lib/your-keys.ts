@@ -2,6 +2,7 @@ import { FAL_KEYS_URL } from "./connections";
 import { placeOf } from "./place-name";
 import { dualEngine } from "./catalog/engines";
 import { presetRoutes } from "./catalog/preset-recipe-routes";
+import { t } from "./i18n/store";
 
 /**
  * Your keys (public sign-up): an account's own fal.ai key or Replicate token, so it can run paid models billed to its own
@@ -154,24 +155,24 @@ export function accountEngine(
   if (v?.kind !== "account") return null;
   // Hosted runs: open models run free on this studio's GPUs (said with their place name), a GPU of one's own optional.
   const place = v.hosted ? placeOf(v.placeName) : null;
-  const open = place ? `Free on ${place.text}.` : "Runs on your own GPU.";
-  if (v.paidAllowed === false) return { locked: { text: "Open source", tip: open, href: "/settings#your-gpu" } };
+  const open = place ? t("studio.engine.freeOnPlaceDot", { place: place.text }) : t("studio.engine.runsOnYourGpu");
+  if (v.paidAllowed === false) return { locked: { text: t("studio.engine.openSource"), tip: open, href: "/settings#your-gpu" } };
   const keys = v.keys ?? [];
   if (!keys.length) {
     return {
-      locked: { text: "Open source", tip: `${open} Add a fal.ai or Replicate key to use paid models.`, href: "/settings#your-keys", addKey: true },
+      locked: { text: t("studio.engine.openSource"), tip: t("studio.engine.lockedNoKey", { open }), href: "/settings#your-keys", addKey: true },
     };
   }
   return {
     tips: {
-      cloud: `Paid models, billed to your ${names(keys)} ${keys.length > 1 ? "accounts" : "account"}`,
+      cloud: keys.length > 1 ? t("studio.engine.billedToAccounts", { names: names(keys) }) : t("studio.engine.billedToAccount", { name: names(keys) }),
       open: place
         ? v.gpu?.connected
-          ? `Open models, free on ${place.text} or your GPU`
-          : `Open models, free on ${place.text}`
+          ? t("studio.engine.freeOnPlaceGpu", { place: place.text })
+          : t("studio.engine.freeOnPlace", { place: place.text })
         : v.gpu?.connected
-          ? "Open models on your own GPU"
-          : "Open models on your own GPU. Connect it first",
+          ? t("studio.engine.openOnGpu")
+          : t("studio.engine.openOnGpuConnect"),
     },
   };
 }

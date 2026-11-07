@@ -270,6 +270,46 @@ step("RSC: the server's words follow the cookie");
   await page.close();
 }
 
+step("studio: the new labels follow the switch (Frames)");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  await openRoute(page, `${app}/video`);
+  const chip = page.getByRole("button", { name: "Frames", exact: true }).first();
+  await chip.waitFor({ timeout: 10_000 });
+  await chip.click();
+  const strip = page.locator("[data-frames-strip]");
+  await strip.first().waitFor({ timeout: 5_000 }).catch(() => {});
+  const on = await strip.first().isVisible().catch(() => false);
+  check("Frames turned the strip on", on, "");
+  check(
+    "the Frames hint reads English first",
+    await page.locator("text=Up to 10 frames. The first is the start frame.").first().isVisible().catch(() => false),
+    "",
+  );
+  const enReplace = await page.evaluate(() => {
+    const b = [...document.querySelectorAll('button[aria-label$=": replace"]')];
+    return b.length === 0 || b.every((x) => /^Frame \d+, (start|end|middle) frame at \d+(\.\d+)? s: replace$/.test(x.getAttribute("aria-label") ?? ""));
+  });
+  check("the replace aria keeps the assembled English bytes", enReplace, "");
+  const trigger = page.locator('button:has(svg.lucide-globe)').locator("visible=true").first();
+  await trigger.waitFor({ timeout: 15_000 });
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(400);
+  check(
+    "the Frames hint is Korean after the switch",
+    await page.locator("text=최대 10개의 프레임입니다. 첫 프레임은 시작 프레임입니다.").first().isVisible().catch(() => false),
+    "",
+  );
+  check("no English Frames hint left", !(await page.locator("text=Up to 10 frames").first().isVisible().catch(() => false)), "");
+  const frameHeadKo = await strip.first().getByText("프레임", { exact: true }).first().isVisible().catch(() => false);
+  check("the strip's heading reads 프레임 after the switch", frameHeadKo, "");
+  check("no English Frames heading left in the strip", !(await strip.first().locator("span").filter({ hasText: /^Frames$/ }).first().isVisible().catch(() => false)), "");
+  const koReplace = await page.evaluate(() => [...document.querySelectorAll('button[aria-label$="교체"]')].length);
+  if (koReplace > 0) check("the replace buttons' accessible names went Korean", true, "");
+  await page.close();
+}
+
 step("nothing was missed on the way");
 {
   const i18nNoise = noise.filter((l) => /\[i18n\]/.test(l));

@@ -26,7 +26,7 @@ import {
 } from "@/lib/inbetween";
 import type { Engine } from "@/lib/catalog/types";
 import { useAskBeforeUpload, useEngine, useLikelyVisitor } from "@/lib/api";
-import { FRAMES_HINT, frameRange, frameRole, frameTimes, KEYFRAME_SNAP, MAX_KEYFRAMES, secondsLabel } from "@/lib/catalog/keyframes";
+import { frameRange, frameRole, frameTimes, KEYFRAME_SNAP, MAX_KEYFRAMES, secondsLabel } from "@/lib/catalog/keyframes";
 import type { FrameAttachment } from "@/lib/composer";
 import { cn } from "@/lib/utils";
 import { ACCEPT, kindOfFile, MediaSlot, SlotPreview, wrongKindMessage, type SlotValue } from "./media-slot";
@@ -102,7 +102,7 @@ export function FramesStrip({
           {t("studio.frames.title")}
         </span>
         <span id={hintId} className="order-last basis-full text-[12px] leading-snug text-muted-foreground sm:order-none sm:basis-auto">
-          {FRAMES_HINT}
+          {t("studio.frames.hint")}
         </span>
         <div className="ml-auto flex items-center gap-1">
           {style && (
@@ -146,7 +146,7 @@ export function FramesStrip({
             )}
             <FrameTile
               index={i}
-              role={animation ? (i === 0 ? "Start frame" : i === frames.length - 1 ? "End frame" : "Middle frame") : frameRole(i, frames.length, f.at)}
+              role={animation ? (i === 0 ? t("studio.frames.roleStart") : i === frames.length - 1 ? t("studio.frames.roleEnd") : t("studio.frames.roleMiddle")) : frameRole(i, frames.length, f.at)}
               value={f.value}
               time={times[i] ?? 0}
               onChange={(v) => onFrame(i, v)}
@@ -280,7 +280,7 @@ function FrameTile({
             <button
               type="button"
               onClick={() => askFirst() || input.current?.click()}
-              aria-label={`Frame ${index + 1}, ${role.toLowerCase()} at ${secondsLabel(time)}: replace`}
+              aria-label={t("studio.frames.replaceAria", { n: index + 1, role: role.toLowerCase(), time: secondsLabel(time) })}
               className={cn("size-full overflow-hidden rounded-xl border bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring/50", over && "ring-2 ring-primary")}
             >
               <SlotPreview value={{ ...value, name: "" }} />
@@ -288,7 +288,7 @@ function FrameTile({
           </TooltipTrigger>
           <TooltipContent>
             {role}
-            {index > 0 && ` · ${secondsLabel(time)}`} — click or drop to replace
+            {index > 0 && t("studio.frames.tipAt", { time: secondsLabel(time) })} {t("studio.frames.tipReplace")}
           </TooltipContent>
         </Tooltip>
         {value.uploading && (
@@ -303,7 +303,7 @@ function FrameTile({
           type="button"
           onClick={() => onChange(null)}
           className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-foreground text-background shadow-soft"
-          aria-label={`Remove ${name}`}
+          aria-label={t("studio.frames.removeAria", { name })}
         >
           <X className="size-3" />
         </button>
@@ -457,7 +457,7 @@ function GapChip({ index, gap, fps, engine, onChange }: { index: number; gap: Ga
         <button
           type="button"
           data-gap-chip={index}
-          aria-label={`Timing between ${name}: ${gap.frames} frames, ${gap.speed === 1 ? "every frame" : `every ${gap.speed}th frame`}, ${lengthLabel(gapSeconds(gap, fps))}`}
+          aria-label={t("studio.frames.timingAria", { name, frames: gap.frames, speed: gap.speed === 1 ? t("studio.frames.everyFrame") : t("studio.frames.everyNth", { n: gap.speed }), length: lengthLabel(gapSeconds(gap, fps)) })}
           className="mt-3.5 flex h-8 shrink-0 flex-col items-center justify-center rounded-full border bg-background px-2 text-[10.5px] leading-tight font-medium tabular-nums shadow-soft outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <span>{gapLabel(gap)}</span>

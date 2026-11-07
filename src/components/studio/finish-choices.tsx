@@ -54,7 +54,7 @@ export function FinishChoices({
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1.5 pb-2 text-[12px] leading-snug text-muted-foreground">
         <Cpu className="size-3.5 shrink-0" aria-hidden />
         <span className="min-w-0">
-          <span className="font-medium text-foreground">Regenerate · creative</span> · {REGEN_COPY.gpuOnly}
+          <span className="font-medium text-foreground">{t("studio.finish.regenCreative")}</span> · {REGEN_COPY.gpuOnly}
         </span>
         <OwnSetupChip setup="regenerate:upscale" />
         <button
@@ -62,7 +62,7 @@ export function FinishChoices({
           onClick={() => onPick(regen)}
           className="rounded-full px-1.5 font-medium text-brand-text underline underline-offset-2 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          Use it on your GPU
+          {t("studio.finish.useItOnGpu")}
         </button>
       </div>
     );
@@ -75,7 +75,7 @@ export function FinishChoices({
   const quick = rtx && {
     modelId: RTX_UPSCALE_MODEL,
     label: RTX_COPY.quick,
-    hint: standing === "fits" ? RTX_COPY.quickHint : standing === "no" ? RTX_COPY.needsCard : `${RTX_COPY.onRtx}. Adds no new detail.`,
+    hint: standing === "fits" ? RTX_COPY.quickHint : standing === "no" ? RTX_COPY.needsCard : `${RTX_COPY.onRtx}. ${t("studio.finish.addsNoDetail")}`,
     m: rtx,
     ...(standing === "no" && model?.id !== RTX_UPSCALE_MODEL && { off: true as const }),
   };
@@ -115,7 +115,7 @@ export function FinishChoices({
       {model?.id === REGEN_MODEL && (
         <>
           <p className="mt-1.5 px-1 text-[11px] leading-snug text-pretty text-muted-foreground">
-            {owner ? `Free on your GPU · ${REGEN_COPY.gpu}` : REGEN_COPY.gpuVisitor} {REGEN_COPY.shape}
+            {owner ? `${t("studio.finish.freeOnYourGpu")} · ${REGEN_COPY.gpu}` : REGEN_COPY.gpuVisitor} {REGEN_COPY.shape}
           </p>
           {(onDescribe || describing) && (
             <button

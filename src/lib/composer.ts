@@ -1271,14 +1271,14 @@ export function groupModels(input: {
   };
   const top = (
     [
-      ...(boxes ? [{ id: "boxes" as const, label: "Reads your boxes", models: take(pool.filter((m) => readsBoxes(m)).map((m) => m.id), 50) }] : []),
-      { id: "recent", label: "Recent", models: take(recent, 3) },
-      { id: "starred", label: "Starred", models: take(starred, 50) },
-      { id: "best", label: "Best for this studio", models: take(best, 4) },
+      ...(boxes ? [{ id: "boxes" as const, label: "studio.model.groupReadsBoxes", models: take(pool.filter((m) => readsBoxes(m)).map((m) => m.id), 50) }] : []),
+      { id: "recent", label: "studio.model.groupRecent", models: take(recent, 3) },
+      { id: "starred", label: "studio.model.groupStarred", models: take(starred, 50) },
+      { id: "best", label: "studio.model.groupBest", models: take(best, 4) },
     ] satisfies ModelGroup[]
   ).filter((g) => g.models.length);
   const rest = pool.filter((m) => !used.has(m.id));
-  const groups: ModelGroup[] = [...top, ...(rest.length ? [{ id: "all" as const, label: top.length ? "More models" : "All models", models: rest }] : [])];
+  const groups: ModelGroup[] = [...top, ...(rest.length ? [{ id: "all" as const, label: top.length ? "studio.model.groupMore" : "studio.model.groupAll", models: rest }] : [])];
   return { groups, count: pool.length };
 }
 

@@ -24,8 +24,8 @@ import { pickerPrice } from "@/lib/model-rows";
 import { cn } from "@/lib/utils";
 import { ownSetupLabel } from "@/lib/own-setup";
 import { answerPickModel } from "@/lib/pick-model";
-import { addKeyLabel, billedTo, CLOUD_KEY, CLOUD_PROVIDERS, needsKey, type CloudProvider } from "@/lib/your-keys";
-import { CLOUD_PICKER_NOTE, CLOUD_SECTION_LABEL, cloudModelAsk, openCloudPanel, visitorEngine } from "@/lib/engine-ux";
+import { addKeyLabel, CLOUD_KEY, CLOUD_PROVIDERS, needsKey, type CloudProvider } from "@/lib/your-keys";
+import { cloudModelAsk, openCloudPanel, visitorEngine } from "@/lib/engine-ux";
 import { EngineSwitch } from "./engine-switch";
 import { ResponsivePanel } from "./responsive-panel";
 import { RECENT_MODELS, STARRED_MODELS, useStoredList } from "./stored-list";
@@ -33,21 +33,22 @@ import { VendorMark } from "./vendor-mark";
 import { placeholdersOn } from "@/lib/demo-mode";
 import { plainTagline } from "@/lib/plain-tagline";
 
-const BADGE_LABEL: Record<string, string> = {
-  new: "New",
-  top: "Top",
-  fast: "Fast",
-  audio: "Audio",
-  "4k": "4K",
-  hd: "1080p",
-  pro: "Pro",
-  open: "Open",
-  uncensored: "Uncensored",
-  beta: "Beta",
-  "30s": "30 s",
+const BADGE_KEYS: Record<string, string> = {
+  new: "studio.model.new",
+  top: "studio.model.top",
+  fast: "studio.model.fast",
+  audio: "studio.model.audio",
+  "4k": "studio.model.k4",
+  hd: "studio.model.hd",
+  pro: "studio.model.pro",
+  open: "studio.model.open",
+  uncensored: "studio.model.uncensored",
+  beta: "studio.model.beta",
+  "30s": "studio.model.seconds30",
 };
 
 export function ModelBadges({ model, max }: { model: ModelDef; max?: number }) {
+  const { t } = useI18n();
   const badges = (model.badges ?? []).filter((b) => b !== "open").slice(0, max);
   if (!badges.length) return null;
   return (
@@ -62,7 +63,7 @@ export function ModelBadges({ model, max }: { model: ModelDef; max?: number }) {
             b === "top" && "bg-brand-faint text-brand-text",
           )}
         >
-          {BADGE_LABEL[b]}
+          {BADGE_KEYS[b] ? t(BADGE_KEYS[b]) : null}
         </Badge>
       ))}
     </span>
@@ -123,6 +124,7 @@ export function ModelRow({
   /** It runs on the visitor's own GPU or key (own-setup.ts): its label in place of the price; Run then opens that setup. */
   setup?: OwnSetup | null;
 }) {
+  const { t } = useI18n();
   return (
     <>
       <VendorMark vendor={m.vendor} engine={m.engine} />
@@ -130,12 +132,12 @@ export function ModelRow({
         <span className="flex items-center gap-1.5">
           <span className={cn("truncate text-[13px] font-medium", selected && "text-brand-text")}>
             {m.name}
-            {starred && <span className="sr-only">, starred</span>}
+            {starred && <span className="sr-only">, {t("studio.model.starredSr")}</span>}
           </span>
           {/* A dimmed row on a phone: the name first (its badges would cut it to "Na…"). */}
           {boxes && readsBoxes(m) ? (
             <Badge variant="secondary" className="h-4 shrink-0 rounded-[4px] bg-brand-faint px-1 text-[10px] font-medium text-brand-text">
-              Reads boxes
+              {t("studio.model.readsBoxes")}
             </Badge>
           ) : needs ? (
             <span className="contents max-sm:hidden">
@@ -148,7 +150,7 @@ export function ModelRow({
           {showEngine && (
             <span className="inline-flex shrink-0 items-center gap-0.5 rounded-[4px] bg-muted px-1 text-[10px] leading-4 font-medium text-muted-foreground">
               {m.engine === "open" ? <Cpu className="size-2.5!" /> : <Cloud className="size-2.5!" />}
-              {m.engine === "open" ? "Open source" : "Cloud"}
+              {m.engine === "open" ? t("studio.engine.openSource") : t("studio.engine.cloud")}
             </span>
           )}
         </span>
@@ -158,7 +160,7 @@ export function ModelRow({
         {made && (
           <span className="mt-0.5 flex items-center gap-1 text-[11px] leading-snug font-medium text-brand-text">
             <Sparkles className="size-3! shrink-0" aria-hidden />
-            Used for this preview
+            {t("studio.model.usedForPreview")}
           </span>
         )}
       </span>
@@ -167,7 +169,7 @@ export function ModelRow({
       ) : needs ? (
         // On a phone the short words, so the model's name keeps its room.
         <span className="shrink-0 text-right text-[11px] font-medium text-brand-text">
-          <span className="sm:hidden">{guest ? "Your key" : "Add key"}</span>
+          <span className="sm:hidden">{guest ? t("studio.model.yourKeyShort") : t("studio.model.addKeyShort")}</span>
           <span className="max-sm:hidden">{guest ? ownSetupLabel({ need: "key", provider: needs[0] }) : addKeyLabel(needs[0])}</span>
         </span>
       ) : (
@@ -178,7 +180,7 @@ export function ModelRow({
         type="button"
         tabIndex={-1}
         aria-hidden
-        title={starred ? `Unstar (${STAR_KEY_HINT})` : `Star (${STAR_KEY_HINT})`}
+        title={starred ? t("studio.model.unstarTitle", { hint: STAR_KEY_HINT }) : t("studio.model.star", { hint: STAR_KEY_HINT })}
         onPointerDown={(e) => e.preventDefault()}
         onClick={(e) => {
           e.stopPropagation();
@@ -368,7 +370,7 @@ export function PickerList({
   );
   // While open models run free here, the section says which side it is: Cloud, on the visitor's own key.
   const hostedVisitor = !!visitorEngine(status);
-  const listed = paid.length ? [...groups, { id: "paid" as const, label: hostedVisitor ? CLOUD_SECTION_LABEL : "Paid models · with your own key", models: paid }] : groups;
+  const listed = paid.length ? [...groups, { id: "paid" as const, label: hostedVisitor ? t("studio.engine.sectionYourKey") : t("studio.model.paidOwnKey"), models: paid }] : groups;
   // The key a paid row needs: an account's (needsKey), or for a guest the providers that serve it.
   const rowNeeds = (m: ModelDef): CloudProvider[] | null => {
     if (!guest) return needsKey(m, status);
@@ -393,7 +395,7 @@ export function PickerList({
   };
 
   return (
-    <Command shouldFilter={false} loop label="Models" onKeyDown={(e) => starKey(e, (id) => setStarred((s) => toggleIn(s, id)))} className="rounded-none! bg-transparent p-0">
+    <Command shouldFilter={false} loop label={t("common.models")} onKeyDown={(e) => starKey(e, (id) => setStarred((s) => toggleIn(s, id)))} className="rounded-none! bg-transparent p-0">
       <div className="flex items-center gap-2 p-1 sm:p-2 sm:pb-1">
         <div className="min-w-0 flex-1 [&_[data-slot=command-input-wrapper]]:p-0">
           <CommandInput value={q} onValueChange={setQ} placeholder={mobile ? t("studio.model.search") : mode === "both" ? t("studio.model.searchAll") : t("studio.model.searchModels")} aria-label={t("studio.model.searchModelsAria")} autoFocus={!mobile} />
@@ -422,7 +424,7 @@ export function PickerList({
             <>
               <span aria-hidden>·</span>
               <span className="min-w-0">
-                {hostedVisitor ? CLOUD_PICKER_NOTE : t("studio.model.paidNeedsKey")} ·{" "}
+                {hostedVisitor ? t("studio.engine.pickerNoKeyNote") : t("studio.model.paidNeedsKey")} ·{" "}
                 {guest ? (
                   <button
                     type="button"
@@ -460,14 +462,14 @@ export function PickerList({
       </div>
       <CommandList className="max-h-[min(52vh,420px)] border-t sm:max-h-[min(56vh,440px)]">
         {listed.map((g) => (
-          <CommandGroup key={g.id} heading={g.label}>
+          <CommandGroup key={g.id} heading={t(g.label)}>
             {g.models.map((m) => (
               <CommandItem
                 key={`${g.id}:${m.id}`}
                 value={`${g.id}:${m.id}`}
                 onSelect={() => pick(m)}
                 data-checked={value?.id === m.id}
-                aria-label={rowNeeds(m) ? `${m.name} needs your ${CLOUD_KEY[rowNeeds(m)![0]].label} key` : undefined}
+                aria-label={rowNeeds(m) ? t("studio.model.needsKeyAria", { name: m.name, provider: CLOUD_KEY[rowNeeds(m)![0]].label }) : undefined}
                 className={cn("gap-2.5 rounded-lg px-2 py-1.5 [&>svg:last-child]:hidden", value?.id === m.id && "bg-brand-faint data-selected:bg-brand-faint-hover")}
               >
                 <ModelRow

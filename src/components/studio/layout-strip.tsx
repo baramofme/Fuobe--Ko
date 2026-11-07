@@ -44,7 +44,7 @@ export function LayoutStrip({
       <button
         type="button"
         onClick={onEdit}
-        aria-label={n ? `Edit the layout: ${n} box${n === 1 ? "" : "es"}` : "Draw the layout"}
+        aria-label={n ? t("studio.layoutStrip.editLayoutAria", { count: n, plural: n === 1 ? "" : "es" }) : t("studio.layoutStrip.drawLayout")}
         className="relative h-16 shrink-0 overflow-hidden rounded-lg border bg-background transition-colors hover:border-primary focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
         style={{ width: `${Math.round(Math.min(112, Math.max(40, 64 * ratio)))}px` }}
       >

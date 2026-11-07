@@ -248,7 +248,7 @@ describe("model picker groups", () => {
     const starred = [cloud[1].id, cloud[6].id];
     const { groups, count } = groupModels({ models, engine: "cloud", engines: ["cloud", "open"], query: "", recent, starred, best });
     expect(groups.map((g) => g.id)).toEqual(["recent", "starred", "best", "all"]);
-    expect(groups[3].label).toBe("More models");
+    expect(groups[3].label).toBe("studio.model.groupMore");
     // Last 3 used of this engine; the open model is skipped.
     expect(groups[0].models.map((m) => m.id)).toEqual([cloud[3].id, cloud[1].id, cloud[2].id]);
     // cloud[1] is already in Recent.
@@ -271,7 +271,7 @@ describe("model picker groups", () => {
 
   it("calls the list All models when nothing shows above it", () => {
     const { groups } = groupModels({ models: cloud, engine: "cloud", engines: ["cloud"], query: "", recent: [], starred: [], best: [] });
-    expect(groups.map((g) => [g.id, g.label])).toEqual([["all", "All models"]]);
+    expect(groups.map((g) => [g.id, g.label])).toEqual([["all", "studio.model.groupAll"]]);
     expect(groups[0].models).toHaveLength(cloud.length);
   });
 

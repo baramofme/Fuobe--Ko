@@ -547,10 +547,12 @@ export function canRerender(g: Pick<Generation, "engine" | "provider" | "modelId
 /** $0.13, $0.1625, $0.20: cents always, more places only when the price has them. */
 const money = (n: number) => `$${n.toFixed(4).replace(/0{1,2}$/, "")}`;
 
+import { t } from "../i18n/store";
+
 /** "Re-render at 2K · a new render · $0.13/s". */
 export function rerenderLabel(modelId: string, size: "2K" | "4K" = "2K"): string {
   const r = RERENDER[modelId];
-  return `Re-render at ${size} · a new render${r ? ` · ${money(r.perSecond[size])}/s` : ""}`;
+  return t("studio.actions.rerenderSize", { size, price: r ? ` · ${money(r.perSecond[size])}/s` : "" });
 }
 
 /** The seed a result was made with: the one the provider reported, else the request's. */

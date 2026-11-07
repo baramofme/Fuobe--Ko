@@ -1,5 +1,6 @@
 import { placeOf, type Place } from "./place-name";
 import { CLOUD_KEY, CLOUD_PROVIDERS, type CloudProvider, type KeyStatus } from "./your-keys";
+import { t } from "./i18n/store";
 
 /**
  * How a visitor (a guest or an account) sees the two engines while open models run free on this install's GPUs: both
@@ -36,17 +37,19 @@ export const cloudModelAsk = (s: KeyStatus | undefined): "panel" | "add-key" => 
 
 /** The small line under each side's name. */
 export const engineCaption = {
-  open: (place: Place) => `Free · ${place.label}`,
-  cloud: "Your key",
+  open: (place: Place) => t("studio.engine.freeOnLabel", { label: place.label }),
+  get cloud(): string {
+    return t("studio.model.yourKeyShort");
+  },
 } as const;
 
 /** The Cloud side's tooltip while the visitor has no key. */
-export const CLOUD_KEYLESS_TIP = "Frontier paid models on your own fal.ai or Replicate key";
+export const CLOUD_KEYLESS_TIP = t("studio.engine.keylessTip");
 
 /** A side's name for a screen reader, with its caption. */
 export function visitorEngineLabel(side: "open" | "cloud", e: VisitorEngine): string {
-  if (side === "open") return `Open source, free on ${e.place.text}`;
-  return e.keyless ? "Cloud, needs your own key" : "Cloud, on your own key";
+  if (side === "open") return t("studio.engine.openFreeOnText", { text: e.place.text });
+  return e.keyless ? t("studio.engine.cloudNeedsKey") : t("studio.engine.cloudOnKey");
 }
 
 /** A few Cloud models by name, each with why someone would pick it (checked against the model list in tests). */
@@ -60,16 +63,16 @@ export const CLOUD_SHOWCASE: readonly { id: string; name: string; vendor: string
 /** The Cloud panel's words. `model`: the Cloud model it was opened for, if any. */
 export function cloudPanelWords(place: Place, model?: string) {
   return {
-    title: model ? `${model} is a Cloud model` : "Cloud models",
-    lead: "Paid frontier models from Google, OpenAI, Kuaishou and more. They run on your own fal.ai or Replicate key, and that service bills you for each run.",
-    more: "Many more are in each studio's model list.",
-    stay: "Stay on Open source (free)",
-    stayNote: `Open source models run free on ${place.text}.`,
+    title: model ? t("studio.engine.panelTitleModel", { model }) : t("studio.engine.panelTitle"),
+    lead: t("studio.engine.panelLead"),
+    more: t("studio.engine.panelMore"),
+    stay: t("studio.engine.panelStay"),
+    stayNote: t("studio.engine.openFreeRun", { place: place.text }),
   } as const;
 }
 
 /** "Add a fal.ai key" / "Add a Replicate key": the panel's buttons, which open the add-key flow. */
-export const addProviderKeyLabel = (p: CloudProvider) => `Add a ${CLOUD_KEY[p].label} key`;
+export const addProviderKeyLabel = (p: CloudProvider) => t("studio.engine.addProviderKey", { name: CLOUD_KEY[p].label });
 
 /** The providers a panel offers: the ones that serve its model (fal.ai first), else both. */
 export const panelProviders = (served?: readonly CloudProvider[] | null): CloudProvider[] =>
@@ -77,17 +80,17 @@ export const panelProviders = (served?: readonly CloudProvider[] | null): CloudP
 
 /** The one-time hint for an account that has no key yet, the first time it opens a studio. */
 export const engineHintText = (place: Place) => ({
-  lead: `Free open-source models run on ${place.text}.`,
-  rest: "Want frontier models? Switch to Cloud with your own key.",
-  ok: "Got it",
-  see: "See Cloud models",
+  lead: t("studio.engine.hintLead", { place: place.text }),
+  rest: t("studio.engine.hintRest"),
+  ok: t("studio.engine.hintOk"),
+  see: t("studio.engine.hintSee"),
 });
 
 /** The picker's section of Cloud models for a visitor without a key. */
-export const CLOUD_SECTION_LABEL = "Cloud · your key";
+export const CLOUD_SECTION_LABEL = t("studio.engine.sectionYourKey");
 
 /** The picker's line above its list for a visitor without a key. */
-export const CLOUD_PICKER_NOTE = "Cloud models like Nano Banana and Kling run on your own fal.ai or Replicate key";
+export const CLOUD_PICKER_NOTE = t("studio.engine.pickerNoKeyNote");
 
 /** Where the browser remembers that an account closed the hint: one key per account (its email, hashed). */
 export function engineHintKey(email: string): string {

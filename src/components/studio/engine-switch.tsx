@@ -10,16 +10,17 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Engine } from "@/lib/catalog/types";
 import { useEngineMode, useHydrated, useStatus, useViewer } from "@/lib/api";
-import { CLOUD_KEYLESS_TIP, CLOUD_PANEL_STAY_EVENT, engineCaption, engineHintKey, engineHintText, openCloudPanel, visitorEngine, visitorEngineLabel, visitorPick, type VisitorEngine } from "@/lib/engine-ux";
+import { CLOUD_PANEL_STAY_EVENT, engineCaption, engineHintKey, engineHintText, openCloudPanel, visitorEngine, visitorEngineLabel, visitorPick, type VisitorEngine } from "@/lib/engine-ux";
+import { t as tr } from "@/lib/i18n/store";
 import { placeOf, type Place } from "@/lib/place-name";
 import { accountEngine } from "@/lib/your-keys";
 import { cn } from "@/lib/utils";
 import { radioKeys, radioTab } from "./radio-keys";
 import { useI18n } from "@/lib/i18n";
 
-const OPTIONS: { value: Engine; label: string; icon: typeof Cloud; tip: string }[] = [
-  { value: "cloud", label: "Cloud", icon: Cloud, tip: "Frontier paid models via your fal.ai / Replicate key" },
-  { value: "open", label: "Open source", icon: Cpu, tip: "Open-weight models running on your ComfyUI server" },
+const OPTIONS: { value: Engine; label: string; icon: typeof Cloud }[] = [
+  { value: "cloud", label: "Cloud", icon: Cloud },
+  { value: "open", label: "Open source", icon: Cpu },
 ];
 
 /** The engine's own name and its tooltip words, translated by the option value (labels key-mapped like the composer's). */
@@ -32,8 +33,8 @@ const ENGINE_TIP_KEYS: Record<Engine, string> = { cloud: "studio.engine.cloudDes
  */
 export function engineTip(value: Engine, account: ReturnType<typeof accountEngine>, place: Place | null): string {
   if (account && "tips" in account) return account.tips[value];
-  if (value === "open" && place) return `Open models, free on ${place.text}`;
-  return OPTIONS.find((o) => o.value === value)!.tip;
+  if (value === "open" && place) return tr("studio.engine.freeOnPlace", { place: place.text });
+  return tr(ENGINE_TIP_KEYS[value]);
 }
 
 /**
@@ -310,7 +311,7 @@ function VisitorSwitch({
             </TooltipTrigger>
             <TooltipContent className="max-w-72">
               <span>
-                <span className="font-medium">{t(ENGINE_LABEL_KEYS[o.value])}</span> · {side === "cloud" && keyless ? CLOUD_KEYLESS_TIP : engineTip(side, account, place)}
+                <span className="font-medium">{t(ENGINE_LABEL_KEYS[o.value])}</span> · {side === "cloud" && keyless ? t("studio.engine.keylessTip") : engineTip(side, account, place)}
               </span>
             </TooltipContent>
           </Tooltip>

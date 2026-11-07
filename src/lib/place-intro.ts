@@ -1,5 +1,6 @@
 import { placeOf } from "./place-name";
 import { CLOUD_KEY, type CloudProvider } from "./your-keys";
+import { t } from "./i18n/store";
 
 /**
  * The one-time note for an account whose runs moved when hosted runs went on (src/components/studio/place-intro.tsx):
@@ -39,17 +40,19 @@ export function placeIntro(v: PlaceIntroViewer | undefined | null, run: string, 
   const free = !!v.cardText?.trim();
   if (v.gpu.connected) {
     return {
-      lead: free ? `Runs now go to ${place.text}, free.` : `Runs now go to ${place.text}.`,
-      rest: chip ? `Your GPU is one tap away: tap ${chip} to pick it.` : `Your GPU is one tap away: ${free ? "Free ▾" : "the price"}, next to ${run}.`,
-      keep: { label: "Keep my GPU as the default", runOn: "gpu" },
+      lead: free ? t("studio.placeintro.gpuLeadFree", { place: place.text }) : t("studio.placeintro.gpuLead", { place: place.text }),
+      rest: chip
+        ? t("studio.placeintro.gpuRestChip", { chip })
+        : t("studio.placeintro.gpuRest", { what: free ? t("studio.placeintro.freeMenu") : t("studio.placeintro.priceWord"), run }),
+      keep: { label: t("studio.placeintro.keepGpu"), runOn: "gpu" },
     };
   }
   const keys = v.keys ?? [];
   const key = keys.includes("fal") ? "fal" : keys[0];
   if (!key) return null;
   return {
-    lead: free ? `Open models now run free on ${place.text}.` : `Open models now run on ${place.text}.`,
-    rest: `Your ${CLOUD_KEY[key].label} key still runs the cloud models: pick Cloud in the model list.`,
-    keep: { label: "Keep my key as the default", runOn: "key", key },
+    lead: free ? t("studio.placeintro.keyLeadFree", { place: place.text }) : t("studio.placeintro.keyLead", { place: place.text }),
+    rest: t("studio.placeintro.keyRest", { key: CLOUD_KEY[key].label }),
+    keep: { label: t("studio.placeintro.keepKey"), runOn: "key", key },
   };
 }

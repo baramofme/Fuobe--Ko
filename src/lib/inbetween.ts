@@ -14,6 +14,8 @@
  * plays it as made). Pure, no imports beyond types: the composer, the planner, the provider and the tools share it.
  */
 
+import { t } from "./i18n/store";
+
 /** Wan 2.2's frame step: a pass is 4n + 1 frames. */
 export const GAP_STEP = 4;
 /** The shortest pass: 17 frames ("17 frames minimum for legible motion"). */
@@ -173,26 +175,26 @@ export function moveKey(t: InbetweenTiming, i: number, seconds: number): Inbetwe
 export const stepGap = (g: GapTiming, by: 1 | -1): GapTiming => ({ ...g, frames: snapGapFrames(g.frames + by * GAP_STEP) });
 
 /** "37 f · ×3", the chip on the ruler. */
-export const gapLabel = (g: GapTiming) => `${g.frames} f${g.speed > 1 ? ` · ×${g.speed}` : ""}`;
+export const gapLabel = (g: GapTiming) => t("studio.frames.gapChip", { n: g.frames, speed: g.speed > 1 ? ` · ×${g.speed}` : "" });
 
 /** "2.4 s" (one decimal; whole seconds without one). */
 export function lengthLabel(s: number): string {
   const r = Math.round(s * 10) / 10;
-  return `${r % 1 ? r.toFixed(1) : r.toFixed(0)} s`;
+  return t("studio.frames.secondsShort", { n: r % 1 ? r.toFixed(1) : r.toFixed(0) });
 }
 
 /** What's wrong with a timing for this many keyframes, or null. */
-export function timingProblem(t: InbetweenTiming, keys: number, engine: "open" | "cloud" = "open"): string | null {
-  if (keys < MIN_KEYS) return "Add at least two keyframes: the in-betweens go between them";
-  if (keys > MAX_KEYS) return `Up to ${MAX_KEYS} keyframes`;
-  if (t.gaps.length !== keys - 1) return `${keys} keyframes have ${keys - 1} gaps between them`;
+export function timingProblem(tim: InbetweenTiming, keys: number, engine: "open" | "cloud" = "open"): string | null {
+  if (keys < MIN_KEYS) return t("studio.inbetween.needTwo");
+  if (keys > MAX_KEYS) return t("studio.inbetween.maxKeys", { n: MAX_KEYS });
+  if (tim.gaps.length !== keys - 1) return t("studio.inbetween.gapMismatch", { n: keys, m: keys - 1 });
   const can = ENGINE_TIMING[engine];
-  if (!can.rates.includes(t.fps)) return engine === "cloud" ? "In the cloud the animation plays at 16 fps — 24 fps runs on your GPU" : "Play at 24 or 16 fps";
-  for (const [i, g] of t.gaps.entries()) {
-    const at = `Between keyframes ${i + 1} and ${i + 2}`;
+  if (!can.rates.includes(tim.fps)) return engine === "cloud" ? t("studio.inbetween.cloudFps") : t("studio.inbetween.fpsChoice");
+  for (const [i, g] of tim.gaps.entries()) {
+    const at = t("studio.inbetween.betweenKeys", { i: i + 1, j: i + 2 });
     if (!Number.isInteger(g.frames) || g.frames < MIN_GAP_FRAMES || g.frames > MAX_GAP_FRAMES || (g.frames - 1) % GAP_STEP)
-      return `${at}: ${MIN_GAP_FRAMES} to ${MAX_GAP_FRAMES} frames, in steps of ${GAP_STEP}`;
-    if (!can.speeds.includes(g.speed)) return engine === "cloud" ? `${at}: in the cloud every frame is kept (×1) — ×${g.speed} runs on your GPU` : `${at}: speed ×1 to ×4`;
+      return t("studio.inbetween.gapRange", { at, min: MIN_GAP_FRAMES, max: MAX_GAP_FRAMES, step: GAP_STEP });
+    if (!can.speeds.includes(g.speed)) return engine === "cloud" ? t("studio.inbetween.cloudSpeedAt", { at, n: g.speed }) : t("studio.inbetween.speedAtOpen", { at });
   }
   return null;
 }
