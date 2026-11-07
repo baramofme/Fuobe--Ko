@@ -9,6 +9,7 @@ import { area } from "@/lib/nav-areas";
 import { CREATE_COLUMNS, entry, visibleTo, type NavEntry, type ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { translateOr } from "@/lib/i18n/store";
 import { BarCardMenu } from "./bar-split";
 import { warmNav } from "./nav-prefetch";
 import { NavIcon } from "./cover-thumb";
@@ -24,6 +25,9 @@ import { CARD_ROW, MENU_HEADING, MENU_ROW_1, MENU_ROW_2, ROW_LINE, rowName, SeeA
 
 /** The two columns, in order: kept in the navigation model, so the /create page (a server component) reads them too. */
 export { CREATE_COLUMNS };
+
+/** The column heading's key by its English label ("Make", "Edit a picture"): the same words the /create page's sections use. */
+const CREATE_HEADING_KEY: Record<string, string> = { Make: "area.section.make.title", "Edit a picture": "area.section.edit-picture.title" };
 
 /** The Create columns this viewer may see. */
 export function createColumns(kind: ViewerKind | undefined): { label: string; entries: NavEntry[] }[] {
@@ -50,7 +54,7 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
   const pathname = usePathname();
   const columns = createColumns(kind);
   const ids = useId();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   if (variant === "menu")
     return (
       <>
@@ -62,7 +66,7 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
           {columns.map((c, i) => (
             <div key={c.label} role="group" aria-labelledby={`${ids}-${i}`} className="flex min-w-0 flex-col">
               <div id={`${ids}-${i}`} className={MENU_HEADING}>
-                {c.label}
+                {translateOr(lang, CREATE_HEADING_KEY[c.label] ?? "", c.label)}
               </div>
               {c.entries.map((e, r) => {
                 const on = current(pathname, e.href, CREATE_HREFS);
@@ -79,7 +83,7 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
                     <NavIcon name={e.icon} className="nav-icon mt-px size-4 text-muted-foreground" />
                     <span className="flex min-w-0 flex-col">
                       <span className={rowName(on)}>{e.label}</span>
-                      <span className={ROW_LINE}>{e.what}</span>
+                      <span className={ROW_LINE}>{translateOr(lang, `nav.${e.id}.what`, e.what)}</span>
                     </span>
                   </IntentLink>
                 );
@@ -110,7 +114,7 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
       {columns.map((c, i) => (
         <section key={c.label} aria-labelledby={`${ids}-s${i}`} className="flex flex-col">
           <h3 id={`${ids}-s${i}`} className={SHEET_HEADING}>
-            {c.label}
+            {translateOr(lang, CREATE_HEADING_KEY[c.label] ?? "", c.label)}
           </h3>
           <ul className="flex flex-col">
             {c.entries.map((e) => {
@@ -128,7 +132,7 @@ export function CreateList({ variant, onNavigate }: { variant: "menu" | "sheet";
                     </span>
                     <span className="flex min-w-0 flex-col">
                       <span className={rowName(on, "text-[15px] leading-5 font-medium")}>{e.label}</span>
-                      <span className="truncate text-[12.5px] leading-4 text-muted-foreground">{e.what}</span>
+                      <span className="truncate text-[12.5px] leading-4 text-muted-foreground">{translateOr(lang, `nav.${e.id}.what`, e.what)}</span>
                     </span>
                   </IntentLink>
                 </li>

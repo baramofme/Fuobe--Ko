@@ -75,6 +75,8 @@ export interface MegaSub {
   more?: true;
   /** Its accessible name, when its label alone doesn't say where it goes ("See all 13 in Audio"). */
   name?: string;
+  /** "See all N": the count it says. Kept with the English label so the render can rebuild the line in any language. */
+  allCount?: number;
   /** The window height this one link needs, when it is more than its studio's other links do (the owner's own). */
   from?: 880 | 960;
 }
@@ -188,7 +190,7 @@ export function megaSubs(parent: NavEntry, kind: ViewerKind | undefined): MegaSu
   }));
   // Every tab the studio's page shows this viewer (Audio's rows in the Sound column count too).
   const all = Math.max(studioSubs(parent.id, kind, "list").length, entriesFor(kind).filter((e) => e.kind === "tool" && e.parent === parent.id).length);
-  if (all > shown.length) subs.push({ id: `${parent.id}-all`, href: parent.href, label: `See all ${all}`, name: `See all ${all} in ${parent.label}`, line: `Every tool in ${parent.label}`, more: true });
+  if (all > shown.length) subs.push({ id: `${parent.id}-all`, href: parent.href, label: `See all ${all}`, name: `See all ${all} in ${parent.label}`, line: `Every tool in ${parent.label}`, more: true, allCount: all });
   return subs;
 }
 

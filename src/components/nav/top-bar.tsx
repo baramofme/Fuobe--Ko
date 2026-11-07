@@ -7,6 +7,7 @@ import { IntentLink } from "@/components/intent-link";
 import { Kbd } from "@/components/ui/kbd";
 import { NEW_CREATION_HREF } from "@/lib/nav";
 import { useI18n } from "@/lib/i18n";
+import { translateOr } from "@/lib/i18n/store";
 import { area, areaOfPath, areaPageOf, type AreaId } from "@/lib/nav-areas";
 import { activeEntry, entry, type NavEntry } from "@/lib/nav-model";
 import { isPlainClick, useTappedTab } from "@/lib/use-tapped-tab";
@@ -85,12 +86,13 @@ type Active = ReturnType<typeof barActive>;
 const NONE: Active = barActive("");
 
 function RichItem({ e, current, row }: { e: NavEntry; current: boolean; row: number }) {
+  const { lang } = useI18n();
   return (
     <IntentLink href={e.href} aria-current={current ? "page" : undefined} data-col={0} data-row={row} className={cn(CARD_ROW, MENU_ROW_2)}>
       <CoverThumb id={e.cover} size="row" icon={e.icon} eager />
       <span className="flex min-w-0 flex-col">
         <span className={rowName(current)}>{e.label}</span>
-        <span className={ROW_LINE}>{e.what}</span>
+        <span className={ROW_LINE}>{translateOr(lang, `nav.${e.id}.what`, e.what)}</span>
       </span>
     </IntentLink>
   );
@@ -108,7 +110,7 @@ const MOTIONS_AREA_HREF = area("motions").href;
 
 function MoreItems() {
   const on = useOn();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   return (
     <>
       {pick(["apps", "motions", "effects"]).map((e, i) => (
@@ -127,7 +129,7 @@ function MoreItems() {
           </span>
           <span className="flex min-w-0 flex-col">
             <span className={rowName(on(e))}>{e.label}</span>
-            <span className={ROW_LINE}>{e.what}</span>
+            <span className={ROW_LINE}>{translateOr(lang, `nav.${e.id}.what`, e.what)}</span>
           </span>
         </IntentLink>
       ))}

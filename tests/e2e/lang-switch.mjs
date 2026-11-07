@@ -371,6 +371,93 @@ step("apps: the widget follows the switch without a reload");
   await page.close();
 }
 
+step("nav hover: the row short-lines, column headings and chrome switch to Korean");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "nav");
+  await openRoute(page, `${app}/`);
+
+  // A menu's body, read as visible words only (innerText ignores attributes): the column headings, the row short-lines,
+  // the See-all subs, the count line and the "See all" link.
+  const readPanel = (p, sel) =>
+    p.evaluate((s) => {
+      const el = document.querySelector(s);
+      if (!el || !el.checkVisibility()) return null;
+      const lines = [...el.querySelectorAll("a span.truncate.text-muted-foreground")].map((x) => x.textContent.trim()).filter(Boolean);
+      const subs = [...el.querySelectorAll("a[data-sub] span.truncate")].map((x) => x.textContent.trim()).filter(Boolean);
+      const head = [...el.querySelectorAll("[data-group] > p")].map((x) => x.textContent.trim()).filter(Boolean);
+      const count = el.querySelector("[data-count-line]")?.textContent.trim() ?? null;
+      const seeAll = [...el.querySelectorAll("[data-see-all]")].map((x) => x.textContent.trim()).filter(Boolean);
+      return { text: el.innerText, lines, subs, head, count, seeAll };
+    }, sel);
+
+  // Resting the pointer on the bar's item opens its menu (bar-intent's rest); a click stands in if hover didn't.
+  async function openByHover(p, id) {
+    await p.keyboard.press("Escape").catch(() => {});
+    await p.waitForTimeout(200);
+    const trigger = p.locator(`[data-top-bar] [data-bar-menu="${id}"]`).locator("visible=true").first();
+    await trigger.waitFor({ state: "visible", timeout: 15_000 });
+    await trigger.hover();
+    const sel = id === "create" ? '[data-bar-card="create"]' : `#${id}-launcher`;
+    let opened = await p.locator(sel).first().waitFor({ state: "visible", timeout: 6_000 }).then(() => true, () => false);
+    if (!opened) {
+      await trigger.click();
+      await p.locator(sel).first().waitFor({ state: "visible", timeout: 6_000 });
+    }
+    // Its rows render once the menu is open and its data is in; wait for the first short line to show.
+    await p
+      .waitForFunction((s) => { const el = document.querySelector(s); return !!el && [...el.querySelectorAll("a span.truncate.text-muted-foreground")].some((x) => x.checkVisibility()); }, sel, { timeout: 10_000 })
+      .catch(() => {});
+    await p.waitForTimeout(300);
+    return sel;
+  }
+
+  // English first: the Studios launcher's count line and a row line read as authored.
+  const selS = await openByHover(page, "studios");
+  const en = await readPanel(page, selS);
+  check("the Studios launcher opens on hover", !!en, JSON.stringify(en === null));
+  check("the count line is English first", /studios, grouped by what you want to make/.test(en?.count || ""), `count=${en?.count}`);
+  check("a Studios row line is English first", (en?.lines || []).some((l) => /Insert or swap anyone|Direct shots like a film set|Plan a film frame by frame/.test(l)), JSON.stringify(en?.lines));
+
+  // English Create card: its two column headings and a row short line.
+  const selC = await openByHover(page, "create");
+  const enC = await readPanel(page, selC);
+  check("the Create card reads “Make” and “Edit a picture”", /make/i.test(enC?.text || "") && /edit a picture/i.test(enC?.text || ""), "");
+  check("a Create row line is English first", (enC?.lines || []).some((l) => /Text to image|Text or image to video/.test(l)), JSON.stringify(enC?.lines));
+
+  // 한국어, one click, no reload.
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(300);
+  check("still the same page (no reload happened)", page.url().endsWith("/"), page.url());
+
+  // Hover the launcher again: every wired string is now Korean, with none of the English left.
+  const selS2 = await openByHover(page, "studios");
+  const ko = await readPanel(page, selS2);
+  check("the Studios count line is Korean", /^만들고 싶은 것별로 모은 스튜디오 \d+개$/.test(ko?.count || ""), `count=${ko?.count}`);
+  check("no English count line left", !/studios, grouped by what you want to make/.test(ko?.count || ""), "");
+  check("the See all link reads 전체 보기", (ko?.seeAll || []).includes("전체 보기"), JSON.stringify(ko?.seeAll));
+  check("no English “See all” left in the panel", !/\bSee all\b/.test(ko?.text || ""), "");
+  check("the search-all button is Korean", (ko?.text || "").includes("모든 앱, 효과 및 도구 검색"), "");
+  check("no English “Search all apps, effects and tools”", !(ko?.text || "").includes("Search all apps, effects and tools"), "");
+  check("the column headings are Korean", (ko?.head || []).some((h) => /영화와 영상|소셜과 숏폼|판매와 광고|인물과 패션|^소리$|마무리와 변환/.test(h)), JSON.stringify(ko?.head));
+  check("no English column heading left", !(ko?.head || []).some((h) => /Film & video|Social & shorts|Sell & advertise|People & fashion|Finish & convert/.test(h)), JSON.stringify(ko?.head));
+  check("the Studios row short-lines are all Korean", (ko?.lines || []).length > 0 && (ko?.lines || []).every((l) => /[가-힯]/.test(l)), JSON.stringify(ko?.lines));
+  check("a known Studios line reads its Korean words", (ko?.lines || []).some((l) => /누구든 삽입 또는 교체|영화 세트처럼 컷을 연출|장면마다 프레임별 기획/.test(l)), "");
+  check("no English Studios row line left", !(ko?.lines || []).some((l) => /Insert or swap anyone|Direct shots like a film set|Plan a film frame by frame|Text to image|Text or image to video/.test(l)), JSON.stringify(ko?.lines));
+  check("no English “See all N” sub label left", !(ko?.subs || []).some((s) => /^See all \d+$/.test(s)), JSON.stringify(ko?.subs));
+  check("a See-all sub reads 전체 N개 보기", (ko?.subs || []).some((s) => /전체 \d+개 보기/.test(s)), JSON.stringify(ko?.subs));
+
+  // Hover Create again: its headings and short-lines switched too.
+  const selC2 = await openByHover(page, "create");
+  const koC = await readPanel(page, selC2);
+  check("the Create headings read 만들기 and 그림 편집", (koC?.text || "").includes("만들기") && (koC?.text || "").includes("그림 편집"), "");
+  check("no English Create headings left", !/\bMake\b/.test(koC?.text || "") && !/Edit a picture/.test(koC?.text || ""), "");
+  check("the Create row short-lines are all Korean", (koC?.lines || []).length > 0 && (koC?.lines || []).every((l) => /[가-힯]/.test(l)), JSON.stringify(koC?.lines));
+  check("no English Create row line left", !(koC?.lines || []).some((l) => /Text to image|Text or image to video|Plan it with an agent|Wire models together/.test(l)), JSON.stringify(koC?.lines));
+  await page.close();
+}
+
 step("nothing was missed on the way");
 {
   const i18nNoise = noise.filter((l) => /\[i18n\]/.test(l));

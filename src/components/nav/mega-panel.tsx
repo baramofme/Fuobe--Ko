@@ -6,8 +6,10 @@ import { Fragment, lazy, Suspense, useEffect, useId, useRef, useState } from "re
 import { IntentLink } from "@/components/intent-link";
 import { Kbd } from "@/components/ui/kbd";
 import { MEGA_AREAS, ROW_CAPS, studiosMenu, TILE_COLS, type MegaColumn, type MegaId, type MegaItem, type MegaModel } from "@/lib/mega-menus";
-import { isNew, subParent, type ViewerKind } from "@/lib/nav-model";
+import { isNew, labelKeyOf, subParent, type ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { translateOr } from "@/lib/i18n/store";
 import { CoverThumb } from "./cover-thumb";
 import { useMegaMenu } from "./mega-data";
 import { megaCurrent, MegaSkeleton } from "./mega-launcher";
@@ -31,9 +33,10 @@ const ROW_HIDE = (i: number, families = false) =>
   );
 
 function NewBadge() {
+  const { t } = useI18n();
   return (
     <span data-new className="shrink-0 rounded-full bg-highlight px-1.5 py-px text-[10px] leading-4 font-semibold text-highlight-foreground">
-      New
+      {t("nav.newBadge")}
     </span>
   );
 }
@@ -56,6 +59,8 @@ export function trackSizes(span: number, inset = 0): string {
  * the tracks its column takes, when more than one (Canvas' Start here), for its picture's srcset.
  */
 export function LeadCard({ e, col, row = 0, span = 1, current, inside, now, className }: { e: MegaItem; col: number; row?: number; span?: number; current: boolean; inside?: boolean; now: number; className?: string }) {
+  const { lang } = useI18n();
+  const line = translateOr(lang, `nav.${e.id}.what`, e.line ?? "");
   return (
     <IntentLink
       href={e.href}
@@ -82,8 +87,8 @@ export function LeadCard({ e, col, row = 0, span = 1, current, inside, now, clas
           <span className="truncate text-[14px] leading-[18px] font-semibold md:max-lg:text-[13px]">{e.label}</span>
           {isNew(e, now) && <NewBadge />}
         </span>
-        <span title={e.line} className="truncate text-[12px] leading-4 text-muted-foreground md:max-lg:hidden">
-          {e.line}
+        <span title={line} className="truncate text-[12px] leading-4 text-muted-foreground md:max-lg:hidden">
+          {line}
         </span>
       </span>
     </IntentLink>
@@ -98,6 +103,7 @@ export function LeadCard({ e, col, row = 0, span = 1, current, inside, now, clas
  */
 function Row({ e, col, row, current, inside, now, className }: { e: MegaItem; col: number; row: number; current: boolean; inside?: boolean; now: number; className?: string }) {
   const fresh = isNew(e, now);
+  const { lang } = useI18n();
   return (
     <IntentLink
       href={e.href}
@@ -121,7 +127,7 @@ function Row({ e, col, row, current, inside, now, className }: { e: MegaItem; co
             there and starts its own. Its basis leaves 48 px: the badge (about 34 px) and the 4 px gap, with room to spare.
             A wider badge needs a smaller basis, or the line falls to a third line and is hidden. */}
         <span className={cn("min-w-0 flex-1 truncate text-[12px] leading-4 text-muted-foreground max-xl:hidden", fresh ? "basis-[calc(100%-48px)]" : "basis-full")}>
-          {e.line}
+          {translateOr(lang, `nav.${e.id}.what`, e.line ?? "")}
         </span>
       </span>
     </IntentLink>
@@ -153,6 +159,9 @@ const hideBelow = (h: 800 | 880 | 960, line = false) => cn(!line && HIDE_SHORT[h
  * the open page's feature. `under`: links under a row, whose names start where the row's name does.
  */
 function SubLinks({ e, col, row, current, under }: { e: MegaItem; col: number; row: number; current?: string; under?: boolean }) {
+  const { lang, t } = useI18n();
+  // The studio's own name, in the language in effect: the "See all N in X" line reads its word.
+  const studioName = translateOr(lang, labelKeyOf(e.id), e.label);
   if (!e.subs?.length) return null;
   return (
     <ul
@@ -170,14 +179,14 @@ function SubLinks({ e, col, row, current, under }: { e: MegaItem; col: number; r
             data-row={row + i}
             data-sub=""
             aria-current={current === s.id ? "page" : undefined}
-            aria-label={s.name}
-            title={s.line}
+            aria-label={s.more ? t("nav.sub.seeAllName", { count: s.allCount ?? 0, name: studioName }) : s.name}
+            title={s.more ? t("nav.sub.everyTool", { name: studioName }) : s.line}
             className={cn(
               "nav-row nav-mark-start group/sub flex items-center gap-1",
               s.more ? "font-medium text-brand-text" : "text-muted-foreground hover:text-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground",
             )}
           >
-            <span className="truncate">{s.label}</span>
+            <span className="truncate">{s.more ? t("nav.sub.seeAll", { count: s.allCount ?? 0 }) : s.label}</span>
             {s.more && <ArrowRight aria-hidden className="size-3 shrink-0 motion-safe:transition-transform group-hover/sub:translate-x-0.5" />}
           </IntentLink>
         </li>
@@ -191,6 +200,7 @@ function SubLinks({ e, col, row, current, under }: { e: MegaItem; col: number; r
  * load with the panel; a later row's when it shows (lazy: a row hidden by the window's height never fetches its own).
  */
 function Tile({ e, col, row, current, eager }: { e: MegaItem; col: number; row: number; current: boolean; eager: boolean }) {
+  const { lang } = useI18n();
   return (
     <IntentLink
       href={e.href}
@@ -204,7 +214,7 @@ function Tile({ e, col, row, current, eager }: { e: MegaItem; col: number; row: 
       <CoverThumb cover={e.cover} size="tile16" icon={e.icon} eager={eager} sizes={trackSizes(1)} className="aspect-auto h-[round(down,56.25cqw,4px)]" />
       <span className="flex min-w-0 flex-col">
         <span className={cn("truncate text-[13px] leading-[18px] font-medium", current && "font-semibold")}>{e.label}</span>
-        <span className="truncate text-[12px] leading-4 text-muted-foreground">{e.line}</span>
+        <span className="truncate text-[12px] leading-4 text-muted-foreground">{translateOr(lang, `nav.${e.id}.what`, e.line ?? "")}</span>
       </span>
     </IntentLink>
   );
@@ -257,6 +267,7 @@ function OwnerStartSkeleton() {
  */
 export function MegaColumns({ model, current, now, kind }: { model: MegaModel; current?: string; now: number; kind?: ViewerKind }) {
   const ids = useId();
+  const { lang, t } = useI18n();
   const capped = model.id !== "studios";
   const families = !!model.families?.length;
   const tileColumns = model.columns.filter((c) => c.variant === "tiles").length;
@@ -267,9 +278,10 @@ export function MegaColumns({ model, current, now, kind }: { model: MegaModel; c
   const column = (c: MegaColumn, ci: number) => {
     const { col, row: firstRow } = places[ci];
     const labelId = `${ids}-${c.id}`;
+    const heading = translateOr(lang, `area.section.${c.id}.title`, c.label);
     const label = (
-      <p id={labelId} title={c.label} className="truncate text-[11px] leading-4 font-semibold tracking-[.08em] text-brand-text uppercase">
-        {c.label}
+      <p id={labelId} title={heading} className="truncate text-[11px] leading-4 font-semibold tracking-[.08em] text-brand-text uppercase">
+        {heading}
       </p>
     );
     // Two tiles sections stack on the right (Canvas): the first column takes both rows.
@@ -351,7 +363,7 @@ export function MegaColumns({ model, current, now, kind }: { model: MegaModel; c
                   {f.label} <span className="font-normal text-muted-foreground tabular-nums">· {f.count}</span>
                 </p>
                 <IntentLink href={f.href} aria-label={`See all ${f.label.toLowerCase()}`} className="nav-row group/all ml-auto inline-flex h-8 items-center gap-1 rounded-[8px] px-2 text-[12px] font-medium text-brand-text">
-                  See all
+                  {t("nav.seeAll")}
                   <ArrowRight aria-hidden className="size-3.5 motion-safe:transition-transform group-hover/all:translate-x-0.5" />
                 </IntentLink>
               </div>
@@ -372,6 +384,7 @@ export function LauncherColumns({ kind, current, now }: { kind: ViewerKind | und
 /** The panel's body once it is shown or warmed: it reads the path (client only: the panel never renders on the server). */
 export function MegaPanel({ id, onClose, onSearch }: { id: MegaId; onClose: () => void; onSearch: () => void }) {
   const kind = useViewerKind();
+  const { t } = useI18n();
   const pathname = usePathname();
   const { model, failed, retry } = useMegaMenu(id, kind);
   const [now] = useState(() => Date.now());
@@ -389,7 +402,7 @@ export function MegaPanel({ id, onClose, onSearch }: { id: MegaId; onClose: () =
     <div className="max-w-[1680px] px-6 pt-5 pb-6 lg:pt-6 lg:pb-7">
       <div className="flex min-h-10 items-center gap-3 pb-4">
         <p className="text-[13px] text-muted-foreground" data-count-line>
-          {model ? model.countLine : failed ? "Couldn't load this menu" : " "}
+          {model ? (model.id === "studios" ? t("nav.studios.countLine", { count: model.count }) : model.countLine) : failed ? t("nav.couldNotLoadMenu") : " "}
         </p>
         {/* A plain link in Tab order before the grid; the grid's arrow keys skip it (it has no data-col). */}
         <IntentLink
@@ -399,13 +412,13 @@ export function MegaPanel({ id, onClose, onSearch }: { id: MegaId; onClose: () =
           data-see-all
           className="nav-row group/all -ml-1 inline-flex h-8 items-center gap-1 rounded-[8px] px-2 text-[13px] font-medium text-brand-text [@media(pointer:coarse)]:h-11"
         >
-          See all
+          {t("nav.seeAll")}
           <ArrowRight aria-hidden className="size-3.5 motion-safe:transition-transform group-hover/all:translate-x-0.5" />
         </IntentLink>
         {failed && (
           <button type="button" onClick={retry} className="nav-row inline-flex h-9 items-center gap-1.5 rounded-[10px] px-2 text-[13px] font-medium">
             <RotateCw aria-hidden className="size-3.5" />
-            Try again
+            {t("nav.tryAgain")}
           </button>
         )}
         <span className="flex-1" />
@@ -416,7 +429,7 @@ export function MegaPanel({ id, onClose, onSearch }: { id: MegaId; onClose: () =
           className="nav-row inline-flex h-10 items-center gap-2 rounded-[10px] px-2.5 text-[13px] font-medium text-brand-text"
         >
           <Search aria-hidden className="size-4" />
-          Search all apps, effects and tools
+          {t("nav.searchAll")}
           <Kbd aria-hidden className="[@media(hover:none)]:hidden">
             /
           </Kbd>
