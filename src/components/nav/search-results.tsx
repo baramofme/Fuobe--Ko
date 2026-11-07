@@ -6,7 +6,9 @@ import { ChevronRight, Clapperboard, CornerDownLeft, Film, LayoutGrid, Play, Wan
 import { MediaThumb } from "@/components/studio/result-media";
 import type { Generation } from "@/lib/catalog/types";
 import { userTitle } from "@/lib/library";
-import type { NavEntry } from "@/lib/nav-model";
+import { useI18n } from "@/lib/i18n";
+import { keySnake, translateOr } from "@/lib/i18n/store";
+import { labelKeyOf, type NavEntry } from "@/lib/nav-model";
 import type { NavHit } from "@/lib/nav-search";
 import { cn } from "@/lib/utils";
 import { CoverThumb } from "./cover-thumb";
@@ -34,29 +36,29 @@ function useCurrent(href: string | undefined): "page" | undefined {
   return href && pathname === href.split(/[?#]/)[0] ? "page" : undefined;
 }
 
-/** What kind of thing a hit is, as the tag at the end of its row says it. */
-export function kindTag(hit: Pick<NavHit, "kind" | "navKind">): string {
+/** The tag's locale key from what kind a hit is (lower-cased to match `search.kind.*`). */
+function kindKey(hit: Pick<NavHit, "kind" | "navKind">): string {
   switch (hit.kind) {
     case "studio":
-      return "Studio";
     case "tool":
-      return "Tool";
     case "app":
-      return "App";
     case "motion":
-      return "Motion";
     case "effect":
-      return "Effect";
     case "model":
-      return "Model";
     case "skill":
-      return "Skill";
-    case "setting":
-      return "Settings";
     case "recent":
-      return "Recent";
+      return hit.kind;
+    case "setting":
+      return "settings";
   }
-  return hit.navKind === "create" ? "Create" : hit.navKind === "action" ? "Action" : "Page";
+  return hit.navKind === "create" ? "create" : hit.navKind === "action" ? "action" : "page";
+}
+
+/** What kind of thing a hit is, as the tag at the end of its row says it. Kept as the English literal for tests. */
+export function kindTag(hit: Pick<NavHit, "kind" | "navKind">): string {
+  const k = kindKey(hit);
+  const map: Record<string, string> = { studio: "Studio", tool: "Tool", app: "App", motion: "Motion", effect: "Effect", model: "Model", skill: "Skill", settings: "Settings", recent: "Recent", create: "Create", action: "Action", page: "Page" };
+  return map[k] ?? "Page";
 }
 
 const KIND_ICON = { app: LayoutGrid, motion: Film, effect: Wand2, model: Clapperboard, skill: Play } as const;
@@ -84,7 +86,31 @@ function HitCover({ hit, size }: { hit: NavHit; size: "thumb" | "chip" | "row" }
   );
 }
 
+/** A hit's name in the language in effect: a nav entry reads its label key, a preset its name key. */
+function useHitLabel(): (hit: NavHit) => string {
+  const { lang } = useI18n();
+  return (hit) => {
+    if (hit.kind === "recent") return hit.label;
+    if (hit.kind === "app" || hit.kind === "motion" || hit.kind === "effect" || hit.kind === "model")
+      return translateOr(lang, `preset.${keySnake(hit.label)}.name`, hit.label);
+    if (hit.id) return translateOr(lang, labelKeyOf(hit.id), hit.label);
+    return hit.label;
+  };
+}
+
+/** A hit's short line in the language in effect: a studio's or tool's reads its `what` key; a preset falls back. */
+function useHitLine(): (hit: NavHit) => string | undefined {
+  const { lang } = useI18n();
+  return (hit) => {
+    const what = hit.what;
+    if (!what) return undefined;
+    if ((hit.kind === "studio" || hit.kind === "tool") && hit.id) return translateOr(lang, `nav.${hit.id}.what`, what);
+    return translateOr(lang, `preset.${keySnake(what)}.description`, what);
+  };
+}
+
 function Tag({ hit }: { hit: NavHit }) {
+  const { t } = useI18n();
   const studio = hit.kind === "studio";
   return (
     <span
@@ -93,7 +119,7 @@ function Tag({ hit }: { hit: NavHit }) {
         studio ? "bg-brand-faint text-brand-text" : "bg-secondary text-secondary-foreground",
       )}
     >
-      {kindTag(hit)}
+      {t(`search.kind.${kindKey(hit)}`)}
     </span>
   );
 }
@@ -114,7 +140,7 @@ function EnterCap() {
  * A tool's studio before its name ("Audio › Clean up voice"), or a preset's gallery ("Camera motions › Dolly In").
  * `stack`: a two-line row's name, whose crumb moves to its second line on a phone (Line), so the name is never cut for it.
  */
-function Name({ hit, crumb, stack, className }: { hit: NavHit; crumb?: string; stack?: boolean; className?: string }) {
+function Name({ hit, crumb, stack, className, label }: { hit: NavHit; crumb?: string; stack?: boolean; className?: string; label: string }) {
   return (
     <span data-hit-name={stack ? "stack" : ""} className={cn("block truncate", className)}>
       {crumb && (
@@ -123,18 +149,18 @@ function Name({ hit, crumb, stack, className }: { hit: NavHit; crumb?: string; s
           <ChevronRight aria-hidden className="mx-1 inline size-3 align-[-1px] text-muted-foreground" />
         </span>
       )}
-      {hit.label}
+      {label}
     </span>
   );
 }
 
 /** A two-line row's second line: what the hit is, after its crumb on a phone (Name's `stack`). */
-function Line({ hit, crumb }: { hit: NavHit; crumb?: string }) {
-  const what = hit.what ?? hit.hint;
+function Line({ hit, crumb, what }: { hit: NavHit; crumb?: string; what?: string }) {
+  const shown = what ?? hit.hint;
   return (
     <span className="truncate text-[12.5px] text-muted-foreground">
-      {crumb && crumb !== what && <span className="sm:hidden">{what ? `${crumb} · ` : crumb}</span>}
-      {what}
+      {crumb && crumb !== shown && <span className="sm:hidden">{shown ? `${crumb} · ` : crumb}</span>}
+      {shown}
     </span>
   );
 }
@@ -143,6 +169,8 @@ const crumbOf = (hit: NavHit) => hit.from ?? (hit.kind === "tool" ? hit.hint : u
 
 /** A best match: a 64x48 cover, its name and line, what it is, and the Enter keycap when selected. */
 export function BestRow({ hit, onPick }: { hit: NavHit; onPick: (h: NavHit) => void }) {
+  const label = useHitLabel()(hit);
+  const line = useHitLine()(hit);
   return (
     <CommandPrimitive.Item
       value={hit.key}
@@ -152,8 +180,8 @@ export function BestRow({ hit, onPick }: { hit: NavHit; onPick: (h: NavHit) => v
     >
       <HitCover hit={hit} size="thumb" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <Name hit={hit} crumb={crumbOf(hit)} stack className="text-[14.5px] font-semibold" />
-        <Line hit={hit} crumb={crumbOf(hit)} />
+        <Name hit={hit} crumb={crumbOf(hit)} stack label={label} className="text-[14.5px] font-semibold" />
+        <Line hit={hit} crumb={crumbOf(hit)} what={line ?? hit.what} />
       </span>
       <Tag hit={hit} />
       <EnterCap />
@@ -163,6 +191,8 @@ export function BestRow({ hit, onPick }: { hit: NavHit; onPick: (h: NavHit) => v
 
 /** "Also try": a preset tile with where it comes from. */
 export function AlsoTile({ hit, onPick }: { hit: NavHit; onPick: (h: NavHit) => void }) {
+  const label = useHitLabel()(hit);
+  const line = useHitLine()(hit);
   return (
     <CommandPrimitive.Item
       value={hit.key}
@@ -172,8 +202,8 @@ export function AlsoTile({ hit, onPick }: { hit: NavHit; onPick: (h: NavHit) => 
     >
       <HitCover hit={hit} size="chip" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <Name hit={hit} crumb={crumbOf(hit)} stack className="text-[14px] font-semibold" />
-        <Line hit={hit} crumb={crumbOf(hit)} />
+        <Name hit={hit} crumb={crumbOf(hit)} stack label={label} className="text-[14px] font-semibold" />
+        <Line hit={hit} crumb={crumbOf(hit)} what={line ?? hit.what} />
       </span>
       <Tag hit={hit} />
     </CommandPrimitive.Item>
@@ -182,6 +212,9 @@ export function AlsoTile({ hit, onPick }: { hit: NavHit; onPick: (h: NavHit) => 
 
 /** Any other match, in its kind's group. `bare`: under its own studio's heading ("In Marketing Studio"), so no crumb. */
 export function HitRow({ hit, onPick, bare }: { hit: NavHit; onPick: (h: NavHit) => void; bare?: boolean }) {
+  const label = useHitLabel()(hit);
+  const line = useHitLine()(hit);
+  const rest = line ?? hit.what ?? hit.hint;
   return (
     <CommandPrimitive.Item
       value={hit.key}
@@ -190,9 +223,9 @@ export function HitRow({ hit, onPick, bare }: { hit: NavHit; onPick: (h: NavHit)
       className={cn("group/hit flex h-11 cursor-pointer items-center gap-3 rounded-[10px] pr-3 pl-2 text-[14px]", selected)}
     >
       <HitCover hit={hit} size="row" />
-      <Name hit={hit} crumb={!bare && hit.kind === "tool" ? hit.hint : undefined} className="min-w-0 flex-1 font-medium" />
-      {hit.kind !== "tool" && (hit.what ?? hit.hint) && (
-        <span className="max-w-[45%] shrink-0 truncate pl-2 text-[12px] text-muted-foreground max-sm:hidden">{hit.what ?? hit.hint}</span>
+      <Name hit={hit} crumb={!bare && hit.kind === "tool" ? hit.hint : undefined} label={label} className="min-w-0 flex-1 font-medium" />
+      {hit.kind !== "tool" && rest && (
+        <span className="max-w-[45%] shrink-0 truncate pl-2 text-[12px] text-muted-foreground max-sm:hidden">{rest}</span>
       )}
     </CommandPrimitive.Item>
   );
@@ -200,6 +233,9 @@ export function HitRow({ hit, onPick, bare }: { hit: NavHit; onPick: (h: NavHit)
 
 /** A studio in "Every studio": a 36x27 cover and its name (the short one on a phone), on up to two lines. */
 export function StudioTile({ e, onPick }: { e: NavEntry; onPick: (e: NavEntry) => void }) {
+  const { lang } = useI18n();
+  const label = translateOr(lang, labelKeyOf(e.id), e.label);
+  const short = e.short ? translateOr(lang, `nav.${e.id}.short`, e.short) : undefined;
   return (
     <CommandPrimitive.Item
       value={`tile:${e.id}`}
@@ -210,8 +246,8 @@ export function StudioTile({ e, onPick }: { e: NavEntry; onPick: (e: NavEntry) =
     >
       <CoverThumb id={e.cover} size="row" icon={e.icon} />
       <span className="line-clamp-2 min-w-0 text-[13px] leading-[1.2] font-medium text-foreground group-aria-[current=page]/hit:font-semibold">
-        <span className="md:hidden">{e.short ?? e.label}</span>
-        <span className="max-md:hidden">{e.label}</span>
+        <span className="md:hidden">{short ?? label}</span>
+        <span className="max-md:hidden">{label}</span>
       </span>
     </CommandPrimitive.Item>
   );

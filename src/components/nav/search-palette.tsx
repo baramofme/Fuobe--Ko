@@ -13,7 +13,8 @@ import { signInHref, useEngineMode, useGenerations, useModelAccess } from "@/lib
 import type { Generation } from "@/lib/catalog/types";
 import { indexEntries, KIND_LABELS, skillEntries } from "@/lib/command-search";
 import { useModKey } from "@/lib/keys";
-import { entriesFor, entry, LAUNCHER_GROUPS, launcherEntries, studioCount, visibleTo, type LauncherGroupId, type NavEntry } from "@/lib/nav-model";
+import { entriesFor, entry, labelKeyOf, LAUNCHER_GROUPS, launcherEntries, studioCount, visibleTo, type LauncherGroupId, type NavEntry } from "@/lib/nav-model";
+import { translateOr, type Lang } from "@/lib/i18n/store";
 import { isExternal, isThemeAction, navSearchEntries, searchNav, type NavHit, type SearchResult } from "@/lib/nav-search";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -60,6 +61,20 @@ function shownEl(el: Element | null | undefined): el is HTMLElement {
 export function returnFocus(el: Element | null) {
   const to = shownEl(el) ? el : [...document.querySelectorAll("[data-studios-trigger]")].find(shownEl) ?? document.getElementById("content");
   to?.focus({ preventScroll: true });
+}
+
+/** The scope chip's area name: its title in the language in effect, falling back to the literal. */
+function scopeTitle(lang: Lang, label: string): string {
+  const dict: Record<string, string> = { Apps: "area.apps.title", Create: "area.create.title", Studios: "area.studios.title", "Motions & effects": "area.motions.title", Canvas: "nav.canvas" };
+  const key = dict[label];
+  return key ? translateOr(lang, key, label) : label;
+}
+
+/** A kind-group's heading in the language in effect: a studio ("in-audio") reads its label key, else its kind tag. */
+function kindHeading(lang: Lang, kind: string): string {
+  if (kind.startsWith("in-")) return translateOr(lang, labelKeyOf(kind.slice(3)), kind.slice(3));
+  const k = kind === "setting" ? "settings" : kind;
+  return translateOr(lang, `search.kind.${k}`, KIND_LABELS[kind as keyof typeof KIND_LABELS] ?? kind);
 }
 
 export function SearchPalette({ session, onClose, takeReturn }: { session: PaletteSession; onClose: () => void; takeReturn: () => Element | null }) {
@@ -197,7 +212,7 @@ export function PaletteBody({
   const [scope, setScope] = useState(initialScope);
   const dq = useDebounced(q.trim(), 200);
   const kind = useViewerKind();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const mode = useEngineMode();
   const access = useModelAccess();
   const index = useQuery({ queryKey: PALETTE_INDEX_KEY, queryFn: fetchPaletteIndex, staleTime: Infinity });
@@ -228,7 +243,7 @@ export function PaletteBody({
   const selected = moved?.q === q && moved.group === group ? moved.value : best;
 
   const total = result.best.length + result.also.length + result.groups.reduce((n, g) => n + g.hits.length, 0) + (searching ? recentItems.length : 0);
-  const announce = useDebounced(searching ? (total ? `${total} result${total === 1 ? "" : "s"}` : "No results") : "", 300);
+  const announce = useDebounced(searching ? (total ? `${total} ${t("search.results")}` : t("search.noResults")) : "", 300);
 
   const pickHit = (h: NavHit) => onPick(h.href, h.id);
   const pickTile = (e: NavEntry) => onPick(e.href, e.id);
@@ -253,13 +268,13 @@ export function PaletteBody({
               setScope(undefined);
               input.current?.focus();
             }}
-            aria-label={`Searching in ${scope.label}. Search everything instead`}
+            aria-label={t("search.scopeClearAria", { name: scopeTitle(lang, scope.label) })}
             className={cn(
               "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-brand-text/40 bg-brand-faint pr-1.5 pl-2.5 text-[13px] font-medium text-brand-text hover:bg-brand-faint/70 [@media(pointer:coarse)]:h-11",
               focusRing,
             )}
           >
-            In {scope.label}
+            {scopeTitle(lang, scope.label)}
             <X aria-hidden className="size-3.5" />
           </button>
         )}
@@ -313,9 +328,9 @@ export function PaletteBody({
         <div className="shrink-0 px-5 pt-2.5 max-md:px-3">
           <div className="flex flex-wrap items-center gap-x-2.5 py-1 md:h-11 md:flex-nowrap md:py-0">
             <span aria-hidden className="ml-2 text-[11px] leading-[14px] font-semibold tracking-[.08em] text-brand-text uppercase">
-              Every studio
+              {t("search.everyStudio")}
             </span>
-            <span className="text-[12px] text-muted-foreground">{groupLabel ? `${tiles.length} in ${groupLabel}` : studioCount()}</span>
+            <span className="text-[12px] text-muted-foreground">{groupLabel ? t("search.countIn", { n: tiles.length, group: translateOr(lang, `area.section.${group}.title`, groupLabel) }) : studioCount()}</span>
             <TabRow role="group" aria-label={t("search.goalsAria")} follow className="mt-1 w-[calc(100%+8px)] md:mt-0 md:ml-auto md:w-auto md:overflow-visible">
               {(["all", ...LAUNCHER_GROUPS.map((g) => g.id)] as Group[]).map((id) => {
                 const g = LAUNCHER_GROUPS.find((x) => x.id === id);
@@ -325,13 +340,13 @@ export function PaletteBody({
                     key={id}
                     type="button"
                     aria-pressed={on}
-                    aria-label={g ? g.label : "All studios"}
+                    aria-label={g ? translateOr(lang, `area.section.${g.id}.title`, g.label) : t("search.allStudios")}
                     onKeyDown={keepKeys}
                     onClick={() => setGroup(id)}
                     className={TAB_PILL}
                     {...onAttr(on)}
                   >
-                    {g ? g.chip : "All"}
+                    {g ? t(`search.chip.${g.id}`) : t("search.chipAll")}
                   </button>
                 );
               })}
@@ -345,11 +360,11 @@ export function PaletteBody({
           <>
             {total === 0 && (
               <p className="py-8 text-center text-[13px] text-muted-foreground">
-                {index.isLoading ? "Looking through apps, motions and models…" : `Nothing matches “${q.trim()}”. Try a shorter word, or pick a studio below.`}
+                {index.isLoading ? t("search.lookingThrough") : t("search.noMatch", { q: q.trim() })}
               </p>
             )}
             {result.best.length > 0 && (
-              <CommandPrimitive.Group heading="Best matches" className={cn("mb-4", sectionHeading)}>
+              <CommandPrimitive.Group heading={t("search.bestMatches")} className={cn("mb-4", sectionHeading)}>
                 <div className="flex flex-col gap-1">
                   {result.best.map((h) => (
                     <BestRow key={h.key} hit={h} onPick={pickHit} />
@@ -358,7 +373,7 @@ export function PaletteBody({
               </CommandPrimitive.Group>
             )}
             {result.also.length > 0 && (
-              <CommandPrimitive.Group heading="Also try" className={cn("mb-4", sectionHeading)}>
+              <CommandPrimitive.Group heading={t("search.alsoTry")} className={cn("mb-4", sectionHeading)}>
                 <div className="grid grid-cols-1 gap-x-2 gap-y-1 sm:grid-cols-2">
                   {result.also.map((h) => (
                     <AlsoTile key={h.key} hit={h} onPick={pickHit} />
@@ -367,7 +382,7 @@ export function PaletteBody({
               </CommandPrimitive.Group>
             )}
             {result.groups.map((g) => (
-              <CommandPrimitive.Group key={g.kind} heading={g.label} className={cn("mb-4", sectionHeading)}>
+              <CommandPrimitive.Group key={g.kind} heading={kindHeading(lang, g.kind)} className={cn("mb-4", sectionHeading)}>
                 <div className="flex flex-col gap-1">
                   {g.hits.map((h) => (
                     <HitRow key={h.key} hit={h} onPick={pickHit} bare={g.kind.startsWith("in-")} />
@@ -376,7 +391,7 @@ export function PaletteBody({
               </CommandPrimitive.Group>
             ))}
             {recentItems.length > 0 && (
-              <CommandPrimitive.Group heading={KIND_LABELS.recent} className={cn("mb-4", sectionHeading)}>
+              <CommandPrimitive.Group heading={t("search.kind.recent")} className={cn("mb-4", sectionHeading)}>
                 <div className="grid grid-cols-1 gap-x-2 gap-y-1 sm:grid-cols-2">
                   {recentItems.map((g) => (
                     <RecentRow key={g.id} g={g} onOpen={onOpenRecent} />
@@ -387,7 +402,7 @@ export function PaletteBody({
           </>
         )}
         <CommandPrimitive.Group
-          heading={scope ? `In ${scope.label} · ${tiles.length}` : groupLabel ? `Every studio · ${tiles.length} in ${groupLabel}` : "Every studio"}
+          heading={scope ? t("search.inGroup", { name: scopeTitle(lang, scope.label), n: tiles.length }) : groupLabel ? t("search.everyStudioCount", { n: tiles.length }) : t("search.everyStudio")}
           className={cn(searching ? cn("border-t pt-3", sectionHeading) : scoped ? cn("pt-3", sectionHeading) : "**:[[cmdk-group-heading]]:sr-only")}
         >
           <div className="grid grid-cols-2 gap-x-2 min-[420px]:grid-cols-3 md:grid-cols-4">
@@ -397,7 +412,7 @@ export function PaletteBody({
           </div>
         </CommandPrimitive.Group>
         {!searching && recentItems.length > 0 && (
-          <CommandPrimitive.Group heading="Jump back in" className={cn("mt-3 border-t pt-3", sectionHeading)}>
+          <CommandPrimitive.Group heading={t("search.jumpBackIn")} className={cn("mt-3 border-t pt-3", sectionHeading)}>
             <div className="grid grid-cols-1 gap-x-2 gap-y-1 sm:grid-cols-2">
               {recentItems.slice(0, 4).map((g) => (
                 <RecentRow key={g.id} g={g} onOpen={onOpenRecent} />

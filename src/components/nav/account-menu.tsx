@@ -45,17 +45,18 @@ const SHEET_ROW = cn(SHEET_ROW_BASE, "text-[15px] [&_svg]:size-[18px] [&_svg]:sh
 const MENU_ROW = cn(MENU_ROW_1, "[&_svg]:size-4 [&_svg]:text-muted-foreground");
 
 function GuestIdentity({ variant, here }: { variant: Variant; here: string }) {
+  const { t } = useI18n();
   if (variant === "menu")
     return (
       <DropdownMenuGroup className="flex flex-col gap-1 p-1">
         <DropdownMenuItem asChild onPointerLeave={keepHighlight} className="nav-focus-out h-10 justify-center gap-2 rounded-[10px] bg-primary text-[13.5px] font-semibold text-primary-foreground focus:bg-primary/90 focus:text-primary-foreground active:bg-primary/85 [&_svg]:text-primary-foreground">
           <a href={signInHref("signup", here)}>
-            <UserPlus aria-hidden /> Sign up free
+            <UserPlus aria-hidden /> {t("nav.signup")}
           </a>
         </DropdownMenuItem>
         <NavMenuItem asChild className="h-10 justify-center gap-2 border font-medium">
           <a href={signInHref("login", here)}>
-            <LogIn aria-hidden className="size-4" /> Log in
+            <LogIn aria-hidden className="size-4" /> {t("nav.login")}
           </a>
         </NavMenuItem>
       </DropdownMenuGroup>
@@ -66,13 +67,13 @@ function GuestIdentity({ variant, here }: { variant: Variant; here: string }) {
         href={signInHref("signup", here)}
         className="nav-focus-out flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-[15px] font-semibold text-primary-foreground nav-hover:bg-primary/90 active:bg-primary/85"
       >
-        <UserPlus aria-hidden className="size-[18px]" /> Sign up free
+        <UserPlus aria-hidden className="size-[18px]" /> {t("nav.signup")}
       </a>
       <a
         href={signInHref("login", here)}
         className="nav-row flex h-12 items-center justify-center gap-2 rounded-xl border text-[15px] font-medium"
       >
-        <LogIn aria-hidden className="size-[18px]" /> Log in
+        <LogIn aria-hidden className="size-[18px]" /> {t("nav.login")}
       </a>
     </div>
   );
@@ -83,6 +84,7 @@ function GuestIdentityHere({ variant }: { variant: Variant }) {
 }
 
 function Identity({ kind, variant }: { kind: ViewerKind | undefined; variant: Variant }) {
+  const { t } = useI18n();
   const email = useViewer().data?.account?.email;
   if (kind === "guest")
     return (
@@ -93,20 +95,20 @@ function Identity({ kind, variant }: { kind: ViewerKind | undefined; variant: Va
   if (kind === "account" && email)
     return variant === "menu" ? (
       <DropdownMenuLabel className="flex flex-col px-2.5 font-normal">
-        <span className="text-[11px] text-muted-foreground">Signed in as</span>
+        <span className="text-[11px] text-muted-foreground">{t("account.signedInAs")}</span>
         <span className="text-[13px] [overflow-wrap:anywhere] text-foreground">{email}</span>
       </DropdownMenuLabel>
     ) : (
       <div className="flex flex-col">
-        <span className="text-[12px] text-muted-foreground">Signed in as</span>
+        <span className="text-[12px] text-muted-foreground">{t("account.signedInAs")}</span>
         <span className="text-[15px] font-medium [overflow-wrap:anywhere]">{email}</span>
       </div>
     );
   if (kind === "owner")
     return variant === "menu" ? (
-      <DropdownMenuLabel className={MENU_HEADING}>Your setup</DropdownMenuLabel>
+      <DropdownMenuLabel className={MENU_HEADING}>{t("account.setup")}</DropdownMenuLabel>
     ) : (
-      <p className={SHEET_HEADING}>Your setup</p>
+      <p className={SHEET_HEADING}>{t("account.setup")}</p>
     );
   return null;
 }
@@ -145,6 +147,7 @@ function GpuSection({ kind, variant }: { kind: ViewerKind | undefined; variant: 
 }
 
 function ThemeToggle({ variant }: { variant: Variant }) {
+  const { t } = useI18n();
   const { resolvedTheme, setTheme } = useTheme();
   const flip = () => setTheme(resolvedTheme === "dark" ? "light" : "dark");
   // The label follows the page's class (dark:), so the server's HTML and the first client render agree.
@@ -152,8 +155,8 @@ function ThemeToggle({ variant }: { variant: Variant }) {
     <>
       <Sun aria-hidden className="hidden dark:block" />
       <Moon aria-hidden className="dark:hidden" />
-      <span className="hidden dark:inline">Light mode</span>
-      <span className="dark:hidden">Dark mode</span>
+      <span className="hidden dark:inline">{t("account.lightMode")}</span>
+      <span className="dark:hidden">{t("account.darkMode")}</span>
     </>
   );
   return variant === "menu" ? (
@@ -193,17 +196,18 @@ function LinkRow({ variant, href, children }: { variant: Variant; href: string; 
 }
 
 function Links({ kind, variant }: { kind: ViewerKind | undefined; variant: Variant }) {
+  const { t } = useI18n();
   return (
     <>
       {/* Everyone's: a guest's Settings offers a GPU of its own and About (Thanks & licences, the source on GitHub). */}
       {kind && (
         <LinkRow variant={variant} href="/settings">
-          <Settings2 aria-hidden /> Settings
+          <Settings2 aria-hidden /> {t("nav.settings")}
         </LinkRow>
       )}
       {kind === "account" && (
         <LinkRow variant={variant} href="/connect">
-          <Cpu aria-hidden /> Your GPU
+          <Cpu aria-hidden /> {t("nav.your-gpu")}
         </LinkRow>
       )}
       <ThemeToggle variant={variant} />
@@ -212,13 +216,14 @@ function Links({ kind, variant }: { kind: ViewerKind | undefined; variant: Varia
 }
 
 function SignOut({ variant }: { variant: Variant }) {
+  const { t } = useI18n();
   return variant === "menu" ? (
     <NavMenuItem className={MENU_ROW} onSelect={() => void signOut()}>
-      <LogOut aria-hidden /> Sign out
+      <LogOut aria-hidden /> {t("account.signOut")}
     </NavMenuItem>
   ) : (
     <button type="button" className={SHEET_ROW} onClick={() => void signOut()}>
-      <LogOut aria-hidden /> Sign out
+      <LogOut aria-hidden /> {t("account.signOut")}
     </button>
   );
 }
