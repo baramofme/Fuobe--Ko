@@ -3573,5 +3573,8 @@
   "menu.line.wire_models_together": "모델을 이어 연결",
   "menu.line.words_from_any_clip": "모든 클립에서 문장",
   "menu.line.your_own_paid_model_keys": "내가 낸 유료 모델 키",
-  "menu.line.your_people_places_props": "당신의 인물·장소·소품"
+  "menu.line.your_people_places_props": "당신의 인물·장소·소품",
+  "menu.countLine.edited": "수정한 지 {X}",
+  "menu.line.never_edited": "수정한 적 없음",
+  "menu.line.edited_just_now": "방금 수정"
 }

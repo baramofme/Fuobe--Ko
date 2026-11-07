@@ -8,6 +8,8 @@ import { useCanvasActions, useCanvases } from "@/components/canvas/use-canvas";
 import { timeAgo } from "@/lib/format";
 import { entry } from "@/lib/nav-model";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
+import { keySnake, translateOr, type Lang } from "@/lib/i18n/store";
 
 /** How many of the owner's boards the Canvas menu lists, the newest edited first. */
 export const RECENT_BOARDS = 4;
@@ -47,6 +49,40 @@ export function NewBoardButton() {
 }
 
 /**
+ * The owner's recent-board edit line (t_6b958c1a, the decided scheme): the static words resolve through
+ * `menu.line.<keySnake>` and the dynamic `Edited {X}` through `menu.countLine.edited`, taking its ordinal
+ * as a parameter. en.json holds the exact bytes the plain code printed (`Never edited`, `Edited just now`,
+ * `Edited {X}` with X = timeAgo's own output), so English resolves byte-identical by construction.
+ */
+const NEVER_EDITED = "Never edited";
+const EDITED_JUST_NOW = "Edited just now";
+
+/**
+ * How long since the edit, in the words of `lang`: English keeps `timeAgo`'s own output (its bytes are the
+ * line); Korean counts the same clock in Hangul units — 분, 시간, 일 — and keeps counting past a week,
+ * where English names the date instead, so a Korean board never shows a foreign month.
+ */
+function editOrdinal(lang: Lang, editedAt: number, now: number): string {
+  if (lang !== "ko") return timeAgo(editedAt, now);
+  const m = Math.round(Math.max(0, Math.round((now - editedAt) / 1000)) / 60);
+  if (m < 60) return `${m}분`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}시간`;
+  return `${Math.round(h / 24)}일`;
+}
+
+/**
+ * The board's edit line in the language of this render — `translateOr` at render time, the mechanism the
+ * LINE/countLine cards settled on. Exported so the gate test can walk every bucket.
+ */
+export function editLineIn(lang: Lang, editedAt: number | null | undefined, now = Date.now()): string {
+  if (editedAt == null) return translateOr(lang, `menu.line.${keySnake(NEVER_EDITED)}`, NEVER_EDITED);
+  const s = Math.max(0, Math.round((now - editedAt) / 1000));
+  if (s < 45) return translateOr(lang, `menu.line.${keySnake(EDITED_JUST_NOW)}`, EDITED_JUST_NOW);
+  return translateOr(lang, "menu.countLine.edited", `Edited ${timeAgo(editedAt, now)}`, { X: editOrdinal(lang, editedAt, now) });
+}
+
+/**
  * The Canvas menu's first column for the owner (loaded only when the owner opens that menu): a New board button, then
  * their most recent boards, or, with none yet, `fallback` (the visitor's lead card: a finished board's scene). Board
  * previews are full-size files, so the rows show an icon, not a picture. `labelledBy`: the column's label.
@@ -54,6 +90,7 @@ export function NewBoardButton() {
 export default function CanvasOwnerStart({ col, labelledBy, fallback }: { col: number; labelledBy: string; fallback?: ReactNode }) {
   const boards = useCanvases();
   const { busy, start } = useNewBoard();
+  const { lang } = useI18n();
   const recent = [...(boards.data ?? [])].sort((a, b) => (b.editedAt ?? b.updatedAt) - (a.editedAt ?? a.updatedAt)).slice(0, RECENT_BOARDS);
   // Canvas' own section of skills drawn as boards (/canvas?tab=skills), last in the column.
   const skills = entry("canvas-skills");
@@ -95,7 +132,7 @@ export default function CanvasOwnerStart({ col, labelledBy, fallback }: { col: n
               </span>
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-[13px] leading-[18px] font-medium">{b.name}</span>
-                <span className="truncate text-[12px] leading-4 text-muted-foreground">{b.editedAt ? `Edited ${timeAgo(b.editedAt)}` : "Never edited"}</span>
+                <span className="truncate text-[12px] leading-4 text-muted-foreground">{editLineIn(lang, b.editedAt)}</span>
               </span>
             </IntentLink>
           ))}
