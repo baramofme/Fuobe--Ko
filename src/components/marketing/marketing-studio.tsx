@@ -26,7 +26,7 @@ import { addRuns, send, useBrands, useEstimate, useProducts } from "./hooks";
 import { KineticTemplate } from "./kinetic-template";
 import type { MarketingRun } from "@/lib/catalog/marketing";
 import { toastError } from "@/lib/refusals";
-import { useI18n } from "@/lib/i18n";
+import { keySnake, translateOr, useI18n } from "@/lib/i18n";
 import { templateCover } from "@/lib/template-covers";
 import type { ModelInfo } from "./model-info";
 import { FitNotes, type FitNote } from "@/components/studio/fit-notes";
@@ -270,17 +270,22 @@ function WebsitePanel({ draft, set }: { draft: Draft; set: (p: Partial<Draft>) =
 
 function FormatChip({ draft, onFormat }: { draft: Draft; onFormat: (f: FormatId) => void }) {
   const [open, setOpen] = useState(false);
+  const { lang, t: tt } = useI18n();
   const f = FORMATS[draft.format];
   const list = f.kind === "video" ? VIDEO_FORMATS : IMAGE_FORMATS;
+  // Format names are catalog data: resolve at render through the lookup so a switch re-translates them.
+  const cardOf = (v: string) => translateOr(lang, `marketing.format.card.${keySnake(v)}`, v);
+  const nameOf = (v: string) => translateOr(lang, `marketing.format.name.${keySnake(v)}.name`, v);
+  const detail = `${cardOf(f.cardLabel)} · ${nameOf(f.name)}`;
   return (
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
-      title="Format"
+      title={tt("marketing.format.title")}
       trigger={
-        <button type="button" className={cn(chipBase, chipIdle)} aria-label={`Format: ${f.cardLabel} · ${f.name}`}>
+        <button type="button" className={cn(chipBase, chipIdle)} aria-label={tt("marketing.format.aria", { detail })}>
           <LayoutTemplate className="size-3.5" />
-          {f.cardLabel === f.name ? f.name : `${f.cardLabel} · ${f.name}`}
+          {f.cardLabel === f.name ? nameOf(f.name) : detail}
           <ChevronDown className="size-3 opacity-60" />
         </button>
       }
@@ -288,8 +293,8 @@ function FormatChip({ draft, onFormat }: { draft: Draft; onFormat: (f: FormatId)
       <div className="space-y-1">
         {list.map((id) => (
           <button key={id} type="button" onClick={() => (onFormat(id), setOpen(false))} className={cn("w-full rounded-lg px-2.5 py-1.5 text-left text-[13px] hover:bg-accent", id === draft.format && "bg-brand-faint text-brand-text")}>
-            <span className="font-medium">{FORMATS[id].cardLabel}</span>
-            {FORMATS[id].cardLabel !== FORMATS[id].name && <span className="text-muted-foreground"> · {FORMATS[id].name}</span>}
+            <span className="font-medium">{cardOf(FORMATS[id].cardLabel)}</span>
+            {FORMATS[id].cardLabel !== FORMATS[id].name && <span className="text-muted-foreground"> · {nameOf(FORMATS[id].name)}</span>}
           </button>
         ))}
       </div>
@@ -321,7 +326,7 @@ function UrlParams({ onTemplate, onTab, owner }: { onTemplate: (t: MarketingTemp
  */
 export function MarketingStudio({ models, starters = [] }: { models: Record<string, ModelInfo>; starters?: StarterCardData[] }) {
   const qc = useQueryClient();
-  const { t: tr } = useI18n();
+  const { t: tr, lang } = useI18n();
   const { engine, setEngine } = useMarketingEngine();
   const [tab, setTab] = useState<"templates" | "generations">("templates");
   const viewRef = useSwapFade<HTMLDivElement>(tab);
@@ -553,7 +558,7 @@ export function MarketingStudio({ models, starters = [] }: { models: Record<stri
                 </div>
                 <div className="min-w-0">
                   <p className="max-w-32 truncate text-[12px] font-medium">{template.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{f.cardLabel}</p>
+                  <p className="text-[11px] text-muted-foreground">{translateOr(lang, `marketing.format.card.${keySnake(f.cardLabel)}`, f.cardLabel)}</p>
                 </div>
                 <button type="button" onClick={() => setDraft((d) => withTemplate(d, null, d.format))} aria-label={tr("marketing.clearTemplateAria")} className="absolute top-1 right-1 grid size-5 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
                   <X className="size-3" />
