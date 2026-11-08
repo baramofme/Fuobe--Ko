@@ -249,8 +249,6 @@ const LOCAL_SERVERS: { value: "auto" | LocalKind; titleKey: string }[] = [
   { value: "custom", titleKey: "settings.form.llm.serverOther" },
 ];
 
-const code = (s: string) => <code className="font-mono text-[11px]">{s}</code>;
-
 /** Part of a setup line: a fragment's key, or a command to show in mono. */
 type SetupPart = { key: string } | { code: string };
 
@@ -449,7 +447,7 @@ function LocalLlmSettings({ get, set }: { get: (n: string) => PublicSetting | un
         <p className="text-[13px] font-medium">{editing === "custom" ? t("settings.form.llm.otherServer") : (status?.label ?? t(LOCAL_SERVERS.find((o) => o.value === editing)!.titleKey))}</p>
         <p className="text-[12px] leading-relaxed text-muted-foreground">
           {f.setup.map((p, i) => {
-            return "key" in p ? <span key={i}>{t(p.key)}</span> : code(p.code);
+            return "key" in p ? <span key={i}>{t(p.key)}</span> : <code key={i} className="font-mono text-[11px]">{p.code}</code>;
           })}
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
