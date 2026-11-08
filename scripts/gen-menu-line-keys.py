@@ -38,9 +38,18 @@ def keysnake(v: str) -> str:
     return re.sub(r"^_+|_+$", "", s)
 
 
-# 오너 리센트 보드의 정적 문구(t_6b958c1a). 동적 `Edited {X}`는 gen-countline-keys.py가 소유하고,
-# 여기는 wire에 없는 정적 2줄만 소유한다 — 키는 렌더된 영문 문장 그대로의 keySnake.
-OWNER_STATIC = ["Never edited", "Edited just now"]
+# 오너 컬럼(mega-canvas-owner.tsx)이 렌더하되 세 소스(서버 wire·nav-model의 `what:` 리터럴) 어디에도
+# 잡히지 않는 정적 문구(t_6b958c1a의 편집 줄 2줄 + t_c373d4a4의 크롬 3줄·스킬 행의 `what`). 동적 `Edited {X}`는
+# gen-countline-keys.py가 소유하고, 여기는 wire에 없는 정적만 소유한다 — 키는 렌더된 영문 문장 그대로의 keySnake.
+# `Assist's skills, drawn as boards`는 feature()의 위치 인자라 `what:` 정규식이 놓친다 — 슈퍼셋에 들게 여기서 선언한다.
+OWNER_STATIC = [
+    "Never edited",
+    "Edited just now",
+    "New board",
+    "Your recent boards",
+    "All your boards",
+    "Assist's skills, drawn as boards",
+]
 
 def owner_lines():
     return [(f"menu.line.{keysnake(l)}", l) for l in OWNER_STATIC]
@@ -196,9 +205,15 @@ KO_MAP: dict[str, str] = {
     # bar의 Apps 항목의 라인(지금은 검색에서 보이나, 같은 문장 키로 통일):
     "menu.line.one_tap_photo_and_clip_tools": "원탭 사진·클립 도구",
 
-    # ── 오너 리센트 보드의 정적 문구 (OWNER_STATIC — wire 없음, t_6b958c1a) ──
+    # ── 오너 컬럼의 정적 문구 (OWNER_STATIC — wire 없음, t_6b958c1a·t_c373d4a4) ──
     "menu.line.never_edited": "수정한 적 없음",
     "menu.line.edited_just_now": "방금 수정",
+    # 크롬 3줄 (t_c373d4a4): en 값은 렌더된 영문 그대로, ko는 간결한 대등어.
+    "menu.line.new_board": "새 보드",
+    "menu.line.your_recent_boards": "최근 보드",
+    "menu.line.all_your_boards": "모든 보드",
+    # 스킬 행의 `what` — feature() 위치 인자라 `what:` 정규식이 놓친 것을 OWNER_STATIC로 수확(t_c373d4a4).
+    "menu.line.assist_s_skills_drawn_as_boards": "어시스트의 스킬을 보드로",
 
     # ── nav-model.ts의 모든 `what:` 리터럴(슈퍼셋 97 — 30을 포함) ──
     # ko는 en의 nav.*.what 중 값이 문자 단위 같은 키에서 수확했다. 아래 5개는 그런 키가 없어 새로 지었다:

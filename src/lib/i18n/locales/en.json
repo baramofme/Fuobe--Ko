@@ -3621,5 +3621,9 @@
   "starters.unavailable.click_to_ad": "Click to Ad isn't available here.",
   "starters.unavailable.marketing": "Marketing Studio isn't available here.",
   "kinetic.job.saving": "Saving…",
-  "kinetic.job.rendering": "Rendering {done} of {total}"
+  "kinetic.job.rendering": "Rendering {done} of {total}",
+  "menu.line.new_board": "New board",
+  "menu.line.your_recent_boards": "Your recent boards",
+  "menu.line.all_your_boards": "All your boards",
+  "menu.line.assist_s_skills_drawn_as_boards": "Assist's skills, drawn as boards"
 }
