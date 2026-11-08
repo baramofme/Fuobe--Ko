@@ -1,4 +1,5 @@
 import type { Engine, GenerationRequest } from "@/lib/catalog/types";
+import { t as storeT, type Params } from "@/lib/i18n/store";
 import { clock, type ToolPlan } from "./audio-tools";
 
 /**
@@ -165,10 +166,10 @@ export function splitTime(o: { seconds: number; quality: SplitQuality; mode: Dbs
  * "Not available here": POST /api/audio-tools answers them own-gpu-tool, so "Free" would promise a run that is
  * refused (docs/public-signup.md).
  */
-export function openToolPrice(p: { demo: boolean } | undefined, visitor?: boolean): string {
+export function openToolPrice(p: { demo: boolean } | undefined, visitor?: boolean, tr: (key: string, params?: Params) => string = storeT): string {
   if (visitor) return "Not available here";
   if (!p) return "…";
-  return p.demo ? "Placeholder · free" : "Free";
+  return p.demo ? tr("faceless.controls.placeholderFree") : "Free";
 }
 
 /** "about 1–2 min", "under a minute" */

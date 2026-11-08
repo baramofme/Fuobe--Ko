@@ -4,7 +4,7 @@ import { placeOf, type Place } from "./place-name";
 import { capitalFirst, waitWords, type LineFacts } from "./pool-line";
 import { deviceLabel } from "./gpu/readiness";
 import { billedTo, CLOUD_KEY, type CloudProvider } from "./your-keys";
-import { getLang, type Lang } from "./i18n/store";
+import { getLang, t as storeT, type Lang, type Params } from "./i18n/store";
 
 /**
  * Where a run happens and what it costs, in the words a composer's place chip, its price and its send button use
@@ -99,9 +99,9 @@ export function ownerOnlyWay(studio: "image" | "video" = "image"): { label: stri
   return studio === "video" ? { label: "Make it in the Video studio", href: "/video" } : { label: "Make it in the Image studio", href: "/image" };
 }
 
-/** The price's words (the studio composer's costLabel, without the place: the chip says that). */
-export function placePrice(s: { demo?: boolean; costUsd?: number | null; open: boolean }, format: (usd: number) => string): string {
-  if (s.demo) return "Placeholder · free";
+/** The price's words (the studio composer's costLabel, without the place: the chip says that). The demo line is read in the language of the call. */
+export function placePrice(s: { demo?: boolean; costUsd?: number | null; open: boolean }, format: (usd: number) => string, tr: (key: string, params?: Params) => string = storeT): string {
+  if (s.demo) return tr("faceless.controls.placeholderFree");
   // Every run on the open engine is free on the GPU: said before the run is priced too.
   if (s.open) return "Free";
   if (s.costUsd === undefined) return "";

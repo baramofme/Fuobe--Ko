@@ -10,6 +10,7 @@ import type { Engine, Generation } from "@/lib/catalog/types";
 import { COMPUTER_KICK_EVENT } from "@/lib/api";
 import { formatCost } from "@/lib/format";
 import { responseError, toastError } from "@/lib/refusals";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 
 /** What /api/fly-around takes (src/server/fly-around.ts FlyAroundSchema). */
 export interface FlyAroundBody {
@@ -48,9 +49,9 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 }
 
 /** The price line: "Free · on your GPU" on the open engine, the list price in the cloud. */
-export function flyPrice(p: FlyAroundPreview | undefined, compact = false): string {
+export function flyPrice(p: FlyAroundPreview | undefined, compact = false, tr: (key: string, params?: Params) => string = storeT): string {
   if (!p) return "";
-  if (p.demo) return compact ? "Placeholder" : "Placeholder · free";
+  if (p.demo) return compact ? "Placeholder" : tr("faceless.controls.placeholderFree");
   if (p.engine === "open") return compact ? "Free" : "Free · on your GPU";
   return p.costUsd != null ? `≈ ${formatCost(p.costUsd)}` : "";
 }
@@ -59,6 +60,7 @@ export function flyPrice(p: FlyAroundPreview | undefined, compact = false): stri
 export function useFlyAround(body: FlyAroundBody | null) {
   const qc = useQueryClient();
   const openFree = useOpenFree();
+  const { t: tr } = useI18n();
   const preview = useQuery({
     queryKey: ["fly-around-preview", body],
     queryFn: () => post<FlyAroundPreview>("/api/fly-around?preview=1", body),
@@ -78,5 +80,5 @@ export function useFlyAround(body: FlyAroundBody | null) {
     onError: (e) => toastError(e),
   });
   // On this studio's GPUs: the service's price and the place in line ("Free · your GPU" is for the person's own GPU).
-  return { preview, run, price: toolPoolPrice(preview.data)?.text ?? openFree(flyPrice(preview.data)), compactPrice: openFree(flyPrice(preview.data, true)) };
+  return { preview, run, price: toolPoolPrice(preview.data)?.text ?? openFree(flyPrice(preview.data, false, tr)), compactPrice: openFree(flyPrice(preview.data, true, tr)) };
 }
