@@ -279,7 +279,7 @@ TABLE: dict[str, tuple[str, str]] = {
     "settings.form.llm.setupOllamaPre": ("Install Ollama, then run ", "Ollama를 설치한 다음 "),
     "settings.form.llm.setupOllamaPost": (". Fuobe gives it the context below.", "(을)를 실행하세요. 아래 컨텍스트를 Fuobe가 전달합니다."),
     "settings.form.llm.setupLmsPre": ("In LM Studio, open Developer and start the server (or run ", "LM Studio에서 개발자 탭을 열어 서버를 시작하거나 "),
-    "settings.form.llm.setupLmsMid": ("), and download a model in Discover (or ", ")(을)를 실행하고, Discover에서 모델을 다운로드하세요(또는 "),
+    "settings.form.llm.setupLmsMid": ("), and download a model in Discover (or ", "(을)를 실행하고, Discover에서 모델을 다운로드하세요(또는 "),
     "settings.form.llm.setupLmsPost": (
         "). Models without thinking (instruct models) answer faster. Without Require Authentication, anyone on your network can use LM Studio's server.",
         "). thinking 없는 모델(instruct 모델)이 더 빨리 응답합니다. Require Authentication을 끄지 않으면 네트워크의 누구나 LM Studio 서버를 쓸 수 있습니다.",
@@ -292,7 +292,7 @@ TABLE: dict[str, tuple[str, str]] = {
         "Any OpenAI-compatible server: llama.cpp's llama-server, vLLM, Jan\u2026 Give its base URL as its docs do (it usually ends in ",
         "OpenAI 호환 서버라면 무엇이든 가능합니다: llama.cpp의 llama-server, vLLM, Jan\u2026 문서가 안내하는 대로 기본 URL을 입력하세요(보통 끝에 ",
     ),
-    "settings.form.llm.setupCustomPost": (").", ")(으)로 끝나는 경우가 많습니다).",
+    "settings.form.llm.setupCustomPost": (").", "로 끝나는 경우가 많습니다).",
     ),
     "settings.form.llm.sendTest": ("Send a test message", "테스트 메시지 보내기"),
     # ---- ConnectField -------------------------------------------------------

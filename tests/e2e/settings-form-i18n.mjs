@@ -6,6 +6,11 @@
 import fs from "node:fs";
 import { DESKTOP, launch, openRoute } from "./_browser.mjs";
 
+// The locale files are the ground truth for the setup lines: assemble from keys, never duplicated literals.
+const LOCALES = new URL("../../src/lib/i18n/locales/", import.meta.url);
+const ENJ = JSON.parse(fs.readFileSync(new URL("en.json", LOCALES), "utf8"));
+const KOJ = JSON.parse(fs.readFileSync(new URL("ko.json", LOCALES), "utf8"));
+
 const mode = process.argv[2];
 const first = process.argv.slice(3).find((a) => !a.startsWith("--"));
 const app = (process.argv.slice(3).find((a, i) => i > 0 && !a.startsWith("--")) ?? "http://localhost:3025").replace(/\/$/, "");
@@ -103,6 +108,24 @@ const KO = {
 // About's title is its own ("About" → "정보" is not our key: settings.about.title is the parent's, in ko 아래?).
 delete KO.aboutTitle;
 
+// Setup lines (Ollama · LM Studio · Unsloth · other server): fragments joined by mono commands.
+// A part starting with "=" is a rendered literal — the r1 leak (orphan brackets) hid here, so gate it directly.
+const SETUPS = [
+  { urlId: "ollamaUrl", titleKey: "settings.form.llm.serverOllama", parts: ["settings.form.llm.setupOllamaPre", "=ollama pull qwen3:8b", "settings.form.llm.setupOllamaPost"] },
+  { urlId: "lmstudioUrl", titleKey: "settings.form.llm.serverLmStudio", parts: ["settings.form.llm.setupLmsPre", "=lms server start", "settings.form.llm.setupLmsMid", "=lms get qwen/qwen3-8b", "settings.form.llm.setupLmsPost"] },
+  { urlId: "unslothUrl", titleKey: "settings.form.llm.serverUnsloth", parts: ["settings.form.llm.setupUnsloth"] },
+  { urlId: "llmUrl", titleKey: "settings.form.llm.serverOther", parts: ["settings.form.llm.setupCustomPre", "=/v1", "settings.form.llm.setupCustomPost"] },
+];
+const asm = (loc, parts) => parts.map((p) => (p.startsWith("=") ? p.slice(1) : loc[p])).join("");
+// The setup paragraph: the second <p> of the editing block, pinned by the picked server's url field.
+const setupLine = (urlId) => page.locator(`xpath=//div[@id="${urlId}"]/ancestor::div[contains(@class, "border-t")]/p[2]`);
+const showSetup = async (loc, s) => {
+  await page.getByRole("radio", { name: loc[s.titleKey], exact: true }).first().click();
+  const line = setupLine(s.urlId);
+  await line.waitFor({ state: "visible", timeout: 15_000 });
+  return line.evaluate((el) => el.textContent);
+};
+
 const problems = [];
 const noise = [];
 const check = (name, ok, detail = "") => {
@@ -117,6 +140,7 @@ page.on("console", (m) => {
 });
 page.on("pageerror", (e) => noise.push(`pageerror: ${e.message}`));
 let guideOpen = false;
+let initialProviderName = null;
 
 async function openSettings() {
   await openRoute(page, `${app}/settings`);
@@ -184,7 +208,8 @@ console.log("- /settings: English first (byte-identical to the pre-wiring render
   if (guideOpen) console.log("  (skipped the Setup guide button check: the first-run guide is open here, so the strip hides its button)");
   else check(`the strip's setup button reads "${EN.setupGuide}"`, await main.getByRole("button", { name: EN.setupGuide, exact: true }).first().isVisible().catch(() => false), "");
   check(`the idle fal button's accessible name reads "Test ${EN.falLabel}"`, await main.getByRole("button", { name: `Test ${EN.falLabel}`, exact: true }).first().isVisible().catch(() => false), "");
-  check(`the engine mode radio group's aria-label reads "${EN.engineTitle}"`, await page.getByRole("radiogroup", { name: EN.engineTitle, exact: true }).first().isVisible().catch(() => false), "");
+  check(`the engine mode radio group's aria-label reads "${EN.engineTitle}"`, await page.getByRole("radiogroup", { name: EN.engineTitle, exact: true }).first().isVisible().catch(() => false));
+
 }
 
 const beforePath = mode === "gate" ? first : undefined;
@@ -204,6 +229,20 @@ if (beforePath && fs.existsSync(beforePath)) {
 } else {
   console.log(`  (no before.json given — rect gate skipped)`);
 }
+
+// Setup lines, byte for byte, before any language switch: the assembly as shipped.
+// Runs after the rect read on purpose — pinning a server changes which block is open.
+initialProviderName = await page.evaluate(() => {
+  const g = document.querySelector('[aria-labelledby="local-llm-label"]');
+  const b = g && [...g.querySelectorAll('[role="radio"]')].find((x) => x.getAttribute("aria-checked") === "true");
+  return b ? b.textContent.trim() : null;
+});
+if (initialProviderName) console.log(`  (the setup checks pin each server, then restore "${initialProviderName}")`);
+for (const s of SETUPS) {
+  const txt = await showSetup(ENJ, s);
+  check(`${s.urlId}'s setup line reads its English assembly byte for byte`, txt === asm(ENJ, s.parts), `rendered ${JSON.stringify(txt)} vs ${JSON.stringify(asm(ENJ, s.parts))}`);
+}
+if (initialProviderName) await page.getByRole("radio", { name: initialProviderName, exact: true }).first().click().catch(() => {});
 
 console.log("- /settings: 한국어 in ONE render (no reload)");
 {
@@ -263,7 +302,19 @@ console.log("- /settings: 한국어 in ONE render (no reload)");
   }
   // The ComfyUI description's tail fragment, joined after the link in one text run.
   check(`the ComfyUI description's tail is Korean`, await main.getByText(KO.comfyTail).first().isVisible().catch(() => false), "");
-  if (!guideOpen) check(`the strip's setup button is Korean "${KO.setupGuide}"`, await main.getByRole("button", { name: KO.setupGuide, exact: true }).first().isVisible().catch(() => false), "");
+  if (!guideOpen) check(`the strip's setup button is Korean "${KO.setupGuide}"`, await main.getByRole("button", { name: KO.setupGuide, exact: true }).first().isVisible().catch(() => false));
+
+  // Setup lines in Korean, one render: the fixed fragments must assemble balanced and natural.
+  for (const s of SETUPS) {
+    const txt = await showSetup(KOJ, s);
+    const want = asm(KOJ, s.parts);
+    check(`${s.urlId}'s setup line is the Korean assembly`, txt === want, `rendered ${JSON.stringify(txt)} vs ${JSON.stringify(want)}`);
+    check(`no English assembly remains in ${s.urlId}'s setup line`, txt !== asm(ENJ, s.parts), "");
+  }
+  if (initialProviderName) {
+    const key = Object.keys(ENJ).find((k) => k.startsWith("settings.form.llm.server") && ENJ[k] === initialProviderName);
+    if (key) await page.getByRole("radio", { name: KOJ[key], exact: true }).first().click().catch(() => {});
+  }
 
   // English leftovers the card names as must-go (brand names like fal.ai/Replicate/Claude stay, by design).
   for (const gone of [EN.engineTitle, EN.cloudTitle, EN.providerLabel, EN.comfyTitle, EN.lorasTitle, EN.trainingTitle, EN.textAiTitle, EN.serverLabel, EN.foundOnMachine, EN.contextLabel, EN.demoTitle, EN.demoSettingName, EN.connectorsTitle, EN.notificationsTitle, EN.securityTitle, EN.autoTitle, EN.setupGuide, EN.saveAndTest, EN.bothTitle]) {

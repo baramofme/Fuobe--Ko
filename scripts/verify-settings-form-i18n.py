@@ -7,6 +7,7 @@ Fragments and static values must be found verbatim; templates by their pieces.
 """
 import html
 import importlib.util
+import json
 import re
 import subprocess
 import sys
@@ -18,6 +19,38 @@ FILES = [
     "src/lib/connections.ts",
 ]
 BASE = "c9d6ec7d"
+
+# The setup lines are assembled from fragments with mono commands between them.
+# A part starting with "=" is a rendered literal (it carries no brackets).
+ASSEMBLIES = {
+    "ollama": ["settings.form.llm.setupOllamaPre", "=ollama pull qwen3:8b", "settings.form.llm.setupOllamaPost"],
+    "lms": [
+        "settings.form.llm.setupLmsPre",
+        "=lms server start",
+        "settings.form.llm.setupLmsMid",
+        "=lms get qwen/qwen3-8b",
+        "settings.form.llm.setupLmsPost",
+    ],
+    "unsloth": ["settings.form.llm.setupUnsloth"],
+    "custom": ["settings.form.llm.setupCustomPre", "=/v1", "settings.form.llm.setupCustomPost"],
+}
+
+
+def brackets(s: str) -> str:
+    """Return "" when the brackets balance: never close before open, none left open at the end."""
+    depth = 0
+    for ch in s:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth < 0:
+                return "a ) with no matching ( in front"
+    return "" if depth == 0 else f"{depth} ( left unclosed"
+
+
+def asm(table: dict, parts: list, lang: int) -> str:
+    return "".join(p[1:] if p.startswith("=") else table[p][lang] for p in parts)
 
 
 def norm(src: str) -> str:
@@ -55,6 +88,23 @@ def main() -> int:
         if re.search(r"[\u4e00-\u9fff\u3400-\u4dbf]", ko):
             hanja.append((key, [c for c in ko if re.match(r"[\u4e00-\u9fff\u3400-\u4dbf]", c)]))
 
+    # Assembled setup lines must carry balanced brackets in both languages.
+    brace = []
+    for name, parts in ASSEMBLIES.items():
+        for lang, label in ((0, "en"), (1, "ko")):
+            bad = brackets(asm(table, parts, lang))
+            if bad:
+                brace.append(f"{name} ({label}): {bad} -> {asm(table, parts, lang)!r}")
+
+    # The table and the shipped locale files must say the same thing (no drift).
+    drift = []
+    for loc_path, lang in (("src/lib/i18n/locales/en.json", 0), ("src/lib/i18n/locales/ko.json", 1)):
+        with open(loc_path, encoding="utf-8") as fh:
+            locale = json.load(fh)
+        for key, pair in table.items():
+            if locale.get(key) != pair[lang]:
+                drift.append((key, loc_path))
+
     if missing:
         print(f"BYTE MISMATCH {len(missing)}:")
         for k, p in missing:
@@ -63,9 +113,17 @@ def main() -> int:
         print(f"HANJA IN KO {len(hanja)}:")
         for k, cs in hanja:
             print(f"  {k} -> {''.join(cs)!r}")
-    if missing or hanja:
+    if brace:
+        print(f"UNBALANCED BRACKETS {len(brace)}:")
+        for b in brace:
+            print(f"  {b}")
+    if drift:
+        print(f"TABLE/JSON DRIFT {len(drift)}:")
+        for k, pth in drift:
+            print(f"  {k} in {pth}")
+    if missing or hanja or brace or drift:
         return 1
-    print(f"all {len(table)} English values byte-identical to HEAD; hanja 0")
+    print(f"all {len(table)} English values byte-identical to HEAD; hanja 0; assembled brackets balanced (en·ko); TABLE/JSON drift 0")
     return 0
 
 
