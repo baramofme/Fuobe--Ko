@@ -63,6 +63,7 @@ import type { Engine, Generation } from "@/lib/catalog/types";
 import { downloadHref } from "@/lib/library";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
 import {
   useAudioToolPreview,
   useAudioToolRun,
@@ -365,6 +366,8 @@ function ResultPanel({
 
 export function RemoveDialogueTool() {
   const [engine, setEngine, mode] = useEngine();
+  // Words for this render: subscribing here re-renders the open engine's price line when the language switches.
+  useI18n();
   const run = useAudioToolRun();
   const [source, setSource] = useState<Source | null>(null);
   const [outcome, setOutcome] = useState<DialogueOutcome>("no-dialogue");

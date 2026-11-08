@@ -45,6 +45,7 @@ import type { Generation, OutputFile } from "@/lib/catalog/types";
 import { downloadHref } from "@/lib/library";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 import { BeforeAfterAudio } from "./before-after-audio";
 import { CleanVoiceDemo } from "./clean-voice-demo";
 import { useAudioToolPreview, useAudioToolRun, useSettled, type AudioToolBody } from "./hooks";
@@ -63,7 +64,7 @@ const TOOL_SUBTITLE =
 type Source = SlotValue & { kind: "audio" | "video"; duration?: number; channels?: number };
 
 const baseName = (s: { name?: string }) => (s.name ?? "Recording").replace(/\.[a-z0-9]{2,4}$/i, "");
-const money = (p: AudioToolPreview) => (p.demo ? "Placeholder · free" : "Free · runs on your GPU");
+const money = (p: AudioToolPreview, tr: (key: string, params?: Params) => string = storeT) => (p.demo ? tr("faceless.controls.placeholderFree") : "Free · runs on your GPU");
 const onDevice = (device?: string) => (device === "cuda" ? "on your GPU" : device ? "on your CPU" : "on a CPU");
 
 /** ?audio= / ?video= from a Library result's "Clean up voice" (or Split's "Clean the dialogue", with background=keep), read once after hydration. */
@@ -200,6 +201,8 @@ const reportOf = (g?: Generation | null): string | undefined => g?.outputs.find(
 
 export function CleanVoiceTool({ app }: { app?: { name: string; description: string } }) {
   const [engine, setEngine, mode] = useEngine();
+  // Words for this render: the price line reads them through tr, so a language switch re-renders it.
+  const { t: tr } = useI18n();
   // A guest hears the demo and loads its recording; cleaning one is for an account: Clean up voice opens the free
   // account card, and the setup words (which model, which install) stay out of a guest's way.
   const guest = useIsGuest();
@@ -422,7 +425,7 @@ export function CleanVoiceTool({ app }: { app?: { name: string; description: str
                   error
                 ) : p ? (
                   <>
-                    <span className="font-mono text-foreground">{money(p)}</span>
+                    <span className="font-mono text-foreground">{money(p, tr)}</span>
                     {p.estimate && !p.demo ? ` · ${durationWords(p.estimate)} ${onDevice(p.device)}` : ""}
                     {p.reuse?.rate && !p.demo ? ` · ${khz(p.reuse.rate)}` : ""}
                   </>

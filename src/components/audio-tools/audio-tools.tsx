@@ -31,6 +31,7 @@ import type { Engine } from "@/lib/catalog/types";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
 import { usePoolRun } from "@/components/studio/pool-price";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 import { useAudioToolPreview, useAudioToolRun, useSettled, type AudioToolBody } from "./hooks";
 
 /**
@@ -43,8 +44,8 @@ import { useAudioToolPreview, useAudioToolRun, useSettled, type AudioToolBody } 
 type Curve = "equal-power" | "linear";
 type Clip = SlotValue & { duration?: number };
 
-const money = (p: AudioToolPreview, engine: Engine) =>
-  p.demo ? "Placeholder · free" : engine === "open" ? "Free · your GPU" : p.costUsd === null ? "Price unknown" : p.costUsd < 0.01 ? "Under $0.01" : `≈ $${p.costUsd.toFixed(2)}`;
+const money = (p: AudioToolPreview, engine: Engine, tr: (key: string, params?: Params) => string = storeT) =>
+  p.demo ? tr("faceless.controls.placeholderFree") : engine === "open" ? tr("studio.composer.freeYourGpu") : p.costUsd === null ? "Price unknown" : p.costUsd < 0.01 ? "Under $0.01" : `≈ $${p.costUsd.toFixed(2)}`;
 
 const nameOf = (c: Clip) => (c.name ?? "Audio clip").replace(/\.[a-z0-9]{2,4}$/i, "");
 
@@ -234,6 +235,8 @@ function RunBar({
   const error = preview.error ? (preview.error as Error).message : null;
   const p = preview.data;
   const shown = blocker ?? error;
+  // Words for this render: handing tr down keeps the price line reactive to a language switch.
+  const { t: tr } = useI18n();
   // A run on this studio's GPUs: the service's price and the place in line, and Run off when it is refused.
   const { pool, off, go } = usePoolRun(p);
   return (
@@ -260,7 +263,7 @@ function RunBar({
               <>
                 {p.length !== null && <span className="font-mono text-foreground">{clock(p.length)}</span>}
                 {p.length !== null && " · "}
-                <span className="font-mono text-foreground">{pool?.text ?? money(p, engine)}</span>
+                <span className="font-mono text-foreground">{pool?.text ?? money(p, engine, tr)}</span>
               </>
             ) : (
               "Pricing…"
