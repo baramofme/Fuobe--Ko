@@ -33,6 +33,7 @@ import {
   type LayerTool,
 } from "@/lib/layers";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
 import { applyMeasured, idPool, type Applied } from "./apply";
 import { costLabel, Ctx, isFailed, isRunning, keysBelongElsewhere, latestJob, TOOL_FOR_JOB, type EditorCtx, type MaskEdit, type PaintEdit, type RunInput, type StageMode, type ToolId } from "./editor-context";
 import { LayersPanel } from "./layers-panel";
@@ -110,6 +111,7 @@ function Editor({ view, refetch, models }: { view: LayerProjectView; refetch: ()
   const isMobile = useIsMobile();
   const [engine, setEngine] = useEngine();
   const status = useStatus().data;
+  const { t: tr } = useI18n();
 
   const [hist, dispatch] = useReducer(historyReducer, initial.doc, (doc) => ({ past: [], present: doc, future: [] }));
   const doc = hist.present;
@@ -650,7 +652,7 @@ function Editor({ view, refetch, models }: { view: LayerProjectView; refetch: ()
         doc={doc}
         jobs={view.jobs}
         decomposed={decomposed}
-        separateCost={costLabel(model, isDemo(model), decomposeCost(modelId, 8))}
+        separateCost={costLabel(model, isDemo(model), decomposeCost(modelId, 8), tr)}
         onSeparate={async () => {
           await run({ tool: "decompose", target: { kind: "whole" }, settings: { resolution: "1K", mode: "standard", layers: 8 }, label: "Layer decomposition" });
         }}
