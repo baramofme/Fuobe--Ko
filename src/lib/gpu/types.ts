@@ -165,9 +165,9 @@ export interface GpuInventory {
   combos: Record<string, string[]>;
   /** Index pack name → what ComfyUI-Manager lists for it. */
   packs: Record<string, { dir: string; version?: string; enabled: boolean; importError?: string }>;
-  /** folder → index base name → bytes (null: size unknown). */
+  /** folder → the index file's own `file` (its path under the folder included) → bytes (null: size unknown). */
   models: Record<string, { have: Record<string, number | null>; total: number; folderMissing?: boolean }>;
-  /** Index LoRA base names that are present. */
+  /** LoRA files the folder showed, under the name it listed them ("models/loras" listing names, subfolders included) → bytes (null: size unknown). */
   loras: Record<string, number | null>;
   /** sha256 of argv, devices, RAM and model roots (an owner-GPU heuristic, never a boundary). */
   fingerprint: string;

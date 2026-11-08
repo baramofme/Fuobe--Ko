@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { gatherInventory, OBJECT_INFO_MAX_BYTES } from "@/lib/gpu/gather";
 import { TopLevelScanner, comboOptions } from "@/lib/gpu/json-scan";
-import { filePresence, toolReadiness } from "@/lib/gpu/readiness";
+import { filePresence, loraPresence, toolReadiness, type LoraNeed } from "@/lib/gpu/readiness";
 import { parseIndex } from "@/lib/gpu/requirements";
 import { fetchTransport, TransportError } from "@/lib/gpu/transport";
 import type { CheckLine, RequirementIndex } from "@/lib/gpu/types";
@@ -150,6 +150,68 @@ describe("the probe", () => {
     const inv = await gatherInventory(transport(fake.url), idx);
     expect(inv.models.RMBG?.folderMissing).toBeUndefined();
     expect(filePresence(f, inv)).toBe("present");
+  });
+
+  it("keeps two files that share a base name in different subfolders apart", async () => {
+    // The live case: models/dbs holds DBS-BSRNN-DnR and DBS-TIGER-DnR, each with its own model.safetensors, and the
+    // Kandinsky VSR bundle holds three diffusion_pytorch_model.safetensors. Matched by base name alone, the last one
+    // won and the others were counted with the wrong size.
+    const s = zImageReady();
+    s.files = {
+      ...s.files,
+      dbs: [
+        { name: "DBS-BSRNN-DnR/model.safetensors", size: 18_886_156 },
+        { name: "DBS-TIGER-DnR/model.safetensors", size: 4_111_836 },
+      ],
+      diffusion_models: [
+        { name: "Kandinsky-6.0-VSR-distilled2steps-5s-Diffusers/transformer/diffusion_pytorch_model.safetensors", size: 3_187_645_192 },
+        { name: "Kandinsky-6.0-VSR-distilled2steps-5s-Diffusers/latent_upscaler/diffusion_pytorch_model.safetensors", size: 7_308_101_968 },
+        { name: "Kandinsky-6.0-VSR-distilled2steps-5s-Diffusers/vae/diffusion_pytorch_model.safetensors", size: 6_955_556_660 },
+      ],
+    };
+    fake = await startFakeComfy(s);
+    const inv = await gatherInventory(transport(fake.url), idx);
+    const bsrnn = idx.files["dbs/DBS-BSRNN-DnR/model.safetensors"];
+    const tiger = idx.files["dbs/DBS-TIGER-DnR/model.safetensors"];
+    const vae = idx.files["diffusion_models/Kandinsky-6.0-VSR-distilled2steps-5s-Diffusers/vae/diffusion_pytorch_model.safetensors"];
+    expect(inv.models.dbs.have["DBS-BSRNN-DnR/model.safetensors"]).toBe(18_886_156);
+    expect(inv.models.dbs.have["DBS-TIGER-DnR/model.safetensors"]).toBe(4_111_836);
+    expect(filePresence(bsrnn, inv)).toBe("present");
+    expect(filePresence(tiger, inv)).toBe("present");
+    expect(inv.models.diffusion_models.have["Kandinsky-6.0-VSR-distilled2steps-5s-Diffusers/vae/diffusion_pytorch_model.safetensors"]).toBe(6_955_556_660);
+    expect(filePresence(vae, inv)).toBe("present");
+  });
+
+  it("counts every LoRA the folder lists, so a LoRA the check wasn't told about still shows as there", async () => {
+    const s = zImageReady();
+    s.files = { ...s.files, loras: [{ name: "h3_character_swap_v1.5.safetensors", size: 155_110_792 }, { name: "style/H3-Person-Remover-V1.safetensors", size: 155_110_584 }] };
+    fake = await startFakeComfy(s);
+    const inv = await gatherInventory(transport(fake.url), idx);
+    expect(inv.loras["h3_character_swap_v1.5.safetensors"]).toBe(155_110_792);
+    const plain: LoraNeed = { file: "h3_character_swap_v1.5.safetensors", download: "direct", sizeBytes: 155_110_792 };
+    expect(loraPresence(plain, inv)).toBe("present");
+    // A LoRA in a subfolder is found by its base name, as the loader's combo list would show it.
+    const nested: LoraNeed = { file: "H3-Person-Remover-V1.safetensors", download: "direct" };
+    expect(loraPresence(nested, inv)).toBe("present");
+    // One the folder doesn't show is missing, not "unknown": the folder was read.
+    const absent: LoraNeed = { file: "not_here.safetensors", download: "direct" };
+    expect(loraPresence(absent, inv)).toBe("missing");
+  });
+
+  it("says a LoRA is there when a plain listing gives no size, and missing when the size says it was cut short", async () => {
+    const old = zImageReady({ noExperiment: true });
+    old.files = { ...old.files, loras: [{ name: "qwen-image-edit-2511-multiple-angles-lora.safetensors", size: 0 }] };
+    fake = await startFakeComfy(old);
+    const inv = await gatherInventory(transport(fake.url), idx);
+    expect(inv.loras["qwen-image-edit-2511-multiple-angles-lora.safetensors"]).toBeNull();
+    expect(loraPresence({ file: "qwen-image-edit-2511-multiple-angles-lora.safetensors", download: "direct", sizeBytes: 295_140_688 }, inv)).toBe("present");
+    await fake.close();
+    fake = null;
+    const short = zImageReady();
+    short.files = { ...short.files, loras: [{ name: "qwen-image-edit-2511-multiple-angles-lora.safetensors", size: 268 }] };
+    fake = await startFakeComfy(short);
+    const cut = await gatherInventory(transport(fake.url), idx);
+    expect(loraPresence({ file: "qwen-image-edit-2511-multiple-angles-lora.safetensors", download: "direct", sizeBytes: 295_140_688 }, cut)).toBe("missing");
   });
 });
 

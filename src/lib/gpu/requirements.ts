@@ -12,19 +12,35 @@ export function splitKey(key: FileKey | string): { folder: string; file: string 
   return { folder: key.slice(0, i), file: key.slice(i + 1) };
 }
 
+/** Whether that ComfyUI's file system ignores case (Windows, and macOS by default). */
+const folds = (os: string | undefined) => os === "nt" || os === "darwin" || os === "windows" || os === "win32";
+
 /**
  * How file names compare on that ComfyUI: case-sensitively on Linux, case-insensitively on Windows ("nt")
  * and macOS ("darwin", whose default file system ignores case).
  */
 export function sameName(os: string | undefined): (a: string, b: string) => boolean {
-  const fold = os === "nt" || os === "darwin" || os === "windows" || os === "win32";
+  const fold = folds(os);
   return fold ? (a, b) => a.toLowerCase() === b.toLowerCase() : (a, b) => a === b;
 }
 
 /** A name key for lookups in a Set or Map (folded on case-insensitive systems). */
 export function nameKey(os: string | undefined): (name: string) => string {
-  const fold = os === "nt" || os === "darwin" || os === "windows" || os === "win32";
+  const fold = folds(os);
   return fold ? (n) => basename(n).toLowerCase() : (n) => basename(n);
+}
+
+/**
+ * A key for a file's path under its model folder, as ComfyUI's listing names it ("\\" counted as "/", folded on
+ * case-insensitive systems). Two files that share a base name in different subfolders ("DBS-BSRNN-DnR/model.safetensors"
+ * and "DBS-TIGER-DnR/model.safetensors") get different keys, so one never gets counted with the other's size.
+ */
+export function pathKey(os: string | undefined): (path: string) => string {
+  const fold = folds(os);
+  return (p) => {
+    const n = p.replace(/\\/g, "/");
+    return fold ? n.toLowerCase() : n;
+  };
 }
 
 /** Check that a parsed requirements.json has the shape this code reads (a stale or hand-edited file fails loudly). */

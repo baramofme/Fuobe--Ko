@@ -1,7 +1,7 @@
 import { parseArgv } from "./argv";
 import { comboOptions, TopLevelScanner } from "./json-scan";
 import { filePresence, deviceLabel } from "./readiness";
-import { basename, indexClasses, loaderInputs, nameKey, vramGb } from "./requirements";
+import { indexClasses, loaderInputs, nameKey, pathKey, vramGb } from "./requirements";
 import { TransportError, type ComfyTransport, type TransportResponse } from "./transport";
 import type { CheckLine, GpuInventory, GpuProblem, RequirementIndex } from "./types";
 
@@ -17,7 +17,7 @@ export interface GatherOptions {
   /** A targeted re-check: only these classes (per-class reads) and folders. */
   classes?: string[];
   folders?: string[];
-  /** LoRA base names to look for in models/loras. */
+  /** LoRA base names to look for in models/loras: a targeted check lists that folder when any are given (a full one lists it anyway). */
   loraNames?: string[];
   /** The first request's timeout: 8 s from the server, 1.5 s from the browser. */
   statsTimeoutMs?: number;
@@ -300,14 +300,25 @@ export async function gatherInventory(t: ComfyTransport, idx: RequirementIndex, 
 
   // 2b. Model folders (names and sizes), LoRAs and the model roots.
   const folders = o.folders ?? idx.folders;
-  const indexNames = new Map<string, Map<string, string>>();
+  /**
+   * Two keys per folder for the same index file: the path under the folder, which is what a listing calls a file in a
+   * subfolder, and the base name, which is all an older ComfyUI's plain listing gives. The path is tried first, so two
+   * files that share a base name in different subfolders ("DBS-BSRNN-DnR/model.safetensors" and "DBS-TIGER-DnR/model.safetensors")
+   * stay two files instead of one getting the other's size.
+   */
+  const rel = pathKey(os);
+  const indexPaths = new Map<string, Map<string, string>>();
+  const indexBases = new Map<string, Map<string, string>>();
   for (const f of Object.values(idx.files)) {
     const listed = f.listFolder ?? f.folder;
-    if (!indexNames.has(listed)) indexNames.set(listed, new Map());
-    indexNames.get(listed)!.set(key(f.file), f.file);
+    if (!indexPaths.has(listed)) {
+      indexPaths.set(listed, new Map());
+      indexBases.set(listed, new Map());
+    }
+    indexPaths.get(listed)!.set(rel(f.file), f.file);
+    indexBases.get(listed)!.set(key(f.file), f.file);
   }
-  const loraWanted = new Map((o.loraNames ?? []).map((n) => [key(n), basename(n)]));
-  const listFolders = [...new Set([...folders, ...(loraWanted.size ? ["loras"] : [])])];
+  const listFolders = [...new Set([...folders, ...(o.loraNames?.length ? ["loras"] : [])])];
   const models = async () => {
     emit({ step: "models", state: "running", text: "Looking through your models…" });
     let present: Set<string>;
@@ -338,16 +349,15 @@ export async function gatherInventory(t: ComfyTransport, idx: RequirementIndex, 
               typeof x?.name === "string" ? [{ name: x.name, size: typeof x.size === "number" ? x.size : null }] : [],
             );
           }
-          const want = indexNames.get(folder) ?? new Map<string, string>();
+          const wantPath = indexPaths.get(folder) ?? new Map<string, string>();
+          const wantBase = indexBases.get(folder) ?? new Map<string, string>();
           const have: Record<string, number | null> = {};
           for (const it of items) {
-            const k = key(it.name);
-            const name = want.get(k);
+            const name = wantPath.get(rel(it.name)) ?? wantBase.get(key(it.name));
             if (name !== undefined && (have[name] === undefined || (it.size ?? 0) > (have[name] ?? 0))) have[name] = it.size;
-            if (folder === "loras") {
-              const l = loraWanted.get(k);
-              if (l !== undefined) inv.loras[l] = it.size;
-            }
+            // Every LoRA the folder listed is kept under the name it was listed under. A tool's LoRA is then found
+            // whether or not this check was told its name (loraPresence reads inv.loras).
+            if (folder === "loras") inv.loras[it.name] = it.size;
           }
           inv.models[folder] = { have, total: items.length };
         } catch (e) {
