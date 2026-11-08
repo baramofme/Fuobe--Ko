@@ -128,8 +128,16 @@ if (!boards.some((b) => b.editedAt == null)) {
   const body = await made.json().catch(() => null);
   createdId = body?.id ?? null;
   check("a never-edited board could be made", !!createdId, JSON.stringify(body === null ? made.status() : { id: createdId }));
+  if (createdId) {
+    // 부트스트립 재조회(오케스트레이터 결정 a). page.request로 만든 보드는 API top-1로 뜨지만 앱 뮤테이션이
+    // 아니다 — src/lib/api.ts:218의 invalidateQueries(["canvases"])를 타지 않아 캐시는 옛 top-4에 그대로 있다.
+    // ["canvases"] 쿼리는 로드 시점에만 채워지므로 재호버로는 새 보드가 들어오지 않는다(실측: 패널 1행이 옛
+    // 보드의 "Edited Xh ago"를 읽는 flake). 무새로고침 불변식은 언어 전환 단계만의 것이지 부트스트립의
+    // 재조회를 금지하지 않으므로, 여기서 경로를 한 번 다시 열어 캐시를 새로 채운다.
+    await openRoute(page, `${app}/`);
+  }
   boards = await recentBoards(page);
-  await openCanvas(page); // 다시 얹어 새 보드가 첫 줄로 뜨게 한다(쿼리는 패널이 열릴 때마다 다시 읽는다).
+  await openCanvas(page); // 얹어서 편집 줄을 뜬다(캐시는 이제 로드 시점의 신선한 데이터).
 }
 
 step("English reads the plain bytes, per row");

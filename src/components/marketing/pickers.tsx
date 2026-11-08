@@ -15,6 +15,7 @@ import { useElements } from "@/lib/api";
 import { UGC_HOOKS, UGC_SETTINGS, type Product } from "@/lib/catalog/marketing";
 import type { ModelDef } from "@/lib/catalog/types";
 import { cn } from "@/lib/utils";
+import { keySnake, translateOr, useI18n } from "@/lib/i18n";
 import type { ModelInfo } from "./model-info";
 import { useProducts } from "./hooks";
 
@@ -202,49 +203,54 @@ export function AvatarSlot({ value, onChange, pulse }: { value: SlotValue | null
 }
 
 function ListPicker<T extends { id: string; name: string; type: string; prompt: string }>({
-  label,
+  labelKey,
+  nameKeyPrefix,
   icon: Icon,
   items,
   value,
   onChange,
-  noneLabel,
-  groups,
+  groupTypes,
 }: {
-  label: string;
+  labelKey: string;
+  nameKeyPrefix: string;
   icon: typeof Zap;
   items: T[];
   value: string | null;
   onChange: (id: string | null) => void;
-  noneLabel: string;
-  groups: { type: string; title: string }[];
+  groupTypes: string[];
 }) {
   const [open, setOpen] = useState(false);
+  const { lang, t: tt } = useI18n();
   const current = items.find((i) => i.id === value);
+  // Catalog display names: resolve at render through the lookup, so a switch re-translates them.
+  // The key mirrors FormatChip's: <ns>.name.<snake>.name — chrome lives directly under <ns>, so items need the extra segment.
+  // No locale entry → the item's own words (English), silently — catalog data is meant to fall back.
+  const nameOf = (name: string) => translateOr(lang, `${nameKeyPrefix}.name.${keySnake(name)}.name`, name);
   return (
     <ResponsivePanel
       open={open}
       onOpenChange={setOpen}
-      title={`See all ${label.toLowerCase()}s`}
+      title={tt(`${labelKey}.seeAll`)}
       trigger={
-        <button type="button" className={cn(chipBase, current ? chipOn : chipIdle)} aria-label={current ? `${label}: ${current.name}` : `${label}: none`}>
+        <button type="button" className={cn(chipBase, current ? chipOn : chipIdle)} aria-label={current ? tt(`${labelKey}.ariaName`, { name: nameOf(current.name) }) : tt(`${labelKey}.ariaNone`)}>
           <Icon className="size-3.5" />
-          {current ? current.name : `No ${label.toLowerCase()}`}
+          {current ? nameOf(current.name) : tt(`${labelKey}.none`)}
         </button>
       }
     >
       <div className="space-y-3">
         <button type="button" onClick={() => (onChange(null), setOpen(false))} className={cn("flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[13px] hover:bg-accent", !value && "bg-brand-faint text-brand-text")}>
-          {noneLabel} {!value && <Check className="size-3.5" />}
+          {tt(`${labelKey}.none`)} {!value && <Check className="size-3.5" />}
         </button>
-        {groups.map((g) => (
-          <div key={g.type}>
-            <p className="px-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{g.title}</p>
+        {groupTypes.map((type) => (
+          <div key={type}>
+            <p className="px-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{tt(`${labelKey}.group.${keySnake(type)}`)}</p>
             {items
-              .filter((i) => i.type === g.type)
+              .filter((i) => i.type === type)
               .map((i) => (
                 <button key={i.id} type="button" onClick={() => (onChange(i.id), setOpen(false))} className={cn("w-full rounded-lg px-2 py-1.5 text-left hover:bg-accent", i.id === value && "bg-brand-faint")}>
                   <span className={cn("flex items-center justify-between text-[13px] font-medium", i.id === value && "text-brand-text")}>
-                    {i.name} {i.id === value && <Check className="size-3.5" />}
+                    {nameOf(i.name)} {i.id === value && <Check className="size-3.5" />}
                   </span>
                   <span className="line-clamp-2 text-[12px] text-muted-foreground">{i.prompt}</span>
                 </button>
@@ -257,15 +263,16 @@ function ListPicker<T extends { id: string; name: string; type: string; prompt: 
 }
 
 export const HookPicker = ({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) => (
-  <ListPicker label="Hook" icon={Zap} items={UGC_HOOKS} value={value} onChange={onChange} noneLabel="No hook" groups={[{ type: "stunt", title: "Stunts" }, { type: "subtle", title: "Subtle" }]} />
+  <ListPicker labelKey="marketing.hook" nameKeyPrefix="marketing.hook" icon={Zap} items={UGC_HOOKS} value={value} onChange={onChange} groupTypes={["stunt", "subtle"]} />
 );
 
 export const SettingPicker = ({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) => (
-  <ListPicker label="Setting" icon={Sparkle} items={UGC_SETTINGS} value={value} onChange={onChange} noneLabel="No setting" groups={[{ type: "realistic", title: "Realistic" }, { type: "unrealistic", title: "Unrealistic" }]} />
+  <ListPicker labelKey="marketing.setting" nameKeyPrefix="marketing.setting" icon={Sparkle} items={UGC_SETTINGS} value={value} onChange={onChange} groupTypes={["realistic", "unrealistic"]} />
 );
 
 /** The voiceover: a premade cloud voice, or (open source) a sample to clone. */
 export function VoiceControl({ engine, models, voice, sample, onVoice, onSample }: { engine: "cloud" | "open"; models: Record<string, ModelInfo>; voice?: string; sample: SlotValue | null; onVoice: (id?: string) => void; onSample: (v: SlotValue | null) => void }) {
+  const { t } = useI18n();
   const info = models[engine === "open" ? "oss-chatterbox" : "elevenlabs-v4"];
   if (!info) return null;
   const model = { id: info.id, name: info.name, options: { voices: info.voices, voiceClone: engine === "open" ? true : info.voiceClone } } as unknown as ModelDef;
@@ -277,7 +284,7 @@ export function VoiceControl({ engine, models, voice, sample, onVoice, onSample 
             model={model}
             voice={voice}
             sample={sample}
-            label="Voice"
+            // No label: VoicePicker falls back to t("studio.audio.voice"), which follows the language.
             onChange={(c) => {
               if (!c) return;
               if (c.kind === "preset") {
@@ -288,7 +295,7 @@ export function VoiceControl({ engine, models, voice, sample, onVoice, onSample 
           />
         </span>
       </TooltipTrigger>
-      <TooltipContent>{engine === "open" ? "Open-source voices are cloned from a short sample (Chatterbox)" : `Voiceover by ${info.name}`}</TooltipContent>
+      <TooltipContent>{engine === "open" ? t("marketing.voiceover.openHint") : t("marketing.voiceover.byModel", { model: info.name })}</TooltipContent>
     </Tooltip>
   );
 }

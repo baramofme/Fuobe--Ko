@@ -8,6 +8,7 @@ import { SelfHostNote } from "@/components/self-host-note";
 import { CoverArt, CoverImg, useCoverPlayback } from "@/components/template-cover";
 import { useIsOwner, useIsVisitor } from "@/lib/api";
 import { STARTER_SURFACES, VISITOR_MAKES, starterShown, type StarterCardData, type StarterInput } from "@/lib/starters/types";
+import { keySnake, translateOr, useI18n } from "@/lib/i18n";
 import { StarterIcon } from "./starter-icon";
 import { useStarterUse } from "./starter-section";
 import { StepsGlyph } from "./steps-glyph";
@@ -44,6 +45,7 @@ export function StarterPage({ s }: { s: StarterCardData }) {
   const visitor = useIsVisitor();
   const { use, busy } = useStarterUse();
   const { ref, playing, asked, handlers } = useCoverPlayback<HTMLDivElement>(`starter-page/${s.id}`, s.cover);
+  const { lang } = useI18n();
   const surface = STARTER_SURFACES[s.surface];
 
   if (!starterShown(s, true) && !owner) {
@@ -130,7 +132,7 @@ export function StarterPage({ s }: { s: StarterCardData }) {
               </Button>
             </div>
           ) : (
-            <SelfHostNote className="mt-3">{surface.unavailable}</SelfHostNote>
+            <SelfHostNote className="mt-3">{translateOr(lang, `starters.unavailable.${keySnake(s.surface)}`, surface.unavailable)}</SelfHostNote>
           )}
 
           <section aria-labelledby="goes-in" className="mt-8">
