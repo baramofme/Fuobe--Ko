@@ -13,6 +13,7 @@ import { useOwnSetupPress } from "@/components/own-setup";
 import { planCinema, type CinemaGenerateInput, type DirectorSettings } from "@/lib/catalog/cinema";
 import type { Engine } from "@/lib/catalog/types";
 import { placeholdersOn } from "@/lib/demo-mode";
+import { useI18n } from "@/lib/i18n";
 import { toastError } from "@/lib/refusals";
 import { cn } from "@/lib/utils";
 import {
@@ -85,6 +86,7 @@ export interface WorldPanelProps {
 
 export function WorldPanel(props: WorldPanelProps) {
   const { open, onOpenChange, projectId, folderId, engine, onEngine, openAllowed, settings, brief, context, takes } = props;
+  const { t: tr } = useI18n();
   const generate = useCinemaGenerate(projectId);
   const demo = placeholdersOn(useStatus().data?.demoMode);
   const [script, setScript] = useState<WorldScript | null>(null);
@@ -113,7 +115,7 @@ export function WorldPanel(props: WorldPanelProps) {
   const target = next >= 0 ? next : tidy.turns.length;
   const input = (k: number, join?: string[]): Omit<CinemaGenerateInput, "brief"> => ({ engine, mode: "video", action: "world", prompt: "", settings, world: { script: tidy, turn: k, ...(join ? { join } : {}) } });
   const plan = useMemo(() => planCinema({ ...input(target), brief }, context), [tidy, target, engine, settings, brief, context]); // eslint-disable-line react-hooks/exhaustive-deps
-  const price = demo ? "Placeholder · free" : "Free";
+  const price = demo ? tr("faceless.controls.placeholderFree") : "Free";
   const total = worldSeconds(tidy);
   const sketch = useMemo(() => pathSketch(allTurns(tidy).map((t) => ({ move: t.move, seconds: t.seconds }))), [tidy]);
 

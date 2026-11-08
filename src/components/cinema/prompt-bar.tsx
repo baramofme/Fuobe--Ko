@@ -37,6 +37,7 @@ import {
   type DirectorSettings,
 } from "@/lib/catalog/cinema";
 import { findMentions, type StudioElement } from "@/lib/catalog/elements";
+import { useI18n } from "@/lib/i18n";
 import type { Engine, MediaKind } from "@/lib/catalog/types";
 import { formatCost } from "@/lib/format";
 import { modKey } from "@/lib/keys";
@@ -331,6 +332,7 @@ const ACTIONS: { id: BarAction; label: string; icon: typeof Video; hint: string 
 
 export function PromptBar(props: PromptBarProps) {
   const { projectId, folderId, engine, draft, setDraft, settings, onSettings, context, brief, spentUsd, costCapUsd, elements, promptRef } = props;
+  const { t: tr } = useI18n();
   const generate = useCinemaGenerate(projectId);
   // World mode on a visitor's own GPU: its mark until its graph has passed on this studio's GPU (src/lib/own-setup.ts).
   const owner = useIsOwner();
@@ -551,7 +553,7 @@ export function PromptBar(props: PromptBarProps) {
   // words ("Free · ready in about 2 min"), or the label of what runs on the account's own GPU.
   const onSite = !!pool && !pool.refused;
   const costShort = pool ? (onSite ? (pool.text.split(" · ")[0] ?? pool.text) : "Your GPU") : demo ? "Placeholder" : cost === 0 ? (engine === "open" ? "Free · GPU" : "Free") : cost != null ? `≈ ${formatCost(cost)}` : "≈ ?";
-  const costLong = pool ? pool.text : demo ? "Placeholder · free" : cost === 0 ? (engine === "open" ? "Free · your GPU" : "Free") : cost != null ? `≈ ${formatCost(cost)}` : "Price unknown";
+  const costLong = pool ? pool.text : demo ? tr("faceless.controls.placeholderFree") : cost === 0 ? (engine === "open" ? tr("studio.composer.freeYourGpu") : "Free") : cost != null ? `≈ ${formatCost(cost)}` : "Price unknown";
   const costTip = pool
     ? onSite
       ? `Runs on ${runViewer!.place.text}`
