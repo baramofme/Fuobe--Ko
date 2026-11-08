@@ -72,11 +72,12 @@ describe("오디오 클러스터 price 줄의 렌더 시점 배선(레인 M1)", 
       expect(locales.ko[key], `${name}: ko`).toBeTypeOf("string");
       expect(translate("en", key), `${name}: translate`).toBe(SOURCE_LITERALS[name]);
     }
-    // 이 레인은 로케일에 손을 대지 않았다(재사용 키만 사용): 기준선 a261e8a9의 실측 그대로여야 한다.
+    // 이 레인(1차)은 로케일에 손을 대지 않았다. 2차(동족 22키, t_08d961db 18+이 카드 4)가
+    // 꼬리에 append해 서수가 늘었다 — 재정리 0·서수 일치·패리티는 아래로 계속 잠근다.
     const en = Object.keys(locales.en);
     const ko = Object.keys(locales.ko);
-    expect(en).toHaveLength(3726);
-    expect(ko).toHaveLength(3726);
+    expect(en.length).toBeGreaterThanOrEqual(3726);
+    expect(ko.length).toBe(en.length);
     expect(ko, "키 서수까지 같다(로케일 재정리 0)").toEqual(en);
   });
 
@@ -104,9 +105,16 @@ describe("오디오 클러스터 price 줄의 렌더 시점 배선(레인 M1)", 
     }
     // 세 번째 재사용 키는 이 5파리에 원래 리터럴이 없었다(카드 실측) — 무접촉을 확인한다.
     for (const f of FILES) expect(code(f), `${f}: estimating absent`).not.toContain(SOURCE_LITERALS.estimating);
-    // 범위 밖 변형은 그대로 남아 있어야 무접촉이 사실이다.
-    for (const [f, keeps] of Object.entries(OUT_OF_SCOPE)) {
-      for (const literal of keeps) expect(code(f), `${f}: ${literal}`).toContain(literal);
+    // 2차(wave-2)가 이 변형들까지 배선한다 — 원 리터럴은 키로 이동해 코드를 떠난다.
+    const WAVE2_KEYS: Record<string, string[]> = {
+      "audio-tools/audio-tools.tsx": ["studio.price.unknown", "studio.price.under001"],
+      "audio-tools/clean-voice-tool.tsx": ["studio.price.freeRunsGpu"],
+      "audio-tools/clean-dialogue-panel.tsx": ["studio.price.unknown", "studio.price.under001Lower"],
+      "katana/katana-studio.tsx": ["studio.price.unknown"],
+      "audio-tools/remove-dialogue-tool.tsx": [],
+    };
+    for (const [f, keys] of Object.entries(WAVE2_KEYS)) {
+      for (const key of keys) expect(code(f), `${f}: wave-2 wired ${key}`).toContain(`tr("${key}")`);
     }
   });
 

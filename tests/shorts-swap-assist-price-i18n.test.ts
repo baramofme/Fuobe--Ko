@@ -89,12 +89,12 @@ describe("레인 M2의 money 배선 (shorts·swap·assist)", () => {
         expect(code(f), `${f}: leftover literal ${literal}`).not.toContain(literal);
       }
     }
-    // 범위 밖 무접촉 실측: 비-트리오 변형 리터럴은 원 위치 그대로 살아야 한다(comm -12 무접촉의 코드 증거).
-    expect(code("review"), "review: Free on your GPU stays").toContain("Free on your GPU");
-    expect(code("ui"), "ui: Price unknown stays").toContain("Price unknown");
-    expect(code("parts"), "parts: Price unknown stays").toContain("Price unknown");
-    expect(code("dialog"), "dialog: Some prices vary stays").toContain("Some prices vary");
-    expect(code("dialog"), "dialog: Pricing… stays").toContain("Pricing…");
+    // 2차(wave-2)가 비-트리오 변형까지 배선한다: 원 리터럴은 키로 이동하고 코드를 떠난다.
+    expect(code("review"), "review: Free on your GPU wired").toContain('tr("studio.finish.freeOnYourGpu")');
+    expect(code("ui"), "ui: Price unknown wired").toContain('tr("studio.price.unknown")');
+    expect(code("parts"), "parts: Price unknown wired").toContain('tr("studio.price.unknown")');
+    expect(code("dialog"), "dialog: Some prices vary wired").toContain('tr("assist.transcript.pricesVary")');
+    expect(code("dialog"), "dialog: Pricing… wired").toContain('tr("assist.composer.schedulePricing")');
   });
 
   it("배선은 호출 시점 읽기·구독 선재·모듈 상수 스냅샷 금지", () => {

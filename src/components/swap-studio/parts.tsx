@@ -27,9 +27,9 @@ export function usePriceText(): typeof priceText {
 export function priceText(costUsd: number | null | undefined, o: { demo?: boolean; engine: Engine }, tr: (key: string, params?: Params) => string = storeT): string {
   if (o.demo) return tr("faceless.controls.placeholderFree");
   if (o.engine === "open") return tr("studio.composer.freeYourGpu");
-  if (costUsd === undefined) return "…";
-  if (costUsd === null) return "Price unknown";
-  if (costUsd === 0) return "Free";
+  if (costUsd === undefined) return tr("studio.price.dots");
+  if (costUsd === null) return tr("studio.price.unknown");
+  if (costUsd === 0) return tr("studio.engine.freeShort");
   return `≈ $${costUsd < 1 ? costUsd.toFixed(3).replace(/0$/, "") : costUsd.toFixed(2)}`;
 }
 

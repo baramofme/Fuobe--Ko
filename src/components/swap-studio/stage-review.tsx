@@ -1,6 +1,7 @@
 "use client";
 
 import { useSoundLive } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { OriginalSoundPicker } from "@/components/av/original-sound-picker";
 import { ORIGINAL_SOUND_FEATURE, originalSoundDefault, originalSoundOn, type OriginalSound } from "@/lib/av/original-sound";
 import { Download, Film, Library, Loader2, Play, Sparkles, Star } from "lucide-react";
@@ -151,6 +152,7 @@ function FinishVersion({ take, gens, onUse }: { take: SwapTake; gens: Record<str
 /** Assemble → Finish: "Sharpen to 1080p / 2K / 4K" (runnable: the size, its price or GPU time, Run). */
 function FinishPanel({ id, project, clip, gens, estimate }: Pick<StageProps, "id" | "project" | "clip" | "gens" | "estimate">) {
   const priceText = usePriceText();
+  const { t: tr } = useI18n();
   const openFree = useOpenFree();
   const sharpen = useSharpen(id);
   // Your GPU's sharpen regenerates with Open-H3 Regenerate: a 48 GB card (own-setup.ts), said beside the title.
@@ -177,7 +179,7 @@ function FinishPanel({ id, project, clip, gens, estimate }: Pick<StageProps, "id
   const seconds = est?.seconds ?? chosen.reduce((n, p) => n + (p.end - p.start) / SWAP_STUDIO.fps, 0);
   const cost = tier ? est?.costUsd[tier] : undefined;
   const problem = "problem" in found ? SHARPEN_COPY.none : !tier ? (options.find((o) => o.reason)?.reason ?? SHARPEN_COPY.small) : null;
-  const priceLine = engine === "open" ? (estimate?.demo ? priceText(0, { demo: true, engine }) : openFree(`Free on your GPU · ${gpuMinutes(seconds)}`)) : priceText(cost, { demo: estimate?.demo, engine });
+  const priceLine = engine === "open" ? (estimate?.demo ? priceText(0, { demo: true, engine }) : openFree(`${tr("studio.finish.freeOnYourGpu")} · ${gpuMinutes(seconds)}`)) : priceText(cost, { demo: estimate?.demo, engine });
   const join = joinNote(film);
   const shownTier = tier ?? (engine === "cloud" ? "2K" : "1080p");
   // Why a size can't be picked, said under the picker (a turned-off button can't take focus or show a tooltip on touch).

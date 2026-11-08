@@ -77,9 +77,9 @@ function useDebounced<T>(value: T, ms: number): T {
 function priceLine(e: RecipeEstimate | undefined, runs: number, tr: (key: string, params?: Params) => string = storeT): string {
   if (!e) return "";
   if (e.demo) return `${tr("faceless.controls.placeholderFree")}${runs > 1 ? ` · ${runs} runs` : ""}`;
-  if (e.total === null) return "Some prices vary";
+  if (e.total === null) return tr("assist.transcript.pricesVary");
   const where = e.engine === "open" ? "on your GPU" : "on Cloud";
-  if (e.total === 0) return runs > 1 ? `Free · ${runs} runs ${where}` : `Free ${where}`;
+  if (e.total === 0) return runs > 1 ? `${tr("studio.engine.freeShort")} · ${runs} runs ${where}` : `${tr("studio.engine.freeShort")} ${where}`;
   return runs > 1 ? `${formatCost(e.total)} for ${runs} runs ${where}` : `${formatCost(e.total)} ${where}`;
 }
 
@@ -201,7 +201,7 @@ function Loaded({ view, onClose, examples, intro, csv: rowsCsv }: { view: Recipe
     }
   };
 
-  const price = !ready ? "" : estError ? "" : !fresh || estimate.isFetching ? "Pricing…" : priceLine(est, runs, tr);
+  const price = !ready ? "" : estError ? "" : !fresh || estimate.isFetching ? tr("assist.composer.schedulePricing") : priceLine(est, runs, tr);
   return (
     <>
       <DialogHeader className="flex-row items-start gap-3 border-b px-5 pt-5 pb-4 text-left">

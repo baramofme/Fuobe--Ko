@@ -105,16 +105,30 @@ describe("인라인 클러스터 A2의 렌더 시점 배선", () => {
     expect(openFreeWords(translate("ko", KEYS.freeYourGpu), false, "ko")).toBe("무료 · 내 GPU");
   });
 
-  it("out-of-scope 변형(래퍼·bare Free·price unknown·on-your-GPU·plays-in-your-browser)은 각 파일 코드에 그대로 남는다", () => {
-    // 범위 밖 리터럴을 건드리지 않았다는 회귀 방지방: 원문이 코드에 존재해야 한다.
-    expect(codeOf("src/components/photodump/steps.tsx")).toContain("price unknown");
-    expect(codeOf("src/components/influencer/influencer-builder.tsx")).toContain("price unknown");
-    expect(codeOf("src/components/canvas/canvas-editor.tsx")).toContain("price unknown");
-    expect(codeOf("src/components/shorts/session-view.tsx")).toContain("? \"Free\"");
-    expect(codeOf("src/components/turnaround/turnaround-dialog.tsx")).toContain("Free · on your GPU");
+  it("2차 배선에서 이 surface의 out-of-scope 변형까지 키로 이동한다(래퍼·호출 지점 유지, en 바이트 동일)", () => {
+    // 1차의 범위 밖 잠금은 2차가 이 변형들을 배선하면서 풀린다. 대신 키 배선·래퍼·호출 지점의 존재를 잠근다.
+    expect(codeOf("src/components/photodump/steps.tsx")).toContain('tr("studio.price.unknownLower")');
+    expect(codeOf("src/components/influencer/influencer-builder.tsx")).toContain('tr("studio.price.unknownLower")');
+    expect(codeOf("src/components/canvas/canvas-editor.tsx")).toContain('tr("studio.price.unknownLower")');
+    expect(codeOf("src/components/shorts/session-view.tsx")).toContain('tr("studio.engine.freeShort")');
+    expect(codeOf("src/components/turnaround/turnaround-dialog.tsx")).toContain('tr("studio.price.freeOnYourGpuDot")');
     expect(codeOf("src/components/turnaround/turnaround-dialog.tsx")).toContain("openFree(");
-    expect(codeOf("src/components/audio-tools/split-tool.tsx")).toContain("under $0.01");
-    expect(codeOf("src/components/audio-tools/split-tool.tsx")).toContain("Free · plays in your browser");
+    expect(codeOf("src/components/audio-tools/split-tool.tsx")).toContain('tr("studio.price.under001Lower")');
+    expect(codeOf("src/components/audio-tools/split-tool.tsx")).toContain('tr("studio.price.freePlaysInYourBrowser")');
     expect(codeOf("src/components/audio-tools/split-tool.tsx")).toContain("openToolPrice(p)");
+    // 원 리터럴은 코드에서 지워지고 키 값으로 이동했는지(en 바이트 동일 — e2e·coupled 결속 유지).
+    // bare "Free"는 다른 문구(free stand-ins 등)에 흔하게 남아 있어 잔존 검사에서 제외한다.
+    for (const [key, raw] of [
+      ["studio.price.unknownLower", "price unknown"],
+      ["studio.price.freeOnYourGpuDot", "Free \u00b7 on your GPU"],
+      ["studio.price.under001Lower", "under $0.01"],
+      ["studio.price.freePlaysInYourBrowser", "Free \u00b7 plays in your browser"],
+    ] as const) {
+      expect(translate("en", key)).toBe(raw);
+      expect(codeOf("src/components/photodump/steps.tsx") + codeOf("src/components/turnaround/turnaround-dialog.tsx") + codeOf("src/components/audio-tools/split-tool.tsx")).not.toContain(raw);
+    }
+    expect(translate("en", "studio.engine.freeShort")).toBe("Free");
+    // ko는 100% 한국어(한자·중문 없음은 locale 게이트가 별도로 잠근다).
+    expect(translate("ko", "studio.price.unknownLower")).not.toBe("price unknown");
   });
 });

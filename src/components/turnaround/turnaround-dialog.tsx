@@ -256,7 +256,7 @@ function TurnaroundForm({ pictures, name, realPerson: realDefault = false, eleme
     else setViews((v) => ({ ...v, [k]: url }));
   };
   // On this studio's GPUs: the service's price and the place in line ("Free · your GPU" is for the person's own GPU).
-  const price = toolPoolPrice(p)?.text ?? openFree(!p ? "" : p.demo ? tr("faceless.controls.placeholderFree") : engine === "open" ? `Free · on your GPU${p.gpuGb ? `, about ${p.gpuGb} GB` : ""}` : p.costUsd != null ? `≈ ${formatCost(p.costUsd)}` : "");
+  const price = toolPoolPrice(p)?.text ?? openFree(!p ? "" : p.demo ? tr("faceless.controls.placeholderFree") : engine === "open" ? `${tr("studio.price.freeOnYourGpuDot")}${p.gpuGb ? tr("studio.price.aboutNGb", { n: p.gpuGb }) : ""}` : p.costUsd != null ? `≈ ${formatCost(p.costUsd)}` : "");
   const heading = headingOf({ title, flyAround, name });
 
   return (
@@ -427,7 +427,7 @@ function TurnaroundForm({ pictures, name, realPerson: realDefault = false, eleme
           )
         )}
         <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground" aria-live="polite">
-          {preview.isFetching && !p ? "Pricing…" : price}
+          {preview.isFetching && !p ? tr("assist.composer.schedulePricing") : price}
         </span>
         <Button onClick={makeIt} disabled={!p || !!p.blocker || preview.isError || make.isPending || preview.isFetching}>
           {make.isPending ? <Loader2 className="animate-spin" /> : <Rotate3d />} {stills ? "Make 8 views" : flyAround ? "Fly around" : "Make turnaround"}

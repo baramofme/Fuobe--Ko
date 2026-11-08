@@ -41,15 +41,15 @@ import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 /** The Quality field's short hint: H3's own sizes in words, a finishing size's price (cloud) or "Free · your GPU". */
 export function qualityShort(engine: Engine, q: CharacterChoice, tr: (key: string, params?: Params) => string = storeT): string {
   const finish = characterFinish(q);
-  if (!finish) return q === "480p" ? "Faster and cheaper" : "H3's native top";
+  if (!finish) return q === "480p" ? tr("genjutsu.character.fasterCheaper") : tr("genjutsu.character.h3NativeTop");
   return engine === "open" ? tr("studio.composer.freeYourGpu") : `$${(cloudSharpenUsd(finish, 5) ?? 0).toFixed(2)} for 5 s`;
 }
 
 /** What a quality does, in a line: H3's own sizes, or a finishing size with its price (cloud) or GPU time (open). */
-export function qualityHint(engine: Engine, q: CharacterChoice): string {
+export function qualityHint(engine: Engine, q: CharacterChoice, tr: (key: string, params?: Params) => string = storeT): string {
   const finish = characterFinish(q);
   if (!finish) return qualityShort(engine, q);
-  if (engine === "open") return `${SHARPEN_COPY.hintOpen} Free on your GPU, about 3 min more per 5 s on a 72 GB GPU. ${SHARPEN_COPY.joinOpen}`;
+  if (engine === "open") return `${SHARPEN_COPY.hintOpen} ${tr("studio.finish.freeOnYourGpu")}, about 3 min more per 5 s on a 72 GB GPU. ${SHARPEN_COPY.joinOpen}`;
   const usd = (s: number) => `$${(cloudSharpenUsd(finish, s) ?? 0).toFixed(2)}`;
   return `${SHARPEN_COPY.hint} ${usd(5)} for 5 s, ${usd(15)} for 15 s.`;
 }
@@ -177,7 +177,7 @@ export function CharacterControls({
           />
           {/* Your GPU's 1080p / 2K / 4K regenerate with Open-H3 Regenerate: a 48 GB card, and the choice says so. */}
           {engine === "open" && characterFinish(shown) && <OwnSetupChip setup="regenerate:swap-sharpen" />}
-          {characterFinish(shown) && <p className="text-[12px] leading-snug text-pretty text-muted-foreground">{openFree(qualityHint(engine, shown))}</p>}
+          {characterFinish(shown) && <p className="text-[12px] leading-snug text-pretty text-muted-foreground">{openFree(qualityHint(engine, shown, tr))}</p>}
           {offReasons.length > 0 && (
             <p id="character-quality-off" className="text-[12px] leading-snug text-pretty text-muted-foreground">
               {offReasons.map((o) => `${o.q}: ${o.reason}.`).join(" ")}

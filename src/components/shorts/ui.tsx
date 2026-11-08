@@ -262,12 +262,12 @@ export function Steps({ steps, current, className }: { steps: string[]; current:
  * priceAs). A run on this studio's GPUs (the estimate says so): the service's price and the place in line.
  */
 export function costText(e: { costUsd: number | null; demo: boolean } | undefined, engine: "cloud" | "open", tr: (key: string, params?: Params) => string = storeT): string {
-  if (!e) return "…";
+  if (!e) return tr("studio.price.dots");
   const pool = toolPoolPrice(e);
   if (pool) return pool.text;
   if (e.demo) return tr("faceless.controls.placeholderFree");
   if (engine === "open") return tr("studio.composer.freeYourGpu");
-  if (e.costUsd === null) return "Price unknown";
-  if (e.costUsd === 0) return "Free";
+  if (e.costUsd === null) return tr("studio.price.unknown");
+  if (e.costUsd === 0) return tr("studio.engine.freeShort");
   return `≈ $${e.costUsd < 1 ? e.costUsd.toFixed(3).replace(/0$/, "") : e.costUsd.toFixed(2)}`;
 }

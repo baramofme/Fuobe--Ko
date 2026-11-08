@@ -46,7 +46,7 @@ export interface CleanSource {
 const bedText = (b: BedLevel) => (b === "off" ? "Off" : `${b} dB`.replace("-", "−"));
 const onDevice = (device?: string) => (device === "cuda" ? "on your GPU" : device ? "on your CPU" : "on a CPU");
 const price = (p: { costUsd: number | null; demo: boolean } | undefined, tr: (key: string, params?: Params) => string = storeT) =>
-  !p ? "…" : p.demo ? tr("faceless.controls.placeholderFree") : p.costUsd === null ? "Price unknown" : p.costUsd < 0.01 ? "under $0.01" : `≈ $${p.costUsd.toFixed(2)}`;
+  !p ? tr("studio.price.dots") : p.demo ? tr("faceless.controls.placeholderFree") : p.costUsd === null ? tr("studio.price.unknown") : p.costUsd < 0.01 ? tr("studio.price.under001Lower") : `≈ $${p.costUsd.toFixed(2)}`;
 
 export function CleanDialoguePanel({
   source,

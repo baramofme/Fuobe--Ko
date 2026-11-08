@@ -103,22 +103,22 @@ export function ownerOnlyWay(studio: "image" | "video" = "image"): { label: stri
 export function placePrice(s: { demo?: boolean; costUsd?: number | null; open: boolean }, format: (usd: number) => string, tr: (key: string, params?: Params) => string = storeT): string {
   if (s.demo) return tr("faceless.controls.placeholderFree");
   // Every run on the open engine is free on the GPU: said before the run is priced too.
-  if (s.open) return "Free";
+  if (s.open) return tr("studio.engine.freeShort");
   if (s.costUsd === undefined) return "";
-  if (s.costUsd === null) return "Price unknown";
-  return s.costUsd === 0 ? "Free" : `≈ ${format(s.costUsd)}`;
+  if (s.costUsd === null) return tr("studio.price.unknown");
+  return s.costUsd === 0 ? tr("studio.engine.freeShort") : `≈ ${format(s.costUsd)}`;
 }
 
-export function runPlace(input: RunPlaceInput): RunPlace {
+export function runPlace(input: RunPlaceInput, tr: (key: string, params?: Params) => string = storeT): RunPlace {
   const { audience, engine } = input;
   if (engine === "browser") {
     return {
       where: "browser",
       label: "Your browser",
-      price: "Free",
+      price: tr("studio.engine.freeShort"),
       title: "Runs in your browser",
       tip: "It plays as you type, instantly and free. No model and no GPU are used.",
-      send: "Free · in your browser",
+      send: tr("studio.price.freeInYourBrowser"),
     };
   }
   if (input.ownerOnly && audience !== "owner") {
@@ -126,9 +126,9 @@ export function runPlace(input: RunPlaceInput): RunPlace {
     if (input.hosted) return { ...OWNER_ONLY_HOSTED, tip: ownerOnlyTip(input.ownerOnly), way: ownerOnlyWay(input.ownerOnlyStudio) };
     return {
       where: "unavailable",
-      label: "Not available here",
+      label: tr("studio.price.notAvailableHere"),
       price: "",
-      title: "Not available here",
+      title: tr("studio.price.notAvailableHere"),
       tip: `${input.ownerOnly} isn't available here. Try the Image, Video or Audio studio.`,
       send: "",
     };
@@ -158,7 +158,7 @@ export function runPlace(input: RunPlaceInput): RunPlace {
     }
     const place = input.place ?? placeOf(null);
     const refused = !input.demo && input.pool?.refused ? input.pool.text : undefined;
-    const poolPrice = input.demo ? price : input.pool ? input.pool.text || "Free" : "";
+    const poolPrice = input.demo ? price : input.pool ? input.pool.text || tr("studio.engine.freeShort") : "";
     const tip = input.demo
       ? "Placeholder results are on (Settings), so outputs are free stand-ins."
       : refused
@@ -443,6 +443,7 @@ export function placeRows(
   viewer: RunOnViewer | undefined | null,
   item: { key?: { provider: CloudProvider; price?: string | null } | null; siteRuns?: boolean; cloud?: boolean },
   quote: { text?: string; wait?: string } = {},
+  tr: (key: string, params?: Params) => string = storeT,
 ): RunOnRows | null {
   if (!viewer?.hosted || viewer.kind !== "account" || item.siteRuns === false) return null;
   const gpu = viewer.gpu.connected ? viewer.gpu : null;
@@ -459,11 +460,11 @@ export function placeRows(
     if (key && item.cloud) on = "key";
     else if (!key) note = `Runs on ${place.text}. This one has no cloud version.`;
   } else if (!picked && gpu?.online && viewer.prefer !== "pool") on = "gpu";
-  const rows: RunOnRow[] = [{ id: "site", label: place.label, sub: [quote.text || "Free", quote.wait].filter(Boolean).join(" · "), selected: on === "site" }];
+  const rows: RunOnRow[] = [{ id: "site", label: place.label, sub: [quote.text || tr("studio.engine.freeShort"), quote.wait].filter(Boolean).join(" · "), selected: on === "site" }];
   if (gpu) {
     // "RTX 4090", not ComfyUI's whole device name.
     const device = deviceLabel(gpu.device).replace(/^NVIDIA\s+(GeForce\s+)?/i, "");
-    rows.push({ id: "gpu", label: "Your GPU", sub: gpu.online ? ["Free", device].filter(Boolean).join(" · ") : "Free · not answering right now", ...(gpu.online && { online: true }), selected: on === "gpu" });
+    rows.push({ id: "gpu", label: "Your GPU", sub: gpu.online ? [tr("studio.engine.freeShort"), device].filter(Boolean).join(" · ") : tr("studio.price.notAnsweringNow"), ...(gpu.online && { online: true }), selected: on === "gpu" });
   }
   if (key) rows.push({ id: "key", label: `Your ${CLOUD_KEY[key.provider].label} key`, sub: keyRowSub(key.provider, key.price), selected: on === "key" });
   return { rows, on, ...(note && { note }) };

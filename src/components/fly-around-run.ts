@@ -51,8 +51,8 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 /** The price line: "Free · on your GPU" on the open engine, the list price in the cloud. */
 export function flyPrice(p: FlyAroundPreview | undefined, compact = false, tr: (key: string, params?: Params) => string = storeT): string {
   if (!p) return "";
-  if (p.demo) return compact ? "Placeholder" : tr("faceless.controls.placeholderFree");
-  if (p.engine === "open") return compact ? "Free" : "Free · on your GPU";
+  if (p.demo) return compact ? tr("studio.viewer.placeholderLabel") : tr("faceless.controls.placeholderFree");
+  if (p.engine === "open") return compact ? tr("studio.engine.freeShort") : tr("studio.price.freeOnYourGpuDot");
   return p.costUsd != null ? `≈ ${formatCost(p.costUsd)}` : "";
 }
 

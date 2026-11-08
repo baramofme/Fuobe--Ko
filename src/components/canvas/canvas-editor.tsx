@@ -1296,7 +1296,7 @@ function Editor({ id, initial, view, host }: { id: string; initial: Canvas; view
     visitor
       ? ""
       : plan.steps.length
-        ? `${plan.steps.length} to run · ${planDemo ? tr("faceless.controls.placeholderFree") : plan.costUnknown ? "price unknown" : plan.costUsd === 0 ? "Free" : `≈ ${formatCost(plan.costUsd)}`}`
+        ? `${plan.steps.length} to run · ${planDemo ? tr("faceless.controls.placeholderFree") : plan.costUnknown ? tr("studio.price.unknownLower") : plan.costUsd === 0 ? tr("studio.engine.freeShort") : `≈ ${formatCost(plan.costUsd)}`}`
         : generators.length && !attention
           ? "Up to date"
           : "",

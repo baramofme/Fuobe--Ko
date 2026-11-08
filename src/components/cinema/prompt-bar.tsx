@@ -552,8 +552,8 @@ export function PromptBar(props: PromptBarProps) {
   // The live cost sits next to Generate at every width (short on narrow bars). On this studio's GPUs: the price check's
   // words ("Free · ready in about 2 min"), or the label of what runs on the account's own GPU.
   const onSite = !!pool && !pool.refused;
-  const costShort = pool ? (onSite ? (pool.text.split(" · ")[0] ?? pool.text) : "Your GPU") : demo ? "Placeholder" : cost === 0 ? (engine === "open" ? "Free · GPU" : "Free") : cost != null ? `≈ ${formatCost(cost)}` : "≈ ?";
-  const costLong = pool ? pool.text : demo ? tr("faceless.controls.placeholderFree") : cost === 0 ? (engine === "open" ? tr("studio.composer.freeYourGpu") : "Free") : cost != null ? `≈ ${formatCost(cost)}` : "Price unknown";
+  const costShort = pool ? (onSite ? (pool.text.split(" · ")[0] ?? pool.text) : "Your GPU") : demo ? tr("studio.viewer.placeholderLabel") : cost === 0 ? (engine === "open" ? tr("studio.price.freeGpuCompact") : tr("studio.engine.freeShort")) : cost != null ? `≈ ${formatCost(cost)}` : "≈ ?";
+  const costLong = pool ? pool.text : demo ? tr("faceless.controls.placeholderFree") : cost === 0 ? (engine === "open" ? tr("studio.composer.freeYourGpu") : tr("studio.engine.freeShort")) : cost != null ? `≈ ${formatCost(cost)}` : tr("studio.price.unknown");
   const costTip = pool
     ? onSite
       ? `Runs on ${runViewer!.place.text}`

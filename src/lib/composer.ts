@@ -1300,11 +1300,11 @@ export function toggleIn(list: string[], id: string): string[] {
  * free of anything (the run still takes their GPU's time).
  */
 export function costLabel(s: { demo: boolean; cost: number | null; compact?: boolean; unknown?: boolean; gpu?: boolean }, format: (usd: number) => string, tr: (key: string, params?: Params) => string = storeT): string {
-  if (s.demo) return s.compact ? "Placeholder" : tr("faceless.controls.placeholderFree");
-  if (s.cost === 0) return s.gpu ? (s.compact ? "Free · GPU" : tr("studio.composer.freeYourGpu")) : "Free";
+  if (s.demo) return s.compact ? tr("studio.viewer.placeholderLabel") : tr("faceless.controls.placeholderFree");
+  if (s.cost === 0) return s.gpu ? (s.compact ? tr("studio.price.freeGpuCompact") : tr("studio.composer.freeYourGpu")) : tr("studio.engine.freeShort");
   if (s.cost != null) return `≈ ${format(s.cost)}`;
   // A price the provider hasn't published (fal's MOSS-Image with LoRAs): said, never shown as free.
-  return s.unknown ? "Price unknown" : "";
+  return s.unknown ? tr("studio.price.unknown") : "";
 }
 
 /**

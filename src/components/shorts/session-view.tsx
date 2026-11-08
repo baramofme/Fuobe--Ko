@@ -356,7 +356,7 @@ function SegmentCard({
   const chosenTake = seg.takes.find((t) => t.look === seg.primary);
   const tooLong = finishLengthProblem(segmentSeconds(seg));
   const video = videoOf(primary);
-  const price = demo ? tr("faceless.controls.placeholderFree") : cost === null ? "" : cost === 0 ? "Free" : `≈ ${formatCost(cost)}`;
+  const price = demo ? tr("faceless.controls.placeholderFree") : cost === null ? "" : cost === 0 ? tr("studio.engine.freeShort") : `≈ ${formatCost(cost)}`;
   return (
     <article className="min-w-0 rounded-2xl border bg-background p-3 sm:p-4" aria-label={`Segment ${index + 1}`}>
       <div className="flex items-center gap-2">

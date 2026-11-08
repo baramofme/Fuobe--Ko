@@ -22,6 +22,7 @@ import {
   type Hi3dResolution,
 } from "@/lib/av/hi3d";
 import type { Engine } from "@/lib/catalog/types";
+import { useI18n } from "@/lib/i18n";
 import { toastError } from "@/lib/refusals";
 import { priceLine, useCreate3d, useRunPreview } from "./hooks";
 import { useModel3dSetup } from "./own-setups";
@@ -120,6 +121,7 @@ export function RefineOption({
 
 /** "Refine this mesh" on a finished model: Hi3D refines its geometry from the photo it was made from. */
 export function RefineDialog({ glb, photo, open, onOpenChange, feature }: { glb: string; photo: string; open: boolean; onOpenChange: (v: boolean) => void; feature?: string }) {
+  const { t: tr } = useI18n();
   // The owner's as a studio run; an account's on its own GPU (POST /api/image-to-3d).
   const create = useCreate3d();
   const [resolution, setResolution] = useState<Hi3dResolution>(HI3D_DEFAULT);
@@ -143,7 +145,7 @@ export function RefineDialog({ glb, photo, open, onOpenChange, feature }: { glb:
         <div className="grid gap-3">
           <Resolutions id="refine-res" value={resolution} onChange={setResolution} />
           <p className="text-[12px] text-muted-foreground" aria-live="polite">
-            {preview.isError ? (preview.error as Error).message : (priceLine(preview.data) ?? "Working out the price…")} · {HI3D_HARDWARE}
+            {preview.isError ? (preview.error as Error).message : (priceLine(preview.data, tr) ?? tr("studio.price.workingOut"))} · {HI3D_HARDWARE}
           </p>
           <PoweredByHi3d />
         </div>

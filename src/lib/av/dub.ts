@@ -498,8 +498,8 @@ export interface DubPrice {
 /** The price as one short line: "≈ $8.13 + ElevenLabs v4", "Placeholder · free", "Free on your GPU". */
 export function priceLine(p: DubPrice, tr: (key: string, params?: Params) => string = storeT): string {
   if (p.demo) return tr("faceless.controls.placeholderFree");
-  if (p.engine === "open") return "Free on your GPU";
-  const usd = p.costUsd > 0 && p.costUsd < 0.01 ? "< $0.01" : `≈ $${p.costUsd.toFixed(2)}`;
+  if (p.engine === "open") return tr("studio.finish.freeOnYourGpu");
+  const usd = p.costUsd > 0 && p.costUsd < 0.01 ? tr("studio.price.lt001") : `≈ $${p.costUsd.toFixed(2)}`;
   return p.unpriced.length ? `${usd} + ${p.unpriced.join(" + ")}` : usd;
 }
 

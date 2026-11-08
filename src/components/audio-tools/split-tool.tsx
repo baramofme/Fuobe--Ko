@@ -601,7 +601,7 @@ function Mixer({ stems, source, engine, initial = ORIGINAL_MIX }: { stems: Stem[
   // On this studio's GPUs: the service's price and the place in line ("Free · your GPU" is for the person's own GPU).
   const remuxCost = remuxPrice.data
     ? (toolPoolPrice(remuxPrice.data)?.text ??
-      (remuxPrice.data.demo ? tr("faceless.controls.placeholderFree") : engine === "open" ? tr("studio.composer.freeYourGpu") : remuxPrice.data.costUsd !== null && remuxPrice.data.costUsd < 0.01 ? "under $0.01" : `≈ $${remuxPrice.data.costUsd?.toFixed(2)}`))
+      (remuxPrice.data.demo ? tr("faceless.controls.placeholderFree") : engine === "open" ? tr("studio.composer.freeYourGpu") : remuxPrice.data.costUsd !== null && remuxPrice.data.costUsd < 0.01 ? tr("studio.price.under001Lower") : `≈ $${remuxPrice.data.costUsd?.toFixed(2)}`))
     : null;
 
   return (
@@ -610,7 +610,7 @@ function Mixer({ stems, source, engine, initial = ORIGINAL_MIX }: { stems: Stem[
         <h3 id="mixer" className="font-heading text-[22px] leading-tight">
           Stems and mixer
         </h3>
-        <span className="rounded-full bg-success/15 px-2 py-0.5 text-[12px] font-medium text-success">Free · plays in your browser</span>
+        <span className="rounded-full bg-success/15 px-2 py-0.5 text-[12px] font-medium text-success">{tr("studio.price.freePlaysInYourBrowser")}</span>
       </div>
       <p className="text-[13px] text-muted-foreground">Every stem is already in your {account ? "runs" : "Library"}. Mixing here is free: nothing runs until you export.</p>
       {player.failed && (

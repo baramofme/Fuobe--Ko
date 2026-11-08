@@ -64,7 +64,7 @@ const TOOL_SUBTITLE =
 type Source = SlotValue & { kind: "audio" | "video"; duration?: number; channels?: number };
 
 const baseName = (s: { name?: string }) => (s.name ?? "Recording").replace(/\.[a-z0-9]{2,4}$/i, "");
-const money = (p: AudioToolPreview, tr: (key: string, params?: Params) => string = storeT) => (p.demo ? tr("faceless.controls.placeholderFree") : "Free · runs on your GPU");
+const money = (p: AudioToolPreview, tr: (key: string, params?: Params) => string = storeT) => (p.demo ? tr("faceless.controls.placeholderFree") : tr("studio.price.freeRunsGpu"));
 const onDevice = (device?: string) => (device === "cuda" ? "on your GPU" : device ? "on your CPU" : "on a CPU");
 
 /** ?audio= / ?video= from a Library result's "Clean up voice" (or Split's "Clean the dialogue", with background=keep), read once after hydration. */

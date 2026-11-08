@@ -52,8 +52,8 @@ export function usePlanPrice(plan: CinemaPlan): { cost: number | null; label: st
   // Free on the GPU says where it runs, like every other price on it.
   const openFree = useOpenFree();
   const { t: tr } = useI18n();
-  const free = plan.model.engine === "open" ? openFree(tr("studio.composer.freeYourGpu")) : "Free";
-  return { cost, demo, label: demo ? tr("faceless.controls.placeholderFree") : cost === 0 ? free : cost != null ? `≈ ${formatCost(cost)}` : "Price unknown" };
+  const free = plan.model.engine === "open" ? openFree(tr("studio.composer.freeYourGpu")) : tr("studio.engine.freeShort");
+  return { cost, demo, label: demo ? tr("faceless.controls.placeholderFree") : cost === 0 ? free : cost != null ? `≈ ${formatCost(cost)}` : tr("studio.price.unknown") };
 }
 
 const SKIP_KEY = "fuobe.cinema.sceneConfirm";

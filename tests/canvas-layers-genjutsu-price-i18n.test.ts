@@ -113,17 +113,19 @@ describe("canvas·layers·genjutsu 7파일의 렌더 시점 trio 배선 (twin �
       expect(code, `${file}: no module const snapshot`).not.toMatch(/^(?:export )?const [A-Z][A-Za-z0-9_]* = (?:tr|t|storeT)\(/m);
     }
     // 구독 수가 렌더 컴포넌트 수와 맞는다(같은 컴포넌트 안 다수 지점은 구독 1회 + tr 재사용이 원칙).
-    const counts: Record<string, number> = { "nodes.tsx": 1, "node-list.tsx": 1, "tools.tsx": 8, "layers-panel.tsx": 2, "layers-editor.tsx": 1, "character-panel.tsx": 1 };
+    const counts: Record<string, number> = { "nodes.tsx": 2, "node-list.tsx": 1, "tools.tsx": 8, "layers-panel.tsx": 2, "layers-editor.tsx": 1, "character-panel.tsx": 1 };
     for (const [file, n] of Object.entries(counts)) {
       const hits = (codeOf(file).match(new RegExp(HOOK_RE.source, "g")) ?? []).length;
       expect(hits, `${file}: hook count`).toBe(n);
     }
-    // fn 정의측: `t as storeT` 수입과 마지막 인자 기본값이 세 파일(costLabel×2·qualityShort)에 각 1건.
+    // fn 정의측: `t as storeT` 수입과 마지막 인자 기본값. 1차는 costLabel×2·qualityShort에 각 1건,
+    // 2차가 character-panel의 qualityHint에 같은 형태로 1건을 더했다(총 2건).
+    const FN_DEFAULTS: Record<string, number> = { "nodes.tsx": 1, "editor-context.tsx": 1, "character-panel.tsx": 2 };
     for (const file of FN_FILES) {
       const code = codeOf(file);
       expect(code, `${file}: storeT imported`).toMatch(/import\s*\{[^}]*\bt as storeT\b[^}]*\}\s*from\s*"@\/lib\/i18n"/);
       const defaults = (code.match(/tr:\s*\(key: string, params\?: Params\) => string = storeT/g) ?? []).length;
-      expect(defaults, `${file}: tr default = storeT`).toBe(1);
+      expect(defaults, `${file}: tr default = storeT`).toBe(FN_DEFAULTS[file]);
     }
   });
 
@@ -134,7 +136,7 @@ describe("canvas·layers·genjutsu 7파일의 렌더 시점 trio 배선 (twin �
       "tools.tsx": 10, // :321,529,653,705,905,1075,1113,1221,1426,1433
       "layers-panel.tsx": 2, // :231,576
       "layers-editor.tsx": 1, // :653
-      "character-panel.tsx": 1, // :168의 openFree(qualityShort(…)) 래퍼 — 안의 리터럴만 tr화
+      "character-panel.tsx": 2, // :168의 openFree(qualityShort(…)) 래퍼 + 2차의 qualityHint(engine, shown, tr)
     };
     for (const [file, n] of Object.entries(passCounts)) {
       const hits = (codeOf(file).match(/, tr\)/g) ?? []).length;

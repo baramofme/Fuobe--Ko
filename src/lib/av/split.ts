@@ -167,9 +167,9 @@ export function splitTime(o: { seconds: number; quality: SplitQuality; mode: Dbs
  * refused (docs/public-signup.md).
  */
 export function openToolPrice(p: { demo: boolean } | undefined, visitor?: boolean, tr: (key: string, params?: Params) => string = storeT): string {
-  if (visitor) return "Not available here";
-  if (!p) return "…";
-  return p.demo ? tr("faceless.controls.placeholderFree") : "Free";
+  if (visitor) return tr("studio.price.notAvailableHere");
+  if (!p) return tr("studio.price.dots");
+  return p.demo ? tr("faceless.controls.placeholderFree") : tr("studio.engine.freeShort");
 }
 
 /** "about 1–2 min", "under a minute" */

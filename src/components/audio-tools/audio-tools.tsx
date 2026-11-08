@@ -45,7 +45,7 @@ type Curve = "equal-power" | "linear";
 type Clip = SlotValue & { duration?: number };
 
 const money = (p: AudioToolPreview, engine: Engine, tr: (key: string, params?: Params) => string = storeT) =>
-  p.demo ? tr("faceless.controls.placeholderFree") : engine === "open" ? tr("studio.composer.freeYourGpu") : p.costUsd === null ? "Price unknown" : p.costUsd < 0.01 ? "Under $0.01" : `≈ $${p.costUsd.toFixed(2)}`;
+  p.demo ? tr("faceless.controls.placeholderFree") : engine === "open" ? tr("studio.composer.freeYourGpu") : p.costUsd === null ? tr("studio.price.unknown") : p.costUsd < 0.01 ? tr("studio.price.under001") : `≈ $${p.costUsd.toFixed(2)}`;
 
 const nameOf = (c: Clip) => (c.name ?? "Audio clip").replace(/\.[a-z0-9]{2,4}$/i, "");
 
@@ -266,7 +266,7 @@ function RunBar({
                 <span className="font-mono text-foreground">{pool?.text ?? money(p, engine, tr)}</span>
               </>
             ) : (
-              "Pricing…"
+              tr("assist.composer.schedulePricing")
             ))}
         </p>
         <Button size="lg" className={cn("rounded-full", (blocker || error) && "bg-muted text-subtle-foreground hover:bg-muted")} onClick={() => go(onRun)} disabled={pending || (off && !shown)}>

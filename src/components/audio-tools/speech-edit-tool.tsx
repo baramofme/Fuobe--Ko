@@ -1,6 +1,7 @@
 "use client";
 
 import { useOpenFree } from "@/components/studio/run-place-chip";
+import { useI18n } from "@/lib/i18n";
 import { AudioLines, Clapperboard, Cpu, Download, FileVideo, Library, Loader2, Mic2, RotateCcw, Sparkles, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { nanoid } from "nanoid";
@@ -272,6 +273,7 @@ function EffectOptions({ effect, onChange }: { effect: SpeechEffect; onChange: (
  */
 export function SpeechEditTool({ setup }: { setup?: OwnSetup | null } = {}) {
   const openFree = useOpenFree();
+  const { t: tr } = useI18n();
   const item = setup === undefined ? OWN_SETUP : setup;
   const [engine, setEngine, mode] = useEngine();
   // A guest or an account: its own setup's label beside the title (after hydration, so it matches the server HTML),
@@ -429,7 +431,7 @@ export function SpeechEditTool({ setup }: { setup?: OwnSetup | null } = {}) {
         {source && engine === "open" && !cues && (
           <Panel title="1 · Transcribe">
             <div className="flex flex-wrap items-center gap-3">
-              <p className="min-w-0 flex-1 text-[13px] text-muted-foreground">Fuobe writes down what was said, line by line, so you can change it like text. {openFree("Free on your GPU.")}</p>
+              <p className="min-w-0 flex-1 text-[13px] text-muted-foreground">Fuobe writes down what was said, line by line, so you can change it like text. {openFree(`${tr("studio.finish.freeOnYourGpu")}.`)}</p>
               <Button className="rounded-full" onClick={transcribe} disabled={!ready || transcribing}>
                 {transcribing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Transcribe
               </Button>
@@ -511,7 +513,7 @@ export function SpeechEditTool({ setup }: { setup?: OwnSetup | null } = {}) {
                   error
                 ) : p ? (
                   <>
-                    <span className="font-mono text-foreground">{p.demo ? "Demo · free" : "Free · runs on your GPU"}</span>
+                    <span className="font-mono text-foreground">{p.demo ? tr("studio.price.demoFree") : tr("studio.price.freeRunsGpu")}</span>
                     {view === "words" ? ` · ${changes} line${changes === 1 ? "" : "s"} changed` : ""}
                   </>
                 ) : (

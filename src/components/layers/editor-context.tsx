@@ -145,7 +145,7 @@ export function costLabel(m: LayerModelInfo | undefined, demo: boolean, usd?: nu
   if (m.engine === "open") return tr("studio.composer.freeYourGpu");
   const p = m.pricing && pricingAt(m.pricing);
   const v = usd !== undefined ? usd : p && ["image", "request", "megapixel"].includes(p.unit) ? p.usd : null;
-  return v == null ? "Price unknown" : v === 0 ? "Free" : `≈ ${formatCost(v)}`;
+  return v == null ? tr("studio.price.unknown") : v === 0 ? tr("studio.engine.freeShort") : `≈ ${formatCost(v)}`;
 }
 
 /** The tool's models on an engine, as the page described them. */

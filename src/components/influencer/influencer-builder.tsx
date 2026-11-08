@@ -100,10 +100,10 @@ function useSettled<T>(value: T, ms = 250): T {
 function RunInfo({ preview, loading, blocker }: { preview?: RunPreview & { steps?: number }; loading: boolean; blocker: string | null }) {
   const { t: tr } = useI18n();
   if (blocker) return <p className="text-[12.5px] text-destructive">{blocker}</p>;
-  if (!preview) return <p className="h-5 text-[12.5px] text-muted-foreground">{loading ? "Pricing…" : ""}</p>;
+  if (!preview) return <p className="h-5 text-[12.5px] text-muted-foreground">{loading ? tr("assist.composer.schedulePricing") : ""}</p>;
   if (preview.error) return <p className="text-[12.5px] text-destructive">{preview.error}</p>;
   // On this studio's GPUs: the service's price and the place in line ("Free · your GPU" is for the person's own GPU).
-  const cost = toolPoolPrice(preview)?.text ?? (preview.demo ? tr("faceless.controls.placeholderFree") : preview.costUsd === 0 ? tr("studio.composer.freeYourGpu") : preview.costUsd == null ? "price unknown" : `≈ $${preview.costUsd.toFixed(2)}`);
+  const cost = toolPoolPrice(preview)?.text ?? (preview.demo ? tr("faceless.controls.placeholderFree") : preview.costUsd === 0 ? tr("studio.composer.freeYourGpu") : preview.costUsd == null ? tr("studio.price.unknownLower") : `≈ $${preview.costUsd.toFixed(2)}`);
   return (
     <div className="space-y-0.5 text-[12.5px] text-muted-foreground" aria-live="polite">
       <p>

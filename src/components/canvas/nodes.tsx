@@ -766,7 +766,7 @@ function costLabel(isDemo: (m: ModelDef) => boolean, model: ModelDef | undefined
   if (!model) return "";
   if (isDemo(model)) return tr("faceless.controls.placeholderFree");
   if (model.engine === "open") return tr("studio.composer.freeYourGpu");
-  return cost == null ? "Price unknown" : cost === 0 ? "Free" : `≈ ${formatCost(cost)}`;
+  return cost == null ? tr("studio.price.unknown") : cost === 0 ? tr("studio.engine.freeShort") : `≈ ${formatCost(cost)}`;
 }
 
 const GeneratorNode = memo(function GeneratorNode({ id, type: flowType, data, selected }: NodeProps<FlowNode>) {
@@ -1025,6 +1025,7 @@ const DUB_STAGE: Record<DubStage, string> = {
 
 function OpenDub({ id, data }: { id: string; data: CanvasNodeData }) {
   const actions = useEditorActions();
+  const { t: tr } = useI18n();
   const video = useEditorSelector(selectVideoIn, id);
   const lang = data.params?.targetLanguage && OPEN_DUB_LANGUAGES.some((l) => l.code === data.params?.targetLanguage) ? data.params.targetLanguage : undefined;
   const [busy, setBusy] = useState(false);
@@ -1073,7 +1074,7 @@ function OpenDub({ id, data }: { id: string; data: CanvasNodeData }) {
             {stage === "review" ? "Check the translation" : "Open the dub"}
           </Link>
         ) : (
-          <button className={chip} onClick={() => void start()} disabled={!video || !lang || busy} title={!video ? "Connect a video (an upload, or a finished clip)" : !lang ? "Pick the language to dub into" : "Free on your GPU"}>
+          <button className={chip} onClick={() => void start()} disabled={!video || !lang || busy} title={!video ? "Connect a video (an upload, or a finished clip)" : !lang ? "Pick the language to dub into" : tr("studio.finish.freeOnYourGpu")}>
             {busy ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />} Start in Translate &amp; dub
           </button>
         )}

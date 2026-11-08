@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { nanoid } from "nanoid";
 import { useEffect, useState } from "react";
+import { t as storeT, type Params } from "@/lib/i18n";
 import { toast } from "sonner";
 import { COMPUTER_KICK_EVENT, useCreateGeneration, useIsOwner } from "@/lib/api";
 import type { Generation, GenerationRequest } from "@/lib/catalog/types";
@@ -87,11 +88,11 @@ export function useRunPreview(req: GenerationRequest | null) {
 }
 
 /** "≈ $0.38", "Free on your GPU", "Placeholder · nothing is charged" (null: not known yet). */
-export function priceLine(p: RunPreview | undefined): string | null {
+export function priceLine(p: RunPreview | undefined, tr: (key: string, params?: Params) => string = storeT): string | null {
   if (!p) return null;
-  if (p.demo) return "Placeholder · nothing is charged";
-  if (p.engine === "open" || p.costUsd === 0) return "Free";
-  if (p.costUsd === null) return "Billed by your provider";
-  const usd = p.costUsd < 0.01 ? "<$0.01" : `$${p.costUsd < 1 ? p.costUsd.toFixed(3).replace(/0$/, "") : p.costUsd.toFixed(2)}`;
+  if (p.demo) return tr("studio.price.placeholderNoCharge");
+  if (p.engine === "open" || p.costUsd === 0) return tr("studio.engine.freeShort");
+  if (p.costUsd === null) return tr("studio.price.billedByProvider");
+  const usd = p.costUsd < 0.01 ? tr("studio.price.lt001NoSpace") : `$${p.costUsd < 1 ? p.costUsd.toFixed(3).replace(/0$/, "") : p.costUsd.toFixed(2)}`;
   return `≈ ${usd}, paid to ${p.providerId === "replicate" ? "Replicate" : "fal.ai"}`;
 }
