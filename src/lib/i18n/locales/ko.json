@@ -3611,5 +3611,9 @@
   "marketing.recreateTemplate": "템플릿 재생성",
   "marketing.generate": "생성",
   "kinetic.job.saving": "저장 중…",
-  "kinetic.job.rendering": "렌더링 {done}/{total}"
+  "kinetic.job.rendering": "렌더링 {done}/{total}",
+  "menu.line.new_board": "새 보드",
+  "menu.line.your_recent_boards": "최근 보드",
+  "menu.line.all_your_boards": "모든 보드",
+  "menu.line.assist_s_skills_drawn_as_boards": "어시스트의 스킬을 보드로"
 }
