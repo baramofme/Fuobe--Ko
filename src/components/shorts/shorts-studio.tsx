@@ -12,6 +12,7 @@ import { OldFootageOffer } from "@/components/restore/old-footage";
 import { EngineSwitch } from "@/components/studio/engine-switch";
 import { VideoTrimmer } from "@/components/studio/video-trimmer";
 import { useAskBeforeUpload, useEngine, useModelAccess } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import {
   clipShapeProblem,
   coveredFirst,
@@ -320,6 +321,7 @@ function SetupPanel({
   setRange: (r: TrimRange | null) => void;
 }) {
   const router = useRouter();
+  const { t: tr } = useI18n();
   const { clip } = source;
   const [ratio, setRatio] = useState<ShortsRatio>("9:16");
   const [language, setLanguage] = useState("auto");
@@ -537,7 +539,7 @@ function SetupPanel({
           <span className="text-[13px] text-muted-foreground">{est ? `${est.segments} segment${est.segments === 1 ? "" : "s"} · ${est.seconds} s` : "Estimate"}</span>
           <span className="flex items-center gap-1.5 font-mono text-[13px] font-medium tabular-nums" aria-live="polite">
             {estimate.isFetching && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
-            {estimateBody ? costText(est, engine) : "—"}
+            {estimateBody ? costText(est, engine, tr) : "—"}
           </span>
         </div>
         {est && !est.demo && engine === "cloud" && <p className="text-[12px] text-muted-foreground">You&apos;re only charged for the actual length.</p>}
