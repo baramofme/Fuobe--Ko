@@ -111,19 +111,42 @@ delete KO.aboutTitle;
 // Setup lines (Ollama · LM Studio · Unsloth · other server): fragments joined by mono commands.
 // A part starting with "=" is a rendered literal — the r1 leak (orphan brackets) hid here, so gate it directly.
 const SETUPS = [
-  { urlId: "ollamaUrl", titleKey: "settings.form.llm.serverOllama", parts: ["settings.form.llm.setupOllamaPre", "=ollama pull qwen3:8b", "settings.form.llm.setupOllamaPost"] },
-  { urlId: "lmstudioUrl", titleKey: "settings.form.llm.serverLmStudio", parts: ["settings.form.llm.setupLmsPre", "=lms server start", "settings.form.llm.setupLmsMid", "=lms get qwen/qwen3-8b", "settings.form.llm.setupLmsPost"] },
-  { urlId: "unslothUrl", titleKey: "settings.form.llm.serverUnsloth", parts: ["settings.form.llm.setupUnsloth"] },
-  { urlId: "llmUrl", titleKey: "settings.form.llm.serverOther", parts: ["settings.form.llm.setupCustomPre", "=/v1", "settings.form.llm.setupCustomPost"] },
+  { kind: "ollama", titleKey: "settings.form.llm.serverOllama", parts: ["settings.form.llm.setupOllamaPre", "=ollama pull qwen3:8b", "settings.form.llm.setupOllamaPost"] },
+  { kind: "lmstudio", titleKey: "settings.form.llm.serverLmStudio", parts: ["settings.form.llm.setupLmsPre", "=lms server start", "settings.form.llm.setupLmsMid", "=lms get qwen/qwen3-8b", "settings.form.llm.setupLmsPost"] },
+  { kind: "unsloth", titleKey: "settings.form.llm.serverUnsloth", parts: ["settings.form.llm.setupUnsloth"] },
+  { kind: "custom", titleKey: "settings.form.llm.serverOther", parts: ["settings.form.llm.setupCustomPre", "=/v1", "settings.form.llm.setupCustomPost"] },
 ];
 const asm = (loc, parts) => parts.map((p) => (p.startsWith("=") ? p.slice(1) : loc[p])).join("");
-// The setup paragraph: the second <p> of the editing block, pinned by the picked server's url field.
-const setupLine = (urlId) => page.locator(`xpath=//div[@id="${urlId}"]/ancestor::div[contains(@class, "border-t")]/p[2]`);
+// The setup paragraph in page terms: the second <p> of the block under the "Local model server" label.
+// (ConnectField renders no id here — inputId comes from useId() — so anchor by label structure instead.)
+const readSetupLine = () => {
+  const label = document.getElementById("local-llm-label");
+  if (!label) return null;
+  const block = label.parentElement && label.parentElement.parentElement;
+  const bt = block && [...block.children].find((c) => c.classList.contains("border-t"));
+  if (!bt) return null;
+  const ps = [...bt.children].filter((c) => c.tagName === "P");
+  return ps.length > 1 ? ps[1].textContent : null;
+};
 const showSetup = async (loc, s) => {
   await page.getByRole("radio", { name: loc[s.titleKey], exact: true }).first().click();
-  const line = setupLine(s.urlId);
-  await line.waitFor({ state: "visible", timeout: 15_000 });
-  return line.evaluate((el) => el.textContent);
+  const want = asm(loc, s.parts);
+  await page
+    .waitForFunction(
+      ([want]) => {
+        const label = document.getElementById("local-llm-label");
+        if (!label) return false;
+        const block = label.parentElement && label.parentElement.parentElement;
+        const bt = block && [...block.children].find((c) => c.classList.contains("border-t"));
+        if (!bt) return false;
+        const ps = [...bt.children].filter((c) => c.tagName === "P");
+        return ps.length > 1 && ps[1].textContent === want;
+      },
+      [want],
+      { timeout: 20_000 },
+    )
+    .catch(() => {}); // a miss reports the text the block actually shows, instead of crashing the gate
+  return page.evaluate(readSetupLine);
 };
 
 const problems = [];
@@ -240,7 +263,7 @@ initialProviderName = await page.evaluate(() => {
 if (initialProviderName) console.log(`  (the setup checks pin each server, then restore "${initialProviderName}")`);
 for (const s of SETUPS) {
   const txt = await showSetup(ENJ, s);
-  check(`${s.urlId}'s setup line reads its English assembly byte for byte`, txt === asm(ENJ, s.parts), `rendered ${JSON.stringify(txt)} vs ${JSON.stringify(asm(ENJ, s.parts))}`);
+  check(`${s.kind} setup line reads its English assembly byte for byte`, txt === asm(ENJ, s.parts), `rendered ${JSON.stringify(txt)} vs ${JSON.stringify(asm(ENJ, s.parts))}`);
 }
 if (initialProviderName) await page.getByRole("radio", { name: initialProviderName, exact: true }).first().click().catch(() => {});
 
@@ -308,8 +331,8 @@ console.log("- /settings: 한국어 in ONE render (no reload)");
   for (const s of SETUPS) {
     const txt = await showSetup(KOJ, s);
     const want = asm(KOJ, s.parts);
-    check(`${s.urlId}'s setup line is the Korean assembly`, txt === want, `rendered ${JSON.stringify(txt)} vs ${JSON.stringify(want)}`);
-    check(`no English assembly remains in ${s.urlId}'s setup line`, txt !== asm(ENJ, s.parts), "");
+    check(`${s.kind} setup line is the Korean assembly`, txt === want, `rendered ${JSON.stringify(txt)} vs ${JSON.stringify(want)}`);
+    check(`no English assembly remains in the ${s.kind} setup line`, txt !== asm(ENJ, s.parts), "");
   }
   if (initialProviderName) {
     const key = Object.keys(ENJ).find((k) => k.startsWith("settings.form.llm.server") && ENJ[k] === initialProviderName);
