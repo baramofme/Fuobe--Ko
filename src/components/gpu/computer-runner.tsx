@@ -7,9 +7,8 @@ import { toast } from "sonner";
 import { useViewer } from "@/lib/api";
 import type { Generation } from "@/lib/catalog/types";
 import { shortGpu } from "@/lib/gpu/readiness";
-import { RELAY_WORDS } from "@/lib/relay";
 import { cn } from "@/lib/utils";
-import { translateOr } from "@/lib/i18n/store";
+import { t, translateOr } from "@/lib/i18n/store";
 import { useI18n } from "@/lib/i18n/use-i18n";
 import { computerState, jobFor, RESTART_EVENT, startComputerRunner, store, stored, subscribeComputer, takeOverHere, type ComputerState, type RunnerStart } from "./computer-runtime";
 import { openFinder } from "./open-connect";
@@ -103,7 +102,7 @@ function useFinishedJobs(s: ComputerState) {
           void qc.invalidateQueries({ queryKey: ["library"] });
           if (g.status === "succeeded" && !stored("firstRun")) {
             store("firstRun", "1");
-            toast.success(`Made on your ${gpu || "GPU"} in ${secs} s.`);
+            toast.success(t("settings.gpu.thisComputer.madeOn", { gpu: gpu || "GPU", secs }));
           }
           return;
         }
@@ -171,18 +170,18 @@ type Note = { text: string; action?: string; go?: () => void; problem: boolean }
 function noteOf(s: ComputerState): Note | null {
   const v = s.view;
   // This tab's sign-in ended: runs can't go on here until the person logs in again.
-  if (s.holder === "this" && v?.stopped === "signed-out") return { text: "You're signed out on this computer. Log in to keep running your runs here.", action: "Log in", go: () => window.location.assign(new URL("/login", window.location.origin).href), problem: true };
+  if (s.holder === "this" && v?.stopped === "signed-out") return { text: "settings.gpu.thisComputer.signedOut", action: "settings.gpu.connectChoice.login", go: () => window.location.assign(new URL("/login", window.location.origin).href), problem: true };
   if (s.holder !== "this" || !v || v.stopped) return null;
   const working = v.jobs.some((j) => j.phase !== "done" && j.phase !== "failed");
   const wanted = working || v.waiting > 0;
   if (!wanted) return null;
   // Another computer runs the jobs: this one's ComfyUI is no news.
-  if (v.heldElsewhere) return v.comfy === "ok" && !v.access && v.waiting > 0 ? { text: "Fuobe on another computer is running your ComfyUI runs.", action: "Run them here instead", go: takeOverHere, problem: true } : null;
-  if (v.access === "ask") return { text: "Your runs are waiting for your ComfyUI. Run them from this browser?", action: "Connect", go: () => openFinder("browser"), problem: true };
-  if (v.access === "blocked") return { text: "Your browser is blocking Fuobe from reaching ComfyUI on this computer.", action: "Show me how", go: () => openFinder("browser"), problem: true };
-  if (v.comfy === "no-setting") return { text: "ComfyUI is running without Fuobe's setting.", action: "Show me how", go: () => openFinder("setting"), problem: true };
-  if (v.comfy === "down") return { text: RELAY_WORDS.comfyDown, action: "settings.gpu.connectChoice.findComfyAction", go: () => openFinder("find"), problem: true };
-  return working ? { text: "Your GPU is working. Keep this tab open.", problem: false } : null;
+  if (v.heldElsewhere) return v.comfy === "ok" && !v.access && v.waiting > 0 ? { text: "settings.gpu.thisComputer.heldElsewhere", action: "settings.gpu.thisComputer.actionRunHere", go: takeOverHere, problem: true } : null;
+  if (v.access === "ask") return { text: "settings.gpu.thisComputer.accessAsk", action: "settings.gpu.connectChoice.connectAction", go: () => openFinder("browser"), problem: true };
+  if (v.access === "blocked") return { text: "settings.gpu.thisComputer.accessBlocked", action: "settings.gpu.connectChoice.showHowAction", go: () => openFinder("browser"), problem: true };
+  if (v.comfy === "no-setting") return { text: "settings.gpu.thisComputer.noSetting", action: "settings.gpu.connectChoice.showHowAction", go: () => openFinder("setting"), problem: true };
+  if (v.comfy === "down") return { text: "settings.gpu.thisComputer.relayComfyDown", action: "settings.gpu.connectChoice.findComfyAction", go: () => openFinder("find"), problem: true };
+  return working ? { text: "settings.gpu.thisComputer.gpuWorking", problem: false } : null;
 }
 
 /** The note's icon: a warning when the person has something to do, else the GPU with a beat while it works. */
@@ -209,7 +208,7 @@ export function ComputerNote() {
     <div role="status" className={cn("flex gap-2 rounded-md border px-2 py-1.5 text-[12px]", note.problem ? "border-amber-500/50" : "border-transparent bg-brand-faint")}>
       <NoteIcon problem={note.problem} />
       <div className="min-w-0 flex-1">
-        <p className="leading-snug">{note.text}</p>
+        <p className="leading-snug">{translateOr(lang, note.text, note.text)}</p>
         {note.action && (
           <button type="button" onClick={note.go} className="mt-0.5 font-medium text-brand-text underline-offset-4 hover:underline">
             {translateOr(lang, note.action, note.action)}
@@ -227,15 +226,17 @@ export function ComputerNote() {
  * the button, so the note isn't in the button's name twice.
  */
 export function ComputerPillFace() {
+  const { t, lang } = useI18n();
   const note = noteOf(useComputerState());
-  const words = note?.problem ? "Needs you" : "Your computer";
+  const wordsKey = note?.problem ? "settings.gpu.thisComputer.needsYou" : "settings.gpu.connectChoice.yourComputer";
   return (
     <>
       {note ? <NoteIcon problem={note.problem} /> : <Cpu aria-hidden className="size-4 text-brand-text" />}
-      <span className={cn("hidden xl:inline", note?.problem && "text-amber-700 dark:text-amber-300")}>{words}</span>
-      <span className="sr-only xl:hidden">{words}</span>
+      <span className={cn("hidden xl:inline", note?.problem && "text-amber-700 dark:text-amber-300")}>{t(wordsKey)}</span>
+      <span className="sr-only xl:hidden">{t(wordsKey)}</span>
       <span className="sr-only">
-        , your computer&apos;s GPU{note ? `. ${note.text}` : ""}
+        {t("settings.gpu.thisComputer.ariaGpu")}
+        {note ? `. ${translateOr(lang, note.text, note.text)}` : ""}
       </span>
     </>
   );
@@ -243,10 +244,11 @@ export function ComputerPillFace() {
 
 /** Says the computer note politely when it changes (beside the pill, outside its button). */
 export function ComputerNoteLive() {
+  const { lang } = useI18n();
   const note = noteOf(useComputerState());
   return (
     <span role="status" data-computer-note className="sr-only">
-      {note?.text ?? ""}
+      {note ? translateOr(lang, note.text, note.text) : ""}
     </span>
   );
 }

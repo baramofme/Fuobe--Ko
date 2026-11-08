@@ -18,7 +18,7 @@ import { formatBytes } from "@/lib/gpu/requirements";
 import type { FixPlan, FixStep, Need, WhyCode } from "@/lib/gpu/types";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/use-i18n";
-import { t as tr } from "@/lib/i18n/store";
+import { translateOr } from "@/lib/i18n/store";
 
 /**
  * The guided fix (UX §7): a tool's plan where the user is stuck — on Generate, on a chip, on a board row, on a
@@ -35,47 +35,62 @@ const WHY: Partial<Record<WhyCode, string>> = {
   "manual-only": "settings.gpu.guidedFix.manualOnly",
 };
 
-const VERB: Record<string, string> = { image: "draw", video: "animate", audio: "speak", text: "listen", model3d: "build" };
+const VERB_KEY: Record<string, string> = { image: "settings.gpu.guidedFix.verbDraw", video: "settings.gpu.guidedFix.verbAnimate", audio: "settings.gpu.guidedFix.verbSpeak", text: "settings.gpu.guidedFix.verbListen", model3d: "settings.gpu.guidedFix.verbBuild" };
 
 function itemLine(n: Need): string {
-  if (n.kind === "model-replace") return "to download again";
-  if (DOWNLOAD_KINDS.has(n.kind)) return "to download";
-  if (n.kind === "pack-install") return "to install";
-  if (n.kind === "pack-update") return "to update";
-  if (n.kind === "pack-repair") return "to repair";
-  if (n.kind === "comfy-update") return "to update";
-  return "to do";
+  if (n.kind === "model-replace") return "settings.gpu.guidedFix.itemDownloadAgain";
+  if (DOWNLOAD_KINDS.has(n.kind)) return "settings.gpu.guidedFix.itemDownload";
+  if (n.kind === "pack-install") return "settings.gpu.guidedFix.itemInstall";
+  if (n.kind === "pack-update") return "settings.gpu.guidedFix.itemUpdate";
+  if (n.kind === "pack-repair") return "settings.gpu.guidedFix.itemRepair";
+  if (n.kind === "comfy-update") return "settings.gpu.guidedFix.itemUpdate";
+  return "settings.gpu.guidedFix.itemDo";
 }
 
-function intro(plan: FixPlan, kind?: string): string {
+function intro(plan: FixPlan, kind: string | undefined, t: (key: string, params?: Record<string, string | number>) => string): React.ReactNode {
   // A known problem of this ComfyUI on this system says what stops, and why, in its own words.
   const known = plan.steps.find((s) => s.problem);
   if (known) return known.detail;
   const downloads = plan.steps.filter((s) => DOWNLOAD_KINDS.has(s.kind));
   const packs = plan.steps.filter((s) => s.kind.startsWith("pack-"));
-  if (plan.steps.some((s) => s.kind === "comfy-update")) return tr("settings.gpu.guidedFix.comfyUpdateOlder");
-  if (plan.steps.some((s) => s.kind === "core-missing")) return "Some of ComfyUI's built-in nodes didn't load on your machine. The ComfyUI window says why.";
-  if (downloads.length && !packs.length) return `The model has to be on your computer before Fuobe can ${VERB[kind ?? ""] ?? "make things"} with it. You only download it once.`;
-  if (packs.length && !downloads.length) return `${plan.name} uses a free ComfyUI add-on. You only add it once.`;
-  return "Here's what it needs on your ComfyUI. You only do this once.";
+  if (plan.steps.some((s) => s.kind === "comfy-update")) return t("settings.gpu.guidedFix.comfyUpdateOlder");
+  if (plan.steps.some((s) => s.kind === "core-missing")) return t("settings.gpu.guidedFix.introCoreMissing");
+  if (downloads.length && !packs.length)
+    return (
+      <>
+        {t("settings.gpu.guidedFix.introModelPre")}
+        {kind && VERB_KEY[kind] ? t(VERB_KEY[kind]) : t("settings.gpu.guidedFix.verbMakeThings")}
+        {t("settings.gpu.guidedFix.introModelPost")}
+      </>
+    );
+  if (packs.length && !downloads.length)
+    return (
+      <>
+        {plan.name}
+        {t("settings.gpu.guidedFix.introPackPre")}
+      </>
+    );
+  return t("settings.gpu.guidedFix.introGeneric");
 }
 
 function StepRow({ n, done }: { n: Need; done?: boolean }) {
+  const { t } = useI18n();
   return (
     <li className="flex items-start gap-2.5 py-1.5 text-[13px]">
       {done ? <CheckCircle2 aria-hidden className="mt-0.5 size-4 shrink-0 text-success" /> : <Circle aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
       <span className="min-w-0 flex-1">{n.label}</span>
       {n.sizeBytes ? <span className="shrink-0 tabular-nums text-muted-foreground">{formatBytes(n.sizeBytes)}</span> : null}
-      <span className="w-28 shrink-0 text-right text-[12px] text-muted-foreground">{done ? "already there" : itemLine(n)}</span>
+      <span className="w-28 shrink-0 text-right text-[12px] text-muted-foreground">{done ? t("settings.gpu.guidedFix.alreadyThere") : t(itemLine(n))}</span>
     </li>
   );
 }
 
 function Details({ steps }: { steps: FixStep[] }) {
+  const { t } = useI18n();
   return (
     <Collapsible>
       <CollapsibleTrigger className="group flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground">
-        <ChevronRight aria-hidden className="size-3.5 transition-transform group-data-[state=open]:rotate-90" /> Details (file names, folders, sources)
+        <ChevronRight aria-hidden className="size-3.5 transition-transform group-data-[state=open]:rotate-90" /> {t("settings.gpu.guidedFix.details")}
       </CollapsibleTrigger>
       <CollapsibleContent>
         <ul className="mt-2 space-y-2 text-[12px] text-muted-foreground">
@@ -86,7 +101,7 @@ function Details({ steps }: { steps: FixStep[] }) {
                 <>
                   {" "}
                   <a href={s.link} target="_blank" rel="noreferrer" className="text-brand-text underline underline-offset-2">
-                    Open its page
+                    {t("settings.gpu.guidedFix.openPage")}
                   </a>
                 </>
               )}
@@ -103,9 +118,10 @@ function Details({ steps }: { steps: FixStep[] }) {
 /** The studio's cloud engine (the owner's only: accounts never run on the studio's keys, so plans never offer it to them). */
 function UseCloud({ close, variant }: { close: () => void; variant?: "secondary" }) {
   const [, setEngine] = useEngine();
+  const { t } = useI18n();
   return (
     <Button variant={variant} className="h-11 sm:h-9" onClick={() => (setEngine("cloud"), close())}>
-      Use the cloud version
+      {t("settings.gpu.guidedFix.useCloud")}
     </Button>
   );
 }
@@ -128,7 +144,7 @@ function PlanState({ plan, kind, actions, checking, onCheck, checkError }: { pla
   const [lo, hi] = plan.etaMin;
   return (
     <div className="space-y-4">
-      <p className="text-[13px] text-muted-foreground">{intro(plan, kind)}</p>
+      <p className="text-[13px] text-muted-foreground">{intro(plan, kind, t)}</p>
       {fixes.length > 0 && (
         <ol className="space-y-2 rounded-lg border px-3 py-2.5 text-[13px]">
           {fixes.map((f, i) => (
@@ -152,28 +168,36 @@ function PlanState({ plan, kind, actions, checking, onCheck, checkError }: { pla
       )}
       {plan.downloadBytes > 0 && (
         <p className="text-[13px]">
-          {formatBytes(plan.downloadBytes)} from Hugging Face · about {lo === hi ? lo : `${lo}–${hi}`} min on fast internet.{" "}
-          <span className="text-muted-foreground">Make sure you have {formatBytes(plan.downloadBytes)} free. It stays on your computer.</span>
+          {t("settings.gpu.guidedFix.hfSizePre", { bytes: formatBytes(plan.downloadBytes) })}
+          {lo === hi ? lo : `${lo}–${hi}`}
+          {t("settings.gpu.guidedFix.hfSizeMid")}{" "}
+          <span className="text-muted-foreground">{t("settings.gpu.guidedFix.hfFreeSpace", { bytes: formatBytes(plan.downloadBytes) })}</span>
         </p>
       )}
-      {plan.restart && <p className="text-[13px] text-muted-foreground">ComfyUI loads new add-ons when it starts, so restart it once they&apos;re in. It doesn&apos;t touch your files.</p>}
-      {plan.firstRun.length > 0 && <p className="text-[13px] text-muted-foreground">The first run also downloads a small model by itself, so it takes a minute longer.</p>}
-      {plan.unobservable.length > 0 && <p className="text-[13px] text-muted-foreground">Fuobe can&apos;t check {plan.unobservable.length === 1 ? "one file" : `${plan.unobservable.length} files`} this tool reads by itself.</p>}
+      {plan.restart && <p className="text-[13px] text-muted-foreground">{t("settings.gpu.guidedFix.restartNote")}</p>}
+      {plan.firstRun.length > 0 && <p className="text-[13px] text-muted-foreground">{t("settings.gpu.guidedFix.firstRunNote")}</p>}
+      {plan.unobservable.length > 0 && (
+        <p className="text-[13px] text-muted-foreground">
+          {t("settings.gpu.guidedFix.unobservablePre")}
+          {plan.unobservable.length === 1 ? t("settings.gpu.guidedFix.unobservableOne") : t("settings.gpu.guidedFix.unobservableMany", { count: plan.unobservable.length })}
+          {t("settings.gpu.guidedFix.unobservablePost")}
+        </p>
+      )}
       <Details steps={plan.steps} />
       <div className="space-y-2 border-t pt-4">
-        <h3 className="text-[14px] font-semibold">Let&apos;s do this one by hand</h3>
+        <h3 className="text-[14px] font-semibold">{t("settings.gpu.guidedFix.byHand")}</h3>
         <p className="text-[13px] text-muted-foreground">{t(why)}</p>
         <CommandTabs bash={plan.commands.bash} powershell={plan.commands.powershell} windowsFirst={plan.os ? plan.os === "nt" : undefined} />
       </div>
       {checkError && <p className="text-[12px] text-destructive">{checkError}</p>}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <Button onClick={onCheck} disabled={checking} className="h-11 sm:h-9">
-          {checking ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} I&apos;ve done it. Check again
+          {checking ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} {t("settings.gpu.guidedFix.doneCheck")}
         </Button>
         {plan.alternatives.cloud && <UseCloud close={actions.close} variant="secondary" />}
         {actions.skip && (
           <Button variant="ghost" className="h-11 text-muted-foreground sm:h-9" onClick={() => (actions.close(), actions.skip!())}>
-            Run anyway
+            {t("settings.gpu.guidedFix.runAnyway")}
           </Button>
         )}
       </div>
@@ -182,21 +206,24 @@ function PlanState({ plan, kind, actions, checking, onCheck, checkError }: { pla
 }
 
 function GpuState({ plan, actions }: { plan: FixPlan; actions: Actions }) {
+  const { t } = useI18n();
   const { needGb, haveGb, fit } = plan.vram;
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-muted-foreground">
-        {plan.name} uses about {needGb} GB of graphics memory.{" "}
-        {haveGb ? `Your ${plan.gpu ?? "graphics card"} has ${haveGb} GB.` : "Fuobe didn't find a graphics card it can use on your ComfyUI."}
+        {t("settings.gpu.guidedFix.gpuUsesPre", { name: plan.name })}
+        {needGb}
+        {t("settings.gpu.guidedFix.gpuUsesMid")}{" "}
+        {haveGb ? t("settings.gpu.guidedFix.gpuHasGpu", { gpu: plan.gpu ?? t("settings.gpu.guidedFix.graphicsCard"), have: haveGb }) : t("settings.gpu.guidedFix.gpuNotFound")}
       </p>
       {plan.alternatives.fits?.length ? (
         <div className="space-y-1">
-          <p className="text-[13px] font-medium">These fit your GPU:</p>
+          <p className="text-[13px] font-medium">{t("settings.gpu.guidedFix.fitsYourGpu")}</p>
           <ul className="text-[13px] text-muted-foreground">
             {plan.alternatives.fits.map((f) => (
               <li key={f.ref} className="flex items-center gap-2">
                 <CheckCircle2 aria-hidden className={cn("size-3.5", f.state === "ready" ? "text-success" : "text-warning")} />
-                {f.name} · {f.state === "ready" ? "Ready" : "One step away"}
+                {f.name} · {f.state === "ready" ? t("settings.gpu.connectChoice.readyWord") : t("settings.gpu.guidedFix.oneStepAway")}
               </li>
             ))}
           </ul>
@@ -206,26 +233,27 @@ function GpuState({ plan, actions }: { plan: FixPlan; actions: Actions }) {
         {plan.alternatives.cloud && <UseCloud close={actions.close} />}
         {actions.skip && (
           <Button variant={plan.alternatives.cloud ? "ghost" : "secondary"} className="h-11 sm:h-9" onClick={() => (actions.close(), actions.skip!())}>
-            Try anyway
+            {t("settings.gpu.guidedFix.tryAnyway")}
           </Button>
         )}
         <Button variant="ghost" className="h-11 sm:h-9" onClick={actions.close}>
-          Close
+          {t("common.close")}
         </Button>
       </div>
-      {actions.skip && <p className="text-[12px] text-muted-foreground">{fit === "tight" ? "It may be slow: ComfyUI borrows ordinary memory." : "It may be very slow, or stop with “out of memory”."}</p>}
+      {actions.skip && <p className="text-[12px] text-muted-foreground">{fit === "tight" ? t("settings.gpu.guidedFix.fitTight") : t("settings.gpu.guidedFix.fitSlow")}</p>}
     </div>
   );
 }
 
-function titleOf(plan: FixPlan | undefined, name: string): { text: string; Icon: typeof Download } {
+function titleOf(plan: FixPlan | undefined, name: string): { text: string; Icon: typeof Download; params?: Record<string, string | number> } {
   if (!plan) return { text: name, Icon: Wrench };
-  if (plan.state === "ready") return { text: `${plan.name} is ready`, Icon: CheckCircle2 };
-  if (plan.state === "gpu") return { text: `${plan.name} needs a bigger graphics card`, Icon: Cpu };
-  if (plan.state === "unsupported" && plan.gpuNeed) return { text: `${plan.name} needs ${plan.gpuNeed === "nvidia-rtx-40" ? "an NVIDIA RTX 40 series card or newer" : "an NVIDIA RTX card"}`, Icon: Cpu };
-  if (plan.state === "unsupported") return { text: `${plan.name} needs a second ComfyUI`, Icon: Layers };
+  if (plan.state === "ready") return { text: "settings.gpu.guidedFix.titleReady", Icon: CheckCircle2, params: { name: plan.name } };
+  if (plan.state === "gpu") return { text: "settings.gpu.guidedFix.titleBiggerGpu", Icon: Cpu, params: { name: plan.name } };
+  if (plan.state === "unsupported" && plan.gpuNeed)
+    return { text: plan.gpuNeed === "nvidia-rtx-40" ? "settings.gpu.guidedFix.titleRtx40" : "settings.gpu.guidedFix.titleRtx", Icon: Cpu, params: { name: plan.name } };
+  if (plan.state === "unsupported") return { text: "settings.gpu.guidedFix.titleSecondComfy", Icon: Layers, params: { name: plan.name } };
   const n = plan.steps.filter((s) => s.kind !== "restart" && s.kind !== "hf-licence" && s.kind !== "civitai-key").length || 1;
-  return { text: n === 1 ? `${plan.name} needs one more thing` : `${plan.name} needs ${n} things`, Icon: Download };
+  return { text: n === 1 ? "settings.gpu.guidedFix.titleOneMore" : "settings.gpu.guidedFix.titleMany", Icon: Download, params: { name: plan.name, n } };
 }
 
 function Body({ detail, actions, titleRef }: { detail: GpuSetupDetail; actions: Actions; titleRef: React.RefObject<HTMLHeadingElement | null> }) {
@@ -236,7 +264,8 @@ function Body({ detail, actions, titleRef }: { detail: GpuSetupDetail; actions: 
   // A plan handed over with the event shows at once; the query refreshes it.
   const plan = q.data ?? (q.isFetching || !checked ? detail.plan : undefined);
   const mobile = useIsMobile();
-  const { text, Icon } = titleOf(plan, detail.name ?? plan?.name ?? "Set up this tool");
+  const { t, lang } = useI18n();
+  const { text, Icon, params } = titleOf(plan, detail.name ?? plan?.name ?? t("settings.gpu.guidedFix.setDefaultTool"));
   const recheck = async () => {
     await check.start();
     setChecked(true);
@@ -252,13 +281,13 @@ function Body({ detail, actions, titleRef }: { detail: GpuSetupDetail; actions: 
         </span>
         <div className="min-w-0">
           <T ref={titleRef} tabIndex={-1} className="font-sans text-[16px] font-semibold outline-none">
-            {text}
+            {translateOr(lang, text, text, params)}
           </T>
-          <D className="text-[12px] text-muted-foreground">{plan?.gpu ? `On your ${plan.gpu}` : "On your ComfyUI"}</D>
+          <D className="text-[12px] text-muted-foreground">{plan?.gpu ? t("settings.gpu.guidedFix.onGpu", { gpu: plan.gpu }) : t("settings.gpu.guidedFix.onComfy")}</D>
         </div>
       </div>
       <div aria-live="polite" className="sr-only">
-        {check.running ? "Checking your GPU" : plan ? text : ""}
+        {check.running ? t("settings.gpu.guidedFix.checkingGpu") : plan ? translateOr(lang, text, text, params) : ""}
       </div>
       {!plan && (q.isLoading || q.isFetching) && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
       {!plan && q.isError && (
@@ -266,27 +295,27 @@ function Body({ detail, actions, titleRef }: { detail: GpuSetupDetail; actions: 
           <p className="text-muted-foreground">{(q.error as Error).message}</p>
           <Button asChild className="h-11 sm:h-9">
             <Link href="/connect" onClick={actions.close}>
-              Check your GPU
+              {t("settings.gpu.guidedFix.checkGpuLink")}
             </Link>
           </Button>
         </div>
       )}
       {plan?.state === "ready" && (
         <div className="space-y-4">
-          <p className="animate-pop-in text-[13px] text-muted-foreground">{actions.retry ? "Your prompt is still here." : "Everything it needs is on your ComfyUI."}</p>
+          <p className="animate-pop-in text-[13px] text-muted-foreground">{actions.retry ? t("settings.gpu.guidedFix.promptStill") : t("settings.gpu.guidedFix.everythingThere")}</p>
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
             {actions.retry ? (
               <Button className="h-11 sm:h-9" onClick={() => (actions.close(), actions.retry!())}>
-                Try again
+                {t("settings.gpu.guidedFix.tryAgain")}
               </Button>
             ) : (
               <Button className="h-11 sm:h-9" onClick={actions.close}>
-                Done
+                {t("settings.gpu.guidedFix.doneBtn")}
               </Button>
             )}
             <Button asChild variant="ghost" className="h-11 sm:h-9">
               <Link href="/connect" onClick={actions.close}>
-                Back to the board
+                {t("settings.gpu.guidedFix.backToBoard")}
               </Link>
             </Button>
           </div>
@@ -296,12 +325,18 @@ function Body({ detail, actions, titleRef }: { detail: GpuSetupDetail; actions: 
       {plan?.state === "unsupported" && (
         <div className="space-y-3 text-[13px] text-muted-foreground">
           <p>
-            {plan.gpuNeed
-              ? `It runs on NVIDIA's RTX video engine, which only ${plan.gpuNeed === "nvidia-rtx-40" ? "RTX 40 series cards and newer" : "NVIDIA RTX cards"} have${plan.gpu ? `, and your ${plan.gpu} isn't one` : ""}. Pick another choice in this tool for this clip.`
-              : "This one needs its own ComfyUI, so it can't run next to your other add-ons."}
+            {plan.gpuNeed ? (
+              <>
+                {t(plan.gpuNeed === "nvidia-rtx-40" ? "settings.gpu.guidedFix.unsupportedRtx40" : "settings.gpu.guidedFix.unsupportedRtx")}
+                {plan.gpu ? t("settings.gpu.guidedFix.unsupportedAndYours", { gpu: plan.gpu }) : ""}
+                {t("settings.gpu.guidedFix.unsupportedPick")}
+              </>
+            ) : (
+              t("settings.gpu.guidedFix.unsupportedNeed")
+            )}
           </p>
           <Button variant="secondary" className="h-11 sm:h-9" onClick={actions.close}>
-            Close
+            {t("common.close")}
           </Button>
         </div>
       )}
@@ -310,9 +345,9 @@ function Body({ detail, actions, titleRef }: { detail: GpuSetupDetail; actions: 
       )}
       {plan?.state === "unknown" && (
         <div className="space-y-3 text-[13px] text-muted-foreground">
-          <p>Fuobe couldn&apos;t check your ComfyUI this time.</p>
+          <p>{t("settings.gpu.guidedFix.couldntCheck")}</p>
           <Button className="h-11 sm:h-9" disabled={check.running} onClick={() => void recheck()}>
-            {check.running && <Loader2 className="animate-spin" />} Check again
+            {check.running && <Loader2 className="animate-spin" />} {t("settings.gpu.yourGpu.checkAgainAction")}
           </Button>
         </div>
       )}
