@@ -482,17 +482,10 @@ K("settings.gpu.connectChoice.checkMyGpu",
 K("settings.gpu.connectChoice.checkedBoard",
   "Checked. The board below says what runs.",
   "확인 완료. 아래 보드에서 실행 가능한 항목을 확인하세요.")
-K("settings.gpu.connectChoice.showMeHow",
-  "Show me how",
-  "방법 보기")
-# showMeHow reuses existing showHowAction if same — but existing is "Show me how"/"방법 보기". Same → skip creation, use existing.
 
 # ──────────────────────────────────────────────────────────────────────
 # connect-gpu.tsx — this computer URL value
 # ──────────────────────────────────────────────────────────────────────
-K("settings.gpu.connectChoice.thisComputerValue",
-  "this computer",
-  "이 컴퓨터")
 
 # ──────────────────────────────────────────────────────────────────────
 # computer-runner.tsx — noteOf (data-path, ALL branches keyed)
@@ -521,18 +514,9 @@ K("settings.gpu.thisComputer.gpuWorking",
   "GPU가 작동 중입니다. 이 탭을 열어 두세요.")
 
 # action keys
-K("settings.gpu.thisComputer.actionLogin",
-  "Log in",
-  "로그인")
 K("settings.gpu.thisComputer.actionRunHere",
   "Run them here instead",
   "여기서 실행")
-K("settings.gpu.thisComputer.actionConnect",
-  "Connect",
-  "연결")
-K("settings.gpu.thisComputer.actionShowHow",
-  "Show me how",
-  "방법 보기")
 
 # ──────────────────────────────────────────────────────────────────────
 # computer-runner.tsx — pill words
@@ -540,9 +524,6 @@ K("settings.gpu.thisComputer.actionShowHow",
 K("settings.gpu.thisComputer.needsYou",
   "Needs you",
   "확인 필요")
-K("settings.gpu.thisComputer.pillYourComputer",
-  "Your computer",
-  "본인 컴퓨터")
 
 # ──────────────────────────────────────────────────────────────────────
 # computer-runner.tsx — toast
@@ -704,9 +685,6 @@ K("settings.gpu.guidedFix.oneStepAway",
 K("settings.gpu.guidedFix.tryAnyway",
   "Try anyway",
   "강제 실행")
-K("settings.gpu.guidedFix.close",
-  "Close",
-  "닫기")
 K("settings.gpu.guidedFix.fitTight",
   "It may be slow: ComfyUI borrows ordinary memory.",
   "느릴 수 있습니다: ComfyUI가 일반 메모리를 일시적으로 사용합니다.")
