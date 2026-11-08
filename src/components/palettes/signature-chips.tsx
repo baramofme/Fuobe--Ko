@@ -18,13 +18,26 @@ import { SwatchDot } from "./palette-card";
 /**
  * Hand-offs into the Image studio: /image?moodboard=<id> (or curated:<id>) and /image?palette=<id>
  * pick them once, as soon as the lists are known.
+ *
+ * The queries live in the stable parent (SignatureChips), so no useQuery hook runs inside this
+ * component's render phase — that eliminates the "Cannot update a component (Composer) while
+ * rendering a different component (UrlSignature)" warning caused by TanStack Query's
+ * useSyncExternalStore notifying subscribers synchronously during render.
  */
-function UrlSignature({ onChange }: { onChange: (update: (s: Signature | undefined) => Signature) => void }) {
+function UrlSignature({
+  onChange,
+  boards,
+  palettes,
+}: {
+  onChange: (update: (s: Signature | undefined) => Signature) => void;
+  /** Result of useMoodboards() from SignatureChips — passed in to avoid a useQuery call here. */
+  boards: ReturnType<typeof useMoodboards>;
+  /** Result of usePalettes() from SignatureChips — passed in to avoid a useQuery call here. */
+  palettes: ReturnType<typeof usePalettes>;
+}) {
   const sp = useSearchParams();
   const mb = sp.get("moodboard");
   const pal = sp.get("palette");
-  const boards = useMoodboards(!!mb);
-  const palettes = usePalettes(!!pal);
   const done = useRef({ mb: false, pal: false });
   useEffect(() => {
     if (mb && !done.current.mb && boards.data) {
@@ -65,10 +78,16 @@ export default function SignatureChips({
   const [boardOpen, setBoardOpen] = useState(false);
   const pal = value?.palette;
   const mb = value?.moodboard;
+  // Hoisted here so the query observers subscribe at this stable parent. UrlSignature receives the
+  // results via props; calling useQuery inside UrlSignature's render triggered a synchronous
+  // useSyncExternalStore notification, which React flagged as "setState on Composer during
+  // UrlSignature render".
+  const boards = useMoodboards();
+  const palettes = usePalettes();
   return (
     <>
       <Suspense fallback={null}>
-        <UrlSignature onChange={onChange} />
+        <UrlSignature onChange={onChange} boards={boards} palettes={palettes} />
       </Suspense>
       <ClearableChip active={!!pal} onClear={() => onChange((s) => ({ ...s, palette: undefined }))} clearLabel="Clear color signature">
         <ResponsivePanel
