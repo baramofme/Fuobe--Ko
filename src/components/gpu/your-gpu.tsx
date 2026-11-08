@@ -16,6 +16,7 @@ import { placeOf } from "@/lib/place-name";
 import { runsGoNowText, useSetRunOn } from "@/lib/run-on";
 import { responseError, toastError } from "@/lib/refusals";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 interface GpuState {
   /** A link, or the ComfyUI on this computer (connect-choice.tsx shows that one). */
@@ -58,9 +59,9 @@ export const chooseThisComputer = () => call<GpuState>("PUT", { mode: "computer"
 
 /** Why this browser can't use the ComfyUI on its computer, said where Use this computer would be. */
 export const USE_COMPUTER_ELSEWHERE: Record<Exclude<ReturnType<typeof useComputerSupport>, "ok">, string> = {
-  safari: "Use this computer works in Chrome, Edge or Firefox. Safari doesn't let a website reach programs on your Mac.",
-  phone: "Use this computer works in a browser on your computer, not on a phone or tablet.",
-  http: "Use this computer needs a secure page, and your browser marks this one as not secure.",
+  safari: "settings.gpu.yourGpu.useElsewhereSafari",
+  phone: "settings.gpu.yourGpu.useElsewherePhone",
+  http: "settings.gpu.yourGpu.useElsewhereHttp",
 };
 
 /**
@@ -68,10 +69,11 @@ export const USE_COMPUTER_ELSEWHERE: Record<Exclude<ReturnType<typeof useCompute
  * with a code.
  */
 export function LocalAddressWays({ support, onUseComputer }: { support: ReturnType<typeof useComputerSupport>; onUseComputer: () => void | Promise<unknown> }) {
+  const { t } = useI18n();
   return (
     <>
       <TroubleActions actions={diagnoseAddress("local").actions} handlers={support === "ok" ? { onUseComputer } : {}} />
-      {support !== "ok" && <p className="text-[12px] text-muted-foreground">{USE_COMPUTER_ELSEWHERE[support]}</p>}
+      {support !== "ok" && <p className="text-[12px] text-muted-foreground">{t(USE_COMPUTER_ELSEWHERE[support])}</p>}
     </>
   );
 }
@@ -96,6 +98,7 @@ interface Failed {
  * that (className, as ConnectChoice's).
  */
 export function YourGpu({ className, onLinked }: { className?: string; onLinked?: () => void } = {}) {
+  const { t } = useI18n();
   const qc = useQueryClient();
   const id = useId();
   const q = useQuery({ queryKey: ["account-gpu"], queryFn: () => call<GpuState>("GET") });
@@ -137,14 +140,14 @@ export function YourGpu({ className, onLinked }: { className?: string; onLinked?
       if (mode !== "test") {
         qc.setQueryData(["account-gpu"], { gpu: r.gpu });
         linked();
-        if (r.offline) toast(hosted ? "Your address is saved. Runs on Your GPU start as soon as it answers." : "Your address is saved. Your runs start as soon as your GPU answers.");
+        if (r.offline) toast(hosted ? t("settings.gpu.yourGpu.toastSavedHosted") : t("settings.gpu.yourGpu.toastSavedRuns"));
         // Hosted runs: runs stay on this studio's GPUs unless the person sends them here, with one press.
         else if (hosted && viewer?.runOn !== "gpu")
-          toast.success("Your GPU is connected.", {
-            description: "You can change this any time from Free ▾, next to the run button.",
-            action: { label: "Use it for my runs", onClick: () => setRunOn.mutate({ runOn: "gpu" }) },
+          toast.success(t("settings.gpu.yourGpu.toastConnected"), {
+            description: t("settings.gpu.yourGpu.toastConnectedDesc"),
+            action: { label: t("settings.gpu.yourGpu.toastUseItForRuns"), onClick: () => setRunOn.mutate({ runOn: "gpu" }) },
           });
-        else toast.success(hosted ? "Your GPU is connected." : "Your GPU is connected. Runs go to your ComfyUI now.");
+        else toast.success(hosted ? t("settings.gpu.yourGpu.toastConnected") : t("settings.gpu.yourGpu.toastConnectedRunsGo"));
         setUrl("");
         setToken("");
         onLinked?.();
@@ -199,7 +202,7 @@ export function YourGpu({ className, onLinked }: { className?: string; onLinked?
       await chooseThisComputer();
       void qc.invalidateQueries({ queryKey: ["account-gpu"] });
       linked();
-      toast.success("Your runs go to the ComfyUI on this computer now. Keep a Fuobe tab open here.");
+      toast.success(t("settings.gpu.yourGpu.toastUseComputer"));
       setUrl("");
     } catch (e) {
       toastError(e);
@@ -233,23 +236,23 @@ export function YourGpu({ className, onLinked }: { className?: string; onLinked?
       <p className="text-[13px] text-muted-foreground">
         {gpu
           ? hosted
-            ? "Runs on Your GPU reach your ComfyUI through this web address."
-            : "Your runs go to your ComfyUI through this web address."
-          : "Your runs reach your ComfyUI through a web address. Here's how to give it one:"}
+            ? t("settings.gpu.yourGpu.introHosted")
+            : t("settings.gpu.yourGpu.introRunsGo")
+          : t("settings.gpu.yourGpu.introGiveAddress")}
       </p>
       {gpu ? (
         <div className={cn("space-y-2 rounded-xl px-3 py-2.5 text-[13px]", offline ? "border border-dashed" : "bg-brand-faint")}>
           <div className="flex items-start gap-2.5">
             <Cpu className={cn("mt-0.5 size-4 shrink-0", offline ? "text-muted-foreground" : "text-brand-text")} />
             <div className="min-w-0 flex-1">
-              <p className="font-medium">{offline ? "Offline: your GPU isn't answering right now" : "Connected"}</p>
+              <p className="font-medium">{offline ? t("settings.gpu.yourGpu.offlineStatus") : t("settings.gpu.yourGpu.connectedStatus")}</p>
               <p className="truncate font-mono text-[12px] text-muted-foreground">
                 {gpu.url}
-                {gpu.hasToken ? " · with a token" : ""}
+                {gpu.hasToken ? t("settings.gpu.yourGpu.withToken") : ""}
               </p>
             </div>
             <Button size="sm" variant="ghost" className="-my-1 h-7" onClick={() => void remove()} disabled={busy !== null}>
-              {busy === "remove" ? <Loader2 className="animate-spin" /> : <Unplug />} Disconnect
+              {busy === "remove" ? <Loader2 className="animate-spin" /> : <Unplug />} {t("settings.gpu.connectChoice.disconnect")}
             </Button>
           </div>
           {offline && (
@@ -259,7 +262,7 @@ export function YourGpu({ className, onLinked }: { className?: string; onLinked?
               <TroubleActions
                 actions={[
                   // Check now first, then what the check said helps (Start your pod…), without the address fields' own.
-                  { kind: "check-gpu", label: "Check now" },
+                  { kind: "check-gpu", label: t("settings.gpu.yourGpu.checkNowAction") },
                   ...(live.trouble?.actions ?? []).filter((a) => a.kind !== "check-gpu" && a.kind !== "gpu-settings"),
                 ]}
               />
@@ -272,7 +275,7 @@ export function YourGpu({ className, onLinked }: { className?: string; onLinked?
       <div className="space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-url`} className="text-[13px]">
-            {gpu ? "Connect another address" : "Your ComfyUI's web address"}
+            {gpu ? t("settings.gpu.yourGpu.connectAnotherLabel") : t("settings.gpu.yourGpu.webAddressLabel")}
           </Label>
           <Input
             id={`${id}-url`}
@@ -287,7 +290,7 @@ export function YourGpu({ className, onLinked }: { className?: string; onLinked?
           />
           {local && (
             <div className="space-y-1.5">
-              <p className="text-[12px] text-destructive">That address only works on your own computer or network. Paste the one cloudflared shows, ending in trycloudflare.com.</p>
+              <p className="text-[12px] text-destructive">{t("settings.gpu.yourGpu.localAddressWarning")}</p>
               {/* Or the ways that need no web address: the ComfyUI on this computer (where this browser can reach it), or a code. */}
               <LocalAddressWays support={support} onUseComputer={useComputer} />
             </div>
@@ -296,11 +299,11 @@ export function YourGpu({ className, onLinked }: { className?: string; onLinked?
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-token`} className="text-[13px]">
-            Access token <span className="text-muted-foreground">(optional)</span>
+            {t("settings.gpu.yourGpu.accessTokenLabel")}
           </Label>
           <Input id={`${id}-token`} type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} aria-describedby={`${id}-token-hint`} />
           <p id={`${id}-token-hint`} className="text-[12px] text-muted-foreground">
-            Only if your ComfyUI or its web address asks for a password or token.
+            {t("settings.gpu.yourGpu.tokenHint")}
           </p>
         </div>
         {failed && (
@@ -310,9 +313,9 @@ export function YourGpu({ className, onLinked }: { className?: string; onLinked?
             {failed.againAt && (
               <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
                 <Loader2 className="size-3 animate-spin" />
-                {seconds > 0 ? `Waiting for your GPU · checking again in ${seconds} s` : "Checking again…"}
+                {seconds > 0 ? t("settings.gpu.yourGpu.waitingLine", { seconds }) : t("settings.gpu.yourGpu.checkingAgain")}
                 <button type="button" onClick={stopAuto} className="underline underline-offset-2 hover:text-foreground">
-                  Stop
+                  {t("settings.gpu.yourGpu.stopAction")}
                 </button>
               </p>
             )}
@@ -320,30 +323,30 @@ export function YourGpu({ className, onLinked }: { className?: string; onLinked?
             {/* The checks by itself stopped: check again now (its wait starts over). */}
             {!failed.againAt && failed.trouble?.retryable && !!url.trim() && !local && (
               <button type="button" onClick={() => void send(failed.connecting ? "save" : "test")} disabled={busy !== null} className="text-[12px] font-medium text-brand-text underline-offset-2 hover:underline">
-                Check again
+                {t("settings.gpu.yourGpu.checkAgainAction")}
               </button>
             )}
           </div>
         )}
         {info && (
           <p className="text-[12px] text-muted-foreground">
-            {answered && <span className="font-medium text-foreground">Your GPU answers now. </span>}
-            ComfyUI answered{info.device ? `: ${info.device}` : ""}
+            {answered && <span className="font-medium text-foreground">{t("settings.gpu.yourGpu.answersNow")}</span>}
+            {t("settings.gpu.yourGpu.comfyuiAnswered")}{info.device ? `: ${info.device}` : ""}
             {gib(info.vramBytes) ? ` · ${gib(info.vramBytes)} VRAM` : ""}
             {info.version ? ` · ComfyUI ${info.version}` : ""}
           </p>
         )}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => void send("save")} disabled={!url.trim() || local || busy !== null}>
-            {busy === "save" && <Loader2 className="animate-spin" />} {answered ? "Connect now" : "Connect"}
+            {busy === "save" && <Loader2 className="animate-spin" />} {answered ? t("settings.gpu.yourGpu.connectNowButton") : t("settings.gpu.connectChoice.connectAction")}
           </Button>
           <Button size="sm" variant="secondary" onClick={() => void send("test")} disabled={!url.trim() || local || busy !== null}>
-            {busy === "test" && <Loader2 className="animate-spin" />} Test
+            {busy === "test" && <Loader2 className="animate-spin" />} {t("settings.gpu.yourGpu.testAction")}
           </Button>
           {/* A GPU that is off right now (a stopped pod, one starting up): keep the address, and runs wait for it. */}
           {failed?.trouble && canSaveAnyway(failed.trouble.cause) && !!url.trim() && !local && (
             <Button size="sm" variant="ghost" onClick={() => void send("anyway")} disabled={busy !== null}>
-              {busy === "anyway" && <Loader2 className="animate-spin" />} Save anyway
+              {busy === "anyway" && <Loader2 className="animate-spin" />} {t("settings.gpu.yourGpu.saveAnywayAction")}
             </Button>
           )}
         </div>

@@ -20,6 +20,7 @@ import { madeNoun } from "@/lib/relay";
 import { cn } from "@/lib/utils";
 import { computerState, rememberComfy, rememberedComfy, restartComputerRunner, store, stored } from "./computer-runtime";
 import { InstallConnect, PairInstead } from "./fuobe-connect";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { OTHER_BROWSERS } from "./open-connect";
 import { useLocalComfy, type Finder } from "./use-local-comfy";
 
@@ -496,6 +497,7 @@ function readyLine(board: ReadinessView | null | undefined): string | null {
 
 /** The connected screen: the GPU, what's ready, and the run starting (when it was opened from one). */
 function Celebration({ c, fromRun, kind, onStart, onNotNow, doneWords }: { c: Connected; fromRun?: boolean; kind?: string; onStart?: () => void; onNotNow?: () => void; doneWords?: string }) {
+  const { t } = useI18n();
   const facts = statsFacts(c.stats, origin(), !!c.guard);
   const gpu = [facts.device && deviceLabel(facts.device), gib(facts.vramBytes), facts.version && `ComfyUI ${facts.version}`].filter(Boolean).join(" · ");
   const ready = readyLine(c.board);
@@ -529,7 +531,7 @@ function Celebration({ c, fromRun, kind, onStart, onNotNow, doneWords }: { c: Co
       {facts.cors === "any" ? (
         <div className="space-y-1.5 text-[12px]">
           <p className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
-            <TriangleAlert className="size-3.5" /> Your ComfyUI lets every website in. To keep it private, use {origin()} instead:
+            <TriangleAlert className="size-3.5" /> {t("settings.gpu.thisComputer.corsOpen", { origin: origin() })}
           </p>
           <CopyLine text={corsFlag(origin())} label="the setting" />
         </div>
@@ -742,6 +744,7 @@ function Screen({
   again?: boolean;
   asks: boolean;
 }) {
+  const { t } = useI18n();
   const lookAt = (port: number, host: string) => void look({ ports: [{ port, host }] });
   const checkAgain = () => void look();
   switch (state.s) {
@@ -759,7 +762,7 @@ function Screen({
         <div className="space-y-3">
           {FUOBE_CONNECT_PUBLISHED && <InstallConnect then="Already have it? Skip this step." />}
           <Button className="h-11 sm:h-9" onClick={() => void look()}>
-            <Search /> Find my ComfyUI
+            <Search /> {t("settings.gpu.connectChoice.findComfyAction")}
           </Button>
           {asks && <AllowNote />}
         </div>

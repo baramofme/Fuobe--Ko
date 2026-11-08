@@ -22,6 +22,7 @@ import { useGpuCheck, useGpuReadiness } from "@/hooks/use-gpu";
 import { signInHref, useStatus, useViewer } from "@/lib/api";
 import { ownerSteer } from "@/lib/page-place";
 import { safeNext } from "@/lib/safe-redirect";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 /**
  * "Connect your GPU" (UX §4): where ComfyUI runs (an account's Your GPU form; the owner's is the studio's own
@@ -36,6 +37,7 @@ function Card({ children }: { children: React.ReactNode }) {
 }
 
 export function ConnectGpu() {
+  const { t } = useI18n();
   const params = useSearchParams();
   const router = useRouter();
   const welcome = params.get("welcome") === "1";
@@ -294,7 +296,7 @@ export function ConnectGpu() {
       {header(report && !check.running ? 3 : 2, !!report && !check.running)}
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[16px] font-semibold">{check.running ? "Checking your setup" : "Your ComfyUI"}</h2>
+          <h2 className="text-[16px] font-semibold">{check.running ? "Checking your setup" : t("settings.gpu.connectChoice.yourComfyUIFallback")}</h2>
           {isAccount ? (
             <Link href="/settings#your-gpu" className="text-[13px] text-brand-text underline-offset-2 hover:underline">
               {view?.target === "computer" ? "Change where it runs" : "Change the link"}

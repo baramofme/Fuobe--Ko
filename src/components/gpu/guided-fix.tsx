@@ -17,6 +17,7 @@ import { knownFixes } from "@/lib/gpu/known-problems";
 import { formatBytes } from "@/lib/gpu/requirements";
 import type { FixPlan, FixStep, Need, WhyCode } from "@/lib/gpu/types";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 /**
  * The guided fix (UX §7): a tool's plan where the user is stuck — on Generate, on a chip, on a board row, on a
@@ -29,8 +30,8 @@ const DOWNLOAD_KINDS = new Set<Need["kind"]>(["model", "model-replace", "lora"])
 
 /** One plain sentence: why this is by hand. */
 const WHY: Partial<Record<WhyCode, string>> = {
-  "no-manager": "Your ComfyUI doesn't have ComfyUI-Manager, the add-on that installs things for Fuobe. Run these in a terminal instead:",
-  "manual-only": "Run these in a terminal, then check again:",
+  "no-manager": "settings.gpu.guidedFix.noManager",
+  "manual-only": "settings.gpu.guidedFix.manualOnly",
 };
 
 const VERB: Record<string, string> = { image: "draw", video: "animate", audio: "speak", text: "listen", model3d: "build" };
@@ -115,6 +116,7 @@ interface Actions {
 }
 
 function PlanState({ plan, kind, actions, checking, onCheck, checkError }: { plan: FixPlan; kind?: string; actions: Actions; checking: boolean; onCheck: () => void; checkError: string | null }) {
+  const { t } = useI18n();
   const real = plan.steps.filter((s) => s.kind !== "restart" && s.kind !== "hf-licence" && s.kind !== "civitai-key");
   // Files get rows of their own (name, size, folder, Get it); the list keeps the other steps and what is already there.
   const files = real.filter((s) => s.download);
@@ -159,7 +161,7 @@ function PlanState({ plan, kind, actions, checking, onCheck, checkError }: { pla
       <Details steps={plan.steps} />
       <div className="space-y-2 border-t pt-4">
         <h3 className="text-[14px] font-semibold">Let&apos;s do this one by hand</h3>
-        <p className="text-[13px] text-muted-foreground">{why}</p>
+        <p className="text-[13px] text-muted-foreground">{t(why)}</p>
         <CommandTabs bash={plan.commands.bash} powershell={plan.commands.powershell} windowsFirst={plan.os ? plan.os === "nt" : undefined} />
       </div>
       {checkError && <p className="text-[12px] text-destructive">{checkError}</p>}
