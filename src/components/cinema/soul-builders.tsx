@@ -46,6 +46,7 @@ import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import { toastError } from "@/lib/refusals";
 import { useCinemaGenerate, useCinemaItems } from "./hooks";
 import { placeholdersOn } from "@/lib/demo-mode";
+import { useI18n } from "@/lib/i18n";
 
 interface BuilderProps {
   open: boolean;
@@ -206,9 +207,10 @@ function useBuilderRun(projectId: string) {
 /** A builder's price: "Free · your GPU" on the GPU, like every other price on it. */
 function CostLabel({ plan }: { plan: { costUsd: number | null; model: { engine: Engine } } }) {
   const openFree = useOpenFree();
+  const { t: tr } = useI18n();
   const status = useStatus().data;
   const demo = placeholdersOn(status?.demoMode);
-  return <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">{demo ? "Placeholder · free" : plan.costUsd === 0 ? (plan.model.engine === "open" ? openFree("Free · your GPU") : "Free") : plan.costUsd != null ? `≈ ${formatCost(plan.costUsd)}` : ""}</span>;
+  return <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">{demo ? tr("faceless.controls.placeholderFree") : plan.costUsd === 0 ? (plan.model.engine === "open" ? openFree(tr("studio.composer.freeYourGpu")) : "Free") : plan.costUsd != null ? `≈ ${formatCost(plan.costUsd)}` : ""}</span>;
 }
 
 function SaveElement({ kind, defaultName, picked, description, onSaved }: { kind: "character" | "location"; defaultName: string; picked: string[]; description: string; onSaved: () => void }) {

@@ -12,6 +12,7 @@ import type { Engine } from "@/lib/catalog/types";
 import { formatCost } from "@/lib/format";
 import type { CinemaGeneration } from "./hooks";
 import { placeholdersOn } from "@/lib/demo-mode";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * Cinema Studio's 3D scene, the light half (the viewer and three.js load only when a scene opens): which takes
@@ -50,8 +51,9 @@ export function usePlanPrice(plan: CinemaPlan): { cost: number | null; label: st
   const cost = demo ? 0 : plan.costUsd;
   // Free on the GPU says where it runs, like every other price on it.
   const openFree = useOpenFree();
-  const free = plan.model.engine === "open" ? openFree("Free · your GPU") : "Free";
-  return { cost, demo, label: demo ? "Placeholder · free" : cost === 0 ? free : cost != null ? `≈ ${formatCost(cost)}` : "Price unknown" };
+  const { t: tr } = useI18n();
+  const free = plan.model.engine === "open" ? openFree(tr("studio.composer.freeYourGpu")) : "Free";
+  return { cost, demo, label: demo ? tr("faceless.controls.placeholderFree") : cost === 0 ? free : cost != null ? `≈ ${formatCost(cost)}` : "Price unknown" };
 }
 
 const SKIP_KEY = "fuobe.cinema.sceneConfirm";

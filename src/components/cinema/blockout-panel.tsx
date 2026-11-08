@@ -18,6 +18,7 @@ import { getModel } from "@/lib/catalog";
 import type { Engine } from "@/lib/catalog/types";
 import { placeholdersOn } from "@/lib/demo-mode";
 import { formatCost } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 import { toastError } from "@/lib/refusals";
 import { cn } from "@/lib/utils";
 import type { BuiltBlockout } from "./blockout-builder";
@@ -187,6 +188,7 @@ export interface BlockoutPanelProps {
 export function BlockoutPanel(props: BlockoutPanelProps) {
   const { open, onOpenChange, projectId, folderId, engine, settings, brief, context, draft, setDraft, onBuild } = props;
   const openFree = useOpenFree();
+  const { t: tr } = useI18n();
   const generate = useCinemaGenerate(projectId);
   const status = useStatus().data;
   const demo = placeholdersOn(status?.demoMode);
@@ -206,7 +208,7 @@ export function BlockoutPanel(props: BlockoutPanelProps) {
   const seconds = s?.seconds ?? 0;
   const set = (patch: Partial<BlockoutDraft>) => setDraft((d) => ({ ...d, ...patch }));
   const cost = plan.costUsd;
-  const price = demo ? "Placeholder · free" : cost === 0 ? (engine === "open" ? openFree("Free · your GPU") : "Free") : cost != null ? `≈ ${formatCost(cost)}` : "Price unknown";
+  const price = demo ? tr("faceless.controls.placeholderFree") : cost === 0 ? (engine === "open" ? openFree(tr("studio.composer.freeYourGpu")) : "Free") : cost != null ? `≈ ${formatCost(cost)}` : "Price unknown";
   const model = getModel(engine === "cloud" ? draft.modelId : BLOCKOUT_MODELS.open);
   const resolutions = engine === "cloud" ? (getModel(draft.modelId)?.options.resolutions ?? []) : ["480p", "720p"];
   const resolution = draft.resolution && resolutions.some((r) => r.toLowerCase() === draft.resolution!.toLowerCase()) ? draft.resolution : (engine === "cloud" ? getModel(draft.modelId)?.defaults?.resolution : "480p");
