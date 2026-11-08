@@ -13,7 +13,13 @@
 // 5. A reload keeps Korean (the saved choice), with the cookie mirrored for the server's next render.
 // 6. No "[i18n]" warning and no page error during all of it.
 // 7. A phone: its header's search button and its five tabs switch with the same selector.
-import { DESKTOP, PHONE, launch, openRoute } from "./_browser.mjs";
+// 8. /settings' GPU surfaces: the owner's ComfyUI picker and WorldCast field (OwnerComfyWhere, WorldcastField) and
+//    the account's Your GPU section (ConnectChoice's cards, the pair panel) switch on one render, and no English
+//    word of the settings.gpu.* keys is left behind. The account part needs the dev server booted with
+//    FUOBE_PUBLIC_SIGNUP=1 (sign-up is otherwise closed) — the GPU lane's gate runs it this way.
+import fs from "node:fs";
+import path from "node:path";
+import { DESKTOP, PHONE, launch, openRoute, root } from "./_browser.mjs";
 
 const app = (
   process.argv.slice(2).find((a) => !a.startsWith("--")) ??
@@ -514,6 +520,159 @@ step("more: RichItem row names switch to Korean (sub-xl viewport)");
   // Byte-identity: nav.motions en label must not leak here as "Motions & effects" — the model label is "Camera motions", translated via nav.entry.motions → "카메라 움직임".
   check("Camera motions is not shown as “Motions & effects” (byte-identity)", !(koM?.names || []).includes("Motions & effects"), JSON.stringify(koM?.names));
   await page.close();
+}
+
+step("settings: the GPU deep panel and the account section speak Korean");
+{
+  // The dev studio shows its owner panel to every visitor while no password is set, and the account's
+  // "Your GPU" section (ConnectChoice's cards, the pair panel) exists only when sign-up is open, which
+  // needs a password. So the gate turns auth on for the run and back off at the end, leaving the
+  // install exactly as the steps above found it.
+  const PW = "fuobe-e2e-tb49-gate";
+  const ownerCtx = await browser.newContext({ ...DESKTOP });
+  const set = await ownerCtx.request.post(`${app}/api/auth/password`, { data: { password: PW } });
+  let turnedOn = set.ok();
+  if (!turnedOn) turnedOn = (await ownerCtx.request.post(`${app}/api/auth/login`, { data: { password: PW } })).ok();
+  check("auth is on for the run", turnedOn, `set=${set.status()}`);
+  const acctCtx = await browser.newContext({ ...DESKTOP });
+  const signup = turnedOn && (await acctCtx.request.post(`${app}/api/auth/signup`, { data: { email: `gate-${Date.now()}@example.com`, password: "gate account password" } }));
+  check("an account signs up", !!signup && signup.ok(), `signup=${signup ? signup.status() : "skipped (no auth)"}`);
+
+  // Every English word the settings.gpu.* keys own (placeholders and fragment assembly keys left out:
+  // they render with spaces or interpolations so they never appear as a whole word in the DOM). The
+  // sweep checks none of them is left behind after the switch — the lane's "English leftovers 0" proof.
+  //
+  // Scoped to THIS lane's strings, which is what the gate promises ("이 lane의 문자열"):
+  //  - the six server-Comfy field keys render as literals in settings-form.tsx (owned by the sibling
+  //    settings-form-sub-panels lane t_0bea23fe), not in this lane's gpu/* files;
+  //  - "Connect" stays on purpose as part of the external app's own words ("Extensions → Connect to
+  //    Fuobe") and the node pack's name "Fuobe Connect" — the pair-panel check asserts they are kept;
+  //  - "Find my ComfyUI"/"Your ComfyUI" also render in gpu/* files outside this lane's bounded set
+  //    (this-computer/connect-gpu/computer-runner/your-gpu), tracked as a follow-up card, not here.
+  const excluded = new Set([
+    "settings.gpu.connectChoice.comfyServerUrlLabel",
+    "settings.gpu.connectChoice.serverHintLocal",
+    "settings.gpu.connectChoice.authTokenLabel",
+    "settings.gpu.connectChoice.tokenHintLocal",
+    "settings.gpu.connectChoice.isolatedWorkerLabel",
+    "settings.gpu.connectChoice.isolatedHintLocal",
+    "settings.gpu.connectChoice.connectAction",
+    "settings.gpu.connectChoice.findComfyAction",
+    "settings.gpu.connectChoice.yourComfyUIFallback",
+  ]);
+  const enWords = JSON.parse(fs.readFileSync(path.join(root, "src/lib/i18n/locales/en.json"), "utf8"));
+  const laneWords = Object.entries(enWords).filter(([k, v]) =>
+    k.startsWith("settings.gpu.") && !excluded.has(k) && !v.includes("{") && /[A-Za-z]{5}/.test(v) && !v.endsWith(" ") && !v.startsWith(" ")
+  );
+  const sweep = (p, sel) => p.evaluate(([list, selector]) => {
+    const el = document.querySelector(selector);
+    if (!el) return [`${selector} MISSING`];
+    const text = el.innerText;
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return list.filter(([, v]) => new RegExp("(?<![A-Za-z0-9])" + esc(v) + "(?![A-Za-z0-9])").test(text)).map(([k]) => k);
+  }, [laneWords, sel]);
+  const shows = (p, s) => p.getByText(s, { exact: true }).first().isVisible().catch(() => false);
+
+  try {
+    if (turnedOn) {
+      const oPage = await ownerCtx.newPage();
+      listen(oPage, "gpu-owner");
+      await openRoute(oPage, `${app}/settings`);
+
+      step("settings (owner): English bytes first");
+      {
+        const enRg = oPage.getByRole("radiogroup", { name: "Where ComfyUI runs" });
+        await enRg.first().waitFor({ timeout: 30_000 }).catch(() => {});
+        check("the picker opens named “Where ComfyUI runs”", await enRg.first().isVisible().catch(() => false), "");
+        check("the server choice and its body read the English bytes", await shows(enRg, "On this server") && await shows(enRg, "Fuobe calls ComfyUI at the address below, with or without a tab open."), "");
+        check("the computer choice and its body read the English bytes", await shows(enRg, "On the computer you're using") && await shows(enRg, "Your Fuobe tab runs the jobs on this computer's ComfyUI while it's open."), "");
+        check("the WorldCast field reads its English label and hint", await shows(oPage, "WorldCast worker URL (optional)") && await shows(oPage, "WorldCast films Fly path, Turnaround and exact orbits so the back and sides match your photos. It runs beside ComfyUI on a GPU with 48 GB or more: workers/worldcast/README.md shows how to start it."), "");
+      }
+
+      step("settings (owner): 한국어 in one render");
+      {
+        await oPage.keyboard.press("Escape").catch(() => {});
+        await oPage.waitForTimeout(250);
+        const trigger = oPage.locator("button:has(svg.lucide-globe)").locator("visible=true").first();
+        await trigger.waitFor({ timeout: 15_000 });
+        await trigger.click();
+        await oPage.getByRole("menuitem", { name: "한국어" }).click();
+        await oPage.waitForTimeout(400);
+        check("still /settings — no reload happened", oPage.url().endsWith("/settings"), oPage.url());
+        check("<html lang> is ko right after the click", await oPage.evaluate(() => document.documentElement.lang) === "ko", "");
+        const koRg = oPage.getByRole("radiogroup", { name: "ComfyUI 실행 위치" });
+        check("the picker is named “ComfyUI 실행 위치”", await koRg.first().isVisible().catch(() => false), "");
+        check("the server choice reads “이 서버에서”", await shows(koRg, "이 서버에서"), "");
+        check("its body is Korean", await shows(koRg, "Fuobe가 아래 주소의 ComfyUI를 호출합니다. 탭 여부와 관계없이 동작합니다."), "");
+        check("the computer choice reads “사용 중인 컴퓨터에서”", await shows(koRg, "사용 중인 컴퓨터에서"), "");
+        check("its body is Korean", await shows(koRg, "Fuobe 탭이 열려 있는 동안 이 컴퓨터의 ComfyUI에서 작업이 실행됩니다."), "");
+        check("the picker lost its English name", (await oPage.getByRole("radiogroup", { name: "Where ComfyUI runs" }).count()) === 0, "");
+        check("the WorldCast label reads “WorldCast 워커 URL(선택)”", await shows(oPage, "WorldCast 워커 URL(선택)"), "");
+        check("the WorldCast hint is Korean", await shows(oPage, "WorldCast는 Fly path, Turnaround, 정확한 궤도를 촬영해 뒤쪽과 측면이 본인 사진과 일치하게 합니다. 48 GB 이상의 GPU에서 ComfyUI와 함께 실행됩니다. 시작 방법은 workers/worldcast/README.md를 참고하세요."), "");
+        check("no English WorldCast label or hint left", !(await shows(oPage, "WorldCast worker URL (optional)")) && !(await shows(oPage, "WorldCast films Fly path, Turnaround and exact orbits so the back and sides match your photos. It runs beside ComfyUI on a GPU with 48 GB or more: workers/worldcast/README.md shows how to start it.")), "");
+        check("no lane word left in the owner's ComfyUI panel", (await sweep(oPage, "#comfyui")).length === 0, String(await sweep(oPage, "#comfyui")));
+        await oPage.close();
+      }
+    }
+
+    if (signup && signup.ok()) {
+      const aPage = await acctCtx.newPage();
+      listen(aPage, "gpu-account");
+      await openRoute(aPage, `${app}/settings`);
+      const gpu = aPage.locator("#your-gpu").first();
+      await gpu.waitFor({ timeout: 30_000 }).catch(() => {});
+
+      step("settings (account): English bytes first");
+      {
+        check("the Your GPU section renders", await gpu.isVisible().catch(() => false), "");
+        // Wait for real content: data loading may leave the section empty, and an empty read is not proof of
+        // English first. Wait until the title appears so the checks below read real text.
+        await gpu.getByText("Your GPU", { exact: true }).first().waitFor({ timeout: 15_000 }).catch(() => {});
+        check("its title reads “Your GPU”", await shows(gpu, "Your GPU"), "");
+        check("its blurb is the free bytes", await shows(gpu, "Run open models on your own graphics card, free and with no run limit."), "");
+        check("the computer card reads its bytes", await shows(gpu, "Use the ComfyUI on this computer") && await shows(gpu, "The quickest way. Runs while Fuobe is open in this browser."), "");
+        check("the tab-closed card reads its bytes", await shows(gpu, "Keep it running with this tab closed") && await shows(gpu, "Pair your ComfyUI with a code, or give it a web address. Takes about two minutes."), "");
+        await gpu.locator("button[aria-expanded]").filter({ hasText: "Keep it running with this tab closed" }).first().click();
+        await gpu.getByText("Pair your ComfyUI with a code", { exact: true }).first().waitFor({ timeout: 5_000 }).catch(() => {});
+        check("the pair panel opens with its English title", await shows(gpu, "Pair your ComfyUI with a code"), "");
+        check("its steps line starts in English", gpu.locator("p").filter({ hasText: "Install Fuobe Connect in ComfyUI-Manager" }).first().isVisible().catch(() => false), "");
+      }
+
+      step("settings (account): 한국어 in one render");
+      {
+        await aPage.keyboard.press("Escape").catch(() => {});
+        await aPage.waitForTimeout(250);
+        const trigger = aPage.locator("button:has(svg.lucide-globe)").locator("visible=true").first();
+        await trigger.waitFor({ timeout: 15_000 });
+        await trigger.click();
+        await aPage.getByRole("menuitem", { name: "한국어" }).click();
+        await aPage.waitForTimeout(400);
+        check("still /settings — no reload happened", aPage.url().endsWith("/settings"), aPage.url());
+        check("<html lang> is ko right after the click", await aPage.evaluate(() => document.documentElement.lang) === "ko", "");
+        check("the title reads “내 GPU”", await shows(gpu, "내 GPU"), "");
+        check("the blurb is Korean", await shows(gpu, "자신의 그래픽 카드에서 오픈 모델을 무료로, 실행 제한 없이 사용하세요."), "");
+        check("the computer card reads “이 컴퓨터의 ComfyUI 사용”", await shows(gpu, "이 컴퓨터의 ComfyUI 사용") && await shows(gpu, "가장 빠른 방법입니다. 이 브라우저에서 Fuobe가 열려 있는 동안 실행됩니다."), "");
+        check("the tab-closed card reads its Korean title and sub", await shows(gpu, "이 탭을 닫은 상태로 계속 실행") && await shows(gpu, "코드로 본인의 ComfyUI를 페어링하거나 웹 주소를 지정하세요. 약 2분 정도 걸립니다."), "");
+        check("the pair panel title reads “코드로 본인 ComfyUI 페어링”", await shows(gpu, "코드로 본인 ComfyUI 페어링"), "");
+        const stepsLine = gpu.locator("p").filter({ hasText: "ComfyUI-Manager에 Fuobe Connect" }).first();
+        check("the steps line reads its Korean assembly", await stepsLine.isVisible().catch(() => false), "");
+        check("the steps line kept the external app's own words", gpu.locator("p").filter({ hasText: "Extensions → Connect to Fuobe" }).first().isVisible().catch(() => false), "");
+        check("no English pair title or steps line left", !(await shows(gpu, "Pair your ComfyUI with a code")) && !(await gpu.locator("p").filter({ hasText: "Install Fuobe Connect in ComfyUI-Manager" }).first().isVisible().catch(() => false)), "");
+        check("no lane word left in the account's Your GPU", (await sweep(aPage, "#your-gpu")).length === 0, String(await sweep(aPage, "#your-gpu")));
+        await aPage.close();
+      }
+    }
+  } finally {
+    // Back to owner-open for every visitor, as the steps above found it. Verify it actually cleared: the
+    // remove must come back disabled, or the test password is left on the dev server.
+    if (turnedOn) {
+      const cleared = await ownerCtx.request.post(`${app}/api/auth/password`, { data: { current: PW, password: null } });
+      const body = await cleared.json().catch(() => null);
+      check("auth restored (test password removed)", cleared.ok() && !!body && body.enabled === false, `status=${cleared.status()} enabled=${body?.enabled}`);
+    }
+  }
+  await ownerCtx.close();
+  await acctCtx.close();
 }
 
 step("nothing was missed on the way");
