@@ -21,6 +21,7 @@ import {
   retextureRequest,
   type RetextureModel,
 } from "@/lib/av/model3d";
+import { useI18n } from "@/lib/i18n";
 import { toastError } from "@/lib/refusals";
 import { priceLine, useCreate3d, useRunPreview } from "./hooks";
 
@@ -44,6 +45,7 @@ export function RetextureDialog({
   /** A visitor on open models only: it runs with its own fal.ai key, and says so (own-setup.ts). */
   keyInstead?: boolean;
 }) {
+  const { t: tr } = useI18n();
   const create = useCreate3d();
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState<{ url: string; preview: string } | null>(null);
@@ -65,7 +67,7 @@ export function RetextureDialog({
   const ready = cloudAllowed && !uploading && (!!prompt.trim() || !!style);
   const req = ready ? retextureRequest({ glb, prompt, style: style?.url, model, size, keepUv }) : null;
   const preview = useRunPreview(open ? req : null);
-  const price = priceLine(preview.data);
+  const price = priceLine(preview.data, tr);
   const pickStyle = async (f: File | undefined) => {
     if (!f) return;
     if (f.size > RETEXTURE_STYLE_MAX_BYTES) {

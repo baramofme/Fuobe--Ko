@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { OwnSetupChip, useOwnSetupPress } from "@/components/own-setup";
 import { RunPlaceChip, useOpenRunPlace } from "@/components/studio/run-place-chip";
 import { Model3dSetupsProvider, useModel3dSetup, type Model3dSetups } from "./own-setups";
+import { useI18n } from "@/lib/i18n";
 import { toastError } from "@/lib/refusals";
 import { priceLine, useCreate3d, useRunPreview } from "./hooks";
 import { ModelCard } from "./model-card";
@@ -259,6 +260,7 @@ export function Model3dStudio({ setups = {}, ...props }: { info: Record<string, 
 }
 
 function Model3dStudioBody({ info, examples }: { info: Record<string, Model3dInfo>; examples?: ExampleRowData | null }) {
+  const { t: tr } = useI18n();
   const [engine, setEngine, engineMode] = useEngine();
   // An account makes its models on its own GPU or key (POST /api/image-to-3d); a guest gets the sign-up card when it
   // uploads or runs. The extras (Refine detail, the TRELLIS.2 final, Idol 3D's other sides) show to everyone, marked
@@ -370,7 +372,7 @@ function Model3dStudioBody({ info, examples }: { info: Record<string, Model3dInf
     ? model3dRequest({ ...input, photo: input.photo || PLACEHOLDER, views: { front: PLACEHOLDER, left: PLACEHOLDER, ...sides }, prompt: input.prompt?.trim() || "an object" })
     : null;
   const preview = useRunPreview(engineKnown ? priced : null);
-  const price = priceLine(preview.data);
+  const price = priceLine(preview.data, tr);
   // Hosted runs on: where an open run goes and its price, from the price check every studio reads (this studio's GPUs and
   // the wait, or the label of what runs on the visitor's own GPU, which the button opens). Otherwise the line above.
   const openPlace = useOpenRunPlace(preview.data?.modelName ? [preview.data.modelName] : [], engine === "open" && engineKnown ? priced : null);

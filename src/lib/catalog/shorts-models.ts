@@ -11,6 +11,7 @@ import { routesFor } from "./plan";
 import { pricingOn } from "./promo";
 import { SHORTS, SHORTS_ORIGINAL } from "./shorts";
 import type { Engine, ModelDef } from "./types";
+import { t as storeT, type Params } from "@/lib/i18n/store";
 
 /** The model as it runs on `engine` (an Original keeps that engine's routes only). */
 function view(modelId: string, engine?: Engine): ModelDef | undefined {
@@ -90,8 +91,8 @@ export function unitPrice(m: ModelDef, now: number | null = null): number | null
 
 const UNIT: Record<string, string> = { second: "s", megapixel: "MP" };
 
-function priceLine(m: ModelDef): string | null {
-  if (m.engine === "open") return "Free · your GPU";
+function priceLine(m: ModelDef, tr: (key: string, params?: Params) => string = storeT): string | null {
+  if (m.engine === "open") return tr("studio.composer.freeYourGpu");
   const p = m.pricing;
   const v = unitPrice(m);
   if (!p || v === null) return null;

@@ -61,10 +61,11 @@ export function useOpenFree(): (text: string) => string {
 /** The place and price for this viewer (null until the viewer is known). */
 export function useRunPlace(input: Omit<RunPlaceInput, "audience" | "format" | "gpu" | "hosted" | "preferPool" | "payer" | "place">): RunPlace | null {
   const who = useRunViewer();
+  const { t } = useI18n();
   if (!who) return null;
   const { runOn: _runOn, ...facts } = who;
   void _runOn;
-  return runPlace({ ...input, ...facts, format: formatCost });
+  return runPlace({ ...input, ...facts, format: formatCost }, t);
 }
 
 /**
@@ -76,6 +77,7 @@ export function useRunPlace(input: Omit<RunPlaceInput, "audience" | "format" | "
  */
 export function useOpenRunPlace(models: readonly string[], request: GenerationRequest | null, o: { count?: number; ownGpuOnly?: boolean } = {}): RunPlace | null {
   const viewer = useRunViewer();
+  const { t } = useI18n();
   // Asked with the place the tool's run names (none for an account whose own GPU is there while this studio puts its
   // GPUs first: the server then sends what they don't take to that GPU, and the check answers so).
   const place = openCheckPlace(viewer, o.ownGpuOnly);
@@ -87,7 +89,7 @@ export function useOpenRunPlace(models: readonly string[], request: GenerationRe
   const pool = mayPool ? checkedPool(checked, o.count) : undefined;
   const { runOn: _runOn, ...facts } = viewer;
   void _runOn;
-  const shown = runPlace({ engine: "open", models, ...facts, hosted: !!pool, pool, format: formatCost });
+  const shown = runPlace({ engine: "open", models, ...facts, hosted: !!pool, pool, format: formatCost }, t);
   // This studio's GPUs don't take this run for this viewer (the check said so), or the tool runs on its own GPU only: the
   // Run on list isn't offered.
   return o.ownGpuOnly || (mayPool && checked !== undefined && !pool) ? { ...shown, siteRuns: false } : shown;
@@ -128,7 +130,7 @@ export function RunPlaceChip({
   const viewer = useStatus().data?.viewer;
   const setRunOn = useSetRunOn();
   const openRun = !!place && (place.where === "pool" || place.where === "gpu") && !place.setup && engine !== "cloud";
-  const rows = openRun ? placeRows(viewer, { siteRuns: place.siteRuns }, { text: place.where === "pool" ? place.price : undefined }) : null;
+  const rows = openRun ? placeRows(viewer, { siteRuns: place.siteRuns }, { text: place.where === "pool" ? place.price : undefined }, t) : null;
   const pathname = usePathname();
   const press = useOwnSetupPress();
   // A phone's sheet says the title and the tip in its own header; the desktop popover says them here.
@@ -137,7 +139,7 @@ export function RunPlaceChip({
   const Icon = ICONS[place.where];
   // Once, for an account whose runs moved to this studio's GPUs when hosted runs went on (a tool page starts runs too).
   const intro = openRun ? <PlaceIntroNote run={runLabel} chip={place.label} /> : null;
-  const price = pending && !place.price ? "…" : place.price;
+  const price = pending && !place.price ? t("studio.price.dots") : place.price;
   const canSwitch = !!(engine && onEngine && (place.where === "cloud" || place.where === "gpu" || place.where === "pool"));
   const many = (steps?.length ?? 0) > 1;
   // A compact chip on a phone: the label goes (the price stays), so the composer's other controls keep their room.

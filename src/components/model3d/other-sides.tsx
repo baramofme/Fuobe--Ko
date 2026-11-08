@@ -9,6 +9,7 @@ import { IDOL_MODELS } from "@/lib/av/model3d";
 import { forgetViewRun, IDOL_VIEWS_FEATURE, IDOL_VIEWS_NOTE, idolViewsOf, idolViewsRequest, rememberViewRun, viewRunFor } from "@/lib/av/idol-views";
 import type { ViewSide } from "@/lib/av/model3d";
 import { offered } from "@/lib/model-access";
+import { useI18n } from "@/lib/i18n";
 import { toastError } from "@/lib/refusals";
 import { cn } from "@/lib/utils";
 import { priceLine, useCreate3d, useRunPreview } from "./hooks";
@@ -47,6 +48,7 @@ export function OtherSides({
   onBusy?: (busy: boolean) => void;
   className?: string;
 }) {
+  const { t: tr } = useI18n();
   // The owner's as a studio run; an account's on its own GPU (POST /api/image-to-3d). A guest gets the sign-up card and
   // an account without a GPU "Connect your GPU" first; the label shows until the views' graph is validated here.
   const create = useCreate3d();
@@ -59,7 +61,7 @@ export function OtherSides({
   const list = useGenerations({ features: [IDOL_VIEWS_FEATURE], limit: 20 });
   const run = runId ? list.data?.find((g) => g.id === runId) : undefined;
   const preview = useRunPreview(idolViewsRequest(photo, { asPhoto }));
-  const price = priceLine(preview.data);
+  const price = priceLine(preview.data, tr);
   // Hand the views over once per run.
   const handed = useRef<string | null>(null);
   const made = useRef(onMade);

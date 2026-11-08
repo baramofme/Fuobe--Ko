@@ -135,7 +135,7 @@ export function runPlace(input: RunPlaceInput, tr: (key: string, params?: Params
   }
   const models = uniq(input.models);
   const open = engine === "open";
-  const price = placePrice({ demo: input.demo, costUsd: input.costUsd, open }, input.format);
+  const price = placePrice({ demo: input.demo, costUsd: input.costUsd, open }, input.format, tr);
   const withModels = models.length ? ` with ${list(models)}` : "";
   // Hosted runs: an account (or a guest, once signed up) with no GPU of its own runs open models on this studio's GPUs,
   // at the billing service's price, said with their place name ("Runs on our GPUs").
