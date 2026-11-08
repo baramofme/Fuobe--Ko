@@ -3611,5 +3611,9 @@
   "marketing.recreateTemplate": "Recreate template",
   "marketing.generate": "Generate",
   "kinetic.job.saving": "Saving…",
-  "kinetic.job.rendering": "Rendering {done} of {total}"
+  "kinetic.job.rendering": "Rendering {done} of {total}",
+  "area.section.start.title": "Start here",
+  "area.section.effect-films.title": "Effect films",
+  "nav.canvas.seeAllReadyBoards": "See all ready boards",
+  "nav.canvas.newBoardError": "Couldn't make a new board. Please try again."
 }

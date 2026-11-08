@@ -331,7 +331,7 @@ export function MegaColumns({ model, current, now, kind }: { model: MegaModel; c
             {label}
             {c.more && (
               <IntentLink href={c.more.href} className="nav-row group/all -my-2 ml-auto inline-flex h-8 shrink-0 items-center gap-1 rounded-[8px] px-2 text-[12px] font-medium text-brand-text">
-                {c.more.label}
+                {translateOr(lang, "nav.canvas.seeAllReadyBoards", c.more.label)}
                 <ArrowRight aria-hidden className="size-3.5 motion-safe:transition-transform group-hover/all:translate-x-0.5" />
               </IntentLink>
             )}
