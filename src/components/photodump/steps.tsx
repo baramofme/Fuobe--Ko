@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toolPoolPrice } from "@/lib/run-place";
+import { useI18n } from "@/lib/i18n";
 
 /** Numbered wizard steps; steps already reached can be revisited. */
 export function Steps({ steps, current, reached, onGo }: { steps: string[]; current: number; reached: number; onGo?: (i: number) => void }) {
@@ -43,10 +44,11 @@ export function Steps({ steps, current, reached, onGo }: { steps: string[]; curr
  * or key ("Free · your GPU" on its GPU), or on this studio's GPUs (their price and the place in line).
  */
 export function RunLine({ preview, loading }: { preview?: { modelName?: string; count?: number; costUsd?: number | null; demo?: boolean; notes: string[]; error?: string }; loading?: boolean }) {
+  const { t: tr } = useI18n();
   if (!preview) return <p className="h-5 text-[12.5px] text-muted-foreground">{loading ? "Pricing…" : ""}</p>;
   if (preview.error) return <p className="text-[12.5px] text-destructive">{preview.error}</p>;
   // On this studio's GPUs: the service's price and the place in line ("Free · your GPU" is for the person's own GPU).
-  const cost = toolPoolPrice(preview)?.text ?? (preview.demo ? "Placeholder · free" : preview.costUsd === 0 ? "Free · your GPU" : preview.costUsd == null ? "price unknown" : `≈ $${preview.costUsd.toFixed(2)}`);
+  const cost = toolPoolPrice(preview)?.text ?? (preview.demo ? tr("faceless.controls.placeholderFree") : preview.costUsd === 0 ? tr("studio.composer.freeYourGpu") : preview.costUsd == null ? "price unknown" : `≈ $${preview.costUsd.toFixed(2)}`);
   return (
     <div className="space-y-0.5 text-[12.5px] text-muted-foreground">
       <p>

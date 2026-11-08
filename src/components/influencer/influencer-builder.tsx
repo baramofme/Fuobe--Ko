@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useAskBeforeUpload, useEngine, useGenerations, useModelAccess } from "@/lib/api";
 import { refusedBeforeRun, toolPoolPrice } from "@/lib/run-place";
+import { useI18n } from "@/lib/i18n";
 import { keepOffered, offered } from "@/lib/model-access";
 import {
   categoriesFor,
@@ -97,11 +98,12 @@ function useSettled<T>(value: T, ms = 250): T {
 }
 
 function RunInfo({ preview, loading, blocker }: { preview?: RunPreview & { steps?: number }; loading: boolean; blocker: string | null }) {
+  const { t: tr } = useI18n();
   if (blocker) return <p className="text-[12.5px] text-destructive">{blocker}</p>;
   if (!preview) return <p className="h-5 text-[12.5px] text-muted-foreground">{loading ? "Pricing…" : ""}</p>;
   if (preview.error) return <p className="text-[12.5px] text-destructive">{preview.error}</p>;
   // On this studio's GPUs: the service's price and the place in line ("Free · your GPU" is for the person's own GPU).
-  const cost = toolPoolPrice(preview)?.text ?? (preview.demo ? "Placeholder · free" : preview.costUsd === 0 ? "Free · your GPU" : preview.costUsd == null ? "price unknown" : `≈ $${preview.costUsd.toFixed(2)}`);
+  const cost = toolPoolPrice(preview)?.text ?? (preview.demo ? tr("faceless.controls.placeholderFree") : preview.costUsd === 0 ? tr("studio.composer.freeYourGpu") : preview.costUsd == null ? "price unknown" : `≈ $${preview.costUsd.toFixed(2)}`);
   return (
     <div className="space-y-0.5 text-[12.5px] text-muted-foreground" aria-live="polite">
       <p>

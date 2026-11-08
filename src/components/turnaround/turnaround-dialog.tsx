@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { COMPUTER_KICK_EVENT, useEngine, useGenerations, useLikelyVisitor } from "@/lib/api";
 import { SOUL_ID_COPY } from "@/lib/catalog/training";
+import { useI18n } from "@/lib/i18n";
 import {
   FILL_NAMES,
   SIDE_NAMES,
@@ -171,6 +172,7 @@ function Thumb({ url, className }: { url?: string; className?: string }) {
 function TurnaroundForm({ pictures, name, realPerson: realDefault = false, elementId, engine: fixedEngine, onRun, title, flyAround, fictional, route: startRoute, onStarted }: Props & { onStarted: (run: Run) => void }) {
   const [appEngine, setAppEngine, engineMode] = useEngine();
   const openFree = useOpenFree();
+  const { t: tr } = useI18n();
   const engine = fixedEngine ?? appEngine;
   // The note about your GPU is for the studio's own install with both engines: guests and accounts run in the cloud.
   const visitor = useLikelyVisitor();
@@ -254,7 +256,7 @@ function TurnaroundForm({ pictures, name, realPerson: realDefault = false, eleme
     else setViews((v) => ({ ...v, [k]: url }));
   };
   // On this studio's GPUs: the service's price and the place in line ("Free · your GPU" is for the person's own GPU).
-  const price = toolPoolPrice(p)?.text ?? openFree(!p ? "" : p.demo ? "Placeholder · free" : engine === "open" ? `Free · on your GPU${p.gpuGb ? `, about ${p.gpuGb} GB` : ""}` : p.costUsd != null ? `≈ ${formatCost(p.costUsd)}` : "");
+  const price = toolPoolPrice(p)?.text ?? openFree(!p ? "" : p.demo ? tr("faceless.controls.placeholderFree") : engine === "open" ? `Free · on your GPU${p.gpuGb ? `, about ${p.gpuGb} GB` : ""}` : p.costUsd != null ? `≈ ${formatCost(p.costUsd)}` : "");
   const heading = headingOf({ title, flyAround, name });
 
   return (

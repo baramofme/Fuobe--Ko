@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -539,6 +540,7 @@ async function exportWav(stems: Stem[], buffers: Partial<Record<StemId, AudioBuf
 
 function Mixer({ stems, source, engine, initial = ORIGINAL_MIX }: { stems: Stem[]; source: Source; engine: Engine; initial?: Mix }) {
   const player = useStemPlayer(stems);
+  const { t: tr } = useI18n();
   const [mix, setMixState] = useState<Mix>(initial);
   const [busy, setBusy] = useState<null | "export" | "remux">(null);
   const exported = useRef<{ key: string; url: string } | null>(null);
@@ -599,7 +601,7 @@ function Mixer({ stems, source, engine, initial = ORIGINAL_MIX }: { stems: Stem[
   // On this studio's GPUs: the service's price and the place in line ("Free · your GPU" is for the person's own GPU).
   const remuxCost = remuxPrice.data
     ? (toolPoolPrice(remuxPrice.data)?.text ??
-      (remuxPrice.data.demo ? "Placeholder · free" : engine === "open" ? "Free · your GPU" : remuxPrice.data.costUsd !== null && remuxPrice.data.costUsd < 0.01 ? "under $0.01" : `≈ $${remuxPrice.data.costUsd?.toFixed(2)}`))
+      (remuxPrice.data.demo ? tr("faceless.controls.placeholderFree") : engine === "open" ? tr("studio.composer.freeYourGpu") : remuxPrice.data.costUsd !== null && remuxPrice.data.costUsd < 0.01 ? "under $0.01" : `≈ $${remuxPrice.data.costUsd?.toFixed(2)}`))
     : null;
 
   return (
