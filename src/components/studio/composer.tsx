@@ -1151,9 +1151,10 @@ export function Composer({ docked }: { docked: boolean }) {
             viewerInfo,
             { key: keyTwin && { provider: keyTwin.provider, price: keyPrice }, siteRuns: siteTakes && !siteMissed },
             { text: hostedQuote?.allowed ? hostedQuote.text : undefined, wait: poolState?.wait },
+            t,
           )
         : onKeyNow
-          ? placeRows(viewerInfo, { key: { provider: viewerInfo.runKey ?? payer, price: cost ? `≈ ${formatCost(cost)}` : null }, cloud: true })
+          ? placeRows(viewerInfo, { key: { provider: viewerInfo.runKey ?? payer, price: cost ? `≈ ${formatCost(cost)}` : null }, cloud: true }, {}, t)
           : null;
   const ownGpuHere = hostedHere && !!viewerInfo?.gpu.connected && siteMissed && !runOnRows;
   // Refused there only for its LoRAs: the same run without them runs there (the price check asks again, then Generate).
@@ -1865,7 +1866,7 @@ export function Composer({ docked }: { docked: boolean }) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Chip icon={model?.engine === "cloud" ? Cloud : Cpu} aria-label={`${preset?.name} ${t("studio.composer.runsOnShort")} ${model?.name ?? t("studio.composer.itsOwnModel")}${model && model.id === madeWith ? " · " + t("studio.composer.usedForThisPreview") : ""}`}>
-                    <span className="min-w-0 truncate">{model?.name ?? "…"}</span>
+                    <span className="min-w-0 truncate">{model?.name ?? t("studio.price.dots")}</span>
                     {model && model.id === madeWith && <Sparkles className="size-3.5 shrink-0 text-brand-text" aria-hidden />}
                   </Chip>
                 </TooltipTrigger>

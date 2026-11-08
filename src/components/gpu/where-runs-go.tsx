@@ -6,6 +6,7 @@ import { placeOf } from "@/lib/place-name";
 import { placeRows } from "@/lib/run-place";
 import { useSetRunOn } from "@/lib/run-on";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * Settings → Your GPU, at the top while hosted runs are on: "Where your runs go", the same rows as the Run on list (this
@@ -14,12 +15,13 @@ import { cn } from "@/lib/utils";
  */
 export function WhereRunsGo({ className }: { className?: string }) {
   const v = useStatus().data?.viewer;
+  const { t: tr } = useI18n();
   const setRunOn = useSetRunOn();
   if (!v?.hosted || v.kind !== "account") return null;
   const place = placeOf(v.placeName);
   const keys = v.paidAllowed === false ? [] : (v.keys ?? []);
   const provider = v.runKey && keys.includes(v.runKey) ? v.runKey : keys.includes("fal") ? "fal" : keys[0];
-  const rows = placeRows(v, { key: provider ? { provider } : null, cloud: true });
+  const rows = placeRows(v, { key: provider ? { provider } : null, cloud: true }, {}, tr);
   return (
     <div id="where-runs-go" className={cn("scroll-mt-28 space-y-1.5 rounded-xl border p-3 sm:max-w-[36rem] md:scroll-mt-20", className)}>
       <h3 className="px-2.5 text-[13px] font-semibold">Where your runs go</h3>

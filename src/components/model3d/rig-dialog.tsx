@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSepa
 import { ANIMATION_LIBRARY_URL, ANIMATION_MAX, ANIMATION_PRESETS, animationId, MODEL3D_KEY, rigRequest } from "@/lib/av/model3d";
 import { toastError } from "@/lib/refusals";
 import { priceLine, useCreate3d, useRunPreview } from "./hooks";
+import { useI18n } from "@/lib/i18n";
 
 const NONE = "none";
 const NUMBER = "number";
@@ -35,13 +36,14 @@ export function RigDialog({
   keyInstead?: boolean;
 }) {
   const create = useCreate3d();
+  const { t: tr } = useI18n();
   const [pick, setPick] = useState<string>("30");
   const [typed, setTyped] = useState("");
   const animation = pick === NONE ? null : pick === NUMBER ? animationId(typed) : Number(pick);
   const badNumber = pick === NUMBER && animation === null;
   const req = cloudAllowed && !badNumber ? rigRequest({ glb, animation }) : null;
   const preview = useRunPreview(open ? req : null);
-  const price = priceLine(preview.data);
+  const price = priceLine(preview.data, tr);
   const go = () => {
     if (!req) return;
     create.mutate(req, {

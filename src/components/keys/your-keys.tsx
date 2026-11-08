@@ -20,6 +20,7 @@ import { placeRows } from "@/lib/run-place";
 import { runsGoNowText } from "@/lib/run-on";
 import { KeyAccountDetails, NoKeyYet } from "./key-account-details";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * "Your keys" (public sign-up): an account's own fal.ai key and Replicate token, so it runs paid models billed to its
@@ -340,6 +341,7 @@ function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | 
 export function AccountKeysSection({ prices }: { prices?: string }) {
   // Nothing until hydrated, as in the server's HTML, even when the viewer query has already answered.
   const hydrated = useHydrated();
+  const { t: tr } = useI18n();
   const account = useViewer().data?.account;
   const q = useYourKeys(!!account);
   // A studio with paid models off takes no keys: the section isn't shown.
@@ -354,7 +356,7 @@ export function AccountKeysSection({ prices }: { prices?: string }) {
   // Hosted runs: where the account's runs go now (Settings → Your GPU changes it).
   const keys = viewer?.keys ?? [];
   const runKey = viewer?.runKey && keys.includes(viewer.runKey) ? viewer.runKey : keys.includes("fal") ? "fal" : keys[0];
-  const goesTo = hosted && viewer ? (placeRows(viewer, { key: runKey ? { provider: runKey } : null, cloud: true })?.rows.find((r) => r.selected)?.label ?? placeOf(viewer.placeName).label) : null;
+  const goesTo = hosted && viewer ? (placeRows(viewer, { key: runKey ? { provider: runKey } : null, cloud: true }, {}, tr)?.rows.find((r) => r.selected)?.label ?? placeOf(viewer.placeName).label) : null;
   return (
     <section id="your-keys" aria-labelledby="your-keys-title" className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 border-b py-8 md:scroll-mt-20 md:grid-cols-[260px_minmax(0,1fr)]">
       <div className="min-w-0">

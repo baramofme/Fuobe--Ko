@@ -17,6 +17,7 @@ import { offered } from "@/lib/model-access";
 import { toastError } from "@/lib/refusals";
 import { MAX_PROPS, propCandidate, propMakerBlocker, wrapDeg, type PropCandidate, type SceneProp } from "@/lib/scene-props";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import type { PropHandle } from "./scene-engine";
 
 /**
@@ -112,6 +113,7 @@ const PROP_SETUP: OwnSetup = { need: "gpu" };
 
 function MakeFromPicture({ onMaking }: { onMaking: (generationId: string) => void }) {
   const status = useStatus().data;
+  const { t: tr } = useI18n();
   // The owner's run on the studio's GPU; a visitor's goes to Image to 3D's own route (its own GPU, its checks).
   const create = useCreate3d();
   const visitor = !!useOwnSetupViewer();
@@ -126,7 +128,7 @@ function MakeFromPicture({ onMaking }: { onMaking: (generationId: string) => voi
       : null;
   const preview = useRunPreview(req);
   // No price until the preview has one (not while it loads, or when it failed).
-  const price = priceLine(preview.data);
+  const price = priceLine(preview.data, tr);
   const make = () => {
     if (!req) return;
     void create.mutateAsync(req).then(
