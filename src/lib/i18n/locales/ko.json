@@ -3588,6 +3588,8 @@
   "faceless.wizard.scriptReady": "대본을 나눌 준비가 끝났습니다",
   "faceless.wizard.pickTopic": "계속하려면 주제를 선택하세요",
   "faceless.wizard.next": "다음",
+  "faceless.controls.placeholderFree": "플레이스홀더 · 무료",
+  "faceless.controls.estimating": "예상 중…",
   "studio.page.offscreenGenerating": "{n}개 생성 중",
   "studio.page.offscreenOne": "새 결과 {n}개",
   "studio.page.offscreenMany": "새 결과 {n}개",

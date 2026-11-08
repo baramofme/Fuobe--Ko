@@ -3588,6 +3588,8 @@
   "faceless.wizard.scriptReady": "Your script is ready to split",
   "faceless.wizard.pickTopic": "Pick a topic to continue",
   "faceless.wizard.next": "Next",
+  "faceless.controls.placeholderFree": "Placeholder · free",
+  "faceless.controls.estimating": "Estimating…",
   "studio.page.offscreenGenerating": "{n} generating",
   "studio.page.offscreenOne": "{n} new result",
   "studio.page.offscreenMany": "{n} new results",
