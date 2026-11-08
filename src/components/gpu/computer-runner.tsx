@@ -9,6 +9,8 @@ import type { Generation } from "@/lib/catalog/types";
 import { shortGpu } from "@/lib/gpu/readiness";
 import { RELAY_WORDS } from "@/lib/relay";
 import { cn } from "@/lib/utils";
+import { translateOr } from "@/lib/i18n/store";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { computerState, jobFor, RESTART_EVENT, startComputerRunner, store, stored, subscribeComputer, takeOverHere, type ComputerState, type RunnerStart } from "./computer-runtime";
 import { openFinder } from "./open-connect";
 import { loopbackPermission, useComputerSupport } from "./use-local-comfy";
@@ -179,7 +181,7 @@ function noteOf(s: ComputerState): Note | null {
   if (v.access === "ask") return { text: "Your runs are waiting for your ComfyUI. Run them from this browser?", action: "Connect", go: () => openFinder("browser"), problem: true };
   if (v.access === "blocked") return { text: "Your browser is blocking Fuobe from reaching ComfyUI on this computer.", action: "Show me how", go: () => openFinder("browser"), problem: true };
   if (v.comfy === "no-setting") return { text: "ComfyUI is running without Fuobe's setting.", action: "Show me how", go: () => openFinder("setting"), problem: true };
-  if (v.comfy === "down") return { text: RELAY_WORDS.comfyDown, action: "Find my ComfyUI", go: () => openFinder("find"), problem: true };
+  if (v.comfy === "down") return { text: RELAY_WORDS.comfyDown, action: "settings.gpu.connectChoice.findComfyAction", go: () => openFinder("find"), problem: true };
   return working ? { text: "Your GPU is working. Keep this tab open.", problem: false } : null;
 }
 
@@ -200,6 +202,7 @@ function NoteIcon({ problem }: { problem: boolean }) {
  * the top of the phone's You sheet, so it never covers the page; the pill itself says it in short (ComputerPillFace).
  */
 export function ComputerNote() {
+  const { lang } = useI18n();
   const note = noteOf(useComputerState());
   if (!note) return null;
   return (
@@ -209,7 +212,7 @@ export function ComputerNote() {
         <p className="leading-snug">{note.text}</p>
         {note.action && (
           <button type="button" onClick={note.go} className="mt-0.5 font-medium text-brand-text underline-offset-4 hover:underline">
-            {note.action}
+            {translateOr(lang, note.action, note.action)}
           </button>
         )}
       </div>

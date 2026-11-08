@@ -22,6 +22,7 @@ import { useGpuCheck, useGpuReadiness } from "@/hooks/use-gpu";
 import { signInHref, useStatus, useViewer } from "@/lib/api";
 import { ownerSteer } from "@/lib/page-place";
 import { safeNext } from "@/lib/safe-redirect";
+import { translateOr } from "@/lib/i18n/store";
 import { useI18n } from "@/lib/i18n/use-i18n";
 
 /**
@@ -37,7 +38,7 @@ function Card({ children }: { children: React.ReactNode }) {
 }
 
 export function ConnectGpu() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const params = useSearchParams();
   const router = useRouter();
   const welcome = params.get("welcome") === "1";
@@ -288,7 +289,7 @@ export function ConnectGpu() {
       ? problem === "cors-off"
         ? { label: "Show me how", go: () => openFinder("setting") }
         : problem === "unreachable" || problem === "timeout"
-          ? { label: "Find my ComfyUI", go: () => openFinder("find") }
+          ? { label: "settings.gpu.connectChoice.findComfyAction", go: () => openFinder("find") }
           : null
       : null;
   return (
@@ -339,7 +340,7 @@ export function ConnectGpu() {
               {/* ComfyUI on this computer without Fuobe's setting, or closed: the finder gives the one fix and goes on by itself. */}
               {computerFix && (
                 <Button className="mr-2 h-11 sm:h-9" onClick={computerFix.go}>
-                  {computerFix.label}
+                  {translateOr(lang, computerFix.label, computerFix.label)}
                 </Button>
               )}
               <Button variant="secondary" className="h-11 sm:h-9" onClick={() => void check.start()}>

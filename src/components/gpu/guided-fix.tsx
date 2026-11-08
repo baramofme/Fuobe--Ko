@@ -18,6 +18,7 @@ import { formatBytes } from "@/lib/gpu/requirements";
 import type { FixPlan, FixStep, Need, WhyCode } from "@/lib/gpu/types";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/use-i18n";
+import { t as tr } from "@/lib/i18n/store";
 
 /**
  * The guided fix (UX §7): a tool's plan where the user is stuck — on Generate, on a chip, on a board row, on a
@@ -52,7 +53,7 @@ function intro(plan: FixPlan, kind?: string): string {
   if (known) return known.detail;
   const downloads = plan.steps.filter((s) => DOWNLOAD_KINDS.has(s.kind));
   const packs = plan.steps.filter((s) => s.kind.startsWith("pack-"));
-  if (plan.steps.some((s) => s.kind === "comfy-update")) return "Your ComfyUI is older than this tool needs. Updating it keeps your models and add-ons.";
+  if (plan.steps.some((s) => s.kind === "comfy-update")) return tr("settings.gpu.guidedFix.comfyUpdateOlder");
   if (plan.steps.some((s) => s.kind === "core-missing")) return "Some of ComfyUI's built-in nodes didn't load on your machine. The ComfyUI window says why.";
   if (downloads.length && !packs.length) return `The model has to be on your computer before Fuobe can ${VERB[kind ?? ""] ?? "make things"} with it. You only download it once.`;
   if (packs.length && !downloads.length) return `${plan.name} uses a free ComfyUI add-on. You only add it once.`;
