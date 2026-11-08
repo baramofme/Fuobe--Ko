@@ -29,6 +29,7 @@ import type { Engine } from "@/lib/catalog/types";
 import { copyText } from "@/lib/clipboard";
 import { templateCover } from "@/lib/template-covers";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { claudePrompt, type SeriesAsk } from "./hooks";
 
 /** The research's pricing line (the parity studio settles the cost once the video is made; Fuobe's providers do too). */
@@ -301,10 +302,11 @@ export function PresetTile({ p, on, tabStop, onPick }: { p: StylePreset; on: boo
  */
 export function SeriesPriceLine({ data, loading, engine, className }: { data: SeriesEstimate | undefined; loading?: boolean; engine: Engine; className?: string }) {
   const openFree = useOpenFree();
-  if (!data) return <span className={cn("inline-flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground", className)}>{loading && <Loader2 className="size-3 animate-spin" />}Estimating…</span>;
+  const { t } = useI18n();
+  if (!data) return <span className={cn("inline-flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground", className)}>{loading && <Loader2 className="size-3 animate-spin" />}{t("faceless.controls.estimating")}</span>;
   const p = data.price;
   const each = p.episodes > 1 ? ` · ${p.episodes} × ${usd(p.perEpisode)}` : "";
-  const price = data.demo ? "Placeholder · free" : engine === "open" ? openFree("Free · your GPU") : `≈ ${usd(p.total)}${p.unknown ? "+" : ""}${each}`;
+  const price = data.demo ? t("faceless.controls.placeholderFree") : engine === "open" ? openFree(t("studio.composer.freeYourGpu")) : `≈ ${usd(p.total)}${p.unknown ? "+" : ""}${each}`;
   return (
     <span className={cn("inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5", className)}>
       <Popover>
