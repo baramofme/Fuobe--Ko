@@ -1,4 +1,4 @@
-import { compareVersions, formatBytes, nameKey, splitKey, vramGb } from "./requirements";
+import { compareVersions, formatBytes, nameKey, pathKey, splitKey, vramGb } from "./requirements";
 import { knownProblemNeed, knownProblems } from "./known-problems";
 import { cardFits, GPU_NEED_TEXT, readCard, type GpuNeed } from "./rtx";
 import type { Badge, FileKey, GpuInventory, IndexFile, InventorySummary, Need, Readiness, RequirementIndex, ToolReadiness, ToolRef, VramFit } from "./types";
@@ -287,9 +287,20 @@ export interface LoraNeed {
 
 export type LoraState = "present" | "missing" | "unknown";
 
+/**
+ * Is this LoRA on that ComfyUI: by any name models/loras listed it under - its path under the folder, or its base name,
+ * so a LoRA this check was never told about still counts when the folder shows it. A size the listing gave that falls
+ * clearly short of what the tool's LoRA is says the download was cut short, so it is still missing; a listing that gave
+ * no size says nothing, and the file counts as there.
+ */
 export function loraPresence(l: LoraNeed, inv: GpuInventory): LoraState {
-  const key = nameKey(inv.comfy?.os);
-  if (Object.keys(inv.loras).some((n) => key(n) === key(l.file))) return "present";
+  const base = nameKey(inv.comfy?.os);
+  const rel = pathKey(inv.comfy?.os);
+  const hit = Object.entries(inv.loras).find(([n]) => rel(n) === rel(l.file) || base(n) === base(l.file));
+  if (hit) {
+    const size = hit[1];
+    return l.sizeBytes && typeof size === "number" && size > 0 && size < 0.99 * l.sizeBytes ? "missing" : "present";
+  }
   const folder = inv.models.loras;
   return folder && !folder.folderMissing ? "missing" : "unknown";
 }
