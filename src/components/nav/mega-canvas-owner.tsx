@@ -19,6 +19,7 @@ export const RECENT_BOARDS = 4;
 function useNewBoard() {
   const router = useRouter();
   const { create } = useCanvasActions();
+  const { lang } = useI18n();
   const [busy, setBusy] = useState(false);
   const start = async () => {
     setBusy(true);
@@ -26,7 +27,10 @@ function useNewBoard() {
       const c = await create({});
       router.push(`/canvas/${c.id}`);
     } catch (e) {
-      toastError(e, "Couldn't make a new board. Please try again.");
+      // 정적 폴백까지 렌더 언어로 해석한다(t_dee3be02 — nav.canvas.newBoardError, en은 이 리터럴과
+      // 바이트 동일이라 영어 출력은 그대로다. 서버가 준 e.message는 원래 언어로 떠도 된다).
+      // 폴백 리터럴을 손에 두고 번역하는 형제 t_c373d4a4의 경로(translateOr)와 같은 기계라 병합이 갈라지지 않는다.
+      toastError(e, translateOr(lang, "nav.canvas.newBoardError", "Couldn't make a new board. Please try again."));
       setBusy(false);
     }
   };

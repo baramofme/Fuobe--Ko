@@ -11,6 +11,7 @@ import { onAttr, TAB_PILL, TabRow, useSwapFade } from "@/components/ui/tab-row";
 import { MEGA_AREAS, type MegaId, type MegaItem, type MegaModel } from "@/lib/mega-menus";
 import { isNew, studioSubs, subLabel, subParent, type ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { megaCurrent } from "./mega-launcher";
 import { useMegaMenu, warmMenu } from "./mega-data";
 
@@ -175,6 +176,7 @@ function chipItems(model: MegaModel, chip: string | null): MegaItem[] {
  */
 export function StudiosSheet({ family = "studios", group: initial, onSearch }: { family?: MegaId; group?: string; onSearch: () => void }) {
   const kind = useViewerKind();
+  const { t } = useI18n();
   const pathname = usePathname() ?? "";
   const [group, setGroup] = useState<string | null>(initial ?? null);
   const { model, failed, retry } = useMegaMenu(family, kind);
@@ -255,7 +257,7 @@ export function StudiosSheet({ family = "studios", group: initial, onSearch }: {
                   <span aria-hidden className="grid aspect-video w-full place-items-center rounded-[10px] border border-dashed border-border-strong bg-brand-faint/40">
                     <ArrowRight className="size-5" />
                   </span>
-                  <span className="truncate px-0.5 text-[12px] leading-4 font-medium">See all ready boards</span>
+                  <span className="truncate px-0.5 text-[12px] leading-4 font-medium">{t("nav.canvas.seeAllReadyBoards")}</span>
                 </IntentLink>
               </li>
             </ul>
