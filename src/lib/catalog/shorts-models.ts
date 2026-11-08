@@ -11,7 +11,7 @@ import { routesFor } from "./plan";
 import { pricingOn } from "./promo";
 import { SHORTS, SHORTS_ORIGINAL } from "./shorts";
 import type { Engine, ModelDef } from "./types";
-import { t as storeT, type Params } from "@/lib/i18n/store";
+import type { RowPrice } from "@/lib/row-price";
 
 /** The model as it runs on `engine` (an Original keeps that engine's routes only). */
 function view(modelId: string, engine?: Engine): ModelDef | undefined {
@@ -68,7 +68,8 @@ export interface RestyleModelInfo {
   image: boolean;
   /** Can be asked for 9:16 / 16:9. */
   reframes: boolean;
-  price: string | null;
+  /** The price as the client reads it: bound words as a key+params payload, the `$` line as a plain string, nothing as null. */
+  price: RowPrice;
   resolutions?: string[];
   /** Shortest and longest clip it takes, in seconds. */
   minSeconds?: number;
@@ -91,8 +92,8 @@ export function unitPrice(m: ModelDef, now: number | null = null): number | null
 
 const UNIT: Record<string, string> = { second: "s", megapixel: "MP" };
 
-function priceLine(m: ModelDef, tr: (key: string, params?: Params) => string = storeT): string | null {
-  if (m.engine === "open") return tr("studio.composer.freeYourGpu");
+function priceLine(m: ModelDef): RowPrice {
+  if (m.engine === "open") return { key: "studio.composer.freeYourGpu", params: {} };
   const p = m.pricing;
   const v = unitPrice(m);
   if (!p || v === null) return null;
