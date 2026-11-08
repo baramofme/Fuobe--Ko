@@ -1126,7 +1126,7 @@ export function Composer({ docked }: { docked: boolean }) {
   // its key in the label's words.
   const keyOnly = setupViewer && !demo ? keyOnlySetup(model, engine) : null;
   const freeHere = engine === "open" && model && !keyOnly ? 0 : null;
-  const ownCostText = keyOnly && cost == null ? ownSetupLabel(keyOnly) : costLabel({ demo, cost: cost ?? freeHere, unknown: loraPriceUnknown, gpu: gpuRun }, formatCost);
+  const ownCostText = keyOnly && cost == null ? ownSetupLabel(keyOnly) : costLabel({ demo, cost: cost ?? freeHere, unknown: loraPriceUnknown, gpu: gpuRun }, formatCost, t);
   // An account's paid run is billed to its own provider account (Your keys), or still needs that key.
   const payer = paidThrough(model, status);
   // Its provider account's balance ran out on a run: said before the next one, with Add credit.
@@ -1948,7 +1948,7 @@ export function Composer({ docked }: { docked: boolean }) {
                 data-pool-refused={(poolRefused && !ownKeyHere) || undefined}
                 data-key-price={ownKeyHere || undefined}
               >
-                <span className="sm:hidden">{exactPrice ? fly.compactPrice : ownKeyHere ? runOnText : poolPrice ? costText : keyOnly && cost == null ? ownSetupShort(keyOnly) : costLabel({ demo, cost: cost ?? freeHere, compact: true, unknown: loraPriceUnknown, gpu: gpuRun }, formatCost)}</span>
+                <span className="sm:hidden">{exactPrice ? fly.compactPrice : ownKeyHere ? runOnText : poolPrice ? costText : keyOnly && cost == null ? ownSetupShort(keyOnly) : costLabel({ demo, cost: cost ?? freeHere, compact: true, unknown: loraPriceUnknown, gpu: gpuRun }, formatCost, t)}</span>
                 <span className="hidden sm:inline">
                   {ownGpuHere || ownKeyHere ? runOnText : costText}
                   {payerText}

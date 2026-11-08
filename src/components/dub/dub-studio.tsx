@@ -51,6 +51,7 @@ import { usePoolRun } from "@/components/studio/pool-price";
 import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import { toastError } from "@/lib/refusals";
 import { useDubActions, useDubPrice, useDubSessions, useVoicePrice } from "./hooks";
+import { useI18n } from "@/lib/i18n";
 
 const ONE_SHOT: Record<OneShotModel, { name: string; note: string }> = {
   "heygen-translate": { name: "HeyGen Translate", note: "Lip-synced, 170+ languages and accents · ≈ $0.10 per second" },
@@ -362,13 +363,14 @@ function NewDub({ onStarted }: { onStarted: (id: string) => void }) {
  * this studio's GPUs, the service's price and the place in line.
  */
 function PriceNote({ price, loading, error, hint }: { price?: DubPrice; loading?: boolean; error?: Error | null; hint?: string }) {
+  const { t: tr } = useI18n();
   if (loading) return <Skeleton className="h-4 w-20" aria-label="Pricing" />;
   if (error) return <span className="max-w-[16rem] text-right text-[12px] leading-snug text-muted-foreground">{error.message}</span>;
   if (!price) return null;
   const extra = price.unpriced.length ? `${price.unpriced.join(" and ")} bill${price.unpriced.length === 1 ? "s" : ""} by the provider's own rate (per character or token).` : undefined;
   return (
     <span className="text-right text-[12px] leading-snug" title={[extra, hint].filter(Boolean).join(" ") || undefined}>
-      <span className="font-medium tabular-nums">{toolPoolPrice(price)?.text ?? priceLine(price)}</span>
+      <span className="font-medium tabular-nums">{toolPoolPrice(price)?.text ?? priceLine(price, tr)}</span>
       {price.steps > 1 && <span className="block text-muted-foreground">{price.steps} steps</span>}
     </span>
   );
