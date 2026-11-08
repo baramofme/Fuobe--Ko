@@ -188,7 +188,7 @@ export function KatanaStudio({ examples }: { examples?: ExampleRowData | null })
           />
           {reference && !reference.uploading && <ShapeProbe src={reference.ref} onShape={(aspect) => setMeta((x) => (x ? { ...x, aspect } : x))} />}
           {unreadable && !meta && (
-            <Panel title="Segments" aside={<span className="text-[12px] text-muted-foreground">{shown?.length ?? "…"} × up to {m.max} s</span>}>
+            <Panel title="Segments" aside={<span className="text-[12px] text-muted-foreground">{shown?.length ?? tr("studio.price.dots")} × up to {m.max} s</span>}>
               <p className="text-[13px] text-muted-foreground">This browser can&apos;t preview the clip, so it&apos;s cut evenly every {len} s (scene cuts need a preview).</p>
               <div className="mt-3 flex items-center gap-3">
                 <Slider min={m.min} max={m.max} step={0.5} value={[len]} onValueChange={(v) => setLength(v[0])} aria-label="Segment length" aria-valuetext={`${len} seconds`} className="max-w-64" />
@@ -202,7 +202,7 @@ export function KatanaStudio({ examples }: { examples?: ExampleRowData | null })
               title="Segments"
               aside={
                 <span className="text-[12px] text-muted-foreground">
-                  {scanning !== null && !cuts ? "…" : (segments?.length ?? 0)} × up to {m.max} s
+                  {scanning !== null && !cuts ? tr("studio.price.dots") : (segments?.length ?? 0)} × up to {m.max} s
                 </span>
               }
             >

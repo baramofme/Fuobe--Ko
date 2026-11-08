@@ -15,6 +15,7 @@ import { limitMb, useClipLimit } from "@/lib/clip-limit";
 import { postFileWithProgress } from "@/lib/upload";
 import { clipExtension, clipNeedsPreview, clipProblem, jobState, MODE_LABELS, pageClip, secondsLabel, SWAP_STUDIO, type GenSummary, type StudioEstimate, type SwapClip, type SwapProject, type SwapShot } from "@/lib/catalog/swap-studio";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import { toastError } from "@/lib/refusals";
 import { decisionsHref, useAddClip, usePrepareClip, useSwapEdit, useSwapEstimate, useSwapProject, type EditInput } from "./hooks";
@@ -203,6 +204,7 @@ export function SwapWorkbench({ id }: { id: string }) {
 
 function ProjectPanel({ project, estimate, edit }: { project: SwapProject; estimate: StudioEstimate | undefined; edit: StageProps["edit"] }) {
   const priceText = usePriceText();
+  const { t: tr } = useI18n();
   const nameId = useId();
   return (
     <Panel title="Project">
@@ -222,7 +224,7 @@ function ProjectPanel({ project, estimate, edit }: { project: SwapProject; estim
         <div className="rounded-lg bg-muted px-2.5 py-2">
           <dt className="text-muted-foreground">Every shot&apos;s queue</dt>
           <dd className="mt-0.5 font-medium">
-            {estimate ? `${estimate.project.segments} segment${estimate.project.segments === 1 ? "" : "s"}` : "…"}
+            {estimate ? `${estimate.project.segments} segment${estimate.project.segments === 1 ? "" : "s"}` : tr("studio.price.dots")}
             <span className="block font-mono text-[12px]">{priceText(estimate?.project.costUsd, { demo: estimate?.demo, engine: project.engine })}</span>
           </dd>
         </div>
