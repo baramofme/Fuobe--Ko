@@ -68,28 +68,38 @@ describe("generation names", () => {
 
 describe("trash (soft delete)", () => {
   it("hides trashed generations from every reader and restores them", async () => {
-    const a = made("alpha lighthouse").g;
-    const b = made("beta lighthouse").g;
-    expect(lib.trashGenerations([a.id])).toBe(1);
-    expect(lib.trashGenerations([a.id])).toBe(0); // already there
-    expect(listIds()).not.toContain(a.id);
-    expect(listIds()).toContain(b.id);
-    expect(listIds({ q: "lighthouse" })).toEqual([b.id]);
-    expect(gens.getGeneration(a.id)).toBeNull();
-    expect(gens.getGeneration(a.id, { includeDeleted: true })?.deletedAt).toBeGreaterThan(0);
+    const a = made("alpha lighthouse");
+    const b = made("beta lighthouse");
+    // An upload is nobody's generation: the Trash must never filter it out of the popups' list.
+    const up = saveFile({ data: PNG, contentType: "image/png", source: "upload" });
+    const assetIds = (o: Parameters<typeof listAssets>[0] = {}) => listAssets({ limit: 200, ...o }).map((x) => x.id);
+    expect(assetIds()).toContain(a.asset.id);
+    expect(lib.trashGenerations([a.g.id])).toBe(1);
+    expect(lib.trashGenerations([a.g.id])).toBe(0); // already there
+    expect(listIds()).not.toContain(a.g.id);
+    expect(listIds()).toContain(b.g.id);
+    expect(listIds({ q: "lighthouse" })).toEqual([b.g.id]);
+    expect(gens.getGeneration(a.g.id)).toBeNull();
+    expect(gens.getGeneration(a.g.id, { includeDeleted: true })?.deletedAt).toBeGreaterThan(0);
+    // The "add media" popups read listAssets: a trashed run's file hides with it, uploads stay listed.
+    expect(assetIds()).not.toContain(a.asset.id);
+    expect(assetIds()).toContain(b.asset.id);
+    expect(assetIds()).toContain(up.id);
+    expect(assetIds({ source: "generation" })).not.toContain(a.asset.id);
     // Assist / MCP list_recent goes through listGenerations.
     const recent = TOOLS.find((t) => t.name === "list_recent")!;
     const out = await recent.run({ limit: 30 }, {} as never);
-    expect(String(out.content)).not.toContain(a.id);
+    expect(String(out.content)).not.toContain(a.g.id);
     // The Trash lists it, newest deletion first.
     const trash = gens.listGenerations({ trashed: true });
-    expect(trash.map((g) => g.id)).toEqual([a.id]);
+    expect(trash.map((g) => g.id)).toEqual([a.g.id]);
     expect(trash[0].deletedAt).toBeTypeOf("number");
     expect(lib.libraryFacets().trash).toBe(1);
 
-    expect(lib.restoreGenerations([a.id])).toBe(1);
-    expect(gens.getGeneration(a.id)?.deletedAt).toBeNull();
-    expect(listIds()).toContain(a.id);
+    expect(lib.restoreGenerations([a.g.id])).toBe(1);
+    expect(gens.getGeneration(a.g.id)?.deletedAt).toBeNull();
+    expect(listIds()).toContain(a.g.id);
+    expect(assetIds()).toContain(a.asset.id); // the file comes back with its generation
   });
 
   it("deletes for good, keeping output files something else still uses", async () => {
