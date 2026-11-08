@@ -189,7 +189,7 @@ export function RunPlaceChip({
                   <span className="min-w-0 truncate">
                     <span className="text-muted-foreground">{s.label}</span> · {s.modelName}
                   </span>
-                  {place.where === "cloud" && s.costUsd != null && <span className="shrink-0 font-mono text-[12px] text-muted-foreground tabular-nums">{s.costUsd === 0 ? "Free" : `≈ ${formatCost(s.costUsd)}`}</span>}
+                  {place.where === "cloud" && s.costUsd != null && <span className="shrink-0 font-mono text-[12px] text-muted-foreground tabular-nums">{s.costUsd === 0 ? t("studio.engine.freeShort") : `≈ ${formatCost(s.costUsd)}`}</span>}
                 </li>
               ))}
             </ul>

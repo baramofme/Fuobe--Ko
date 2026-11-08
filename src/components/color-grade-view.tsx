@@ -15,6 +15,7 @@ import { applyPreset, CONTROLS, describeGrade, FRAGMENT, isNeutral, NEUTRAL, PRE
 import { cn } from "@/lib/utils";
 import { loseContext as loseGlContext, releaseVideo } from "@/lib/media-release";
 import { responseError, toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
 
 type Source = HTMLImageElement | HTMLVideoElement;
 
@@ -153,6 +154,7 @@ type Input = { url: string; kind: "image" | "video"; file?: File };
 
 function Grader() {
   const sp = useSearchParams();
+  const { t: tr } = useI18n();
   const initial = sp.get("video") ? { url: sp.get("video")!, kind: "video" as const } : sp.get("image") ? { url: sp.get("image")!, kind: "image" as const } : null;
   const [input, setInput] = useState<Input | null>(initial);
   const [source, setSource] = useState<Source | null>(null);
@@ -444,7 +446,7 @@ function Grader() {
     <div className="flex flex-col lg:h-content">
       <header className="flex h-14 shrink-0 items-center gap-2 px-4 sm:px-6">
         <h1 className="font-heading text-[22px] leading-none">Color grading</h1>
-        <span className="ml-2 hidden rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success sm:inline">Free · runs in your browser</span>
+        <span className="ml-2 hidden rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success sm:inline">{tr("studio.price.freeRunsBrowser")}</span>
         <div className="ml-auto flex items-center gap-2">
           {input && <MediaSlot label="Replace" kind={input.kind} value={null} onChange={pick} onFile={pickFile} local />}
         </div>

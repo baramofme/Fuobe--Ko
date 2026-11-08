@@ -6,8 +6,8 @@
  * Keys are flat with a namespace ("nav.search", "common.close"). en.json holds every key; ko.json translates
  * them. A key missing from the active language falls back to English, warned once.
  */
-import en from "./locales/en.json";
-import ko from "./locales/ko.json";
+import en from "./locales/en.json" with { type: "json" };
+import ko from "./locales/ko.json" with { type: "json" };
 
 export type Lang = "en" | "ko";
 /** undefined on purpose: a lookup must be allowed to miss (Record<string, string> would hide the miss from TS). */

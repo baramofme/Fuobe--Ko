@@ -115,7 +115,7 @@ export function WorldPanel(props: WorldPanelProps) {
   const target = next >= 0 ? next : tidy.turns.length;
   const input = (k: number, join?: string[]): Omit<CinemaGenerateInput, "brief"> => ({ engine, mode: "video", action: "world", prompt: "", settings, world: { script: tidy, turn: k, ...(join ? { join } : {}) } });
   const plan = useMemo(() => planCinema({ ...input(target), brief }, context), [tidy, target, engine, settings, brief, context]); // eslint-disable-line react-hooks/exhaustive-deps
-  const price = demo ? tr("faceless.controls.placeholderFree") : "Free";
+  const price = demo ? tr("faceless.controls.placeholderFree") : tr("studio.engine.freeShort");
   const total = worldSeconds(tidy);
   const sketch = useMemo(() => pathSketch(allTurns(tidy).map((t) => ({ move: t.move, seconds: t.seconds }))), [tidy]);
 

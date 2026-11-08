@@ -14,6 +14,7 @@ import { formatCost } from "@/lib/format";
 import { RunPlaceChip, useRunPlace } from "@/components/studio/run-place-chip";
 import { toastError } from "@/lib/refusals";
 import { useCreativeActions, useEstimate, useProductActions } from "@/components/marketing/hooks";
+import { useI18n } from "@/lib/i18n";
 
 interface BatchEstimate {
   modelName: string;
@@ -65,6 +66,7 @@ export function NewAds({
 }) {
   const { createBatch } = useCreativeActions(brand.id);
   const { remove } = useProductActions();
+  const { t: tr } = useI18n();
   const [selected, setSelected] = useState<string[]>(() => products.slice(0, MAX_PRODUCTS_PER_RUN).map((p) => p.id));
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [editing, setEditing] = useState<Product | null>(null);
@@ -211,7 +213,7 @@ export function NewAds({
                 {items.length > 3 && ` +${items.length - 3}`} and the brand
               </p>
               <p className="text-[12px] text-muted-foreground">
-                {est.data?.blocker ?? (est.data ? `${est.data.modelName}${est.data.perAd != null && !est.data.demo ? ` · ${formatCost(est.data.perAd)} per ad` : ""} · copy by ${est.data.copyBy === "llm" ? "your LLM" : "Fuobe's rules"}` : "Pricing…")}
+                {est.data?.blocker ?? (est.data ? `${est.data.modelName}${est.data.perAd != null && !est.data.demo ? ` · ${formatCost(est.data.perAd)} per ad` : ""} · copy by ${est.data.copyBy === "llm" ? "your LLM" : "Fuobe's rules"}` : tr("assist.composer.schedulePricing"))}
               </p>
             </div>
             <div className="flex items-center gap-3">

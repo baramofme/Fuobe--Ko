@@ -19,6 +19,7 @@ import { isMediaType, recipeProblems, RECIPE_LIMITS, TEST_RUN_NOTE, type ParamTy
 import { buildRecipe, paramIdFrom, skillBody, slugify, type DraftCandidate, type DraftRefusal, type DraftStep, type Naming, type SkillDraft, type Slot } from "@/lib/recipe-builder";
 import { refusalShown } from "@/lib/refusals";
 import { cn } from "@/lib/utils";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 
 /**
  * Make a skill from results already made (package W2): the steps behind them, rebuilt by the server from their exact
@@ -387,16 +388,17 @@ function statusLine(c: CheckState | null, busy: "check" | "save" | null, own: st
   return `It runs on ${where}. Save it now; the placeholder run finishes on its own.`;
 }
 
-function priceOf(e: DraftCheckResult["engines"][number]): string {
+function priceOf(e: DraftCheckResult["engines"][number], tr: (key: string, params?: Params) => string = storeT): string {
   if (!e.plan.ok) return "doesn't run";
-  if (e.plan.demo) return "placeholder, free";
+  if (e.plan.demo) return tr("studio.price.placeholderCommaFree");
   if (e.plan.total === null) return "price varies";
-  if (e.plan.total === 0) return "Free";
+  if (e.plan.total === 0) return tr("studio.engine.freeShort");
   return formatCost(e.plan.total);
 }
 
 function CheckBadges({ check }: { check: CheckState }) {
   const demo = check.demo;
+  const { t: tr } = useI18n();
   // Every engine's dry run skipped (a studio tool step): say so, rather than "passed".
   const ran = demo && demo !== "running" ? demo.engines.filter((e) => e.dryRun) : [];
   const skipped = demo && demo !== "running" && demo.ok && ran.length > 0 && ran.every((e) => e.dryRun?.skipped) ? ran[0].dryRun!.skipped : undefined;
@@ -405,7 +407,7 @@ function CheckBadges({ check }: { check: CheckState }) {
       {check.plan!.engines.map((e) => (
         <span key={e.engine} className={cn("inline-flex h-6 items-center gap-1 rounded-full px-2 text-[12px] font-medium", e.plan.ok ? "bg-brand-faint text-brand-text" : "bg-destructive/10 text-destructive")}>
           {e.engine === "open" ? <Cpu className="size-3" /> : <Cloud className="size-3" />}
-          {e.engine === "open" ? "Your GPU" : "Cloud"} · {priceOf(e)}
+          {e.engine === "open" ? "Your GPU" : "Cloud"} · {priceOf(e, tr)}
         </span>
       ))}
       {demo === "running" && (

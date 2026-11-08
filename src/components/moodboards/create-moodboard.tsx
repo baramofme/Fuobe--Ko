@@ -17,6 +17,7 @@ import { useMoodboardActions } from "./hooks";
 import { loadImage, pixelsOf, renderCollages } from "./images";
 import { colorFeature, COPY, imageProblem, moodboardError, MOODBOARD_LIMITS, representativeOrder, suggestMoodboardName, type Moodboard } from "./logic";
 import { placeholdersOn } from "@/lib/demo-mode";
+import { useI18n } from "@/lib/i18n";
 
 interface Item {
   id: string;
@@ -48,6 +49,7 @@ export function CreateMoodboardDialog({ open, onOpenChange, onCreated }: { open:
   const input = useRef<HTMLInputElement>(null);
   const [engine] = useEngine();
   const status = useStatus();
+  const { t: tr } = useI18n();
   const [over, setOver] = useState(false);
   const { create } = useMoodboardActions();
   const keys = useRef(new Set<string>());
@@ -155,7 +157,7 @@ export function CreateMoodboardDialog({ open, onOpenChange, onCreated }: { open:
       : !st
         ? `Cloud: a Recraft style from the ${n} most representative images`
         : demo
-          ? `Cloud: a Recraft style from the ${n} most representative images · placeholder, free`
+          ? `Cloud: a Recraft style from the ${n} most representative images · ${tr("studio.price.placeholderCommaFree")}`
           : fal
             ? `Cloud: Recraft V4 Styles saves a style and draws the cover from the ${n} most representative images · ≈ $0.04 on fal`
             : `Cloud: no fal key, so no saved Recraft style — the ${n} most representative images are used as references`;

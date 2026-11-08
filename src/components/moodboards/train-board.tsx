@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trainingSettingsHref, type TrainingTarget } from "@/lib/catalog/training";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { toastError } from "@/lib/refusals";
 import { useMoodboardActions } from "./hooks";
 import type { Moodboard } from "./logic";
@@ -20,6 +21,7 @@ type Target = TrainingTarget & { blocker: string | null; demo: boolean };
  */
 export function TrainBoardDialog({ board, open, onOpenChange }: { board: Moodboard; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { train } = useMoodboardActions();
+  const { t: tr } = useI18n();
   const q = useQuery({
     queryKey: ["moodboard-train", board.id],
     queryFn: async () => (await (await fetch(`/api/moodboards/${board.id}/train`)).json()) as { targets: Target[] },
@@ -51,7 +53,7 @@ export function TrainBoardDialog({ board, open, onOpenChange }: { board: Moodboa
                   <p className="flex flex-wrap items-center gap-x-2 text-[14px] font-medium">
                     {t.name}
                     <span className={cn("rounded-full px-2 py-px text-[11.5px] font-medium tabular-nums", t.costUsd === 0 ? "bg-success/15 text-success" : "bg-muted text-foreground")}>
-                      {t.costUsd === 0 ? "Free" : `$${t.costUsd.toFixed(2)}`}
+                      {t.costUsd === 0 ? tr("studio.engine.freeShort") : `$${t.costUsd.toFixed(2)}`}
                     </span>
                     <span className="text-[12px] font-normal text-muted-foreground">{t.eta}</span>
                   </p>

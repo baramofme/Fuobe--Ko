@@ -10,6 +10,7 @@ import { ancestors, newId, type CanvasGraph } from "@/lib/catalog/canvas";
 import { BOARD_COLOR_LABEL, BOARD_COLORS, BOARD_LIMITS, COMMENT_AUTHOR, groupMembers, strokePath, type BoardColor, type CanvasComment, type CanvasGroup, type CanvasShape } from "@/lib/catalog/canvas-board";
 import { formatCost, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { useEditorActions, useEditorGlobals, useEditorSelector, type EditorSnapshot } from "./canvas-context";
 import type { FlowNode } from "./nodes";
 
@@ -183,12 +184,13 @@ const selectGroupPlan = (s: EditorSnapshot, id: string): GroupPlan => {
 function GroupPrice({ id }: { id: string }) {
   const p = useEditorSelector(selectGroupPlan, id, sameGroupPlan);
   const { isDemo } = useEditorGlobals();
+  const { t: tr } = useI18n();
   if (!p.steps) return <>Everything in this group is up to date</>;
   const demo = p.models.split(" ").every((mid) => {
     const m = getModel(mid);
     return !!m && isDemo(m);
   });
-  const price = demo ? "placeholder, free" : p.unknown ? "price unknown" : p.usd === 0 ? "free" : `≈ ${formatCost(p.usd)}`;
+  const price = demo ? tr("studio.price.placeholderCommaFree") : p.unknown ? tr("studio.price.unknownLower") : p.usd === 0 ? tr("studio.price.freeLower") : `≈ ${formatCost(p.usd)}`;
   return (
     <>
       Runs {p.steps === 1 ? "1 node" : `${p.steps} nodes`} (with what they need) · {price}

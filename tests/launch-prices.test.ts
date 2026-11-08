@@ -184,7 +184,7 @@ describe("what pages prerender at build time reads no clock", () => {
   it("the Models page rows, Home's and Settings' first-run quotes, and the Shorts and Mixed Media model rows", () => {
     expect(
       clockReads(() => {
-        MODELS.map(toModelRow);
+        MODELS.map((m) => toModelRow(m));
         starterPriceLine();
         startQuotes();
         modelInfos(SHORTS_MODELS.cloud, "cloud");

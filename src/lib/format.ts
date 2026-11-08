@@ -1,3 +1,5 @@
+import { t as storeT, type Params } from "./i18n/store";
+
 export function timeAgo(ts: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((now - ts) / 1000));
   if (s < 45) return "just now";
@@ -10,10 +12,10 @@ export function timeAgo(ts: number, now = Date.now()): string {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export function formatCost(usd: number | null | undefined): string {
+export function formatCost(usd: number | null | undefined, tr: (key: string, params?: Params) => string = storeT): string {
   if (usd == null) return "";
-  if (usd === 0) return "Free";
-  if (usd < 0.01) return "<$0.01";
+  if (usd === 0) return tr("studio.engine.freeShort");
+  if (usd < 0.01) return tr("studio.price.lt001NoSpace");
   return `$${usd < 1 ? usd.toFixed(3).replace(/0$/, "") : usd.toFixed(2)}`;
 }
 

@@ -210,7 +210,7 @@ function CostLabel({ plan }: { plan: { costUsd: number | null; model: { engine: 
   const { t: tr } = useI18n();
   const status = useStatus().data;
   const demo = placeholdersOn(status?.demoMode);
-  return <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">{demo ? tr("faceless.controls.placeholderFree") : plan.costUsd === 0 ? (plan.model.engine === "open" ? openFree(tr("studio.composer.freeYourGpu")) : "Free") : plan.costUsd != null ? `≈ ${formatCost(plan.costUsd)}` : ""}</span>;
+  return <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">{demo ? tr("faceless.controls.placeholderFree") : plan.costUsd === 0 ? (plan.model.engine === "open" ? openFree(tr("studio.composer.freeYourGpu")) : tr("studio.engine.freeShort")) : plan.costUsd != null ? `≈ ${formatCost(plan.costUsd)}` : ""}</span>;
 }
 
 function SaveElement({ kind, defaultName, picked, description, onSaved }: { kind: "character" | "location"; defaultName: string; picked: string[]; description: string; onSaved: () => void }) {

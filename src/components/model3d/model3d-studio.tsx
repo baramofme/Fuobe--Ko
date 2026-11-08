@@ -600,7 +600,7 @@ function Model3dStudioBody({ info, examples }: { info: Record<string, Model3dInf
               ) : (
                 <p className="mt-2 text-[12px] text-muted-foreground" aria-live="polite">
                   {blocker ? `${blocker} · ` : ""}
-                  {preview.isError ? (preview.error as Error).message : (price ?? "Working out the price…")}
+                  {preview.isError ? (preview.error as Error).message : (price ?? tr("studio.price.workingOut"))}
                 </p>
               )}
               <p className="mt-1 text-[12px] text-muted-foreground">

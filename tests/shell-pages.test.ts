@@ -62,7 +62,7 @@ describe("model rows", () => {
     const original = MODELS.find((x) => x.engines?.length === 2)!;
     expect(toModelRow(original).price).toMatch(/^Free · .+ \/ megapixel$/);
     const full = JSON.stringify(MODELS).length;
-    const slim = JSON.stringify(MODELS.map(toModelRow)).length;
+    const slim = JSON.stringify(MODELS.map((m) => toModelRow(m))).length;
     expect(slim / full).toBeLessThan(0.5);
   });
 

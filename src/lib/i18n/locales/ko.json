@@ -3746,5 +3746,8 @@
   "studio.price.freeInYourBrowser": "무료 · 내 브라우저에서 실행",
   "studio.price.freePlaysInYourBrowser": "무료 · 내 브라우저에서 재생",
   "studio.price.notAnsweringNow": "무료 · 지금 응답하지 않습니다",
-  "studio.price.demoFree": "데모 · 무료"
+  "studio.price.demoFree": "데모 · 무료",
+  "studio.price.freeRunsBrowser": "무료 · 내 브라우저에서 실행",
+  "studio.price.placeholderCommaFree": "플레이스홀더, 무료",
+  "studio.price.freeLower": "무료"
 }

@@ -3,6 +3,7 @@ import { formatCost } from "./format";
 import { enginesOf, providerEngine } from "./catalog/engines";
 import { launchHolds, pricingOn, type PriceClock } from "./catalog/promo";
 import { OPERATION_LABELS, type Engine, type MediaKind, type ModelDef } from "./catalog/types";
+import { t as storeT, type Params } from "./i18n/store";
 
 export interface ModelRow {
   id: string;
@@ -48,11 +49,11 @@ const BADGE_LABEL: Record<string, string> = {
   beta: "Beta",
 };
 
-export function toModelRow(m: ModelDef): ModelRow {
+export function toModelRow(m: ModelDef, tr: (key: string, params?: Params) => string = storeT): ModelRow {
   // A Fuobe Original's view on one engine (onEngine) keeps only that engine's routes: it lists that engine alone.
   const engines = enginesOf(m).filter((e) => e === m.engine || m.routes.some((r) => providerEngine(r.provider) === e));
   // A Fuobe Original is free on your GPU and priced on the cloud.
-  const shown = (cloud: string) => (engines.length > 1 ? `Free · ${cloud}` : m.engine === "open" ? "Free" : cloud);
+  const shown = (cloud: string) => (engines.length > 1 ? `${tr("studio.engine.freeShort")} · ${cloud}` : m.engine === "open" ? tr("studio.engine.freeShort") : cloud);
   const p = m.pricing;
   return {
     id: m.id,
@@ -65,9 +66,9 @@ export function toModelRow(m: ModelDef): ModelRow {
     badges: (m.badges ?? []).filter((b) => b !== "open").map((b) => BADGE_LABEL[b] ?? b),
     ops: [...new Set(m.routes.map((r) => OPERATION_LABELS[r.op] ?? r.op))],
     routes: [...new Set(m.routes.map((r) => `${r.provider}: ${r.endpoint}`))],
-    price: shown(p ? `${formatCost(p.usd)} / ${p.unit}` : "—"),
+    price: shown(p ? `${formatCost(p.usd, tr)} / ${p.unit}` : "—"),
     // A launch price on the cloud (FLUX 3 Max): the browser picks it or the list price by the day (rowPrice).
-    ...(p?.promo && engines.includes("cloud") && { launch: { until: p.promo.until, price: shown(`${formatCost(p.promo.usd)} / ${p.unit}`) } }),
+    ...(p?.promo && engines.includes("cloud") && { launch: { until: p.promo.until, price: shown(`${formatCost(p.promo.usd, tr)} / ${p.unit}`) } }),
     ...(m.worker === "isolated" && { note: ISOLATED_NOTE }),
   };
 }
@@ -86,10 +87,16 @@ export function rowPrice(r: Pick<ModelRow, "price" | "launch">, now: number | nu
  * The price a row shows when the install runs one engine only (`only`): a Fuobe Original is "Free" on the open engine,
  * and only its cloud price ("Free · $0.08 / second" without "Free · ") on the cloud. Otherwise rowPrice.
  */
-export function rowPriceOn(r: Pick<ModelRow, "price" | "launch" | "engines">, now: number | null, only?: Engine): string {
-  if (only === "open" && r.engines.includes("open")) return "Free";
+export function rowPriceOn(r: Pick<ModelRow, "price" | "launch" | "engines">, now: number | null, only?: Engine, tr: (key: string, params?: Params) => string = storeT): string {
+  if (only === "open" && r.engines.includes("open")) return tr("studio.engine.freeShort");
   const price = rowPrice(r, now);
-  return only === "cloud" && r.engines.length > 1 ? price.replace(/^Free · /, "") : price;
+  if (only === "cloud" && r.engines.length > 1) {
+    // 로케일 안전: 접두는 그 언어의 free word로 조립해 startsWith로 판정하고 slice한다(en은 "Free · "로 원문과 동일,
+    // ko는 빌드·렌더 언어가 일치할 때만 잘라낸다 — 접두가 다르면 원문을 그대로 둬 오타 절단을 피한다).
+    const pfx = tr("studio.engine.freeShort") + " · ";
+    return price.startsWith(pfx) ? price.slice(pfx.length) : price;
+  }
+  return price;
 }
 
 const PICKER_UNIT = { image: "/image", second: "/sec", video: "/video", request: "/run", megapixel: "/MP", minute: "/min" } as const;
@@ -98,12 +105,12 @@ const PICKER_UNIT = { image: "/image", second: "/sec", video: "/video", request:
  * The model picker's short price ("$0.05/sec", "Free"), at `now` (./catalog/promo): the launch price while it holds,
  * nothing for a launch-priced model while no clock may be read (null).
  */
-export function pickerPrice(m: ModelDef, now: PriceClock, edits = false): string {
-  if (m.engine === "open") return "Free";
+export function pickerPrice(m: ModelDef, now: PriceClock, edits = false, tr: (key: string, params?: Params) => string = storeT): string {
+  if (m.engine === "open") return tr("studio.engine.freeShort");
   const p = m.pricing && pricingOn(m.pricing, now);
   // A studio that edits clips (Edit video) shows the rate an edit bills, on the seconds in and out (Kling 4.0).
-  if (edits && p?.clipInput) return `${formatCost(p.clipInput.usd)}/sec in+out`;
-  return p ? `${formatCost(p.usd)}${PICKER_UNIT[p.unit]}` : "";
+  if (edits && p?.clipInput) return `${formatCost(p.clipInput.usd, tr)}/sec in+out`;
+  return p ? `${formatCost(p.usd, tr)}${PICKER_UNIT[p.unit]}` : "";
 }
 
 /** "Open source", "Cloud", or both for a Fuobe Original. */

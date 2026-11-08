@@ -15,6 +15,7 @@ import { stepCostUsd } from "@/lib/catalog/faceless";
 import type { Generation } from "@/lib/catalog/types";
 import { toastError } from "@/lib/refusals";
 import { cn } from "@/lib/utils";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 import {
   DEFAULT_TEST_LINE,
   describeVoice,
@@ -38,10 +39,10 @@ import {
 
 const chip = "inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-medium transition-colors";
 
-function money(engine: "open" | "cloud", usd: number | null): string {
-  if (engine === "open") return "Free on your GPU";
-  if (usd === null) return "Price unknown";
-  return usd < 0.01 ? "Under $0.01" : `≈ $${usd.toFixed(2)}`;
+function money(engine: "open" | "cloud", usd: number | null, tr: (key: string, params?: Params) => string = storeT): string {
+  if (engine === "open") return tr("studio.finish.freeOnYourGpu");
+  if (usd === null) return tr("studio.price.unknown");
+  return usd < 0.01 ? tr("studio.price.under001") : `≈ $${usd.toFixed(2)}`;
 }
 
 /** One take: play it, then save it as a voice (or, for a visitor, use it right away in Speech). */
@@ -129,6 +130,7 @@ function Take({ g, index, description, line, canSave }: { g: Generation; index: 
 
 export function DesignVoiceTool() {
   const openFree = useOpenFree();
+  const { t: tr } = useI18n();
   const [engine, setEngine, mode] = useEngine();
   const visitor = useIsVisitor();
   const create = useCreateGeneration();
@@ -145,7 +147,7 @@ export function DesignVoiceTool() {
   const model = modelId ? getModel(modelId) : undefined;
   const blocker = designBlocker(key, engine) ?? (!description ? "Describe the voice, or pick a few chips" : !line.trim() ? "Write a line for it to say" : null);
   const usd = model ? stepCostUsd(model, { feature: VOICE_FEATURE, modelId: model.id, prompt: line }) : null;
-  const price = openFree(money(engine, usd === null ? null : usd * VOICE_TAKES));
+  const price = openFree(money(engine, usd === null ? null : usd * VOICE_TAKES, tr));
 
   const all = useGenerations({ features: [VOICE_FEATURE], limit: 24 });
   const takes = useMemo(() => {

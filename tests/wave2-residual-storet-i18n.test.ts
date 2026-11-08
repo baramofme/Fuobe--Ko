@@ -120,12 +120,16 @@ describe("2차 잔여의 렌더 시점 배선(t_96d00226 레인)", () => {
     expect(`pending → ${translate("ko", KEYS.dots)}`).toBe("pending → …");
   });
 
-  it("이 레인이 잠근 4파일 외의 인접 지점은 무접촉 사실로 남는다(color-grade·bare Free 플래그)", () => {
-    // color-grade-view:447의 원 리터럴은 재사용 가능한 바이트 동일 키가 0(전수 스캔 실측)라 무접촉 —
-    // 신규 키가 필요해 이 카드에서 불가 보고됐다(로케일 무접촉 결정). 판정도 그 사실을 그대로 잠근다.
-    expect(codeOf("src/components/color-grade-view.tsx")).toContain("Free \u00b7 runs in your browser");
-    // run-place-chip의 bare "Free"(steps 줄의 0원 표기)는 이 카드 범위 밖(벌거벗은 Free 관례 제외).
-    expect(codeOf(CHIP)).toContain('"Free"');
-    // 로케일 무접촉: 두 키의 값은 선재 바이트(위 판정)로 충분 — 이 카드는 en.json/ko.json를 건드리지 않았다.
+  it("이 레인이 잠근 인접 지점 중 웨이브-2가 해소한 2지점은 배선 사실로 갱신된다(color-grade·run-place-chip Free)", () => {
+    // color-grade-view:447 — 이 카드에서는 재사용 가능한 바이트 동일 키가 0이라 신규 키가 필요해 무접촉
+    // 보고됐지만(로케일 무접촉 결정), 웨이브-2 잔여(t_1fc245a0)의 결정 ②가 그 대기를 해소했다: 로케일 접촉이
+    // 그 물결의 요점이고 생성기가 studio.price.freeRunsBrowser를 새로 발행했다. 판정도 그 사실을 따라 갱신된다.
+    expect(codeOf("src/components/color-grade-view.tsx")).not.toContain("Free \u00b7 runs in your browser");
+    expect(codeOf("src/components/color-grade-view.tsx")).toContain('tr("studio.price.freeRunsBrowser")');
+    // run-place-chip의 bare "Free"(steps 줄의 0원 표기)는 이 카드 범위 밖이었으나 같은 잔여 카드의 항목 17이
+    // 그 지점을 freeShort로 배선한다(en 바이트 동일). 무접촉 단언은 배선 단언으로 대체된다.
+    expect(codeOf(CHIP)).not.toContain('"Free"');
+    expect(codeOf(CHIP)).toContain('t("studio.engine.freeShort")');
+    // 로케일 무접촉: 이 레인이 읽은 두 키의 값은 선재 바이트(위 판정)로 충분 — 이 레인은 en.json/ko.json를 건드리지 않았다.
   });
 });

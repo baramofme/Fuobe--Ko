@@ -68,6 +68,14 @@ NEW_KEYS: dict[str, tuple[str, str]] = {
     "studio.price.freePlaysInYourBrowser": ("Free \u00b7 plays in your browser",  "무료 \u00b7 내 브라우저에서 재생"),
     "studio.price.notAnsweringNow":     ("Free \u00b7 not answering right now",   "무료 \u00b7 지금 응답하지 않습니다"),
     "studio.price.demoFree":            ("Demo \u00b7 free",                      "데모 \u00b7 무료"),
+
+    # 24지점 잔여 배선분(t_1fc245a0 — 정의 순서 꼬리로 추가, 재정리 0)
+    # color-grade 배지: 형제 freeInYourBrowser의 ko 스타일("내 브라우저에서 실행")을 답습
+    "studio.price.freeRunsBrowser":     ("Free \u00b7 runs in your browser",      "무료 \u00b7 내 브라우저에서 실행"),
+    # board·skill-builder·create-moodboard의 콤마형(기존 placeholderFree의 ·형과 구별)
+    "studio.price.placeholderCommaFree": ("placeholder, free",                     "플레이스홀더, 무료"),
+    # canvas의 소문자 free(선례: unknown·unknownLower가 같은 ko 값을 공유한다)
+    "studio.price.freeLower":           ("free",                                   "무료"),
 }
 
 

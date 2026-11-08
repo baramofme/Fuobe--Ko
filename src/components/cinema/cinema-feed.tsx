@@ -1,6 +1,7 @@
 "use client";
 
 import { shownSettings } from "@/lib/catalog/made";
+import { useI18n } from "@/lib/i18n";
 import {
   Box,
   CalendarDays,
@@ -206,6 +207,7 @@ const FinishedIn2k = createContext<Set<string>>(new Set());
 
 function TileMenu({ u, folders, projectId, handlers, onDelete }: { u: Unit; folders: CinemaFolder[]; projectId: string; handlers: FeedHandlers; onDelete: (ids: string[]) => void }) {
   const actions = useItemActions(projectId);
+  const { t: tr } = useI18n();
   const engineMode = useEngineMode();
   const finished = useContext(FinishedIn2k);
   // One paid submit at a time, with a nonce the server answers a repeat with (a double click is one 2K render).
@@ -222,7 +224,7 @@ function TileMenu({ u, folders, projectId, handlers, onDelete }: { u: Unit; fold
   const ownSetup = finish?.perSecond === null ? "regenerate:cinema-finish" : undefined;
   const press = useOwnSetupPress();
   const seconds = Number(shownSettings(u.g).duration ?? 0);
-  const finishPrice = !finish ? "" : finish.perSecond === null ? "Free" : seconds > 0 ? `≈ ${formatCost(finish.perSecond * seconds)}` : `$${finish.perSecond.toFixed(2)}/s`;
+  const finishPrice = !finish ? "" : finish.perSecond === null ? tr("studio.engine.freeShort") : seconds > 0 ? `≈ ${formatCost(finish.perSecond * seconds)}` : `$${finish.perSecond.toFixed(2)}/s`;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

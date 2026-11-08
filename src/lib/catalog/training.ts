@@ -20,6 +20,7 @@
 import type { ElementKind, ElementLora } from "./elements";
 import { HOSTED_TRAINERS } from "./trainers.generated";
 import type { Engine, ModelDef } from "./types";
+import { t as storeT, type Params } from "@/lib/i18n/store";
 
 export type TrainingProvider = "fal" | "ai-toolkit";
 
@@ -242,17 +243,18 @@ export function trainerCost(trainer: Pick<HostedTrainer, "usdPerStep" | "minBill
 const usd = (n: number) => `$${n.toFixed(2)}`;
 const thousands = (n: number) => n.toLocaleString("en-US");
 
-function target(t: Omit<TrainingTarget, "modelIds" | "price" | "costUsd" | "minImages" | "licence" | "commercial">): TrainingTarget {
+function target(t: Omit<TrainingTarget, "modelIds" | "price" | "costUsd" | "minImages" | "licence" | "commercial">, tr: (key: string, params?: Params) => string = storeT): TrainingTarget {
   const cost = t.provider === "fal" ? trainerCost(getTrainer(t.trainer), t.steps) : 0;
   if (cost === null) throw new Error(`${t.id}: its trainer ${t.trainer} has no price (run pnpm gen:catalog)`);
-  const tr = getTrainer(t.trainer);
+  // 이 함수 안의 지역 이름 tr는 번역 함수 파라미터와 부딪히므로(tr 선포 섀도잉) 트레이너 정의를 trainer로 renamed한다(규칙 2).
+  const trainer = getTrainer(t.trainer);
   return {
     ...t,
     modelIds: TRAINING_FAMILIES[t.family].models,
     minImages: SOUL_ID_PHOTOS.min,
     costUsd: cost,
-    price: cost === 0 ? "Free" : `≈ ${usd(cost)} (${thousands(t.steps)} steps)`,
-    ...(tr ? { licence: tr.licence, commercial: tr.commercial } : familyLicence(t.family)),
+    price: cost === 0 ? tr("studio.engine.freeShort") : `≈ ${usd(cost)} (${thousands(t.steps)} steps)`,
+    ...(trainer ? { licence: trainer.licence, commercial: trainer.commercial } : familyLicence(t.family)),
   };
 }
 

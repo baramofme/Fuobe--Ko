@@ -17,6 +17,7 @@ import { ClipBar, ClipDrop, costText, Field, Segmented, tabKeys } from "@/compon
 import { clipDuration, clipSize, useSourceClip } from "@/components/shorts/use-source-clip";
 import { uploadFile, useEngine, useModelAccess, useStatus } from "@/lib/api";
 import { paidSuffix, placeholdersOn } from "@/lib/demo-mode";
+import { useI18n } from "@/lib/i18n";
 import { keepOffered, offered } from "@/lib/model-access";
 import {
   clampFps,
@@ -320,6 +321,7 @@ function Editor({
   onClip?: (has: boolean) => void;
 }) {
   const openFree = useOpenFree();
+  const { t: tr } = useI18n();
   const source = useSourceClip(MIXED.maxBytes);
   const { clip } = source;
   const hasClip = !!clip;
@@ -445,7 +447,7 @@ function Editor({
   // The preview frame is a run of its own: on the cloud its button says its price (the estimate's, per frame), else "· paid";
   // nothing on your GPU (free) or while placeholders are on.
   const placeholders = placeholdersOn(useStatus().data?.demoMode);
-  const previewPaid = cloud && !(est ? est.demo : placeholders) ? paidSuffix(est?.previewUsd) : "";
+  const previewPaid = cloud && !(est ? est.demo : placeholders) ? paidSuffix(est?.previewUsd, tr) : "";
 
   // A new clip, preset or engine starts without a preview (and so does another frame editor: the preview is its own work).
   const key = `${preset?.id}|${clip?.preview}|${engine}|${mode === "fast" ? "" : modelId}`;

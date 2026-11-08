@@ -3746,5 +3746,8 @@
   "studio.price.freeInYourBrowser": "Free · in your browser",
   "studio.price.freePlaysInYourBrowser": "Free · plays in your browser",
   "studio.price.notAnsweringNow": "Free · not answering right now",
-  "studio.price.demoFree": "Demo · free"
+  "studio.price.demoFree": "Demo · free",
+  "studio.price.freeRunsBrowser": "Free · runs in your browser",
+  "studio.price.placeholderCommaFree": "placeholder, free",
+  "studio.price.freeLower": "free"
 }

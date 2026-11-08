@@ -174,7 +174,7 @@ export function RetextureDialog({
                 ? "Describe the look or add a style picture"
                 : preview.isError
                   ? (preview.error as Error).message
-                  : (price ?? "Working out the price…")}{" "}
+                  : (price ?? tr("studio.price.workingOut"))}{" "}
               · Runs on Meshy in the cloud, on either engine.
             </p>
           </div>

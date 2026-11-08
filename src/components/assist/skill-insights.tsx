@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCost } from "@/lib/format";
 import { refusalShown } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
 import type { FixCandidates, SkillHistory, SkillRunRow } from "@/lib/skill-insights";
 import type { SkillRunView } from "@/lib/skill-runs";
 import { cn } from "@/lib/utils";
@@ -96,6 +97,7 @@ export function RunSteps({ run }: { run: SkillRunView }) {
 /** History: the skill's runs in numbers, then the last ten (status, cost, when, what they made). */
 export function SkillHistorySection({ name }: { name: string }) {
   const q = useSkillHistory(name);
+  const { t: tr } = useI18n();
   if (q.isError) return null;
   const h = q.data;
   return (
@@ -138,7 +140,7 @@ export function SkillHistorySection({ name }: { name: string }) {
                     {r.demo && <span className="font-normal text-muted-foreground">· placeholder</span>}
                   </p>
                   <p className="text-muted-foreground">
-                    {day(r.at)} · {r.costUsd === null ? "price unknown" : formatCost(r.costUsd)} · {r.steps} result{r.steps === 1 ? "" : "s"}
+                    {day(r.at)} · {r.costUsd === null ? tr("studio.price.unknownLower") : formatCost(r.costUsd)} · {r.steps} result{r.steps === 1 ? "" : "s"}
                   </p>
                 </div>
                 <Link href="/library" className="shrink-0 text-[12px] text-brand-text underline underline-offset-2">

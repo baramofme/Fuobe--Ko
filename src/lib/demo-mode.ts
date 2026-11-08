@@ -10,6 +10,7 @@
 
 import { formatCost } from "@/lib/format";
 import { knownPlace, type Place } from "@/lib/place-name";
+import { t as storeT, type Params } from "@/lib/i18n/store";
 
 /** Settings' switch. */
 export const PLACEHOLDER_SETTING = "Show placeholder results (for a tour)";
@@ -52,9 +53,9 @@ export function againWhere(g: { engine: string; place?: "pool" } | null | undefi
  * What a one-tap paid (cloud) run adds to its button: its price (" · ≈ $0.42", " · under $0.01") when it is known,
  * else " · paid".
  */
-export function paidSuffix(price?: number | null): string {
+export function paidSuffix(price?: number | null, tr: (key: string, params?: Params) => string = storeT): string {
   if (price == null || !(price > 0)) return " · paid";
-  return price < 0.01 ? " · under $0.01" : ` · ≈ ${formatCost(price)}`;
+  return price < 0.01 ? tr("studio.price.demoUnder001") : ` · ≈ ${formatCost(price, tr)}`;
 }
 
 /**

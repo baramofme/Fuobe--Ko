@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ElementLora, StudioElement } from "@/lib/catalog/elements";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 import {
   AITK_FAMILIES,
   identityKey,
@@ -60,7 +61,7 @@ function engines(l: ElementLora): string {
   return open && cloud ? "Your GPU and the cloud" : open ? "Your GPU only" : "Cloud only";
 }
 
-const price = (t: Target) => (t.costUsd === 0 ? "Free" : `$${t.costUsd.toFixed(2)}`);
+const price = (t: Target, tr: (key: string, params?: Params) => string = storeT) => (t.costUsd === 0 ? tr("studio.engine.freeShort") : `$${t.costUsd.toFixed(2)}`);
 
 /** Where a family's LoRA runs: both engines, or the one it has models on. */
 function familyEngines(f: TrainingFamily): string {
@@ -75,6 +76,7 @@ function familyEngines(f: TrainingFamily): string {
  */
 export function TrainDialog({ element, open, onOpenChange }: { element: StudioElement; open: boolean; onOpenChange: (o: boolean) => void }) {
   const qc = useQueryClient();
+  const { t: tr } = useI18n();
   const q = useTrainings(element.id, open);
   const [file, setFile] = useState("");
   const [kitFamily, setKitFamily] = useState<TrainingFamily>("z-image-turbo");
@@ -176,7 +178,7 @@ export function TrainDialog({ element, open, onOpenChange }: { element: StudioEl
                   <div className="min-w-0 flex-1 basis-48">
                     <p className="flex flex-wrap items-center gap-x-2 text-[14px] font-medium">
                       {t.name}
-                      <span className={cn("rounded-full px-2 py-px text-[11.5px] font-medium tabular-nums", t.costUsd === 0 ? "bg-success/15 text-success" : "bg-muted text-foreground")}>{price(t)}</span>
+                      <span className={cn("rounded-full px-2 py-px text-[11.5px] font-medium tabular-nums", t.costUsd === 0 ? "bg-success/15 text-success" : "bg-muted text-foreground")}>{price(t, tr)}</span>
                       <span className="text-[12px] font-normal text-muted-foreground">{t.eta}</span>
                     </p>
                     <p className="text-[12px] text-muted-foreground">{t.description}</p>

@@ -354,8 +354,8 @@ function SceneEditor({ view, scenes, onClose, onOpen }: { view: View; scenes: Sc
                 : preview.isError
                   ? (preview.error as Error).message
                   : preview.data
-                    ? `Re-renders ${preview.data.labels.length} step${preview.data.labels.length === 1 ? "" : "s"} (${stepWords(preview.data.labels)})${preview.data.retime ? ", plus any scene whose timing moves" : ""} · ${preview.data.demo ? tr("faceless.controls.placeholderFree") : ep.settings.engine === "open" ? openFree(tr("studio.composer.freeYourGpu")) : preview.data.costUsd === null ? "price unknown" : `≈ ${usd(preview.data.costUsd)}${preview.data.retime ? "+" : ""}`}`
-                    : "Pricing…"}
+                    ? `Re-renders ${preview.data.labels.length} step${preview.data.labels.length === 1 ? "" : "s"} (${stepWords(preview.data.labels)})${preview.data.retime ? ", plus any scene whose timing moves" : ""} · ${preview.data.demo ? tr("faceless.controls.placeholderFree") : ep.settings.engine === "open" ? openFree(tr("studio.composer.freeYourGpu")) : preview.data.costUsd === null ? tr("studio.price.unknownLower") : `≈ ${usd(preview.data.costUsd)}${preview.data.retime ? "+" : ""}`}`
+                    : tr("assist.composer.schedulePricing")}
           </p>
           <Button variant="ghost" onClick={discard} disabled={!draft}>
             Discard
@@ -471,6 +471,7 @@ function Changes({ view }: { view: View }) {
 /** One episode (Faceless or Explainer): writing → review → render, then the film and its timeline editor. */
 export function EpisodeView({ id, backHref, backLabel }: { id: string; backHref: string; backLabel: string }) {
   const router = useRouter();
+  const { t: tr } = useI18n();
   const { data: view, error, isLoading } = useEpisode(id);
   const action = useEpisodeAction(id);
   const engineMode = useEngineMode();
@@ -550,7 +551,7 @@ export function EpisodeView({ id, backHref, backLabel }: { id: string; backHref:
                   <DropdownMenuItem disabled={upscaling || action.isPending} onClick={() => run("upscale", "Upscaling to 1080p — the download switches to it when it's done")}>
                     <MonitorUp /> {upscaling ? "Upscaling to 1080p…" : "Upscale to 1080p"}
                     <span className="ml-auto pl-3 font-mono text-[11px] text-muted-foreground tabular-nums">
-                      {view.upscale.demo ? "Placeholder" : view.upscale.costUsd === null ? "" : view.upscale.costUsd === 0 ? "Free" : `≈ ${usd(view.upscale.costUsd)}`}
+                      {view.upscale.demo ? tr("studio.viewer.placeholderLabel") : view.upscale.costUsd === null ? "" : view.upscale.costUsd === 0 ? tr("studio.engine.freeShort") : `≈ ${usd(view.upscale.costUsd)}`}
                     </span>
                   </DropdownMenuItem>
                 )}

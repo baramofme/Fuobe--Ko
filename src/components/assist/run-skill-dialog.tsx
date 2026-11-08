@@ -79,7 +79,12 @@ function priceLine(e: RecipeEstimate | undefined, runs: number, tr: (key: string
   if (e.demo) return `${tr("faceless.controls.placeholderFree")}${runs > 1 ? ` · ${runs} runs` : ""}`;
   if (e.total === null) return tr("assist.transcript.pricesVary");
   const where = e.engine === "open" ? "on your GPU" : "on Cloud";
-  if (e.total === 0) return runs > 1 ? `${tr("studio.engine.freeShort")} · ${runs} runs ${where}` : `${tr("studio.engine.freeShort")} ${where}`;
+  if (e.total === 0) {
+    if (runs > 1) return `${tr("studio.engine.freeShort")} · ${runs} runs ${where}`;
+    // 단가 1회·open 분지: 조립("Free" + " " + "on your GPU")을 기존 키로 읽는다 — en은 "Free on your GPU"로 원문과
+    // 바이트 동일(e2e 결속 유지), ko는 미배선 place-word가 섞이지 않고 완전한 한국어로 렌더된다.
+    return e.engine === "open" ? tr("studio.finish.freeOnYourGpu") : `${tr("studio.engine.freeShort")} ${where}`;
+  }
   return runs > 1 ? `${formatCost(e.total)} for ${runs} runs ${where}` : `${formatCost(e.total)} ${where}`;
 }
 

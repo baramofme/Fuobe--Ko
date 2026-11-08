@@ -123,7 +123,7 @@ export function RigDialog({
               </div>
             )}
             <p className="text-[12px] text-muted-foreground" aria-live="polite">
-              {preview.isError ? (preview.error as Error).message : (price ?? "Working out the price…")} · Runs on Meshy in the cloud, on either engine.
+              {preview.isError ? (preview.error as Error).message : (price ?? tr("studio.price.workingOut"))} · Runs on Meshy in the cloud, on either engine.
             </p>
           </div>
         )}
