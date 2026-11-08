@@ -1,4 +1,5 @@
 import { CLOUD_KEY, CLOUD_PROVIDERS, type CloudProvider } from "./your-keys";
+import { t } from "./i18n/store";
 
 /**
  * Connected accounts: what a saved fal.ai key or Replicate token tells about its provider account (the balance, the
@@ -97,25 +98,26 @@ export function menuLabel(p: CloudProvider, info: ProviderAccount | undefined): 
   return `See your ${label} balance on ${label} (opens in a new tab)`;
 }
 
-/** "Updated just now", "Updated 4 min ago", "Updated 2 h ago". */
+/** "Updated just now", "Updated 4 min ago", "Updated 2 h ago". Resolved at call time, so it reads in the active language. */
 export function updatedWords(at: number, now: number): string {
   const s = Math.max(0, now - at) / 1000;
-  if (s < 60) return "Updated just now";
-  if (s < 3600) return `Updated ${Math.floor(s / 60)} min ago`;
-  return `Updated ${Math.floor(s / 3600)} h ago`;
+  if (s < 60) return t("settings.yourKeys.updatedJustNow");
+  if (s < 3600) return t("settings.yourKeys.updatedMin", { n: Math.floor(s / 60) });
+  return t("settings.yourKeys.updatedHour", { n: Math.floor(s / 3600) });
 }
 
-/** "alice (Alice)", "acme (organization)", "my-team". */
+/**
+ * "alice (Alice)", "acme (organization)", "my-team". Only the "organization" suffix is translated (its en value is the
+ * original "organization", so the byte-bound tests stay green); the fullName case stays exactly as authored.
+ */
 export function accountWords(a: NonNullable<ProviderAccount["account"]>): string {
-  if (a.kind === "organization") return `${a.name} (organization)`;
+  if (a.kind === "organization") return `${a.name} (${t("settings.yourKeys.orgSuffix")})`;
   return a.fullName && a.fullName !== a.name ? `${a.name} (${a.fullName})` : a.name;
 }
 
-/** Settings: what a card with no key yet says will show there. */
+/** Settings: what a card with no key yet says will show there. Resolved at call time. */
 export const noKeyYetWords = (p: CloudProvider): string =>
-  p === "fal"
-    ? "When you save a key, this card shows your fal.ai balance or a link to it."
-    : "When you save a token, this card shows your Replicate account and a link to your balance.";
+  p === "fal" ? t("settings.yourKeys.noKeyYetFal") : t("settings.yourKeys.noKeyYetReplicate");
 
 /** The fal.ai permission that lets a key read its account's balance and usage. */
 export const FAL_BALANCE_PERMISSION = "billing:usage:read";
@@ -123,6 +125,8 @@ export const FAL_BALANCE_PERMISSION = "billing:usage:read";
 /**
  * Settings: how to see the balance here, under a fal.ai key that may not read it (fal.ai's default API keys). Step 1
  * links to fal.ai's keys page; the permission's name is shown as fal.ai writes it, so it can be found there.
+ * The fields hold the English originals; the page reads each piece through a key (FalBalanceHow), which is byte-identical
+ * under English and Korean under the switch.
  */
 export const FAL_BALANCE_HOW = {
   title: "How to see your balance here",
@@ -134,6 +138,10 @@ export const FAL_BALANCE_HOW = {
   why: "That permission only reads your balance and what you spent. Fuobe uses it to show them here, and for nothing else.",
 } as const;
 
-/** Settings: the provider didn't accept the saved key when its account was asked. */
+/**
+ * Settings: the provider didn't accept the saved key when its account was asked. Resolved at call time: the lead (which
+ * ends with a space) and the tail are both keys, so the whole line is byte-identical under English and reads in Korean.
+ */
 export const checkKeyWords = (p: CloudProvider, scope: "owner" | "account"): string =>
-  `${CLOUD_KEY[p].label} didn't accept this ${p === "replicate" ? "token" : "key"}. ${scope === "owner" ? "Press Test to check it, or save a new one." : "Press Check again, or replace it."}`;
+  t("settings.yourKeys.checkRejected", { label: CLOUD_KEY[p].label, kind: p === "replicate" ? "token" : "key" }) +
+  (scope === "owner" ? t("settings.yourKeys.checkOwnerTail") : t("settings.yourKeys.checkAccountTail"));
