@@ -106,6 +106,31 @@ describe("a tool page's free words (4.7)", () => {
     // Prices and other words stay.
     expect(openFreeWords("≈ $0.38", true)).toBe("≈ $0.38");
     expect(openFreeWords("Placeholder · free", true)).toBe("Placeholder · free");
+    // \b keeps "Free" from being shortened inside a longer word.
+    expect(openFreeWords("Freely", true)).toBe("Freely");
+    expect(openFreeWords("Freeze your GPU", true)).toBe("Freeze your GPU");
+  });
+
+  it("Korean locale: the same transformations on 한국어 free + place labels", () => {
+    // 무료 · 내 GPU → 무료
+    expect(openFreeWords("무료 · 내 GPU", true, "ko")).toBe("무료");
+    // 무료 내 GPU → 무료 (juxtaposed, no separator)
+    expect(openFreeWords("무료 내 GPU", true, "ko")).toBe("무료");
+    // optional size tail
+    expect(openFreeWords("무료 · 내 GPU, 약 20 GB", true, "ko")).toBe("무료");
+    // bare GPU
+    expect(openFreeWords("무료 · GPU", true, "ko")).toBe("무료");
+    // trailing context after the matched phrase stays
+    expect(openFreeWords("무료 내 GPU · 약 4 분", true, "ko")).toBe("무료 · 약 4 분");
+    // non-matching strings pass through unchanged
+    expect(openFreeWords("≈ $0.38", true, "ko")).toBe("≈ $0.38");
+    expect(openFreeWords("자리표시자 · 무료", true, "ko")).toBe("자리표시자 · 무료");
+    // hosted runs off: the page's words stay
+    expect(openFreeWords("무료 · 내 GPU", false, "ko")).toBe("무료 · 내 GPU");
+    // Korean has no lowercase variant — 무료 내 GPU should NOT be touched when 무료 is lowercase-like
+    expect(openFreeWords("무료 · 내 GPU", true, "ko")).toBe("무료");
+    // The Unicode-safe "start or separator" boundary must not match 무료 inside a larger word (mid-word guard).
+    expect(openFreeWords("압무료 내 GPU", true, "ko")).toBe("압무료 내 GPU");
   });
 
   it("runs on the person's own GPU, the owner's, and every install with hosted runs off keep the page's words", () => {

@@ -4,6 +4,7 @@ import { placeOf, type Place } from "./place-name";
 import { capitalFirst, waitWords, type LineFacts } from "./pool-line";
 import { deviceLabel } from "./gpu/readiness";
 import { billedTo, CLOUD_KEY, type CloudProvider } from "./your-keys";
+import { getLang, type Lang } from "./i18n/store";
 
 /**
  * Where a run happens and what it costs, in the words a composer's place chip, its price and its send button use
@@ -280,18 +281,96 @@ export function openCheckPlace(
   return v.preferPool || v.runOn === "site" || v.runOn === "key" ? undefined : null;
 }
 
+/** Escape a literal string for safe use inside a RegExp. */
+function escRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * A tool page's own words for a free open-model run ("Free · your GPU", "Free on your GPU, about 20 GB", "free on your
- * GPU"), as a viewer whose open runs go to this studio's GPUs reads them (`site`: hosted runs on and openCheckPlace
- * names a place): "Free", with no place, since the page's place chip or price check says where. Runs that go to the
- * person's own GPU, the owner's, and every install with hosted runs off keep the page's words.
+ * Locale-specific tokens that drive the "free + place" price-label patterns. The regex source is
+ * assembled from these tokens, never from hardcoded English regex literals — so the matching is
+ * correct for every supported locale.
  */
-export function openFreeWords(text: string, site: boolean): string {
+interface FreePlaceTokens {
+  /** The "free" word (capitalized): "Free" (en), "무료" (ko). */
+  free: string;
+  /** Lowercase "free" — absent in scripts without letter case (ko). */
+  freeLower?: string;
+  /** The place token that names the viewer's own GPU: "your GPU" (en), "내 GPU" (ko). */
+  ownGpu: string;
+  /** Bare "GPU" after a separator, locale-independent. */
+  bareGpu: string;
+  /** Optional connector between free and place ("on" in en; absent in ko, which juxtaposes). */
+  connector?: string;
+  /** Regex source for an optional trailing size clause: ", about \\d+ GB" (en), ", 약 \\d+ GB" (ko). */
+  sizeTail: string;
+  /** Leading boundary regex source. `\b` is an ASCII word boundary, so it matches only where the free
+   *  token is ASCII (en). Before a non-ASCII free word (ko) `\b` never matches — exactly the bug this
+   *  redesign fixes — so those locales use a Unicode-safe "start of string or separator" lookbehind. */
+  lead: string;
+}
+
+/** The tokens per locale. */
+const FREE_PLACE_TOKENS: Record<Lang, FreePlaceTokens> = {
+  en: { free: "Free", freeLower: "free", ownGpu: "your GPU", bareGpu: "GPU", connector: "on", sizeTail: ", about \\d+ GB", lead: "\\b" },
+  ko: { free: "무료", ownGpu: "내 GPU", bareGpu: "GPU", sizeTail: ", 약 \\d+ GB", lead: "(?<=^|[\\s·])" },
+};
+
+/** Locale-independent separator: middle dot with a leading space. */
+const SEP = " ·";
+
+/** A single replacement rule: pattern to match, shortened text to replace with. */
+interface FreeRule {
+  re: RegExp;
+  to: string;
+}
+
+/** Build the replacement rules from the locale tokens. */
+function freeRules(lang: Lang): FreeRule[] {
+  const t = FREE_PLACE_TOKENS[lang];
+  const F = escRe(t.free);
+  const G = escRe(t.ownGpu);
+  const BG = escRe(t.bareGpu);
+  const conn = t.connector ? `(?: ${escRe(t.connector)})?` : "";
+  const sep = `(?:${SEP})?`;
+  const size = `(?:${t.sizeTail})?`;
+
+  const rules: FreeRule[] = [];
+  // Free [sep] [conn] ownGpu [size] → Free (the leading boundary is locale-aware: \b for ASCII, lookbehind for ko)
+  rules.push({ re: new RegExp(`${t.lead}${F}${sep}${conn} ${G}${size}`, "g"), to: t.free });
+  // Free · bareGpu → Free
+  rules.push({ re: new RegExp(`${t.lead}${F}${SEP} ${BG}\\b`, "g"), to: t.free });
+  // lowercase variant (only where letter case exists)
+  if (t.freeLower) {
+    rules.push({ re: new RegExp(`\\b${escRe(t.freeLower)}${sep}${conn} ${G}\\b`, "g"), to: t.freeLower });
+  }
+  return rules;
+}
+
+/** Cache the rules per language so regexes are built once and reused. */
+const FREE_RULES_CACHE = new Map<Lang, FreeRule[]>();
+
+/**
+ * A tool page's own words for a free open-model run, as a viewer whose open runs go to this studio's GPUs reads them
+ * (`site`: hosted runs on and openCheckPlace names a place): just the free word ("Free" / "무료"), with no place, since
+ * the page's place chip or price check says where. Runs that go to the person's own GPU, the owner's, and every install
+ * with hosted runs off keep the page's words. Locale-aware: the patterns are assembled from per-locale tokens, never
+ * from English regex literals.
+ *
+ * `lang`: overrides the active locale (for tests; defaults to `getLang()`).
+ */
+export function openFreeWords(text: string, site: boolean, lang?: Lang): string {
   if (!site) return text;
-  return text
-    .replace(/\bFree(?: ·)?(?: on)? your GPU(?:, about \d+ GB)?/g, "Free")
-    .replace(/\bfree(?: ·)?(?: on)? your GPU\b/g, "free")
-    .replace(/\bFree · GPU\b/g, "Free");
+  const l = lang ?? getLang();
+  let rules = FREE_RULES_CACHE.get(l);
+  if (!rules) {
+    rules = freeRules(l);
+    FREE_RULES_CACHE.set(l, rules);
+  }
+  for (const { re, to } of rules) {
+    text = text.replace(re, to);
+  }
+  return text;
 }
 
 /**
