@@ -87,6 +87,7 @@ import { useKeepAlpha } from "./keep-alpha";
 import { LayerThumb } from "./layers-panel";
 import { loadImage, ratioOf, renderDoc, renderNative, sizeOf, uploadRender } from "./render";
 import { plainTagline } from "@/lib/plain-tagline";
+import { useI18n } from "@/lib/i18n";
 
 export const TOOLS: { id: ToolId; label: string; icon: typeof Layers; isNew?: boolean; hint: string }[] = [
   { id: "decompose", label: "Layer Decomposition", icon: Layers, isNew: true, hint: "Split the image into editable layers" },
@@ -288,6 +289,7 @@ function blankCanvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingC
 
 function DecomposeTool() {
   const { doc, engine, models, isDemo, jobs, splitTarget, setSplitTarget, selected, endJob, decomposed } = useEditor();
+  const { t: tr } = useI18n();
   // Separate layer: picked from a layer's menu, or with the button below once the image is decomposed.
   const splitNode = getNode(doc, splitTarget);
   const tool = splitNode ? "split" : "decompose";
@@ -318,7 +320,7 @@ function DecomposeTool() {
   const hasRes = !!modelId && (modelId.startsWith("seedream") || modelId.startsWith("oss-"));
   const hasMode = modelId === "seedream-5-layers" || !!modelId?.startsWith("oss-");
   const usd = decomposeCost(modelId ?? "", n, resolution);
-  const cost = costLabel(model, isDemo(model), usd);
+  const cost = costLabel(model, isDemo(model), usd, tr);
 
   const start = async () => {
     setPhase("setting-up");
@@ -478,6 +480,7 @@ function DecomposeTool() {
 
 function EditTextTool() {
   const { isDemo, jobs, setHighlight, endJob, engine } = useEditor();
+  const { t: tr } = useI18n();
   const { target, node } = useTarget();
   const scopeId = node?.id ?? null;
   const detect = latestJob(jobs, ["text-detect"], scopeId);
@@ -526,7 +529,7 @@ function EditTextTool() {
   const changes = textChanges(rows);
   const [preparing, setPreparing] = useState(false);
   const detecting = !!detect && isRunning(detect);
-  const detectCost = costLabel(detector.model, isDemo(detector.model));
+  const detectCost = costLabel(detector.model, isDemo(detector.model), undefined, tr);
   /** A transparent layer (a decomposition's text) goes on a backdrop its text stands out from, to the detector and the edit model alike. */
   const readable = async () => {
     if (!node) return undefined;
@@ -650,7 +653,7 @@ function EditTextTool() {
               </TooltipContent>
             </Tooltip>
             <div className="flex-1">
-              <RunRow cost={costLabel(model, isDemo(model))} busy={busy || preparing} disabled={!changes.length || (editJob && isRunning(editJob))} onClick={() => void generate()}>
+              <RunRow cost={costLabel(model, isDemo(model), undefined, tr)} busy={busy || preparing} disabled={!changes.length || (editJob && isRunning(editJob))} onClick={() => void generate()}>
                 <Wand2 /> Generate
               </RunRow>
             </div>
@@ -689,6 +692,7 @@ function SimpleTool({
   picker?: ToolModel;
 }) {
   const { jobs, isDemo } = useEditor();
+  const { t: tr } = useI18n();
   const { target, node } = useTarget();
   const own = useToolModel(tool);
   const { modelId, model, setModelId } = picker ?? own;
@@ -702,7 +706,7 @@ function SimpleTool({
       <ModelSelect tool={tool} value={modelId} onChange={setModelId} />
       {afterModel}
       <JobState job={job} failedTitle={failedTitle} onRetry={run} />
-      <RunRow cost={costLabel(model, isDemo(model))} busy={busy} disabled={disabled || !model || (!!job && isRunning(job))} onClick={run}>
+      <RunRow cost={costLabel(model, isDemo(model), undefined, tr)} busy={busy} disabled={disabled || !model || (!!job && isRunning(job))} onClick={run}>
         {verb}
       </RunRow>
     </div>
@@ -818,6 +822,7 @@ function Chips<T extends string>({ label, value, options, onChange, names }: { l
 
 function RegionalTool() {
   const { doc, commit, jobs, isDemo, region, setRegion, setMode, select, selected } = useEditor();
+  const { t: tr } = useI18n();
   const { modelId, model, setModelId } = useToolModel("regional");
   const [prompt, setPrompt] = useState("");
   const [merging, setMerging] = useState(false);
@@ -902,7 +907,7 @@ function RegionalTool() {
       </Field>
       <ModelSelect tool="regional" value={modelId} onChange={setModelId} />
       <JobState job={job} failedTitle="Failed to edit image" onRetry={run} />
-      <RunRow cost={costLabel(model, isDemo(model))} busy={busy} disabled={!region || !prompt.trim() || !model || (!!job && isRunning(job))} onClick={run}>
+      <RunRow cost={costLabel(model, isDemo(model), undefined, tr)} busy={busy} disabled={!region || !prompt.trim() || !model || (!!job && isRunning(job))} onClick={run}>
         <Wand2 /> Edit region
       </RunRow>
       {pair && (
@@ -953,6 +958,7 @@ function RegionalTool() {
 
 function InpaintTool() {
   const { doc, isDemo, jobs, setMode, mode, paint, setPaint, paintVersion, brushSize, setBrushSize } = useEditor();
+  const { t: tr } = useI18n();
   const { target, node } = useTarget();
   const { modelId, model, setModelId } = useToolModel("inpaint");
   const [prompt, setPrompt] = useState("");
@@ -1072,7 +1078,7 @@ function InpaintTool() {
       {model && <p className="-mt-2 text-[11px] text-muted-foreground">{INPAINT_SEES_TINT.has(model.id) ? `${model.name} has no mask input: it's shown the painted area tinted red.` : `${model.name} takes the painted mask itself.`}</p>}
       <KeepAlpha node={node} value={keepAlpha} onChange={setKeepAlpha} />
       <JobState job={job} failedTitle="Couldn't inpaint it" onRetry={() => void run()} />
-      <RunRow cost={costLabel(model, isDemo(model))} busy={busy || preparing} disabled={!painted || !prompt.trim() || !model || (!!job && isRunning(job))} onClick={() => void run()}>
+      <RunRow cost={costLabel(model, isDemo(model), undefined, tr)} busy={busy || preparing} disabled={!painted || !prompt.trim() || !model || (!!job && isRunning(job))} onClick={() => void run()}>
         <Paintbrush /> Inpaint
       </RunRow>
       {!painted ? <p className="text-[11px] text-muted-foreground">Paint the area first{prompt.trim() ? "" : ", then describe it"}.</p> : !prompt.trim() && <p className="text-[11px] text-muted-foreground">Say what should fill the painted area.</p>}
@@ -1085,6 +1091,7 @@ function InpaintTool() {
 
 function EnhanceTool() {
   const { engine, isDemo, jobs } = useEditor();
+  const { t: tr } = useI18n();
   const { target, node } = useTarget();
   const [look, setLook] = useState<EnhanceLook>("skin");
   const info = ENHANCE_LOOKS.find((l) => l.id === look)!;
@@ -1110,7 +1117,7 @@ function EnhanceTool() {
       <ModelSelect tool="enhance" ids={enhanceModels(look, engine)} value={modelId} onChange={setModelId} />
       {!detail && <KeepAlpha node={node} value={keepAlpha} onChange={setKeepAlpha} />}
       <JobState job={job} failedTitle="Couldn't enhance it" onRetry={run} />
-      <RunRow cost={costLabel(model, isDemo(model))} busy={busy} disabled={!model || (!!job && isRunning(job))} onClick={run}>
+      <RunRow cost={costLabel(model, isDemo(model), undefined, tr)} busy={busy} disabled={!model || (!!job && isRunning(job))} onClick={run}>
         <Sparkles /> {info.verb}
       </RunRow>
     </div>
@@ -1137,6 +1144,7 @@ function frameAround(w: number, h: number, ratio: number): Box {
 
 function ExpandTool() {
   const { doc, commit, engine, isDemo, jobs, frame, setFrame, setMode } = useEditor();
+  const { t: tr } = useI18n();
   const { modelId, model } = useToolModel("expand");
   const [fill, setFill] = useState(true);
   const { busy, go } = useRun();
@@ -1218,7 +1226,7 @@ function ExpandTool() {
       </label>
       <JobState job={job} failedTitle="Could not start Expand & Crop. Please try again." onRetry={() => void generate()} />
       {fill && grows ? (
-        <RunRow cost={costLabel(model, isDemo(model))} busy={busy} disabled={!model || (!!job && isRunning(job))} onClick={() => void generate()}>
+        <RunRow cost={costLabel(model, isDemo(model), undefined, tr)} busy={busy} disabled={!model || (!!job && isRunning(job))} onClick={() => void generate()}>
           <Wand2 /> Generate
         </RunRow>
       ) : (
@@ -1368,6 +1376,7 @@ function GradeTool() {
  */
 function RerenderTool() {
   const { doc, jobs, isDemo, endJob, setHighlight } = useEditor();
+  const { t: tr } = useI18n();
   const { modelId, model, setModelId } = useToolModel("rerender");
   const detector = useToolModel("text-detect");
   const { busy, go } = useRun();
@@ -1423,14 +1432,14 @@ function RerenderTool() {
           <Button variant="secondary" size="sm" className="w-full rounded-full" onClick={read} disabled={busy || detecting || !detector.model}>
             {detecting ? <Loader2 className="animate-spin" /> : <Type />} {detecting ? "Reading the text…" : "Read the text first"}
           </Button>
-          <p className="text-center font-mono text-[11px] text-muted-foreground">{costLabel(detector.model, isDemo(detector.model))}</p>
+          <p className="text-center font-mono text-[11px] text-muted-foreground">{costLabel(detector.model, isDemo(detector.model), undefined, tr)}</p>
           {text && !text.lines.length && <p className="text-center text-[12px] text-muted-foreground">No text was found on this image.</p>}
         </div>
       )}
       <ModelSelect tool="rerender" value={modelId} onChange={setModelId} />
       {model?.engine === "cloud" && model.id !== "moss-image" && <p className="text-[11px] text-pretty text-muted-foreground">{model.name} places the boxes from its prompt; MOSS-Image follows them most closely.</p>}
       <JobState job={job} failedTitle="Couldn't re-render the picture" onRetry={run} />
-      <RunRow cost={costLabel(model, isDemo(model))} busy={busy} disabled={!boxes || !model || (!!job && isRunning(job))} onClick={run}>
+      <RunRow cost={costLabel(model, isDemo(model), undefined, tr)} busy={busy} disabled={!boxes || !model || (!!job && isRunning(job))} onClick={run}>
         <RefreshCw /> Re-render
       </RunRow>
     </div>

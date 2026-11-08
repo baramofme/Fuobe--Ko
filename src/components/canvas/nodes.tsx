@@ -73,6 +73,7 @@ import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAssets, useClipFacts as useFileFacts, useElements, useModelAccess } from "@/lib/api";
 import { offered } from "@/lib/model-access";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 import { dualEngine, onEngine } from "@/lib/catalog/engines";
 import {
   CANVAS_TEXT_MAX,
@@ -761,10 +762,10 @@ function EngineBadge({ model }: { model?: ModelDef }) {
   );
 }
 
-function costLabel(isDemo: (m: ModelDef) => boolean, model: ModelDef | undefined, cost: number | null): string {
+function costLabel(isDemo: (m: ModelDef) => boolean, model: ModelDef | undefined, cost: number | null, tr: (key: string, params?: Params) => string = storeT): string {
   if (!model) return "";
-  if (isDemo(model)) return "Placeholder · free";
-  if (model.engine === "open") return "Free · your GPU";
+  if (isDemo(model)) return tr("faceless.controls.placeholderFree");
+  if (model.engine === "open") return tr("studio.composer.freeYourGpu");
   return cost == null ? "Price unknown" : cost === 0 ? "Free" : `≈ ${formatCost(cost)}`;
 }
 
@@ -773,6 +774,7 @@ const GeneratorNode = memo(function GeneratorNode({ id, type: flowType, data, se
   const actions = useEditorActions();
   const g = useEditorGlobals();
   const v = useNodeView(id);
+  const { t: tr } = useI18n();
   const node = useMemo(() => asNode(id, type, data), [id, type, data]);
   // A Fuobe Original as it runs on this node's engine (its routes and price).
   const model = useMemo(() => nodeModel(node, g.mode), [node, g.mode]);
@@ -902,7 +904,7 @@ const GeneratorNode = memo(function GeneratorNode({ id, type: flowType, data, se
       footer={
         <div className="flex h-10 items-center gap-2 border-t px-3">
           <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
-            {[stateHint, !g.visitor && (step || r.state === "idle") ? costLabel(g.isDemo, model, v.costUsd) : ""].filter(Boolean).join(" · ")}
+            {[stateHint, !g.visitor && (step || r.state === "idle") ? costLabel(g.isDemo, model, v.costUsd, tr) : ""].filter(Boolean).join(" · ")}
           </span>
           {!g.readOnly && (
             <Tooltip>

@@ -4,6 +4,7 @@ import { createContext, useContext } from "react";
 import { pricingAt } from "@/lib/catalog/promo";
 import type { Engine } from "@/lib/catalog/types";
 import { formatCost } from "@/lib/format";
+import { t as storeT, type Params } from "@/lib/i18n";
 import type { Box, LayerDoc, LayerJob, LayerJobInput, LayerModelInfo, LayerNode, LayerProject, LayerTool, LayerVersion } from "@/lib/layers";
 
 export type StageMode = "select" | "hand" | "brush" | "eraser" | "region" | "frame" | "inpaint";
@@ -138,10 +139,10 @@ export function useEditor(): EditorCtx {
  * "Placeholder · free", "Free · your GPU", "≈ $0.27" or "Price unknown". A launch price is read on the browser's clock, the day
  * the editor shows it (the editor renders once its project has loaded in the browser, never while a page prerenders).
  */
-export function costLabel(m: LayerModelInfo | undefined, demo: boolean, usd?: number | null): string {
+export function costLabel(m: LayerModelInfo | undefined, demo: boolean, usd?: number | null, tr: (key: string, params?: Params) => string = storeT): string {
   if (!m) return "";
-  if (demo) return "Placeholder · free";
-  if (m.engine === "open") return "Free · your GPU";
+  if (demo) return tr("faceless.controls.placeholderFree");
+  if (m.engine === "open") return tr("studio.composer.freeYourGpu");
   const p = m.pricing && pricingAt(m.pricing);
   const v = usd !== undefined ? usd : p && ["image", "request", "megapixel"].includes(p.unit) ? p.usd : null;
   return v == null ? "Price unknown" : v === 0 ? "Free" : `≈ ${formatCost(v)}`;

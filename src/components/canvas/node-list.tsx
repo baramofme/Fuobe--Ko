@@ -10,6 +10,7 @@ import { fileToSlot } from "@/components/studio/media-slot";
 import { cn } from "@/lib/utils";
 import { EMPTY_VIEW, NodeIcon, useEditorActions, useEditorSnapshot } from "./canvas-context";
 import { CameraPathFields, costLabel, ElementPicker, EngineBadge, LayoutNodeRow, LibraryButton, MediaPreview, OutputThumb, Results } from "./nodes";
+import { useI18n } from "@/lib/i18n";
 
 const KIND: Partial<Record<CanvasNode["type"], MediaKind>> = { "image-input": "image", "video-input": "video", "audio-input": "audio", "clone-voice": "audio" };
 
@@ -54,6 +55,7 @@ export function NodeList({ onQuickStart }: { onQuickStart: () => void }) {
 function NodeCard({ node, index }: { node: CanvasNode; index: number }) {
   const actions = useEditorActions();
   const { graph, views, globals } = useEditorSnapshot();
+  const { t: tr } = useI18n();
   const model = nodeModel(node, globals.mode);
   const kind = KIND[node.type];
   const file = useRef<HTMLInputElement>(null);
@@ -127,7 +129,7 @@ function NodeCard({ node, index }: { node: CanvasNode; index: number }) {
           <>
             <p className="text-[12px] text-muted-foreground">
               {model?.name ?? "No model"}
-              {!globals.visitor && ` · ${costLabel(globals.isDemo, model, v.costUsd)}`}
+              {!globals.visitor && ` · ${costLabel(globals.isDemo, model, v.costUsd, tr)}`}
             </p>
             {node.data.prompt !== undefined || node.type === "model" ? (
               <textarea

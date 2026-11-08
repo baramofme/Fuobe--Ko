@@ -36,12 +36,13 @@ import type { GenjutsuTarget, Maker } from "@/lib/catalog/genjutsu";
 import { cloudSharpenUsd, OPEN_TIER_OFF, SHARPEN_COPY, type SharpenTier } from "@/lib/catalog/sharpen";
 import type { Engine } from "@/lib/catalog/types";
 import { limitMb, useClipLimit } from "@/lib/clip-limit";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 
 /** The Quality field's short hint: H3's own sizes in words, a finishing size's price (cloud) or "Free · your GPU". */
-export function qualityShort(engine: Engine, q: CharacterChoice): string {
+export function qualityShort(engine: Engine, q: CharacterChoice, tr: (key: string, params?: Params) => string = storeT): string {
   const finish = characterFinish(q);
   if (!finish) return q === "480p" ? "Faster and cheaper" : "H3's native top";
-  return engine === "open" ? "Free · your GPU" : `$${(cloudSharpenUsd(finish, 5) ?? 0).toFixed(2)} for 5 s`;
+  return engine === "open" ? tr("studio.composer.freeYourGpu") : `$${(cloudSharpenUsd(finish, 5) ?? 0).toFixed(2)} for 5 s`;
 }
 
 /** What a quality does, in a line: H3's own sizes, or a finishing size with its price (cloud) or GPU time (open). */
@@ -103,6 +104,7 @@ export function CharacterControls({
   voiceFirst?: { on: boolean; onChange: (on: boolean) => void; seconds?: number };
 }) {
   const openFree = useOpenFree();
+  const { t: tr } = useI18n();
   const set = (patch: Partial<CharacterOptions>) => onChange({ ...value, ...patch });
   const h3 = !!maker?.h3;
   // Each engine's sizes (the cloud has no 1080p); a size the other engine offered shows as the swap's own.
@@ -165,7 +167,7 @@ export function CharacterControls({
       )}
 
       {h3 && (
-        <Field label="Quality" hint={openFree(qualityShort(engine, shown))}>
+        <Field label="Quality" hint={openFree(qualityShort(engine, shown, tr))}>
           <Segmented
             label="Quality"
             value={shown}

@@ -63,6 +63,7 @@ import {
 } from "@/lib/layers";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
+import { useI18n } from "@/lib/i18n";
 import { Field } from "./bits";
 import { costLabel, modelsFor, TOOL_FOR_JOB, useEditor } from "./editor-context";
 import { useKeepAlpha } from "./keep-alpha";
@@ -111,6 +112,7 @@ async function layerFromImage(url: string, name: string, doc: { width: number; h
 
 function AddLayer() {
   const { doc, commit, select, run, engine, models, offeredIds, isDemo } = useEditor();
+  const { t: tr } = useI18n();
   const file = useRef<HTMLInputElement>(null);
   const [picking, setPicking] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -228,7 +230,7 @@ function AddLayer() {
               )}
             </div>
             <DialogFooter className="items-center sm:justify-between">
-              <span className="font-mono text-[12px] text-muted-foreground">{costLabel(model, isDemo(model))}</span>
+              <span className="font-mono text-[12px] text-muted-foreground">{costLabel(model, isDemo(model), undefined, tr)}</span>
               <Button type="submit" className="rounded-full" disabled={!prompt.trim() || busy}>
                 {busy ? <Loader2 className="animate-spin" /> : <Sparkles />} Generate layer
               </Button>
@@ -493,6 +495,7 @@ function LayerRow({
 /** Per-layer AI: “Layer edit prompt” + reference → Generate / Regenerate, and the layer's revisions. */
 function SelectedLayer({ node }: { node: LayerNode }) {
   const { doc, commit, run, engine, models, offeredIds, isDemo, endJob, busyJob, failedJob, showJob, tool } = useEditor();
+  const { t: tr } = useI18n();
   const [prompt, setPrompt] = useState(node.prompt ?? "");
   const [ref, setRef] = useState<string | null>(node.refSrc ?? null);
   const options = modelsFor(models, offeredIds(TOOL_MODELS.regenerate[engine]));
@@ -573,7 +576,7 @@ function SelectedLayer({ node }: { node: LayerNode }) {
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-[12px] text-muted-foreground">{costLabel(model, isDemo(model))}</span>
+          <span className="font-mono text-[12px] text-muted-foreground">{costLabel(model, isDemo(model), undefined, tr)}</span>
           <Button size="sm" className="rounded-full" onClick={() => void go()} disabled={starting || !model}>
             {starting ? <Loader2 className="animate-spin" /> : <Sparkles />} {edited ? "Regenerate layer" : "Generate layer"}
           </Button>
