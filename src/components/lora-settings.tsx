@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConnectField, type PublicSetting } from "@/components/connect-field";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { radioKeys, radioTab } from "@/components/studio/radio-keys";
 import { saveSettings } from "@/lib/api";
 import { CIVITAI_KEYS_URL, HF_TOKENS_URL } from "@/lib/connections";
@@ -44,11 +45,11 @@ interface Library {
 }
 
 const GROUPS = [
-  { value: "look", label: "Looks" },
-  { value: "motion", label: "Motions" },
-  { value: "effect", label: "Effects" },
+  { value: "look", titleKey: "settings.panel.lora.groupLooks" },
+  { value: "motion", titleKey: "settings.panel.lora.groupMotions" },
+  { value: "effect", titleKey: "settings.panel.lora.groupEffects" },
   // A recipe's own LoRA (Fuobe Try-On's try-on LoRA): the model loads it on every run.
-  { value: "adapter", label: "Adapters" },
+  { value: "adapter", titleKey: "settings.panel.lora.groupAdapters" },
 ] as const;
 
 /** The base a LoRA was trained for, in a few words ("wan2.2-i2v-a14b" → "Wan 2.2"). */
@@ -76,6 +77,7 @@ const SOURCE: Record<LibraryLora["download"], string> = {
 
 /** The LoRA folder: a plain path field (no connection to test), saved with its own button. */
 function FolderField({ setting }: { setting?: PublicSetting }) {
+  const { t } = useI18n();
   const qc = useQueryClient();
   const id = useId();
   const saved = setting?.value ?? "";
@@ -86,7 +88,7 @@ function FolderField({ setting }: { setting?: PublicSetting }) {
     mutationFn: (value: string) => saveSettings({ comfyLorasDir: value }),
     onSuccess: (_, value) => {
       setDraft(null);
-      toast.success(value ? "LoRA folder saved" : "LoRA folder cleared");
+      toast.success(value ? t("settings.panel.lora.folderSaved") : t("settings.panel.lora.folderCleared"));
       void qc.invalidateQueries({ queryKey: ["settings"] });
       void qc.invalidateQueries({ queryKey: ["loras"] });
     },
@@ -95,7 +97,7 @@ function FolderField({ setting }: { setting?: PublicSetting }) {
   return (
     <div className="min-w-0 space-y-1.5">
       <Label htmlFor={id} className="text-[13px]">
-        LoRA folder
+        {t("settings.panel.lora.folderLabel")}
       </Label>
       <div className="flex flex-wrap gap-2">
         <Input
@@ -116,18 +118,19 @@ function FolderField({ setting }: { setting?: PublicSetting }) {
         />
         <Button size="sm" className="h-9 shrink-0" disabled={!changed || save.isPending} onClick={() => save.mutate(shown.trim())}>
           {save.isPending && <Loader2 className="animate-spin" />}
-          Save
+          {t("common.save")}
         </Button>
       </div>
       <p id={`${id}-hint`} className="text-[12px] text-muted-foreground">
-        {setting?.fromEnv ? "Set from COMFYUI_LORAS_DIR; a folder saved here wins. " : ""}
-        ComfyUI&apos;s models/loras folder on this machine. Fuobe downloads the LoRAs a run needs into it (and copies your trained ones). When ComfyUI runs on another machine, leave it empty and put the files in its loras folder.
+        {setting?.fromEnv ? t("settings.panel.lora.envPrefix") : ""}
+        {t("settings.panel.lora.folderHint")}
       </p>
     </div>
   );
 }
 
 function LoraRow({ l, folder, onDownload, busy, hfToken }: { l: LibraryLora; folder: boolean; onDownload: () => void; busy: boolean; hfToken: boolean }) {
+  const { t } = useI18n();
   return (
     <li className="flex items-center gap-3 py-2.5">
       <div className="min-w-0 flex-1">
@@ -138,7 +141,7 @@ function LoraRow({ l, folder, onDownload, busy, hfToken }: { l: LibraryLora; fol
         <p className="flex flex-wrap gap-x-1.5 text-[12px] text-muted-foreground">
           <span>
             {baseName(l.base)}
-            {l.target ? ` · ${l.target}-noise half` : ""}
+            {l.target ? t(l.target === "high" ? "settings.panel.lora.targetHighNoise" : "settings.panel.lora.targetLowNoise") : ""}
           </span>
           <span aria-hidden>·</span>
           <span className={cn(l.commercial && !l.hostedOk && "text-foreground")}>{l.licence}</span>
@@ -147,22 +150,25 @@ function LoraRow({ l, folder, onDownload, busy, hfToken }: { l: LibraryLora; fol
           {l.mirrored.length > 0 && (
             <>
               <span aria-hidden>·</span>
-              <span>Copy on {l.mirrored.map((m) => (m === "fal" ? "fal.ai" : "Replicate")).join(" and ")}</span>
+              <span>
+                {t("settings.panel.lora.copyOn")}
+                {l.mirrored.map((m) => (m === "fal" ? "fal.ai" : "Replicate")).join(t("settings.panel.lora.joinAnd"))}
+              </span>
             </>
           )}
         </p>
       </div>
       {l.inFolder ? (
         <span className="inline-flex shrink-0 items-center gap-1 text-[12px] text-success">
-          <CheckCircle2 className="size-3.5" /> In folder
+          <CheckCircle2 className="size-3.5" /> {t("settings.panel.lora.inFolder")}
         </span>
       ) : l.download === "hf-gated" && !hfToken ? (
         <a
           href="#huggingface"
           className="inline-flex shrink-0 items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground"
-          title="Accept the licence on its Hugging Face page, then add your Hugging Face token below"
+          title={t("settings.panel.lora.tooltipNeedsToken")}
         >
-          <Lock className="size-3.5" /> Needs token
+          <Lock className="size-3.5" /> {t("settings.panel.lora.needsToken")}
         </a>
       ) : (
         <Button
@@ -170,12 +176,12 @@ function LoraRow({ l, folder, onDownload, busy, hfToken }: { l: LibraryLora; fol
           variant="secondary"
           className="h-8 shrink-0"
           disabled={!folder || busy}
-          title={folder ? undefined : "Set the LoRA folder first"}
-          aria-label={`Download ${l.name}`}
+          title={folder ? undefined : t("settings.panel.lora.folderFirst")}
+          aria-label={t("settings.panel.lora.downloadName", { name: l.name })}
           onClick={onDownload}
         >
           {busy ? <Loader2 className="animate-spin" /> : <Download />}
-          <span className="hidden sm:inline">Download</span>
+          <span className="hidden sm:inline">{t("settings.panel.lora.download")}</span>
         </Button>
       )}
     </li>
@@ -184,6 +190,7 @@ function LoraRow({ l, folder, onDownload, busy, hfToken }: { l: LibraryLora; fol
 
 /** Settings → LoRAs: where LoRA files live, the civitai key, and the library with each file's licence. */
 export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicSetting; civitaiKey?: PublicSetting; hfToken?: PublicSetting }) {
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [group, setGroup] = useState<LibraryLora["group"]>("look");
@@ -193,7 +200,7 @@ export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicS
     queryFn: async () => {
       const res = await fetch("/api/loras");
       const body = (await res.json().catch(() => ({}))) as Partial<Library> & { error?: string };
-      if (!res.ok || !Array.isArray(body.loras)) throw new Error(body.error ?? `The server answered ${res.status}`);
+      if (!res.ok || !Array.isArray(body.loras)) throw new Error(body.error ?? t("settings.panel.lora.serverAnswered", { status: res.status }));
       return body as Library;
     },
   });
@@ -202,10 +209,10 @@ export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicS
       setPending(l.file);
       const res = await fetch("/api/loras", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file: l.file }) });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw responseError(res, body.error ?? `The download didn't finish (${res.status})`);
+      if (!res.ok) throw responseError(res, body.error ?? t("settings.panel.lora.downloadNotFinished", { status: res.status }));
       return l;
     },
-    onSuccess: (l) => toast.success(`${l.name} is in your LoRA folder`),
+    onSuccess: (l) => toast.success(t("settings.panel.lora.inFolderToast", { name: l.name })),
     onError: (e: Error) => toastError(e),
     onSettled: () => {
       setPending(null);
@@ -223,7 +230,8 @@ export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicS
       <FolderField setting={folder} />
       {data?.folderProblem && (
         <p role="alert" className="-mt-2 text-[12px] text-destructive">
-          {data.folderProblem}. Set it to ComfyUI&apos;s models/loras folder on this machine, or clear it.
+          {data.folderProblem}
+          {t("settings.panel.lora.problemTail")}
         </p>
       )}
       <ConnectField
@@ -231,13 +239,13 @@ export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicS
         name="civitaiKey"
         setting={civitaiKey}
         provider="civitai"
-        label="civitai API key"
-        placeholder="Paste your civitai key"
+        label={t("settings.panel.lora.civitaiApiKey")}
+        placeholder={t("settings.panel.lora.pasteCivitaiKey")}
         hint={
           <span>
-            Downloads the LoRAs that live on civitai (most looks use one). It stays on this server: a cloud run gets a copy Fuobe made of the file, never your key.{" "}
+            {t("settings.panel.lora.civitaiHint")}{" "}
             <a href={CIVITAI_KEYS_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-text hover:underline">
-              Get a key <ExternalLink className="size-3" />
+              {t("settings.panel.common.getKey")} <ExternalLink className="size-3" />
             </a>
           </span>
         }
@@ -247,14 +255,13 @@ export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicS
         name="huggingfaceDownloadToken"
         setting={hfToken}
         provider="huggingface"
-        label="Hugging Face token for downloads"
+        label={t("settings.panel.lora.hfTokenLabel")}
         placeholder="hf_…"
         hint={
           <span>
-            Only for downloading gated LoRAs (Lightricks&apos; Restore and Detail Refine IC-LoRAs; Assist&apos;s Hugging Face key is separate): accept each one&apos;s licence on its Hugging Face page with your account, then a
-            “Read” token lets Fuobe download it. It stays on this server: a cloud run gets Fuobe&apos;s copy of the file, never your token.{" "}
+            {t("settings.panel.lora.hfHint")}{" "}
             <a href={HF_TOKENS_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-text hover:underline">
-              Make a token <ExternalLink className="size-3" />
+              {t("settings.panel.lora.makeAToken")} <ExternalLink className="size-3" />
             </a>
           </span>
         }
@@ -268,12 +275,12 @@ export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicS
           className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-accent"
         >
           <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-medium">LoRA library</span>
+            <span className="block text-[13px] font-medium">{t("settings.panel.lora.libraryTitle")}</span>
             <span className="block text-[12px] text-muted-foreground">
               {data ? (
-                `${data.loras.length} LoRAs · ${inFolder} in your folder · licences read ${data.asOf}`
+                t("settings.panel.lora.libraryCounts", { count: data.loras.length, inFolder, asOf: data.asOf })
               ) : library.isError ? (
-                "Couldn't load the library"
+                t("settings.panel.lora.couldntLoadLibrary")
               ) : (
                 <span className="mt-1 block h-3.5 w-48 animate-pulse rounded bg-muted" />
               )}
@@ -283,7 +290,7 @@ export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicS
         </button>
         {open && (
           <div id="lora-library" className="border-t px-4 pb-2">
-            <div role="radiogroup" aria-label="LoRA kind" onKeyDown={radioKeys} className="flex gap-1.5 pt-3">
+            <div role="radiogroup" aria-label={t("settings.panel.lora.loraKind")} onKeyDown={radioKeys} className="flex gap-1.5 pt-3">
               {GROUPS.map((g) => (
                 <button
                   key={g.value}
@@ -297,15 +304,13 @@ export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicS
                     group === g.value && "border-primary bg-brand-faint hover:bg-brand-faint",
                   )}
                 >
-                  {g.label}
+                  {t(g.titleKey)}
                   <span className="ml-1 text-muted-foreground">{data?.loras.filter((l) => l.group === g.value).length ?? ""}</span>
                 </button>
               ))}
             </div>
             {data && !data.folder && (
-              <p className="pt-2 text-[12px] text-muted-foreground">
-                Set the LoRA folder above to download LoRAs ahead of a run. Without it, a ComfyUI run needs each LoRA in ComfyUI&apos;s loras folder already; cloud runs fetch what they need.
-              </p>
+              <p className="pt-2 text-[12px] text-muted-foreground">{t("settings.panel.lora.setFolderNote")}</p>
             )}
             <ul className="max-h-96 divide-y overflow-y-auto">
               {shown.map((l) => (
@@ -317,9 +322,10 @@ export function LoraSettings({ folder, civitaiKey, hfToken }: { folder?: PublicS
       </div>
       {library.isError && (
         <p role="alert" className="flex flex-wrap items-center gap-x-2 text-[12px] text-destructive">
-          Couldn&apos;t load the LoRA library: {(library.error as Error).message}.
+          {t("settings.panel.lora.couldntLoadLibraryFull")}
+          {(library.error as Error).message}.
           <button type="button" className="font-medium text-foreground underline-offset-2 hover:underline" onClick={() => void library.refetch()}>
-            Try again
+            {t("nav.tryAgain")}
           </button>
         </p>
       )}

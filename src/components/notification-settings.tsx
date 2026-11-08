@@ -5,20 +5,20 @@ import { useId } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { useHydrated } from "@/lib/api";
 import { useNotificationPrefs } from "@/lib/notification-prefs";
 
 /** Settings → Notifications: this browser's opt-in for "your job is done" notifications. */
 export function NotificationSettings() {
   const id = useId();
+  const { t } = useI18n();
   const hydrated = useHydrated();
   const { enabled, permission, setEnabled } = useNotificationPrefs();
   if (!hydrated) return <div className="h-14" aria-hidden />;
   if (permission === "unsupported") {
     return (
-      <p className="rounded-lg bg-muted px-3 py-2.5 text-[13px] leading-relaxed text-muted-foreground">
-        This browser can&apos;t show notifications here. Open Fuobe over https:// or on localhost to turn them on. The tab title still shows how many jobs are running.
-      </p>
+      <p className="rounded-lg bg-muted px-3 py-2.5 text-[13px] leading-relaxed text-muted-foreground">{t("settings.panel.notifications.unsupported")}</p>
     );
   }
   const blocked = permission === "denied";
@@ -26,9 +26,9 @@ export function NotificationSettings() {
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer">
-          <span className="block text-[13px] font-medium">Tell me when a job is done</span>
+          <span className="block text-[13px] font-medium">{t("settings.panel.notifications.tellMeWhenJobDone")}</span>
           <span className="block text-[12px] leading-snug text-muted-foreground">
-            A system notification when a generation or studio job finishes or fails while Fuobe is in the background. Click it to see the result.
+            {t("settings.panel.notifications.tellMeDesc")}
           </span>
         </label>
         <Switch
@@ -37,12 +37,12 @@ export function NotificationSettings() {
           disabled={blocked}
           onCheckedChange={(v) =>
             void setEnabled(v).then((on) => {
-              if (v && !on) toast("Notifications are blocked in this browser", { description: "Allow them in the site settings, then try again." });
+              if (v && !on) toast(t("settings.panel.notifications.blockedToast"), { description: t("settings.panel.notifications.blockedToastDesc") });
             })
           }
         />
       </div>
-      {blocked && <p className="text-[12px] text-muted-foreground">Notifications are blocked for this site. Allow them in your browser&apos;s site settings, then come back to turn them on.</p>}
+      {blocked && <p className="text-[12px] text-muted-foreground">{t("settings.panel.notifications.blockedSite")}</p>}
       {enabled && (
         <Button
           variant="outline"
@@ -50,13 +50,13 @@ export function NotificationSettings() {
           className="rounded-full"
           onClick={() => {
             try {
-              new Notification("Notifications are on", { body: "This is how Fuobe tells you a job is done.", tag: "fuobe-test", icon: "/favicon.ico" });
+              new Notification(t("settings.panel.notifications.testTitle"), { body: t("settings.panel.notifications.testBody"), tag: "fuobe-test", icon: "/favicon.ico" });
             } catch {
-              toast.error("This browser only shows notifications from an installed app");
+              toast.error(t("settings.panel.notifications.installedAppOnly"));
             }
           }}
         >
-          <BellRing className="size-3.5" /> Send a test
+          <BellRing className="size-3.5" /> {t("settings.panel.notifications.sendATest")}
         </Button>
       )}
     </div>
