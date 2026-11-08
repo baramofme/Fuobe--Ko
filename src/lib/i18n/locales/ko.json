@@ -3742,5 +3742,9 @@
   "studio.price.lt001NoSpace": "1센트 미만",
   "studio.price.demoUnder001": " · 1센트 미만",
   "genjutsu.character.fasterCheaper": "더 빠르고 저렴",
-  "genjutsu.character.h3NativeTop": "H3 자체 최고 해상도"
+  "genjutsu.character.h3NativeTop": "H3 자체 최고 해상도",
+  "studio.price.freeInYourBrowser": "무료 · 내 브라우저에서 실행",
+  "studio.price.freePlaysInYourBrowser": "무료 · 내 브라우저에서 재생",
+  "studio.price.notAnsweringNow": "무료 · 지금 응답하지 않습니다",
+  "studio.price.demoFree": "데모 · 무료"
 }

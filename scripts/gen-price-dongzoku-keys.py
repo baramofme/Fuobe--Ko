@@ -62,6 +62,12 @@ NEW_KEYS: dict[str, tuple[str, str]] = {
     # 화질 선택 라벨 (genjutsu character-panel)
     "genjutsu.character.fasterCheaper": ("Faster and cheaper",   "더 빠르고 저렴"),
     "genjutsu.character.h3NativeTop":   ("H3's native top",      "H3 자체 최고 해상도"),
+
+    # 브라우저 실행 배지 / GPU 응답 대기 / 데모 칩 (2차 배선분 — 레인 t_9ffbf3c4)
+    "studio.price.freeInYourBrowser":   ("Free \u00b7 in your browser",           "무료 \u00b7 내 브라우저에서 실행"),
+    "studio.price.freePlaysInYourBrowser": ("Free \u00b7 plays in your browser",  "무료 \u00b7 내 브라우저에서 재생"),
+    "studio.price.notAnsweringNow":     ("Free \u00b7 not answering right now",   "무료 \u00b7 지금 응답하지 않습니다"),
+    "studio.price.demoFree":            ("Demo \u00b7 free",                      "데모 \u00b7 무료"),
 }
 
 

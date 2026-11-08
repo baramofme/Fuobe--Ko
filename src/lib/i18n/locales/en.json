@@ -3742,5 +3742,9 @@
   "studio.price.lt001NoSpace": "<$0.01",
   "studio.price.demoUnder001": " · under $0.01",
   "genjutsu.character.fasterCheaper": "Faster and cheaper",
-  "genjutsu.character.h3NativeTop": "H3's native top"
+  "genjutsu.character.h3NativeTop": "H3's native top",
+  "studio.price.freeInYourBrowser": "Free · in your browser",
+  "studio.price.freePlaysInYourBrowser": "Free · plays in your browser",
+  "studio.price.notAnsweringNow": "Free · not answering right now",
+  "studio.price.demoFree": "Demo · free"
 }
