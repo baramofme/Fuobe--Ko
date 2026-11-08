@@ -4,6 +4,7 @@ import "@xyflow/react/dist/style.css";
 import "./canvas.css";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { useI18n } from "@/lib/i18n";
 import {
   applyEdgeChanges,
   applyNodeChanges,
@@ -280,6 +281,7 @@ interface MenuState {
 
 function Editor({ id, initial, view, host }: { id: string; initial: Canvas; view: CanvasView; host: BoardHost }) {
   const qc = useQueryClient();
+  const { t: tr } = useI18n();
   // The host's latest functions, for the autosave and the handlers (a new host object never re-arms them).
   const hostNow = useRef(host);
   useLayoutEffect(() => {
@@ -1294,7 +1296,7 @@ function Editor({ id, initial, view, host }: { id: string; initial: Canvas; view
     visitor
       ? ""
       : plan.steps.length
-        ? `${plan.steps.length} to run · ${planDemo ? "Placeholder · free" : plan.costUnknown ? "price unknown" : plan.costUsd === 0 ? "Free" : `≈ ${formatCost(plan.costUsd)}`}`
+        ? `${plan.steps.length} to run · ${planDemo ? tr("faceless.controls.placeholderFree") : plan.costUnknown ? "price unknown" : plan.costUsd === 0 ? "Free" : `≈ ${formatCost(plan.costUsd)}`}`
         : generators.length && !attention
           ? "Up to date"
           : "",

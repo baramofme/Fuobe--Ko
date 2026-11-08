@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Cloud, Cpu, Download, FolderDown, Layers, Loader2, Ro
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { NotFoundState } from "@/components/empty-state";
 import {
@@ -350,11 +351,12 @@ function SegmentCard({
   onEnhance: () => void;
   enhancing: boolean;
 }) {
+  const { t: tr } = useI18n();
   const primary = gens[seg.primary];
   const chosenTake = seg.takes.find((t) => t.look === seg.primary);
   const tooLong = finishLengthProblem(segmentSeconds(seg));
   const video = videoOf(primary);
-  const price = demo ? "Placeholder · free" : cost === null ? "" : cost === 0 ? "Free" : `≈ ${formatCost(cost)}`;
+  const price = demo ? tr("faceless.controls.placeholderFree") : cost === null ? "" : cost === 0 ? "Free" : `≈ ${formatCost(cost)}`;
   return (
     <article className="min-w-0 rounded-2xl border bg-background p-3 sm:p-4" aria-label={`Segment ${index + 1}`}>
       <div className="flex items-center gap-2">
