@@ -7,6 +7,7 @@ import { frameFromBlob, type Frame } from "@/components/remove-object/frame-stag
 import { jobState, type GenSummary, type JobStatus } from "@/lib/catalog/swap-studio";
 import type { Engine } from "@/lib/catalog/types";
 import { cn } from "@/lib/utils";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 import { useOpenFree } from "@/components/studio/run-place-chip";
 
 /** Small pieces shared by Character Swap Studio's stages. */
@@ -17,13 +18,15 @@ import { useOpenFree } from "@/components/studio/run-place-chip";
  */
 export function usePriceText(): typeof priceText {
   const openFree = useOpenFree();
-  return useCallback((costUsd: number | null | undefined, o: { demo?: boolean; engine: Engine }) => openFree(priceText(costUsd, o)), [openFree]);
+  // 구독 착지점: useI18n이 언어 전환에 re-render시키므로 이 훅의 모든 소비자(anchors·review)가 한 렌더에 새 언어 단어를 읽는다.
+  const { t: tr } = useI18n();
+  return useCallback((costUsd: number | null | undefined, o: { demo?: boolean; engine: Engine }) => openFree(priceText(costUsd, o, tr)), [openFree, tr]);
 }
 
 /** "≈ $0.38", "Free · your GPU", "Placeholder · free", "Price unknown". */
-export function priceText(costUsd: number | null | undefined, o: { demo?: boolean; engine: Engine }): string {
-  if (o.demo) return "Placeholder · free";
-  if (o.engine === "open") return "Free · your GPU";
+export function priceText(costUsd: number | null | undefined, o: { demo?: boolean; engine: Engine }, tr: (key: string, params?: Params) => string = storeT): string {
+  if (o.demo) return tr("faceless.controls.placeholderFree");
+  if (o.engine === "open") return tr("studio.composer.freeYourGpu");
   if (costUsd === undefined) return "…";
   if (costUsd === null) return "Price unknown";
   if (costUsd === 0) return "Free";

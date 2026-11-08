@@ -7,6 +7,7 @@ import { UNAVAILABLE_OPTION, UnavailableNote, useUnavailableNote } from "@/compo
 import { LibraryGrid } from "@/components/studio/media-slot";
 import { radioKeys, radioTab } from "@/components/studio/radio-keys";
 import { useAskBeforeUpload } from "@/lib/api";
+import { t as storeT, type Params } from "@/lib/i18n";
 import { toolPoolPrice } from "@/lib/run-place";
 import type { Unavailable } from "@/lib/unavailable";
 import { cn } from "@/lib/utils";
@@ -260,12 +261,12 @@ export function Steps({ steps, current, className }: { steps: string[]; current:
  * "≈ $0.42", "Placeholder · free", "Free · your GPU". A visitor's price is never a demo (src/server/visitor.ts
  * priceAs). A run on this studio's GPUs (the estimate says so): the service's price and the place in line.
  */
-export function costText(e: { costUsd: number | null; demo: boolean } | undefined, engine: "cloud" | "open"): string {
+export function costText(e: { costUsd: number | null; demo: boolean } | undefined, engine: "cloud" | "open", tr: (key: string, params?: Params) => string = storeT): string {
   if (!e) return "…";
   const pool = toolPoolPrice(e);
   if (pool) return pool.text;
-  if (e.demo) return "Placeholder · free";
-  if (engine === "open") return "Free · your GPU";
+  if (e.demo) return tr("faceless.controls.placeholderFree");
+  if (engine === "open") return tr("studio.composer.freeYourGpu");
   if (e.costUsd === null) return "Price unknown";
   if (e.costUsd === 0) return "Free";
   return `≈ $${e.costUsd < 1 ? e.costUsd.toFixed(3).replace(/0$/, "") : e.costUsd.toFixed(2)}`;

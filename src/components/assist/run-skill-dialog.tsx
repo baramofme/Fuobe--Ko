@@ -24,6 +24,7 @@ import { checkValues, isMediaType, parseRows, RECIPE_LIMITS, TEST_RUN_DONE, TEST
 import { DEMO_NOTE } from "@/lib/recipe-builder";
 import { cn } from "@/lib/utils";
 import { refusalShown, toastError } from "@/lib/refusals";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 import { useRecipe, useRecipeActions, useSkillActions, type RecipeFailure } from "./hooks";
 import { PlanJobs } from "./plan-jobs";
 import { SkillIcon } from "./skill-icon";
@@ -73,9 +74,9 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 /** "$0.62 on Cloud", "Free on your GPU", "$12.40 for 20 runs", "Placeholder · free". */
-function priceLine(e: RecipeEstimate | undefined, runs: number): string {
+function priceLine(e: RecipeEstimate | undefined, runs: number, tr: (key: string, params?: Params) => string = storeT): string {
   if (!e) return "";
-  if (e.demo) return `Placeholder · free${runs > 1 ? ` · ${runs} runs` : ""}`;
+  if (e.demo) return `${tr("faceless.controls.placeholderFree")}${runs > 1 ? ` · ${runs} runs` : ""}`;
   if (e.total === null) return "Some prices vary";
   const where = e.engine === "open" ? "on your GPU" : "on Cloud";
   if (e.total === 0) return runs > 1 ? `Free · ${runs} runs ${where}` : `Free ${where}`;
@@ -84,6 +85,7 @@ function priceLine(e: RecipeEstimate | undefined, runs: number): string {
 
 function Loaded({ view, onClose, examples, intro, csv: rowsCsv }: { view: RecipeView; onClose: () => void; examples?: boolean; intro?: string; csv?: string }) {
   const { recipe, name } = view;
+  const { t: tr } = useI18n();
   const actions = useRecipeActions();
   const skillActions = useSkillActions();
   const qc = useQueryClient();
@@ -199,7 +201,7 @@ function Loaded({ view, onClose, examples, intro, csv: rowsCsv }: { view: Recipe
     }
   };
 
-  const price = !ready ? "" : estError ? "" : !fresh || estimate.isFetching ? "Pricing…" : priceLine(est, runs);
+  const price = !ready ? "" : estError ? "" : !fresh || estimate.isFetching ? "Pricing…" : priceLine(est, runs, tr);
   return (
     <>
       <DialogHeader className="flex-row items-start gap-3 border-b px-5 pt-5 pb-4 text-left">
