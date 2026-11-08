@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { saveSettings, testConnection, useViewer, type ConnectionTest } from "@/lib/api";
 import { settingProblem, type TestProvider } from "@/lib/connections";
+import { useI18n } from "@/lib/i18n";
 import { addressHost, addressKind, refusedLine, refusedOnHosted } from "@/lib/page-place";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
@@ -68,7 +69,7 @@ export function ConnectField({
   hint,
   placeholder,
   id,
-  idleLabel = "Test",
+  idleLabel,
   onConnected,
   options,
   className,
@@ -112,6 +113,9 @@ export function ConnectField({
 }) {
   const qc = useQueryClient();
   const inputId = useId();
+  const { t } = useI18n();
+  // The button's words when nothing new was typed: the caller's, else this language's "Test".
+  const idle = idleLabel ?? t("settings.connect.test");
   const [draft, setDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
@@ -150,7 +154,7 @@ export function ConnectField({
         setDraft(null);
         setResult(null);
         refresh();
-        toast.success(`${label} saved`);
+        toast.success(t("settings.connect.nameSaved", { name: label }));
         return;
       }
       // Refused here, before any request: the line says why, and no "Save anyway".
@@ -182,7 +186,7 @@ export function ConnectField({
       setDraft(null);
       setResult((r) => r && { ...r, unsaved: undefined, saved: true });
       refresh();
-      toast.success("Saved — it didn't connect yet");
+      toast.success(t("settings.connect.savedNotYet"));
     } catch (e) {
       toastError(e);
     }
@@ -194,7 +198,7 @@ export function ConnectField({
       setDraft(null);
       setResult(null);
       refresh();
-      toast.success(`${label} cleared`);
+      toast.success(t("settings.connect.nameCleared", { name: label }));
     } catch (e) {
       toastError(e);
     }
@@ -236,13 +240,13 @@ export function ConnectField({
           </datalist>
         )}
         <div className="flex shrink-0 gap-2">
-          <Button size="sm" className="h-9" disabled={busy || !canTest} onClick={() => void run()} aria-label={`${saveOnly ? "Save" : typed !== null ? "Save and test" : idleLabel} ${label}`}>
+          <Button size="sm" className="h-9" disabled={busy || !canTest} onClick={() => void run()} aria-label={`${saveOnly ? t("settings.connect.save") : typed !== null ? t("settings.connect.saveAndTestAria") : idle} ${label}`}>
             {busy && <Loader2 className="animate-spin" />}
-            {saveOnly ? "Save" : typed !== null ? "Save & test" : idleLabel}
+            {saveOnly ? t("settings.connect.save") : typed !== null ? t("settings.connect.saveAndTest") : idle}
           </Button>
           {setting?.isSet && !setting.fromEnv && secret && typed === null && (
-            <Button size="sm" variant="ghost" className="h-9" aria-label={`Clear ${label}`} onClick={() => void clear()}>
-              Clear
+            <Button size="sm" variant="ghost" className="h-9" aria-label={t("settings.connect.clearAria", { name: label })} onClick={() => void clear()}>
+              {t("settings.connect.clear")}
             </Button>
           )}
         </div>
@@ -262,11 +266,22 @@ export function ConnectField({
           <p className={cn("flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px]", result.ok ? "text-success" : "text-destructive")}>
             {result.ok ? <CheckCircle2 className="size-3.5 shrink-0" /> : <CircleAlert className="size-3.5 shrink-0" />}
             <span className="min-w-0 break-words">
-              {result.ok ? `Connected${result.saved ? " and saved" : ""} · ${result.detail}` : result.saved ? `Saved, not connected yet · ${result.detail}` : result.detail}
+              {result.ok ? (
+                <>
+                  {t("settings.connect.connected")}
+                  {result.saved ? t("settings.connect.andSaved") : ""} · {result.detail}
+                </>
+              ) : result.saved ? (
+                <>
+                  {t("settings.connect.savedNotConnected")} · {result.detail}
+                </>
+              ) : (
+                result.detail
+              )}
             </span>
             {result.unsaved && (
               <button type="button" onClick={() => void saveAnyway(result.unsaved!)} className="font-medium text-foreground underline underline-offset-2 hover:no-underline">
-                Save anyway
+                {t("settings.connect.saveAnyway")}
               </button>
             )}
           </p>
@@ -274,7 +289,7 @@ export function ConnectField({
       </div>
       {hint !== undefined && (
         <p id={`${inputId}-hint`} className="text-[12px] text-muted-foreground">
-          {setting?.fromEnv && !onlyDefault ? (place === "hosted" ? "Set on the server. A value saved here replaces it. " : "Set from an environment variable; a value saved here wins. ") : ""}
+          {setting?.fromEnv && !onlyDefault ? (place === "hosted" ? t("settings.connect.fromEnvHosted") : t("settings.connect.fromEnvLocal")) : ""}
           {hint}
         </p>
       )}
