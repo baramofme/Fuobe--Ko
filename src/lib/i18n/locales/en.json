@@ -3716,5 +3716,13 @@
   "marketing.setting.name.volcano_rim.name": "Volcano Rim",
   "marketing.setting.name.tiny_reviewer.name": "Tiny Reviewer",
   "marketing.setting.name.car_roof.name": "Car Roof",
-  "marketing.setting.name.train_surf.name": "Train Surf"
+  "marketing.setting.name.train_surf.name": "Train Surf",
+  "menu.line.new_board": "New board",
+  "menu.line.your_recent_boards": "Your recent boards",
+  "menu.line.all_your_boards": "All your boards",
+  "menu.line.assist_s_skills_drawn_as_boards": "Assist's skills, drawn as boards",
+  "area.section.start.title": "Start here",
+  "area.section.effect-films.title": "Effect films",
+  "nav.canvas.seeAllReadyBoards": "See all ready boards",
+  "nav.canvas.newBoardError": "Couldn't make a new board. Please try again."
 }

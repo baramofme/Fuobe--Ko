@@ -3716,5 +3716,13 @@
   "marketing.setting.name.volcano_rim.name": "화산 분화구",
   "marketing.setting.name.tiny_reviewer.name": "작은 리뷰어",
   "marketing.setting.name.car_roof.name": "차 지붕",
-  "marketing.setting.name.train_surf.name": "열차 질주"
+  "marketing.setting.name.train_surf.name": "열차 질주",
+  "menu.line.new_board": "새 보드",
+  "menu.line.your_recent_boards": "최근 보드",
+  "menu.line.all_your_boards": "모든 보드",
+  "menu.line.assist_s_skills_drawn_as_boards": "어시스트의 스킬을 보드로",
+  "area.section.start.title": "여기서 시작",
+  "area.section.effect-films.title": "효과 영화",
+  "nav.canvas.seeAllReadyBoards": "준비된 보드 모두 보기",
+  "nav.canvas.newBoardError": "새 보드를 만들지 못했습니다. 다시 시도해 주세요."
 }

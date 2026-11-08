@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { IntentLink } from "@/components/intent-link";
 import { useCanvasActions, useCanvases } from "@/components/canvas/use-canvas";
+import { menuLineKey } from "@/components/nav/mega-panel";
 import { timeAgo } from "@/lib/format";
-import { entry } from "@/lib/nav-model";
+import { entry, labelKeyOf } from "@/lib/nav-model";
 import { toastError } from "@/lib/refusals";
 import { useI18n } from "@/lib/i18n";
 import { keySnake, translateOr, type Lang } from "@/lib/i18n/store";
@@ -18,6 +19,7 @@ export const RECENT_BOARDS = 4;
 function useNewBoard() {
   const router = useRouter();
   const { create } = useCanvasActions();
+  const { lang } = useI18n();
   const [busy, setBusy] = useState(false);
   const start = async () => {
     setBusy(true);
@@ -25,7 +27,10 @@ function useNewBoard() {
       const c = await create({});
       router.push(`/canvas/${c.id}`);
     } catch (e) {
-      toastError(e, "Couldn't make a new board. Please try again.");
+      // 정적 폴백까지 렌더 언어로 해석한다(t_dee3be02 — nav.canvas.newBoardError, en은 이 리터럴과
+      // 바이트 동일이라 영어 출력은 그대로다. 서버가 준 e.message는 원래 언어로 떠도 된다).
+      // 폴백 리터럴을 손에 두고 번역하는 형제 t_c373d4a4의 경로(translateOr)와 같은 기계라 병합이 갈라지지 않는다.
+      toastError(e, translateOr(lang, "nav.canvas.newBoardError", "Couldn't make a new board. Please try again."));
       setBusy(false);
     }
   };
@@ -35,6 +40,7 @@ function useNewBoard() {
 /** The phone sheet's New board button (the Canvas family, the owner's). */
 export function NewBoardButton() {
   const { busy, start } = useNewBoard();
+  const { lang } = useI18n();
   return (
     <button
       type="button"
@@ -43,7 +49,7 @@ export function NewBoardButton() {
       className="nav-focus mb-2 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary text-[14px] font-semibold text-primary-foreground active:bg-primary/85"
     >
       {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />}
-      New board
+      {translateOr(lang, menuLineKey("New board"), "New board")}
     </button>
   );
 }
@@ -106,7 +112,7 @@ export default function CanvasOwnerStart({ col, labelledBy, fallback }: { col: n
           className="nav-focus flex h-10 w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-[14px] font-semibold text-primary-foreground hover:bg-primary/90 active:bg-primary/85 motion-safe:transition-colors"
         >
           {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />}
-          New board
+          {translateOr(lang, menuLineKey("New board"), "New board")}
         </button>
       </li>
       {boards.isPending ? (
@@ -117,7 +123,7 @@ export default function CanvasOwnerStart({ col, labelledBy, fallback }: { col: n
         </li>
       ) : recent.length > 0 ? (
         <li className="flex flex-col gap-0.5">
-          <p className="pt-1 pb-1 text-[12px] leading-4 font-medium text-muted-foreground">Your recent boards</p>
+          <p className="pt-1 pb-1 text-[12px] leading-4 font-medium text-muted-foreground">{translateOr(lang, menuLineKey("Your recent boards"), "Your recent boards")}</p>
           {recent.map((b, i) => (
             <IntentLink
               key={b.id}
@@ -142,7 +148,7 @@ export default function CanvasOwnerStart({ col, labelledBy, fallback }: { col: n
             data-row={recent.length + 1}
             className="nav-row group/all -mx-2 inline-flex h-10 items-center gap-1 self-start rounded-[10px] px-2 text-[13px] font-medium text-brand-text"
           >
-            All your boards
+            {translateOr(lang, menuLineKey("All your boards"), "All your boards")}
             <ArrowRight aria-hidden className="size-3.5 motion-safe:transition-transform group-hover/all:translate-x-0.5" />
           </IntentLink>
         </li>
@@ -155,10 +161,10 @@ export default function CanvasOwnerStart({ col, labelledBy, fallback }: { col: n
             href={skills.href}
             data-col={col}
             data-row={recent.length ? recent.length + 2 : 2}
-            title={skills.what}
+            title={translateOr(lang, menuLineKey(skills.what), skills.what)}
             className="nav-row group/all -mx-2 inline-flex h-10 items-center gap-1 self-start rounded-[10px] px-2 text-[13px] font-medium text-brand-text"
           >
-            {skills.label}
+            {translateOr(lang, labelKeyOf("canvas-skills"), skills.label)}
             <ArrowRight aria-hidden className="size-3.5 motion-safe:transition-transform group-hover/all:translate-x-0.5" />
           </IntentLink>
         </li>
