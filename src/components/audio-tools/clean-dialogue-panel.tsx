@@ -25,6 +25,7 @@ import { durationWords, openToolPrice, QUALITY_LABELS, type SplitQuality } from 
 import type { Engine } from "@/lib/catalog/types";
 import { toastError } from "@/lib/refusals";
 import { cn } from "@/lib/utils";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 import { useAudioToolPreview, useAudioToolRun, useSettled, type AudioToolBody } from "./hooks";
 
 /**
@@ -44,8 +45,8 @@ export interface CleanSource {
 
 const bedText = (b: BedLevel) => (b === "off" ? "Off" : `${b} dB`.replace("-", "−"));
 const onDevice = (device?: string) => (device === "cuda" ? "on your GPU" : device ? "on your CPU" : "on a CPU");
-const price = (p: { costUsd: number | null; demo: boolean } | undefined) =>
-  !p ? "…" : p.demo ? "Placeholder · free" : p.costUsd === null ? "Price unknown" : p.costUsd < 0.01 ? "under $0.01" : `≈ $${p.costUsd.toFixed(2)}`;
+const price = (p: { costUsd: number | null; demo: boolean } | undefined, tr: (key: string, params?: Params) => string = storeT) =>
+  !p ? "…" : p.demo ? tr("faceless.controls.placeholderFree") : p.costUsd === null ? "Price unknown" : p.costUsd < 0.01 ? "under $0.01" : `≈ $${p.costUsd.toFixed(2)}`;
 
 export function CleanDialoguePanel({
   source,
@@ -62,6 +63,8 @@ export function CleanDialoguePanel({
   /** Switch to Split into stems (the mixer opens on the Clean dialogue preset). */
   onMixer: () => void;
 }) {
+  // Words for this render: subscribing here re-renders the open engine's price line when the language switches.
+  const { t: tr } = useI18n();
   const [bed, setBed] = useState<BedLevel>(DEFAULT_BED);
   const [quality, setQuality] = useState<SplitQuality | null>(null);
   const [stereo, setStereo] = useState(false);
@@ -190,7 +193,7 @@ export function CleanDialoguePanel({
                 {p.estimate && !p.demo ? ` · ${durationWords(p.estimate)} ${onDevice(p.device)}` : ""}
               </>
             ) : (
-              <span className="font-mono text-foreground">{price(p)}</span>
+              <span className="font-mono text-foreground">{price(p, tr)}</span>
             )}
           </p>
           <Button size="lg" className={cn("rounded-full", (blocker || error) && "bg-muted text-subtle-foreground hover:bg-muted")} onClick={go} disabled={busy}>

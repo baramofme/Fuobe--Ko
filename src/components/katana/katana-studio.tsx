@@ -28,6 +28,7 @@ import type { ExampleRowData } from "@/lib/examples/types";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/refusals";
 import { usePoolRun } from "@/components/studio/pool-price";
+import { t as storeT, useI18n, type Params } from "@/lib/i18n";
 import { useKatanaActions, useKatanaJobs, useKatanaPreview, type KatanaBody } from "./hooks";
 
 type SplitMode = "fixed" | "scenes";
@@ -58,7 +59,8 @@ async function findCuts(src: string, duration: number, onProgress: (p: number) =
   }
 }
 
-const money = (usd: number | null | undefined, demo?: boolean, open?: boolean) => (demo ? "Placeholder · free" : open ? "Free · your GPU" : usd == null ? "Price unknown" : `≈ $${usd.toFixed(2)}`);
+const money = (usd: number | null | undefined, demo?: boolean, open?: boolean, tr: (key: string, params?: Params) => string = storeT) =>
+  (demo ? tr("faceless.controls.placeholderFree") : open ? tr("studio.composer.freeYourGpu") : usd == null ? "Price unknown" : `≈ $${usd.toFixed(2)}`);
 
 /**
  * Katana: rebuild a reference edit with your subject, shot for shot.
@@ -66,6 +68,8 @@ const money = (usd: number | null | undefined, demo?: boolean, open?: boolean) =
  */
 export function KatanaStudio({ examples }: { examples?: ExampleRowData | null }) {
   const [engine] = useEngine();
+  // Words for this render: the price line reads them through tr, so a language switch re-renders it.
+  const { t: tr } = useI18n();
   // A guest is asked to sign up, and an account with neither its own GPU nor its own key to connect one, before a photo
   // is added (the reference's drop asks the same).
   const askFirst = useAskBeforeUpload();
@@ -308,7 +312,7 @@ export function KatanaStudio({ examples }: { examples?: ExampleRowData | null })
               {preview.data ? (
                 <>
                   {preview.data.segments.length} segment{preview.data.segments.length === 1 ? "" : "s"} · {preview.data.steps} steps ·{" "}
-                  <span className="font-mono text-foreground">{poolRun.pool?.text ?? money(preview.data.costUsd, preview.data.demo, engine === "open")}</span>
+                  <span className="font-mono text-foreground">{poolRun.pool?.text ?? money(preview.data.costUsd, preview.data.demo, engine === "open", tr)}</span>
                 </>
               ) : (
                 (blocker ?? "Pricing…")
