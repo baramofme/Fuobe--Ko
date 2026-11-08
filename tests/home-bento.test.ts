@@ -44,7 +44,7 @@ const versioned = /^\/[^?]+\?v=[0-9a-f]{8}$/;
 
 const home = await homeShowcase();
 const bento = home.bento;
-const html = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(HomeBento, { bento })));
+const html = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(HomeBento, { bento, lang: "en" })));
 /** Every media URL the first screen names. */
 const urls = [...new Set([...JSON.stringify(bento).matchAll(/"(\/(?:previews|examples|samples)\/[^"]*)"/g)].map((m) => m[1]))];
 
