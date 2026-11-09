@@ -249,6 +249,8 @@ describe("the card check", () => {
     expect(readCard("Quadro RTX 8000")).toEqual({ rtx: true, series: 20 });
     expect(readCard("NVIDIA GB10")).toEqual({ rtx: undefined });
     expect(readCard("NVIDIA GeForce GTX 1080 Ti").rtx).toBe(false);
+    // NVIDIA's CMP mining cards (CMP 170HX, this install's cards): their name says non-RTX — refused, never a guess.
+    expect(readCard("cuda:0 NVIDIA CMP 170HX : cudaMallocAsync").rtx).toBe(false);
     expect(readCard("cuda:0 AMD Radeon RX 7900 XTX : native").rtx).toBe(false);
     expect(readCard("mps", "mps").rtx).toBe(false);
     expect(readCard("cpu", "cpu").rtx).toBe(false);
@@ -290,6 +292,7 @@ describe("the card check", () => {
       inventory(rtx4070, { cpuOnly: true }),
       inventory({ name: "cuda:0 AMD Radeon RX 7900 XTX : native", type: "cuda" }),
       inventory({ name: "cuda:0 NVIDIA GeForce GTX 1080 : cudaMallocAsync", type: "cuda" }),
+      inventory({ name: "cuda:0 NVIDIA CMP 170HX : cudaMallocAsync", type: "cuda" }),
       inventory({ name: "mps", type: "mps" }),
     ]) {
       expect(at(RTX.RTX_UPSCALE_WORKFLOW, inv)).toMatchObject({ state: "unsupported", reason: GPU_NEED_TEXT["nvidia-rtx"] });
@@ -322,6 +325,7 @@ describe("the card check", () => {
     expect(RTX.rtxStanding("nvidia-rtx", "RTX 4070")).toBe("fits");
     expect(RTX.rtxStanding("nvidia-rtx-40", "RTX 3080")).toBe("no");
     expect(RTX.rtxStanding("nvidia-rtx", "GTX 1660")).toBe("no");
+    expect(RTX.rtxStanding("nvidia-rtx", "CMP 170HX")).toBe("no");
     expect(RTX.rtxStanding("nvidia-rtx", undefined)).toBe("unknown");
     expect(RTX.rtxStanding("nvidia-rtx", "H100 80GB HBM3")).toBe("unknown");
     // A CPU or Apple ComfyUI reports no card name: the model's own chip says it can't run there.
