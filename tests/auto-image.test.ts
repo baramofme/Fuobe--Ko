@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { getModel, MODELS } from "@/lib/catalog";
 import { planGeneration, estimateCost } from "@/lib/catalog/plan";
@@ -228,11 +229,11 @@ describe("the line under a run of Auto", () => {
 
   it("shows on the feed card and the run details; the owner's review line only with the cards", () => {
     const g = run({ modelId: "oss-krea2-realism", modelName: "Krea 2 Realism", auto: { model: "oss-krea2-realism", why: "declined" } });
-    const theirs = renderToStaticMarkup(MadeNote({ g })!);
+    const theirs = renderToStaticMarkup(createElement(MadeNote, { g }));
     expect(theirs).toContain("Auto · made with Krea 2 Realism · Auto&#x27;s next model");
     expect(theirs).not.toContain("Add a pattern");
     expect(theirs).not.toContain("Words:");
-    const owners = renderToStaticMarkup(MadeNote({ g: { ...g, declinedCards: [{ url: "/api/files/card.png", spread: 9, grey: 0.9 }] } })!);
+    const owners = renderToStaticMarkup(createElement(MadeNote, { g: { ...g, declinedCards: [{ url: "/api/files/card.png", spread: 9, grey: 0.9 }] } }));
     expect(owners).toContain("Ideogram 4 declined: what it returned");
     expect(owners).toContain("Words: “a cat in a gown”");
     expect(owners).toContain("Add a pattern");

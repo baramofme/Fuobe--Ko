@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { GenInput, Generation } from "@/lib/catalog/types";
 import { tempDir } from "./helpers/temp-dir";
@@ -135,11 +136,11 @@ describe("Ideogram 4 that declines a run", () => {
     expect(listAssets({ limit: 1000 }).some((a) => a.id === kept.id)).toBe(false);
     expect(g.outputs.some((o) => o.url === kept.url)).toBe(false);
     // The tile's one plain line, and the owner's line with what Ideogram 4 returned.
-    const html = renderToStaticMarkup(MadeNote({ g })!);
+    const html = renderToStaticMarkup(createElement(MadeNote, { g }));
     expect(html).toContain("Made with Krea 2 Realism · Ideogram 4 declined this one");
     expect(html).toContain("Ideogram 4 declined: what it returned");
     // Someone else's eyes (an account's own run never carries the cards): only the plain line.
-    const theirs = renderToStaticMarkup(MadeNote({ g: { ...g, declinedCards: undefined } })!);
+    const theirs = renderToStaticMarkup(createElement(MadeNote, { g: { ...g, declinedCards: undefined } }));
     expect(theirs).toContain(declinedNotice("Krea 2 Realism"));
     expect(theirs).not.toContain("what it returned");
   });

@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { GenInput, Generation } from "@/lib/catalog/types";
 import { tempDir } from "./helpers/temp-dir";
@@ -88,7 +89,7 @@ async function run(prompt: string, more: Record<string, unknown> = {}, modelId: 
   return settled(made[0].id);
 }
 const rowsSince = (id: string) => db().prepare("SELECT COUNT(*) FROM generations WHERE created_at >= (SELECT created_at FROM generations WHERE id = ?)").pluck().get(id) as number;
-const line = (g: Generation) => renderToStaticMarkup(MadeNote({ g })!);
+const line = (g: Generation) => renderToStaticMarkup(createElement(MadeNote, { g }));
 
 describe("what Auto runs on", () => {
   it("plain words: Krea 2 Realism, and the run keeps Auto with its pick", async () => {
