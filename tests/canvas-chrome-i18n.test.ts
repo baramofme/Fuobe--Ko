@@ -62,9 +62,9 @@ describe("the Canvas owner column's chrome strings", () => {
     // OWNER_STATIC로 수확했으므로 이 키가 양쪽에 존재한다.
     const what = entry("canvas-skills")!.what;
     const key = menuLineKey(what);
-    expect(key).toBe("menu.line.assist_s_skills_drawn_as_boards");
+    expect(key).toBe("menu.line.chat_s_skills_drawn_as_boards");
     expect(locales.en[key]).toBe(what); // en은 그 값과 문자 단위 동일 — title도 바이트 보존
-    expect(locales.ko[key]).toBe("어시스트의 스킬을 보드로");
+    expect(locales.ko[key]).toBe("채팅의 스킬을 보드로");
     expect(locales.ko[key]).not.toMatch(LATIN);
     expect(translateOr("ko", key, what)).toBe("어시스트의 스킬을 보드로");
     expect(translateOr("en", key, what)).toBe(what);
