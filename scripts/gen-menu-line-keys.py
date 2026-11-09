@@ -130,6 +130,8 @@ KO_MAP: dict[str, str] = {
     "menu.line.locked_off_painterly": "고정된 컷, 회화처럼",
     "menu.line.every_droplet_slowed": "모든 물방울을 느리게",
     "menu.line.camera_rigged_to_them": "피사체에 장착한 카메라",
+    "menu.line.through_their_own_eyes": "본인의 눈으로 본 시점",
+    "menu.line.seen_from_a_moving_object": "움직이는 사물의 시선",
     "menu.line.handheld_with_snap_zooms": "핸드헬드, 순간 줌",
     "menu.line.a_still_tripod_shot": "고정된 삼각대 컷",
     "menu.line.a_dreamy_floating_camera": "꿈같은 부유하는 카메라",

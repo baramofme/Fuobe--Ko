@@ -68,6 +68,8 @@ export const MENU_LINES: Record<string, string> = {
   "motion-catwalk": "A confident runway walk",
   "motion-classic-static": "Locked off, painterly",
   "motion-snorricam": "Camera rigged to them",
+  "motion-pov": "Through their own eyes",
+  "motion-object-pov": "Seen from a moving object",
   "motion-documentary-snap": "Handheld, with snap zooms",
   "motion-static": "A still tripod shot",
   "motion-dreamy-flow": "A dreamy, floating camera",
