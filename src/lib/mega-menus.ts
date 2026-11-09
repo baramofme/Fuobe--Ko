@@ -284,6 +284,8 @@ export function createMenu(kind: ViewerKind | undefined): MegaModel {
     id: "create",
     count: n,
     countLine: "Start from words or a picture",
+    countLineKey: "menu.countLine.create",
+    countLineParams: { n },
     seeAll: { href: MEGA_AREAS.create.href, name: "See all of Create" },
     columns,
   };

@@ -299,6 +299,8 @@ export function fxMenu(): MegaModel {
     id: "fx",
     count: n,
     countLine: `${n} tools for FX artists and teams, by stage of the shot`,
+    countLineKey: "menu.countLine.fx",
+    countLineParams: { n },
     seeAll: { href: "/fx", name: "See all of Fuobe FX" },
     columns: sections.map((s): MegaColumn => {
       const items = [...s.cards, ...s.pills]
