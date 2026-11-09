@@ -5,6 +5,7 @@
  * session is one prompt that keeps growing: every frame renders all the words so far on the start picture. The player
  * itself is src/components/live/live-demo.tsx.
  */
+import { t, type Params } from "../i18n/store";
 
 export const LIVE_DEMO = "/previews/live-edit/demo.json";
 /**
@@ -246,8 +247,12 @@ const isBox = (b: unknown): b is Box =>
   Array.isArray(b) && b.length === 4 && b.every((n) => typeof n === "number" && n >= 0 && n <= 1) && b[0] < b[2] && b[1] < b[3];
 
 /** The pill's words: compact cards add the change count once there are two. */
-export function pillText(v: Pick<DemoView, "changes">, compact = false) {
-  return { main: "Live", count: compact && v.changes > 1 ? String(v.changes) : null };
+export function pillText(
+  v: Pick<DemoView, "changes">,
+  compact = false,
+  translate: (key: string, params?: Params) => string = t,
+) {
+  return { main: translate("live.pill"), count: compact && v.changes > 1 ? String(v.changes) : null };
 }
 
 /** Every file of a frame. */
@@ -256,7 +261,8 @@ export const frameFiles = (f: DemoFrame) => [f.src, f.mid, f.small, f.webp, f.we
 /** A frame's file, without the ?v= content version. */
 export const framePath = (src: string) => src.split("?")[0];
 
-export const changesWord = (n: number) => `${n} ${n === 1 ? "change" : "changes"}`;
+export const changesWord = (n: number, translate: (key: string, params?: Params) => string = t) =>
+  translate(n === 1 ? "live.changeOne" : "live.changeMany", { n });
 
 /** How many changes a session makes. */
 export const countChanges = (d: Pick<Demo, "script">) => d.script.filter((s) => s.type === "change").length;

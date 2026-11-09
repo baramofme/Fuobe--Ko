@@ -25,6 +25,7 @@ import {
   viewBefore,
 } from "@/lib/live/demo";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 /** The poster's files as srcsets, and how wide it shows: a full card is up to 7 of 12 columns from lg; a compact one a tile. */
 const POSTER_AVIF = LIVE_DEMO_POSTER.avif.map((f) => `${f.src} ${f.w}w`).join(", ");
@@ -113,6 +114,7 @@ function useReducedMotion() {
 }
 
 export function LiveDemo({ compact, className, onTypeAttempt }: { compact?: boolean; className?: string; onTypeAttempt?: () => void }) {
+  const { t } = useI18n();
   const [demo, setDemo] = useState<Demo | null>(null);
   const reduced = useReducedMotion();
   const box = useRef<HTMLDivElement>(null);
@@ -288,7 +290,7 @@ export function LiveDemo({ compact, className, onTypeAttempt }: { compact?: bool
   // Under reduced motion the still compare shows, with nothing left over from a loop that was playing.
   const v = ends && (reduced || !view) ? startView(ends.before) : view;
   const ratio = demo ? `${demo.size[0]} / ${demo.size[1]}` : "4 / 3";
-  const pill = v ? pillText(v, compact) : { main: "Live", count: null };
+  const pill = v ? pillText(v, compact, t) : { main: t("live.pill"), count: null };
   const changes = v?.changes ?? 0;
   // Nothing shows before the card knows which files it needs, so no file is fetched that it then drops.
   const showImages = (visible || view !== null) && tier > 0 && avif !== null;
@@ -344,7 +346,7 @@ export function LiveDemo({ compact, className, onTypeAttempt }: { compact?: bool
                 <img
                   key={id}
                   src={src(id)}
-                  alt={top ? "A live edit of a portrait" : ""}
+                  alt={top ? t("live.altFrame") : ""}
                   className="absolute inset-0 size-full object-cover"
                   style={top ? { animation: v.sweep ? `live-sweep ${SWEEP_MS}ms cubic-bezier(.45,0,.55,1)` : v.fade ? `live-fade ${v.fade}ms ease-out` : "none" } : undefined}
                   onError={
@@ -384,8 +386,8 @@ export function LiveDemo({ compact, className, onTypeAttempt }: { compact?: bool
       {!compact && v && <ChangeCount changes={v.changes} hidden={v.compare !== null} />}
       {v && v.compare !== null && (
         <div className={cn("pointer-events-none absolute inset-x-3 flex justify-between text-[11px] font-medium", compact ? "inset-x-2 bottom-12" : "bottom-16")} data-live-compare>
-          <span className="rounded-full bg-black/45 px-2 py-0.5 backdrop-blur">Original</span>
-          <span className="rounded-full bg-white/90 px-2 py-0.5 text-black">{changesWord(changes)}</span>
+          <span className="rounded-full bg-black/45 px-2 py-0.5 backdrop-blur">{t("live.original")}</span>
+          <span className="rounded-full bg-white/90 px-2 py-0.5 text-black">{changesWord(changes, t)}</span>
         </div>
       )}
       <div className={cn("absolute inset-x-3 bottom-3 flex items-center gap-2", compact && "inset-x-2 bottom-2")}>
@@ -394,7 +396,7 @@ export function LiveDemo({ compact, className, onTypeAttempt }: { compact?: bool
           tabIndex={onTypeAttempt ? 0 : -1}
           onClick={onTypeAttempt}
           className={cn("flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-white/12 text-left ring-1 ring-white/15 backdrop-blur-md", compact ? "h-8 px-2 text-[11.5px]" : "h-11 px-3 text-[14px]")}
-          aria-label="Type a change"
+          aria-label={t("live.typeAria")}
         >
           <Zap className={cn("shrink-0 text-amber-300", compact ? "size-3" : "size-3.5")} />
           {/* The end of the text stays in view as it grows; text cut off on the left fades out rather than ending mid-letter. */}
@@ -408,7 +410,7 @@ export function LiveDemo({ compact, className, onTypeAttempt }: { compact?: bool
                 {v.typed}
               </span>
             ) : (
-              <span className="truncate text-white/55">Type a change, then keep adding…</span>
+              <span className="truncate text-white/55">{t("live.typeHint")}</span>
             )}
           </span>
           <span className="-ml-1.5 h-4 w-px shrink-0 bg-white/80 motion-safe:animate-[live-caret_1s_steps(1)_infinite]" />
@@ -423,31 +425,33 @@ export function LiveDemo({ compact, className, onTypeAttempt }: { compact?: bool
  * words themselves are in the dock.
  */
 export function ChangeCount({ changes, hidden }: { changes: number; hidden?: boolean }) {
+  const { t } = useI18n();
   if (!changes) return null;
   return (
     <div className={cn("pointer-events-none absolute top-3 right-3 flex items-center gap-1 text-[11px] transition-opacity duration-300", hidden && "opacity-0")} aria-hidden={hidden || undefined} data-live-count={changes}>
-      <span className="shrink-0 rounded-full bg-black/45 px-2 py-0.5 backdrop-blur max-[420px]:hidden">One prompt</span>
+      <span className="shrink-0 rounded-full bg-black/45 px-2 py-0.5 backdrop-blur max-[420px]:hidden">{t("live.onePrompt")}</span>
       <span key={changes} className="shrink-0 rounded-full bg-white/95 px-2 py-0.5 font-medium text-black tabular-nums ring-2 ring-primary/60 animate-[live-chip_260ms_ease-out]">
-        {changesWord(changes)}
+        {changesWord(changes, t)}
       </span>
     </div>
   );
 }
 
 function StillCompare({ before, after, changes }: { before: string; after: string; changes: number }) {
+  const { t } = useI18n();
   const [pos, setPos] = useState(50);
   return (
     <div className="absolute inset-0">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={after} alt="After a live edit" className="absolute inset-0 size-full object-cover" />
+      <img src={after} alt={t("live.altAfter")} className="absolute inset-0 size-full object-cover" />
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={before} alt="Before" className="absolute inset-0 size-full object-cover" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }} />
-      <input type="range" min={0} max={100} value={pos} onChange={(e) => setPos(Number(e.target.value))} aria-label="Compare before and after" className="absolute inset-x-6 top-1/2 opacity-0" />
+      <img src={before} alt={t("live.altBefore")} className="absolute inset-0 size-full object-cover" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }} />
+      <input type="range" min={0} max={100} value={pos} onChange={(e) => setPos(Number(e.target.value))} aria-label={t("live.compareAria")} className="absolute inset-x-6 top-1/2 opacity-0" />
       <span className="pointer-events-none absolute inset-y-0 w-0.5 bg-white" style={{ left: `${pos}%` }} />
       {changes > 0 && (
         <div className="pointer-events-none absolute inset-x-3 top-12 flex justify-between text-[11px] font-medium">
-          <span className="rounded-full bg-black/45 px-2 py-0.5 backdrop-blur">Original</span>
-          <span className="rounded-full bg-white/90 px-2 py-0.5 text-black">{changesWord(changes)}</span>
+          <span className="rounded-full bg-black/45 px-2 py-0.5 backdrop-blur">{t("live.original")}</span>
+          <span className="rounded-full bg-white/90 px-2 py-0.5 text-black">{changesWord(changes, t)}</span>
         </div>
       )}
     </div>
