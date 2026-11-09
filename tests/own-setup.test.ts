@@ -34,6 +34,7 @@ const INVENTORY: Record<string, string[]> = {
   "Genjutsu From picture H3 renderer": ["genjutsu:picture-h3-renderer"],
   "Genjutsu Fix faces": ["genjutsu:finish-faces", "oss-h3-fix-faces"],
   "Genjutsu Motion transfer H3": ["genjutsu:motion-h3", "oss-h3-motion"],
+  "Genjutsu Fuobe Reshoot": ["genjutsu:reshoot-swap", "genjutsu:reshoot-edit", "oss-h3-reshoot"],
   "Clean the voice first": ["sound:clean-voice-first"],
   WorldCast: ["oss-worldcast", "worldcast:film"],
   "Exact orbit": ["fly-around:exact-orbit", "oss-uni3c-path"],
@@ -104,7 +105,7 @@ describe("own setup: what a visitor needs", () => {
   it("leaves everything else as it is", () => {
     for (const id of ["oss-qwen-image-21", "nano-banana-pro", "oss-kandinsky6", "oss-h3-group-swap", "no-such-model"]) expect(ownSetupOnly(id), id).toBeNull();
     expect(ownSetupOnly("fuobe-animation")).toBeNull();
-    expect(ownSetupOnly("fuobe-animation", "cloud")).toEqual({ need: "key", provider: "fal" });
+    expect(ownSetupOnly("fuobe-animation", "cloud")).toEqual({ need: "key", provider: "replicate" });
   });
 
   it("knows every id its table holds by a real model where it names one", () => {
@@ -125,22 +126,22 @@ describe("own setup: the words", () => {
         expect(text.trim()).toBe(text);
       }
       expect(ownSetupLabel(o).length, ownSetupLabel(o)).toBeLessThanOrEqual(44);
-      expect(ownSetupShort(o).length, ownSetupShort(o)).toBeLessThanOrEqual(18);
+      expect(ownSetupShort(o).length, ownSetupShort(o)).toBeLessThanOrEqual(28);
     }
   });
 
   it("read as the examples", () => {
-    expect(ownSetupLabel({ need: "gpu", vramGb: 48 })).toBe("Runs on your own GPU · 48 GB");
-    expect(ownSetupLabel({ need: "gpu", vramGb: 48, files: true })).toBe("Runs on your own GPU · 48 GB");
-    expect(ownSetupLabel({ need: "gpu", files: true })).toBe("Set up on your computer");
-    expect(ownSetupLabel({ need: "gpu", vramGb: 48, linux: true })).toBe("Runs on your own Linux GPU · 48 GB");
-    expect(ownSetupLabel({ need: "gpu", vramGb: 48, orKey: "fal" })).toBe("Runs on your own GPU · 48 GB or fal.ai key");
-    expect(ownSetupLabel({ need: "key", provider: "fal" })).toBe("Use your own fal.ai key");
-    expect(ownSetupLabel({ need: "key", provider: "replicate" })).toBe("Use your own Replicate key");
-    expect(ownSetupShort({ need: "gpu", vramGb: 48 })).toBe("Your GPU · 48 GB");
-    expect(ownSetupShort({ need: "key", provider: "fal" })).toBe("Your fal.ai key");
-    expect(ownSetupLabel(ownSetupOnly("oss-h3-regenerate")!)).toBe("Runs on your own GPU · 48 GB");
-    expect(ownSetupLabel(ownSetupOnly("lyria-3-5")!)).toBe("Use your own fal.ai key");
+    expect(ownSetupLabel({ need: "gpu", vramGb: 48 })).toBe("Self-hosted");
+    expect(ownSetupLabel({ need: "gpu", vramGb: 48, files: true })).toBe("Self-hosted");
+    expect(ownSetupLabel({ need: "gpu", files: true })).toBe("Self-hosted");
+    expect(ownSetupLabel({ need: "gpu", vramGb: 48, linux: true })).toBe("Self-hosted");
+    expect(ownSetupLabel({ need: "gpu", vramGb: 48, orKey: "fal" })).toBe("Self-hosted");
+    expect(ownSetupLabel({ need: "key", provider: "fal" })).toBe("Self-hosted · your fal.ai key");
+    expect(ownSetupLabel({ need: "key", provider: "replicate" })).toBe("Self-hosted · your Replicate key");
+    expect(ownSetupShort({ need: "gpu", vramGb: 48 })).toBe("Self-hosted");
+    expect(ownSetupShort({ need: "key", provider: "fal" })).toBe("Self-hosted · fal.ai key");
+    expect(ownSetupLabel(ownSetupOnly("oss-h3-regenerate")!)).toBe("Self-hosted");
+    expect(ownSetupLabel(ownSetupOnly("lyria-3-5")!)).toBe("Self-hosted · your fal.ai key");
   });
 });
 
@@ -186,8 +187,8 @@ describe("own setup: a press", () => {
     // answers 422): the label promises no key, and a key-only account's press leads to its GPU.
     const restore = ownSetupOnly("video-tools:restore")!;
     expect(restore).toEqual({ need: "gpu", vramGb: 24, files: true });
-    expect(ownSetupLabel(restore)).toBe("Runs on your own GPU · 24 GB");
-    expect(ownSetupShort(restore)).toBe("Your GPU · 24 GB");
+    expect(ownSetupLabel(restore)).toBe("Self-hosted");
+    expect(ownSetupShort(restore)).toBe("Self-hosted");
     for (const text of [ownSetupLabel(restore), ownSetupShort(restore), ownSetupDetail(restore)]) expect(text).not.toMatch(/key|fal/i);
     expect(ownSetupStep(restore, keyed)).toEqual({ kind: "connect-gpu", gpuOnly: true });
     expect(ownSetupStep(restore, bare)).toEqual({ kind: "connect-gpu", gpuOnly: true });

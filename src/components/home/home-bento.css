@@ -56,9 +56,17 @@
      * for that, 1.33 being the headline's height in --l1 (both lines: see --bento-head, with --l2 at 0.358 of it).
      */
     --grid-min: 450px;
-    --l1-room: calc((var(--content-h) - var(--grid-min) - 16px - var(--head-top) - var(--head-gap)) / 1.33);
+    /* 3.25rem: the foot row under the grid (its note, "Start creating" and the pause button), the same room the grid's height leaves it. */
+    --l1-room: calc((var(--content-h) - var(--grid-min) - 3.25rem - var(--head-top) - var(--head-gap)) / 1.33);
+    /*
+     * --l1-fit: the most "Make anything:" can be and still leave the note its own column on the right. The headline's
+     * width (PageShell's: the screen less 2 x 24 px, at most 1152 px), less 276 px for the note and its gap, over 5.2:
+     * the words measure 4.83 of their size in Instrument Serif, and the extra 8 % keeps them clear of the note where a
+     * browser sets them a little wider (zoom, text scaling, a different build of the face).
+     */
+    --l1-fit: calc((min(100vw - 48px, 1152px) - 276px) / 5.2);
     /* Never below 96px: in a short window the grid runs on below the fold instead of the headline shrinking away. */
-    --l1: max(96px, min(calc(150px + (100vw - 1024px) * 0.1563), var(--l1-room)));
+    --l1: max(96px, min(calc(150px + (100vw - 1024px) * 0.1563), var(--l1-room), var(--l1-fit)));
     --l2: calc(var(--l1) * 0.358);
     /* The headline's height (line 1's box, the gap under its descenders, line 2's box), which the grid takes off the screen's. */
     --bento-head: calc(var(--l1) * 0.986 + var(--l2) * 0.96 + var(--head-gap));
@@ -66,7 +74,7 @@
 }
 @media (min-width: 1280px) {
   .hb-bento {
-    --l1: max(96px, min(190px, var(--l1-room)));
+    --l1: max(96px, min(190px, var(--l1-room), var(--l1-fit)));
   }
 }
 
@@ -212,13 +220,20 @@
     right: 0;
     /* Down to line 1's baseline (0.768 of its size under the top of its line), and the note's own descent. */
     height: calc(var(--l1) * 0.768 + 5px);
-    width: min(300px, calc(100% - var(--l1) * 4.86 - 32px));
+    /* The room right of the words with the same 8 % to spare (see --l1-fit); its words show only where that is 180 px or more. */
+    width: min(300px, calc(100% - var(--l1) * 5.2 - 40px));
     max-width: none;
+    container-type: inline-size;
     margin: 0;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
     font-size: 14px;
+  }
+  @container (max-width: 179.98px) {
+    .hb-aside-words {
+      display: none;
+    }
   }
 }
 
@@ -325,34 +340,57 @@
   min-width: 0;
   overflow: hidden;
   border-radius: 14px;
-  border: 1px solid rgb(255 255 255 / 8%);
   background: var(--media);
   color: #fff;
   text-decoration: none;
-  /* Transparent, so the box-shadow ring shows; forced colours (Windows High Contrast) paint it instead. */
-  outline: 2px solid transparent;
-  outline-offset: 2px;
   container-type: inline-size;
-  transition:
-    border-color var(--motion-base) var(--ease-standard),
-    transform var(--motion-base) var(--ease-standard),
-    box-shadow 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
+/*
+ * The tile's hairline edge is a ring drawn over its picture (not a border around it): a border leaves a pixel between
+ * the picture's box and the tile's edge, and on a 2x screen Safari places a moving picture's layer a hair off, so a sliver
+ * of the unshaded picture showed through the bottom edge.
+ */
+.hb-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+  pointer-events: none;
+  transition: box-shadow var(--motion-base) var(--ease-standard);
+}
+/* A pointed-at tile brightens its edge and stays in place: a tile moving out of the grid reads as a misalignment. */
 @media (hover: hover) {
-  .hb-tile:hover {
-    border-color: rgb(255 255 255 / 26%);
-    transform: translateY(-2px);
+  .hb-tile:hover::before {
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 26%);
   }
 }
-.hb-tile:focus-visible {
+/*
+ * The tile clips everything in it to its rounded corners with a clip path: Safari's overflow clip lets a playing clip, a
+ * zooming still or the reel's glowing progress line show past the corners and under the bottom edge. A clip path also
+ * cuts anything drawn outside the tile, so the keyboard's ring is drawn just inside its edge.
+ */
+.hb-tile {
+  clip-path: inset(0 round 14px);
+}
+.hb-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.hb-tile:focus-visible::after {
   box-shadow:
-    0 0 0 2px var(--background),
-    0 0 0 4px var(--ring);
+    inset 0 0 0 2px var(--ring),
+    inset 0 0 0 4px var(--background);
 }
 @media (forced-colors: active) {
-  .hb-tile:focus-visible {
-    outline-color: CanvasText;
+  .hb-tile:focus-visible::after {
+    border: 3px solid CanvasText;
   }
 }
 .hb-fill {
@@ -371,7 +409,7 @@
 /* White words read at 4.5:1 over any frame: the lower part of each tile is shaded. */
 .hb-shade {
   position: absolute;
-  inset: auto 0 0;
+  inset: auto -1px -1px;
   height: 62%;
   background: linear-gradient(to top, rgb(0 0 0 / 90%), rgb(0 0 0 / 55%) 45%, transparent);
   pointer-events: none;
@@ -469,12 +507,11 @@
     font-size: 28px;
   }
 }
+/*
+ * The words keep the same inset in every tile, whatever its width, so tiles side by side (the reel, Live edit and
+ * Genjutsu) set their titles and links on the same lines.
+ */
 @container (min-width: 460px) {
-  .hb-copy {
-    left: 26px;
-    right: 26px;
-    bottom: 26px;
-  }
   .hb-video .hb-title {
     font-size: 40px;
   }
@@ -1412,15 +1449,118 @@
   font-size: 12px;
   color: var(--muted-foreground);
 }
+/* From md: the note on the left, the way down in the middle, the pause button on the right. */
+@media (min-width: 768px) {
+  .hb-foot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+}
+
+/*
+ * "Start creating": the way down to the composer (ScrollCue, home-islands.tsx). In the foot row from md; its floating
+ * copy rises in over the bottom of the screen while that row is under the fold, and goes once the page scrolls.
+ */
+.hb-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong, var(--border));
+  background: color-mix(in oklch, var(--background) 82%, transparent);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+.hb-cue:hover {
+  background: var(--background);
+  border-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+}
+.hb-cue:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.hb-cue-float {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  bottom: calc(var(--chrome-bottom) + 16px);
+  height: 40px;
+  /* Solid and in the page's text colour, so it reads over any picture under it. */
+  border-color: transparent;
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s var(--ease-enter, cubic-bezier(0.08, 0.82, 0.17, 1)),
+    visibility 0s linear 0.3s;
+}
+.hb-cue-float:hover {
+  border-color: transparent;
+  background: color-mix(in oklch, var(--foreground) 88%, var(--background));
+}
+.hb-cue-float[data-shown] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s var(--ease-enter, cubic-bezier(0.08, 0.82, 0.17, 1)),
+    visibility 0s;
+}
+/* Out of the way while a bar menu, the search or any dialog is open over the page. */
+html:has([data-bar-scrim][data-open]) .hb-cue-float[data-shown],
+html:has([role="dialog"]) .hb-cue-float[data-shown] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* The arrow dips three times as the floating copy arrives, then rests. */
+.hb-cue-float[data-shown] .hb-cue-arrow {
+  animation: hb-cue-dip 1.4s ease-in-out 0.3s 3;
+}
+@keyframes hb-cue-dip {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hb-cue-float,
+  .hb-cue-float[data-shown] {
+    transition: none;
+  }
+  .hb-cue-float[data-shown] .hb-cue-arrow {
+    animation: none;
+  }
+}
+@media (pointer: coarse) {
+  .hb-cue-float {
+    height: 44px;
+  }
+}
 
 /* Reduced motion: whatever data-play says, nothing moves by itself, and a hover doesn't lift a tile. */
 @media (prefers-reduced-motion: reduce) {
   .hb-tile,
   .hb-frame {
     transition: none;
-  }
-  .hb-tile:hover {
-    transform: none;
   }
   .hb-bento .hb-kenburns,
   .hb-bento .hb-caret,

@@ -40,10 +40,11 @@ export interface SlotValue {
   sketch?: { mode: SketchMode; strokes: Stroke[] };
 }
 
+// HEIC, AVIF, AAC, Opus and the like are converted in this browser before they are uploaded (src/lib/av/fit-file.ts).
 export const ACCEPT: Record<MediaKind, string> = {
-  image: "image/png,image/jpeg,image/webp,image/gif",
+  image: "image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,image/avif,.heic,.heif,.avif",
   video: "video/mp4,video/webm,video/quicktime",
-  audio: "audio/mpeg,audio/wav,audio/x-wav,audio/ogg,audio/flac,audio/mp4,audio/webm",
+  audio: "audio/mpeg,audio/wav,audio/x-wav,audio/ogg,audio/flac,audio/mp4,audio/webm,audio/x-m4a,audio/aac,audio/opus,audio/aiff,.m4a,.aac,.opus,.aif,.aiff,.caf",
   text: "text/plain,.txt,.srt,.vtt",
   model3d: ".glb,.gltf,model/gltf-binary",
 };
@@ -53,7 +54,7 @@ export const MAX_MB = 200;
 
 const EXT_KIND: [RegExp, MediaKind][] = [
   [/\.(mp4|webm|mov|m4v)$/i, "video"],
-  [/\.(mp3|wav|ogg|flac|m4a|aac|opus)$/i, "audio"],
+  [/\.(mp3|wav|ogg|flac|m4a|aac|opus|aif|aiff|caf|wma|amr)$/i, "audio"],
   [/\.(txt|srt|vtt)$/i, "text"],
   [/\.(glb|gltf)$/i, "model3d"],
 ];
@@ -298,6 +299,8 @@ export function MediaSlot({
   local,
   slotKey,
   caption,
+  accept,
+  takes,
 }: {
   label: string;
   kind: MediaKind;
@@ -313,11 +316,15 @@ export function MediaSlot({
   slotKey?: string;
   /** Filled, keep the slot's role on the thumbnail ("Target", "Face"), so two photos can be told apart. */
   caption?: boolean;
+  /** The file picker's types, when the tile takes more than its kind (a song tool's slot takes a video's sound). */
+  accept?: string;
+  /** The files the tile takes, when more than its kind (with `onFile`, which turns them into its kind). */
+  takes?: (f: File) => boolean;
 }) {
   const { t } = useI18n();
   const handleFile = (f: File) => {
     // A tile takes its own kind only (a clip dropped on the Image tile would land as a video there).
-    if (kindOfFile(f) !== kind) return void toast(wrongKindMessage(kind));
+    if (!(takes ? takes(f) : kindOfFile(f) === kind)) return void toast(wrongKindMessage(kind));
     if (onFile) onFile(f);
     else void fileToSlot(f, onChange, kind);
   };
@@ -387,7 +394,7 @@ export function MediaSlot({
           <input
             ref={input}
             type="file"
-            accept={ACCEPT[kind]}
+            accept={accept ?? ACCEPT[kind]}
             hidden
             onChange={(e) => {
               const f = e.target.files?.[0];

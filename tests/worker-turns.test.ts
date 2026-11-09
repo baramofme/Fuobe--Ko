@@ -117,6 +117,34 @@ describe("the port table and the GPU counters", () => {
     expect(s.who).toBe("game");
   });
 
+  it("never names a desktop process as the cause: the biggest other one, else another program", () => {
+    const names = { ...LISTING, names: { ...LISTING.names, "77": "dwm", "78": "msedge", "5555": "game" } };
+    const desktopOnly = splitMemory({ usedMb: 9000, counters: parseCounters(typeperf([[77, 1500], [78, 900]])), listing: names, own: { pid: null, port: null, running: false, mb: null }, ports: [8188, 8199], baselineMb: 600 });
+    // what the desktop's processes hold now (2400 MB) counts as the desktop, not the 600 MB measured at setup
+    expect(desktopOnly).toMatchObject({ othersMb: 6600, who: "another program" });
+    expect(splitMemory({ usedMb: 9000, counters: parseCounters(typeperf([[77, 3000], [5555, 2000]])), listing: names, own: { pid: null, port: null, running: false, mb: null }, ports: [8188, 8199], baselineMb: 600 }).who).toBe("game");
+    const apps = [{ pid: 12092, name: "ShellHost.exe", usedMb: null }, { pid: 5, name: "blender.exe", usedMb: null }];
+    expect(splitMemory({ usedMb: 9000, counters: null, listing: null, apps, own: { pid: null, port: null, running: false, mb: null }, baselineMb: 600, lock: null }).who).toBe("blender.exe");
+  });
+
+  it("a remote-desktop session grows the compositor past the busy line: the GPU isn't busy for that", () => {
+    const names = { ...LISTING, names: { ...LISTING.names, "77": "dwm", "78": "msedge", "79": "Code", "80": "Notepad" } };
+    const counters = parseCounters(typeperf([[77, 1563], [78, 281], [79, 252], [80, 40]]));
+    const s = splitMemory({ usedMb: 2250, counters, listing: names, own: { pid: null, port: null, running: false, mb: null }, ports: [8188, 8199], baselineMb: 700 });
+    expect(s.othersMb).toBeLessThan(1024);
+    // a real program next to it still counts
+    const game = splitMemory({ usedMb: 8250, counters: parseCounters(typeperf([[77, 1563], [5555, 6000]])), listing: { ...names, names: { ...names.names, "5555": "game" } }, own: { pid: null, port: null, running: false, mb: null }, ports: [8188, 8199], baselineMb: 700 });
+    expect(game.othersMb).toBeGreaterThan(5000);
+    expect(game.who).toBe("game");
+  });
+
+  it("its own ComfyUI's share is sure only when read per process (the counters), not from torch alone", () => {
+    const own = { pid: 900, port: 31337, running: true, mb: 1400 };
+    expect(splitMemory({ usedMb: 23_000, counters: parseCounters(typeperf([[900, 21_000]])), listing: LISTING, own, ports: [8188, 8199], baselineMb: 600 })).toMatchObject({ ownMb: 21_000, ownSure: true, othersMb: 1400 });
+    expect(splitMemory({ usedMb: 23_000, counters: null, listing: null, apps: [], own, baselineMb: 600, lock: null })).toMatchObject({ source: "total", ownSure: false });
+    expect(splitMemory({ usedMb: 23_000, counters: null, listing: null, apps: [], own: { ...own, running: false }, baselineMb: 600, lock: null }).ownSure).toBe(true);
+  });
+
   it("its own ComfyUI before the counters list it: torch's number, as before", () => {
     const s = splitMemory({ usedMb: 3000, counters: [], listing: LISTING, own: { pid: 900, port: 31337, running: true, mb: 1400 }, ports: [8188, 8199], baselineMb: 0 });
     expect(s.ownMb).toBe(2000);
@@ -225,6 +253,26 @@ describe("turns", () => {
     expect(turns.step(T0 + 5000, { ...facts, claimable: 0 })).toMatchObject({ siteWaiting: 1, ended: null });
     expect(turns.step(T0 + 4000 + TURNS.graceMs - 1, { ...facts, claimable: 0 }).siteWaiting).toBe(1);
     expect(turns.step(T0 + 4000 + TURNS.graceMs, { ...facts, claimable: 0 })).toMatchObject({ siteWaiting: 0, ended: "idle" });
+  });
+
+  it("a helper that keeps answering \"yielding\" is never 'no answer', however long local work's job runs; silence is", () => {
+    const { folder, turns } = setup();
+    expect(turns.step(T0, facts)).toMatchObject({ waitForYield: true, late: false });
+    // Local work's job runs 10 minutes; the helper writes "yielding" with its estimate every 5 s all along.
+    for (let t = T0 + 5000; t <= T0 + 10 * 60_000; t += 5000) {
+      answer(folder, { state: "yielding", at: t - 1000, startsAt: T0 + 11 * 60_000 });
+      expect(turns.step(t, facts)).toMatchObject({ waitForYield: true, late: false, startsAt: T0 + 11 * 60_000 });
+    }
+    // Then the helper goes quiet: its last answer stops counting after 15 s, and 3 minutes after it, "no answer".
+    const last = T0 + 10 * 60_000;
+    expect(turns.step(last + TURNS.lateMs - 1000, facts).late).toBe(false);
+    expect(turns.step(last + TURNS.lateMs, facts).late).toBe(true);
+    // An answer from before this turn, however fresh it was then, never counts: 3 minutes of silence is late.
+    const other = setup();
+    answer(other.folder, { state: "yielding", at: T0 - 2000, startsAt: T0 + 60_000 });
+    other.turns.step(T0, facts);
+    expect(other.turns.step(T0 + 10_000, facts).late).toBe(false);
+    expect(other.turns.step(T0 + TURNS.lateMs, facts).late).toBe(true);
   });
 
   it("the GPU free of local work: no waiting, and siteWaiting still says the studio wants it", () => {

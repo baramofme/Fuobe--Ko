@@ -1,6 +1,6 @@
 "use client";
 
-import { AppWindow, ArrowUpRight, Brain, Captions, Check, CircleAlert, Clapperboard, Film, ImageIcon, Info, Languages, Layers, Loader2, Megaphone, Plug, Scissors, Search, Sparkles } from "lucide-react";
+import { AppWindow, ArrowUpRight, Brain, Captions, Check, CircleAlert, Clapperboard, Film, Globe, ImageIcon, Info, Languages, Layers, Loader2, Megaphone, Plug, Scissors, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,20 @@ export function ApprovalCard({ item, live, onAnswer }: { item: Extract<AssistIte
               <Info className="mt-0.5 size-3.5 shrink-0" /> {n}
             </p>
           ))}
+        </div>
+      )}
+      {!!item.links?.length && (
+        <div className="space-y-1 border-t px-4 py-2.5 text-[12px] text-muted-foreground">
+          <p className="flex items-center gap-1.5">
+            <Globe className="size-3.5 shrink-0" /> Reads {item.links.length === 1 ? "this link" : `these ${item.links.length} links`} from the web
+          </p>
+          <ul className="space-y-0.5 pl-5">
+            {item.links.map((l) => (
+              <li key={l} className="font-mono text-[11.5px] break-all text-foreground">
+                {l}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 border-t px-4 py-2.5">
@@ -226,7 +240,7 @@ export function Transcript({
                     {item.skills.map((n) => (
                       <Link
                         key={n}
-                        href={`/assist/skills?skill=${n}`}
+                        href={`/chat/skills?skill=${n}`}
                         className="inline-flex h-7 items-center gap-1.5 rounded-full bg-brand-faint pr-2.5 pl-1 text-[12px] font-medium text-brand-text hover:bg-brand-faint-hover"
                       >
                         <SkillIcon name={n} icon={skill(n)?.icon} size="sm" className="size-5" />

@@ -4,7 +4,7 @@ import net from "node:net";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { inputRules } from "../bin/lib/worker/checks.mjs";
-import { comfyArgs, comfyEnv, defaultPathsFlag, modelPathsYaml, OFFLINE_ENV, OwnComfy } from "../bin/lib/worker/comfy.mjs";
+import { comfyArgs, comfyEnv, defaultPathsFlag, modelPathsYaml, OFFLINE_ENV, OwnComfy, yamlFolders } from "../bin/lib/worker/comfy.mjs";
 import { modelFiles, nodePacks, packFolders, twinFolders, yamlModelDirs } from "../bin/lib/worker/inventory.mjs";
 import { minVramBytesFor, needsOf, VRAM_TOLERANCE } from "@/lib/lanes";
 import type { RequirementIndex } from "@/lib/gpu/types";
@@ -245,6 +245,26 @@ describe("the worker's model files", () => {
     expect(older.text_encoders).toEqual(["<own>/text_encoders", "<own>/clip", "D:/a/text_encoders", "D:/a/clip", "E:/b/text_encoders", "E:/b/clip"]);
     expect(older.diffusion_models.slice(2)).toEqual(["D:/a/diffusion_models", "D:/a/unet", "E:/b/diffusion_models", "E:/b/unet"]);
   });
+
+  it("maps a folder a pack lists under another name to the subfolder where its files are (kandinsky6_audio_vae: audio_vae)", () => {
+    const index = JSON.parse(fs.readFileSync(path.join(process.cwd(), "workflows", "comfyui", "requirements.json"), "utf8")) as RequirementIndex;
+    const names = yamlFolders(index);
+    expect(names).toContainEqual(["kandinsky6_audio_vae", "audio_vae"]);
+    expect(names).toContain("loras");
+    expect(names.length).toBe(index.folders.length);
+    // H3-FaceRefine picks its detectors from models/ultralytics, which no pack registers: the yaml does.
+    expect(names).toContain("ultralytics");
+    const yaml = modelPathsYaml(["X:/models"], names, { first: true });
+    expect(yaml).toContain("\n  kandinsky6_audio_vae: audio_vae\n");
+    expect(yaml).not.toContain("kandinsky6_audio_vae: kandinsky6_audio_vae");
+    expect(yaml).toContain("\n  clip: clip\n"); // the twins are still there
+    // Where ComfyUI reads the pack's files through this yaml is where the inventory checks them (models/<folder>/<file>).
+    const d = yamlModelDirs(yaml, "/");
+    expect(d.kandinsky6_audio_vae).toEqual([path.resolve("X:/models/audio_vae")]);
+    for (const f of Object.values(index.files).filter((x) => x.listFolder)) expect(path.resolve("X:/models", f.folder)).toBe(d[f.listFolder!][0]);
+    // A plain list of names (an older caller) still writes name: name.
+    expect(modelPathsYaml(["X:/models"], ["kandinsky6_audio_vae"])).toContain("  kandinsky6_audio_vae: kandinsky6_audio_vae\n");
+  });
 });
 
 describe("its own ComfyUI's environment", () => {
@@ -266,7 +286,10 @@ describe("its own ComfyUI's environment", () => {
   it("holds only what ComfyUI needs, with downloads and installs off", () => {
     const env = comfyEnv(pc);
     expect(env).toEqual({ SystemRoot: "C:\\Windows", Path: "C:\\Windows\\system32;C:\\ffmpeg\\bin", TEMP: "C:\\Temp", USERPROFILE: "C:\\Users\\me", CUDA_VISIBLE_DEVICES: "0", HF_HOME: "D:\\hf", ...OFFLINE_ENV });
-    expect(OFFLINE_ENV).toEqual({ HF_HUB_OFFLINE: "1", TRANSFORMERS_OFFLINE: "1", HF_DATASETS_OFFLINE: "1", PIP_NO_INDEX: "1" });
+    expect(OFFLINE_ENV).toEqual({
+      HF_HUB_OFFLINE: "1", TRANSFORMERS_OFFLINE: "1", HF_DATASETS_OFFLINE: "1", PIP_NO_INDEX: "1",
+      YOLO_OFFLINE: "1", YOLO_AUTOINSTALL: "0", ULTRALYTICS_SAFE_LOAD: "1",
+    });
   });
 
   it("adds the PC owner's own variables from worker.json, but never a worker setting, and never turns downloads on", () => {

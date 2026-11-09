@@ -50,6 +50,7 @@ const { loadManifest, comfyProvider, onComputer, NO_WORKER_FOR_LANE } = await im
 const { loadIndex } = await import("@/server/gpu/index-file");
 const { allLanes } = await import("@/lib/lanes");
 const { POOL_WORDS } = await import("@/lib/relay");
+const { ENGINE_WORDS } = await import("@/lib/engine-error");
 const hosted = await import("@/server/hosted");
 const { withRunStamp } = await import("@/server/run-stamp");
 const { getModel } = await import("@/lib/catalog");
@@ -194,12 +195,26 @@ describe("classes", () => {
     standInWorker();
     const route = { provider: "comfyui", endpoint: loadManifest().workflows[0].id, op: "t2i" } as never;
     const submit = (gid: string) => onComputer("owner", () => comfyProvider.submit({ route, input: { prompt: "a lighthouse" } as never, generationId: gid } as never));
+    // The owner's runs as stored: a script's (a source) and a hands-on one (none).
+    const made = (gid: string, request: Record<string, unknown>) =>
+      db()
+        .prepare("INSERT INTO generations (id, feature, model_id, engine, provider, op, kind, status, request_json, outputs_json, created_at, updated_at) VALUES (?, 'image', 'm', 'open', 'comfyui', 't2i', 'image', 'queued', ?, '[]', ?, ?)")
+        .run(gid, JSON.stringify(request), Date.now(), Date.now());
+    made("owner-gen-1", { source: "batch" });
+    made("owner-gen-2", { source: "test" });
+    made("owner-gen-hands", {});
     const first = rowOf(String(((await submit("owner-gen-1")).meta as { relay: string }).relay));
     expect(first.class).toBe("owner");
     expect(first.account).toBeNull();
     expect(first.not_after).toBeNull();
+    // A hands-on run waits as a person's free run does (still the owner's: no account), with the owner's wait limit.
+    const hands = rowOf(String(((await submit("owner-gen-hands")).meta as { relay: string }).relay));
+    expect(hands.class).toBe("free");
+    expect(hands.account).toBeNull();
+    expect(hands.not_after).toBeNull();
     qs.saveQueueSettings({ ...qs.queueSettings(), ownerWaitLimitS: 3600 });
     const second = rowOf(String(((await submit("owner-gen-2")).meta as { relay: string }).relay));
+    expect(second.class).toBe("owner");
     expect(second.not_after! - second.created_at).toBeGreaterThanOrEqual(3600_000 - 1000);
     expect(second.not_after! - second.created_at).toBeLessThanOrEqual(3600_000 + 1000);
   });
@@ -459,7 +474,7 @@ describe("fair share", () => {
 });
 
 describe("the pick allowance", () => {
-  it("0 (the default): strict order whatever the worker has loaded; set, a loaded lane goes first while the best one is young", () => {
+  it("0 (the default): strict order whatever the worker has loaded; set, a loaded lane goes first among the owner's own jobs only", () => {
     const lanes = allLanes(loadIndex(), sha).map((l) => l.lane);
     const w = standInWorker();
     db().prepare("UPDATE relay_workers SET warm_lane = ?, switch_after_ms = ? WHERE id = ?").run(lanes[1], 60 * MIN, w.id);
@@ -472,12 +487,20 @@ describe("the pick allowance", () => {
     const old2 = lineTask({ account: accountId, agoMs: 5 * MIN, lane: lanes[0] });
     qs.saveQueueSettings({ ...qs.queueSettings(), pickAllowanceMs: 10 * MIN });
     db().prepare("UPDATE relay_workers SET warm_lane = ? WHERE id = ?").run(lanes[1], w.id);
+    // A warm lane never makes a person wait: people's runs keep their order, whatever lane is loaded.
+    expect(pool.workerClaim(workerRow(w), [])?.id).toBe(old2);
+    done(old2);
+    // Never across classes: the owner's job in the loaded lane waits behind a person's run in another.
+    const ownerWarm = lineTask({ agoMs: 1 * MIN, lane: lanes[1] });
+    db().prepare("UPDATE relay_workers SET warm_lane = ? WHERE id = ?").run(lanes[0], w.id);
     expect(pool.workerClaim(workerRow(w), [])?.id).toBe(warm);
     done(warm);
-    // Never across classes: the owner's job in the loaded lane waits behind a person's run in another.
-    lineTask({ agoMs: 1 * MIN, lane: lanes[1] });
+    // Among the owner's own jobs, the loaded lane goes first while the best one is young.
+    const ownerOld = lineTask({ agoMs: 5 * MIN, lane: lanes[0] });
     db().prepare("UPDATE relay_workers SET warm_lane = ? WHERE id = ?").run(lanes[1], w.id);
-    expect(pool.workerClaim(workerRow(w), [])?.id).toBe(old2);
+    expect(pool.workerClaim(workerRow(w), [])?.id).toBe(ownerWarm);
+    done(ownerWarm);
+    expect(pool.workerClaim(workerRow(w), [])?.id).toBe(ownerOld);
   });
 });
 
@@ -551,7 +574,7 @@ describe("the run ceiling", () => {
     beatAs(w);
     await tick();
     expect(getGeneration(id)?.status).toBe("failed");
-    expect(getGeneration(id)?.error).toBe(POOL_WORDS.failed);
+    expect(getGeneration(id)?.error).toBe(ENGINE_WORDS.timeout);
   });
 
   it("a job a worker gives back and takes again between two polls gets its whole time again", async () => {
@@ -580,7 +603,7 @@ describe("the run ceiling", () => {
     expect(g.progress).toBeNull();
   });
 
-  it("a worker with another model loaded: Working · getting ready until the first step reports; with its model loaded, Working at once", async () => {
+  it("a worker with another model loaded: Warming up · starting in a moment until the first step reports; with its model loaded, Working at once", async () => {
     const w = standInWorker();
     const { id, t } = await accountRun("getting ready");
     const lane = rowOf(t.id).lane!;
@@ -623,7 +646,9 @@ describe("the run ceiling", () => {
       await tick();
       await new Promise((res) => setTimeout(res, 20));
     }
-    expect(taskOf(ownerId)?.class).toBe("owner");
+    // Made in the browser, it is the owner's hands-on run: in line with people's runs.
+    expect(taskOf(ownerId)?.class).toBe("free");
+    expect(taskOf(ownerId)?.account).toBeNull();
     await tick();
     // By the runner's own count, both waited past every wait limit it knows (their tasks keep the real ones), and each
     // poll fails (the database is busy).

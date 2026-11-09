@@ -10,7 +10,7 @@ import { HUB_MODES, type HubKind } from "./hubs";
 import { STARTER_IDS, starterCovered } from "./starters/ids";
 import type { StarterSurface } from "./starters/types";
 
-export type RecordKind = "cinema" | "canvas" | "assist-project" | "layers" | "shorts" | "brand" | "element" | "channel" | "episode" | "explainer" | "series" | "swap-project";
+export type RecordKind = "cinema" | "canvas" | "assist-project" | "layers" | "shorts" | "brand" | "element" | "channel" | "episode" | "explainer" | "series" | "swap-project" | "chat";
 
 /** A record a page needs, with its ids in the order the lookup takes them. */
 export interface RecordRef {
@@ -24,7 +24,7 @@ const SEG = "([^/]+)";
 const PAGES: [RegExp, (m: string[]) => RecordRef][] = [
   [new RegExp(`^/cinema/${SEG}$`), ([id]) => ({ kind: "cinema", ids: [id] })],
   [new RegExp(`^/canvas/${SEG}$`), ([id]) => ({ kind: "canvas", ids: [id] })],
-  [new RegExp(`^/assist/projects/${SEG}$`), ([id]) => ({ kind: "assist-project", ids: [id] })],
+  [new RegExp(`^/chat/projects/${SEG}$`), ([id]) => ({ kind: "assist-project", ids: [id] })],
   [new RegExp(`^/layers/${SEG}$`), ([id]) => ({ kind: "layers", ids: [id] })],
   [new RegExp(`^/shorts/${SEG}$`), ([id]) => ({ kind: "shorts", ids: [id] })],
   [new RegExp(`^/ads/${SEG}$`), ([id]) => ({ kind: "brand", ids: [id] })],
@@ -35,15 +35,17 @@ const PAGES: [RegExp, (m: string[]) => RecordRef][] = [
   [new RegExp(`^/explainer/${SEG}$`), ([id]) => ({ kind: "explainer", ids: [id] })],
   [new RegExp(`^/content-factory/${SEG}$`), ([id]) => ({ kind: "series", ids: [id] })],
   [new RegExp(`^/character-swap/${SEG}$`), ([id]) => ({ kind: "swap-project", ids: [id] })],
+  [new RegExp(`^/chat/${SEG}$`), ([id]) => ({ kind: "chat", ids: [id] })],
 ];
 
 /** Static pages that a record pattern would also match (/ads/multiplier is not a brand). */
-const FIXED = new Set(["/ads/multiplier"]);
+const FIXED = new Set(["/ads/multiplier", "/chat/make", "/chat/skills", "/chat/memory", "/chat/scheduled"]);
 
 /** A ready-made starter's page (/faceless/start/<id>…): catalog data, not a stored record. */
-const STARTER_PAGE = /^\/(assist|cinema|storyboard|elements|faceless|content-factory|explainer|ads|marketing|marketing\/click-to-ad)\/start\/([^/]+)$/;
+const STARTER_PAGE = /^\/(assist|chat\/make|cinema|storyboard|elements|faceless|content-factory|explainer|ads|marketing|marketing\/click-to-ad)\/start\/([^/]+)$/;
 const STARTER_BASE: Record<string, StarterSurface> = {
   assist: "assist",
+  "chat/make": "assist",
   cinema: "cinema",
   storyboard: "storyboard",
   elements: "elements",

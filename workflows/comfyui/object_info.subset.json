@@ -2064,9 +2064,9 @@
         "generation_seconds": [
           "FLOAT",
           {
-            "default": 0,
-            "min": 0,
-            "max": 30,
+            "default": 0.0,
+            "min": 0.0,
+            "max": 30.0,
             "step": 0.1
           }
         ],
@@ -2081,7 +2081,7 @@
           {
             "default": 42,
             "min": 0,
-            "max": 9223372036854776000
+            "max": 9223372036854775807
           }
         ],
         "nfe_steps": [
@@ -2096,18 +2096,18 @@
         "cfg_strength": [
           "FLOAT",
           {
-            "default": 2,
-            "min": 0,
-            "max": 5,
+            "default": 2.0,
+            "min": 0.0,
+            "max": 5.0,
             "step": 0.1
           }
         ],
         "sway_sampling_coef": [
           "FLOAT",
           {
-            "default": -1,
-            "min": -1,
-            "max": 1,
+            "default": -1.0,
+            "min": -1.0,
+            "max": 1.0,
             "step": 0.1
           }
         ]
@@ -3310,6 +3310,686 @@
     "essentials_category": null,
     "has_intermediate_output": false
   },
+  "BodyDoubleFit": {
+    "input": {
+      "required": {
+        "mhr_pose_data": [
+          "MHR_POSE_DATA",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "mhr_pose_data"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MHR_POSE_DATA"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "mhr_pose_data"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "BodyDoubleFit",
+    "display_name": "Body Double Fit",
+    "description": "Line each body up with its person: its 3D keypoints are moved onto its 2D keypoints.",
+    "python_module": "custom_nodes.ComfyUI-BodyDouble",
+    "category": "image/detection",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "BodyDoubleLook": {
+    "input": {
+      "required": {
+        "image": [
+          "IMAGE",
+          {}
+        ],
+        "mask": [
+          "MASK",
+          {
+            "tooltip": "The people: SAM 3 masks, one per frame"
+          }
+        ],
+        "look": [
+          "COMBO",
+          {
+            "default": "holo",
+            "multiselect": false,
+            "options": [
+              "holo",
+              "clay",
+              "thermal",
+              "ghost",
+              "xray",
+              "skeleton"
+            ]
+          }
+        ],
+        "feather": [
+          "FLOAT",
+          {
+            "tooltip": "Soft edge of the outline, px",
+            "advanced": true,
+            "default": 1.5,
+            "min": 0,
+            "max": 16,
+            "step": 0.5
+          }
+        ]
+      },
+      "optional": {
+        "normals": [
+          "IMAGE",
+          {
+            "tooltip": "MoGe normal map (OpenGL) of the same frames"
+          }
+        ],
+        "depth": [
+          "IMAGE",
+          {
+            "tooltip": "MoGe depth render of the same frames (near is bright)"
+          }
+        ],
+        "skeleton": [
+          "IMAGE",
+          {
+            "tooltip": "The SCAIL skeleton drawn over the frames"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image",
+        "mask",
+        "look",
+        "feather"
+      ],
+      "optional": [
+        "normals",
+        "depth",
+        "skeleton"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "image"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "BodyDoubleLook",
+    "display_name": "Body Double Look",
+    "description": "Every person's double over their whole outline, clothes and hair included, in one look.",
+    "python_module": "custom_nodes.ComfyUI-BodyDouble",
+    "category": "image",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "BuildPoseFile": {
+    "input": {
+      "required": {
+        "pose_data": [
+          "MHR_POSE_DATA,KIMODO_POSE_DATA",
+          {
+            "tooltip": "3D pose data."
+          }
+        ],
+        "format": [
+          "COMFY_DYNAMICCOMBO_V3",
+          {
+            "tooltip": "Output format, both fed to Save 3D Model to write to disk. 'glb' = animated GLB (mesh / bones / openpose / scail). 'bvh' = BVH mocap clip (one skeleton; needs the model).",
+            "options": [
+              {
+                "key": "glb",
+                "inputs": {
+                  "required": {
+                    "mesh_style": [
+                      "COMFY_DYNAMICCOMBO_V3",
+                      {
+                        "tooltip": "'body_mesh' = real Armature (127 bones, skinning, TRS keyframes, 72 face morphs; needs model). 'bones_only' = bone-shape primitives at each joint (preview armature). 'openpose' = OpenPose-18 3D skeleton from keypoints 'scail' = SCAIL 3D capsule rig (open cylinders capped flush by joint spheres).",
+                        "options": [
+                          {
+                            "key": "body_mesh",
+                            "inputs": {
+                              "required": {
+                                "bone_vis": [
+                                  "COMFY_DYNAMICCOMBO_V3",
+                                  {
+                                    "tooltip": "Bone vis shape, rigidly skinned to each joint. ",
+                                    "options": [
+                                      {
+                                        "key": "off",
+                                        "inputs": {
+                                          "required": {}
+                                        }
+                                      },
+                                      {
+                                        "key": "octahedrons",
+                                        "inputs": {
+                                          "required": {
+                                            "bone_vis_radius_m": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Radius in m (sphere radius / octahedron half-width).",
+                                                "advanced": true,
+                                                "default": 0.02,
+                                                "min": 0.005,
+                                                "max": 0.5,
+                                                "step": 0.005
+                                              }
+                                            ],
+                                            "bone_vis_color": [
+                                              "COMBO",
+                                              {
+                                                "tooltip": "Per-bone vertex colors (unlit material). 'white' = none, 'rainbow_y' = head→toe jet.",
+                                                "default": "rainbow_y",
+                                                "multiselect": false,
+                                                "options": [
+                                                  "white",
+                                                  "rainbow_y"
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                ],
+                                "shader": [
+                                  "COMFY_DYNAMICCOMBO_V3",
+                                  {
+                                    "tooltip": "Bake per-vertex colors matching the Render node's shaders (COLOR_0 + KHR_materials_unlit). 'default' = no colors.",
+                                    "options": [
+                                      {
+                                        "key": "default",
+                                        "inputs": {
+                                          "required": {}
+                                        }
+                                      },
+                                      {
+                                        "key": "rainbow",
+                                        "inputs": {
+                                          "required": {
+                                            "rainbow_tilt_z": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Rotate rainbow jet axis around Z (forward). Differentiates left/right.",
+                                                "default": -35,
+                                                "min": -90,
+                                                "max": 90,
+                                                "step": 0.5
+                                              }
+                                            ],
+                                            "rainbow_tilt_x": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Rotate rainbow jet axis around X (right). Differentiates front/back.",
+                                                "default": 0,
+                                                "min": -90,
+                                                "max": 90,
+                                                "step": 0.5
+                                              }
+                                            ],
+                                            "person_palette_falloff": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Per-person desaturation: each track gets (1 - falloff^k) pastel mix.",
+                                                "default": 0.6,
+                                                "min": 0.1,
+                                                "max": 1,
+                                                "step": 0.05
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "key": "rainbow_face_normal",
+                                        "inputs": {
+                                          "required": {
+                                            "rainbow_tilt_z": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Rotate rainbow jet axis around Z (forward). Differentiates left/right.",
+                                                "default": -35,
+                                                "min": -90,
+                                                "max": 90,
+                                                "step": 0.5
+                                              }
+                                            ],
+                                            "rainbow_tilt_x": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Rotate rainbow jet axis around X (right). Differentiates front/back.",
+                                                "default": 0,
+                                                "min": -90,
+                                                "max": 90,
+                                                "step": 0.5
+                                              }
+                                            ],
+                                            "person_palette_falloff": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Per-person desaturation: each track gets (1 - falloff^k) pastel mix.",
+                                                "default": 0.6,
+                                                "min": 0.1,
+                                                "max": 1,
+                                                "step": 0.05
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "key": "rainbow_face_semantic",
+                                        "inputs": {
+                                          "required": {
+                                            "rainbow_tilt_z": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Rotate rainbow jet axis around Z (forward). Differentiates left/right.",
+                                                "default": -35,
+                                                "min": -90,
+                                                "max": 90,
+                                                "step": 0.5
+                                              }
+                                            ],
+                                            "rainbow_tilt_x": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Rotate rainbow jet axis around X (right). Differentiates front/back.",
+                                                "default": 0,
+                                                "min": -90,
+                                                "max": 90,
+                                                "step": 0.5
+                                              }
+                                            ],
+                                            "person_palette_falloff": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Per-person desaturation: each track gets (1 - falloff^k) pastel mix.",
+                                                "default": 0.6,
+                                                "min": 0.1,
+                                                "max": 1,
+                                                "step": 0.05
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "key": "bones_only",
+                            "inputs": {
+                              "required": {
+                                "bone_vis": [
+                                  "COMFY_DYNAMICCOMBO_V3",
+                                  {
+                                    "tooltip": "Bone vis shape, rigidly skinned to each joint. 'octahedrons' = Blender-style directional bones (joint → primary child).",
+                                    "options": [
+                                      {
+                                        "key": "octahedrons",
+                                        "inputs": {
+                                          "required": {
+                                            "bone_vis_radius_m": [
+                                              "FLOAT",
+                                              {
+                                                "tooltip": "Radius in m (sphere radius / octahedron half-width).",
+                                                "advanced": true,
+                                                "default": 0.02,
+                                                "min": 0.005,
+                                                "max": 0.5,
+                                                "step": 0.005
+                                              }
+                                            ],
+                                            "bone_vis_color": [
+                                              "COMBO",
+                                              {
+                                                "tooltip": "Per-bone vertex colors (unlit material). 'white' = none, 'rainbow_y' = head→toe jet.",
+                                                "default": "rainbow_y",
+                                                "multiselect": false,
+                                                "options": [
+                                                  "white",
+                                                  "rainbow_y"
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "key": "openpose",
+                            "inputs": {
+                              "required": {
+                                "marker_radius_m": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Sphere radius in m.",
+                                    "advanced": true,
+                                    "default": 0.01,
+                                    "min": 0.005,
+                                    "max": 0.1,
+                                    "step": 0.001
+                                  }
+                                ],
+                                "stick_radius_m": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Limb half-width in m. Auto-clamped to bone_length x 0.1.",
+                                    "advanced": true,
+                                    "default": 0.008,
+                                    "min": 0.002,
+                                    "max": 0.05,
+                                    "step": 0.001
+                                  }
+                                ],
+                                "include_hands": [
+                                  "BOOLEAN",
+                                  {
+                                    "tooltip": "Append 21+21 OpenPose hands (wrist + 5 fingers x 4 joints, base→tip) sourced from pred_keypoints_3d.",
+                                    "default": false
+                                  }
+                                ],
+                                "hand_marker_radius_m": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Hand sphere radius in m.",
+                                    "advanced": true,
+                                    "default": 0.005,
+                                    "min": 0.001,
+                                    "max": 0.1,
+                                    "step": 0.001
+                                  }
+                                ],
+                                "hand_stick_radius_m": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Hand limb half-width in m.",
+                                    "advanced": true,
+                                    "default": 0.003,
+                                    "min": 0.001,
+                                    "max": 0.05,
+                                    "step": 0.001
+                                  }
+                                ],
+                                "face_style": [
+                                  "COMBO",
+                                  {
+                                    "tooltip": "Face-contour landmarks sampled from pred_vertices at fixed head-mesh vertex IDs (needs canonical_colors on pose_data). 'full' = all ~30 points; 'eyes_mouth' = eyes + outer lips only.",
+                                    "default": "disabled",
+                                    "multiselect": false,
+                                    "options": [
+                                      "disabled",
+                                      "full",
+                                      "eyes_mouth"
+                                    ]
+                                  }
+                                ],
+                                "face_marker_radius_m": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Face dot radius. 0 = auto = 0.3 x marker_radius_m.",
+                                    "advanced": true,
+                                    "default": 0,
+                                    "min": 0,
+                                    "max": 0.05,
+                                    "step": 0.0005
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "key": "scail",
+                            "inputs": {
+                              "required": {
+                                "stick_radius_m": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Cylinder radius in m. Bones are open cylinders at constant radius; joint spheres (auto-sized to match) cap the open ends. SCAIL reference = 0.0215 m.",
+                                    "advanced": true,
+                                    "default": 0.022,
+                                    "min": 0.002,
+                                    "max": 0.1,
+                                    "step": 0.001
+                                  }
+                                ],
+                                "marker_radius_m": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Joint sphere radius. 0 = auto = stick_radius_m (flush cap).",
+                                    "advanced": true,
+                                    "default": 0,
+                                    "min": 0,
+                                    "max": 0.1,
+                                    "step": 0.001
+                                  }
+                                ],
+                                "material_roughness": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "PBR roughness. SCAIL ref = 0.3. 1 = matte; 0 = chrome.",
+                                    "advanced": true,
+                                    "default": 0.3,
+                                    "min": 0,
+                                    "max": 1,
+                                    "step": 0.05
+                                  }
+                                ],
+                                "include_hands": [
+                                  "BOOLEAN",
+                                  {
+                                    "tooltip": "Append 21+21 hand keypoints + capsule sticks per track.",
+                                    "default": false
+                                  }
+                                ],
+                                "hand_marker_radius_m": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Hand sphere radius in m.",
+                                    "advanced": true,
+                                    "default": 0.005,
+                                    "min": 0.001,
+                                    "max": 0.05,
+                                    "step": 0.001
+                                  }
+                                ],
+                                "hand_stick_radius_m": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Hand cylinder radius in m.",
+                                    "advanced": true,
+                                    "default": 0.003,
+                                    "min": 0.001,
+                                    "max": 0.05,
+                                    "step": 0.001
+                                  }
+                                ],
+                                "face_style": [
+                                  "COMBO",
+                                  {
+                                    "tooltip": "Face-contour landmarks sampled from pred_vertices (needs canonical_colors on pose_data). 'full' = all ~30 points; 'eyes_mouth' = eyes + outer lips only.",
+                                    "default": "disabled",
+                                    "multiselect": false,
+                                    "options": [
+                                      "disabled",
+                                      "full",
+                                      "eyes_mouth"
+                                    ]
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "bone_smooth_window": [
+                      "INT",
+                      {
+                        "tooltip": "Gaussian smoothing window on per-bone rotation keyframes / keypoint tracks. 0 = off. 7-15 calms spins/jitter where upstream Smooth misses spikes.",
+                        "default": 0,
+                        "min": 0,
+                        "max": 51,
+                        "step": 2
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "key": "bvh",
+                "inputs": {
+                  "required": {
+                    "units": [
+                      "COMBO",
+                      {
+                        "tooltip": "BVH OFFSET/position units. 'cm' is the mocap standard.",
+                        "default": "cm",
+                        "multiselect": false,
+                        "options": [
+                          "cm",
+                          "m"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "fps": [
+          "FLOAT",
+          {
+            "tooltip": "Animation frame rate.",
+            "default": 24,
+            "min": 1,
+            "max": 240,
+            "step": 1
+          }
+        ],
+        "camera_translation": [
+          "COMBO",
+          {
+            "tooltip": "Bake pred_cam_t into the root's translation 'off' = bind position 'centered' = delta from frame 0 'absolute' = raw (Z is camera depth — usually meters away).",
+            "default": "off",
+            "multiselect": false,
+            "options": [
+              "off",
+              "centered",
+              "absolute"
+            ]
+          }
+        ],
+        "track_index": [
+          "INT",
+          {
+            "tooltip": "-1 = all tracks; ≥0 = single track.",
+            "default": -1,
+            "min": -1,
+            "max": 15
+          }
+        ]
+      },
+      "optional": {
+        "sam3d_body_model": [
+          "SAM3D_BODY_MODEL",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "pose_data",
+        "format",
+        "fps",
+        "camera_translation",
+        "track_index"
+      ],
+      "optional": [
+        "sam3d_body_model"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "FILE_3D"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "model_3d"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "BuildPoseFile",
+    "display_name": "Create 3D Animation File",
+    "description": "Build an animated GLB from pose data, or save a BVH mocap file.",
+    "python_module": "comfy_extras.nodes_sam3d_body",
+    "category": "3d",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "pose animation",
+      "mocap",
+      "glb",
+      "bvh",
+      "build pose file",
+      "save pose file"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
   "CFGGuider": {
     "input": {
       "required": {
@@ -3517,22 +4197,7 @@
     "input": {
       "required": {
         "clip_name": [
-          [
-            "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
-            "gemma4_e2b_it_bf16.safetensors",
-            "gemma_3_12B_it_fp4_mixed.safetensors",
-            "ltx-2.3_text_projection_bf16.safetensors",
-            "minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
-            "qwen3.5_9b_int8_convrot.safetensors",
-            "qwen3VL4BAbliteratedComfyui_v10.safetensors",
-            "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-            "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-            "qwen3vl_4b_fp8_scaled.safetensors",
-            "qwen3vl_8b_fp8_scaled.safetensors",
-            "qwen_0.6b_ace15.safetensors",
-            "qwen_1.7b_ace15.safetensors",
-            "qwen_2.5_vl_7b_fp8_scaled.safetensors"
-          ]
+          []
         ],
         "type": [
           [
@@ -3566,8 +4231,7 @@
             "minimax",
             "yue2",
             "flux3",
-            "moss_image",
-            "fibo2"
+            "moss_image"
           ]
         ]
       },
@@ -3604,7 +4268,7 @@
     ],
     "name": "CLIPLoader",
     "display_name": "Load CLIP",
-    "description": "Recipes:\nsd: clip-l\nstable cascade: clip-g\nsd3: t5 xxl / clip-g / clip-l\nstable audio: t5 base\nmochi: t5 xxl\ncogvideox: t5 xxl (226-token padding)\ncosmos: old t5 xxl\nlumina2: gemma 2 2B\nwan: umt5 xxl\nhidream: llama-3.1 (Recommend) or t5\nomnigen2: qwen vl 2.5 3B\njoyimage: qwen3-vl 8B\nlens: gpt-oss-20b\npixeldit: gemma 2 2B elm\nminimax: MiniMax H3 Qwen3-VL or Music3 Qwen/RVQ\nflux3: qwen3-vl 4B\nfibo2: qwen3-vl 4B",
+    "description": "Recipes:\nsd: clip-l\nstable cascade: clip-g\nsd3: t5 xxl / clip-g / clip-l\nstable audio: t5 base\nmochi: t5 xxl\ncogvideox: t5 xxl (226-token padding)\ncosmos: old t5 xxl\nlumina2: gemma 2 2B\nwan: umt5 xxl\nhidream: llama-3.1 (Recommend) or t5\nomnigen2: qwen vl 2.5 3B\njoyimage: qwen3-vl 8B\nlens: gpt-oss-20b\npixeldit: gemma 2 2B elm\nminimax: MiniMax H3 Qwen3-VL or Music3 Qwen/RVQ\nflux3: qwen3-vl 4B",
     "python_module": "nodes",
     "category": "model/loaders",
     "output_node": false,
@@ -3883,9 +4547,7 @@
     "input": {
       "required": {
         "ckpt_name": [
-          [
-            "LTX23_audio_vae_bf16.safetensors"
-          ],
+          [],
           {
             "tooltip": "The name of the checkpoint (model) to load."
           }
@@ -4672,8 +5334,8 @@
           "FLOAT",
           {
             "default": 0.95,
-            "min": 0,
-            "max": 1,
+            "min": 0.0,
+            "max": 1.0,
             "step": 0.01
           }
         ],
@@ -4687,8 +5349,8 @@
           "FLOAT",
           {
             "default": 0.95,
-            "min": 0,
-            "max": 1,
+            "min": 0.0,
+            "max": 1.0,
             "step": 0.01
           }
         ],
@@ -4696,8 +5358,8 @@
           "FLOAT",
           {
             "default": 0.5,
-            "min": 0,
-            "max": 1,
+            "min": 0.0,
+            "max": 1.0,
             "step": 0.01
           }
         ],
@@ -5246,7 +5908,6 @@
     "essentials_category": "Video Tools",
     "has_intermediate_output": false
   },
-  "CropFuobeLive": null,
   "CropMask": {
     "input": {
       "required": {
@@ -6041,40 +6702,10 @@
     "input": {
       "required": {
         "clip_name1": [
-          [
-            "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
-            "gemma4_e2b_it_bf16.safetensors",
-            "gemma_3_12B_it_fp4_mixed.safetensors",
-            "ltx-2.3_text_projection_bf16.safetensors",
-            "minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
-            "qwen3.5_9b_int8_convrot.safetensors",
-            "qwen3VL4BAbliteratedComfyui_v10.safetensors",
-            "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-            "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-            "qwen3vl_4b_fp8_scaled.safetensors",
-            "qwen3vl_8b_fp8_scaled.safetensors",
-            "qwen_0.6b_ace15.safetensors",
-            "qwen_1.7b_ace15.safetensors",
-            "qwen_2.5_vl_7b_fp8_scaled.safetensors"
-          ]
+          []
         ],
         "clip_name2": [
-          [
-            "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
-            "gemma4_e2b_it_bf16.safetensors",
-            "gemma_3_12B_it_fp4_mixed.safetensors",
-            "ltx-2.3_text_projection_bf16.safetensors",
-            "minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
-            "qwen3.5_9b_int8_convrot.safetensors",
-            "qwen3VL4BAbliteratedComfyui_v10.safetensors",
-            "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-            "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-            "qwen3vl_4b_fp8_scaled.safetensors",
-            "qwen3vl_8b_fp8_scaled.safetensors",
-            "qwen_0.6b_ace15.safetensors",
-            "qwen_1.7b_ace15.safetensors",
-            "qwen_2.5_vl_7b_fp8_scaled.safetensors"
-          ]
+          []
         ],
         "type": [
           [
@@ -7976,9 +8607,7 @@
               "offset",
               "index",
               "uxo/uno",
-              "index_timestep_zero",
-              "index_timestep_zero_isolated",
-              "index_timestep_zero_text_start"
+              "index_timestep_zero"
             ]
           }
         ]
@@ -10413,9 +11042,6 @@
   "H3SubjectPrompt": null,
   "H3TrackCrops": null,
   "H3TrackRoles": null,
-  "Hi3DLoadMesh": null,
-  "Hi3DModelLoader": null,
-  "Hi3DRefine": null,
   "Hunyuan3Dv2Conditioning": {
     "input": {
       "required": {
@@ -10833,6 +11459,103 @@
     "essentials_category": null,
     "has_intermediate_output": false
   },
+  "HyperFlowGGUFLoader": {
+    "input": {
+      "required": {
+        "unet_name": [
+          [
+            "minimax_h3_fl2va_hyperflow_flash_14b-Q4_K_M.gguf",
+            "minimax_h3_fl2va_hyperflow_flash_14b-Q8_0.gguf"
+          ]
+        ]
+      },
+      "optional": {
+        "weights_in": [
+          [
+            "auto",
+            "ram",
+            "disk"
+          ],
+          {
+            "default": "auto",
+            "tooltip": "disk: weights that do not fit on the GPU stay in the memory-mapped file and stream from it, for machines with little RAM; ram: copy them into RAM; auto: disk with --fast-disk or a fast NVMe drive"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "unet_name"
+      ],
+      "optional": [
+        "weights_in"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MODEL"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "MODEL"
+    ],
+    "name": "HyperFlowGGUFLoader",
+    "display_name": "HyperFlow GGUF Loader",
+    "description": "",
+    "python_module": "custom_nodes.ComfyUI-HyperFlow-Flash",
+    "category": "HyperFlow",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "HyperFlowSigmas": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL"
+        ]
+      },
+      "optional": {
+        "steps": [
+          "INT",
+          {
+            "default": 6,
+            "min": 4,
+            "max": 8,
+            "step": 2
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model"
+      ],
+      "optional": [
+        "steps"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SIGMAS"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SIGMAS"
+    ],
+    "name": "HyperFlowSigmas",
+    "display_name": "HyperFlow Sigmas",
+    "description": "Step schedule of the checkpoint: 4 steps favour speed, 6 (default) balance speed and quality, 8 favour quality. Use it with SamplerCustom, euler, cfg 1.",
+    "python_module": "custom_nodes.ComfyUI-HyperFlow-Flash",
+    "category": "HyperFlow",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
   "INTConstant": {
     "input": {
       "required": {
@@ -10960,9 +11683,6 @@
     "essentials_category": null,
     "has_intermediate_output": false
   },
-  "IdolCamera": null,
-  "IdolPreprocessImage": null,
-  "IdolPruneSplat": null,
   "ImageBatch": {
     "input": {
       "required": {
@@ -11600,9 +12320,7 @@
     "input": {
       "required": {
         "ckpt_name": [
-          [
-            "LTX23_audio_vae_bf16.safetensors"
-          ]
+          []
         ]
       }
     },
@@ -12576,6 +13294,153 @@
     "has_intermediate_output": false,
     "search_aliases": []
   },
+  "InstantHMRLoader": {
+    "input": {
+      "required": {
+        "model_file": [
+          "COMBO",
+          {
+            "multiselect": false,
+            "options": [
+              "instanthmr_medium.safetensors",
+              "instanthmr_medium_commercial.safetensors",
+              "sam_3d_body_dinov3_int8_convrot.safetensors"
+            ]
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model_file"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "INSTANTHMR_MODEL"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "instanthmr_model"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "InstantHMRLoader",
+    "display_name": "Load InstantHMR Model",
+    "description": "",
+    "python_module": "custom_nodes.ComfyUI-InstantHMR",
+    "category": "image/detection",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "InstantHMRPredict": {
+    "input": {
+      "required": {
+        "instanthmr_model": [
+          "INSTANTHMR_MODEL",
+          {}
+        ],
+        "image": [
+          "IMAGE",
+          {}
+        ],
+        "fov": [
+          "FLOAT",
+          {
+            "tooltip": "Vertical FoV in degrees. Sets the depth and absolute scale. 0 = focal of 1.05x the image diagonal.",
+            "advanced": true,
+            "default": 0,
+            "min": 0,
+            "max": 180,
+            "step": 0.1
+          }
+        ],
+        "batch_size": [
+          "INT",
+          {
+            "tooltip": "Person crops per forward pass",
+            "advanced": true,
+            "default": 64,
+            "min": 1,
+            "max": 1024
+          }
+        ]
+      },
+      "optional": {
+        "track_data": [
+          "SAM3_TRACK_DATA",
+          {
+            "tooltip": "Person tracks from SAM3 Video Track, for multi-person video"
+          }
+        ],
+        "bboxes": [
+          "BOUNDING_BOX",
+          {
+            "tooltip": "Per-frame person boxes, e.g. from RT-DETR Detect with class 'person'",
+            "default": {
+              "x": 0,
+              "y": 0,
+              "width": 512,
+              "height": 512
+            },
+            "socketless": true,
+            "forceInput": true
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "instanthmr_model",
+        "image",
+        "fov",
+        "batch_size"
+      ],
+      "optional": [
+        "track_data",
+        "bboxes"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MHR_POSE_DATA"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "mhr_pose_data"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "InstantHMRPredict",
+    "display_name": "Run InstantHMR Prediction",
+    "description": "",
+    "python_module": "custom_nodes.ComfyUI-InstantHMR",
+    "category": "image/detection",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
   "InvertMask": {
     "input": {
       "required": {
@@ -13246,7 +14111,7 @@
           {
             "default": 0.417,
             "min": 0.0001,
-            "max": 10,
+            "max": 10.0,
             "step": 0.0001
           }
         ]
@@ -13313,7 +14178,7 @@
           {
             "default": 42,
             "min": 0,
-            "max": 18446744073709552000,
+            "max": 18446744073709551615,
             "control_after_generate": true
           }
         ],
@@ -13330,7 +14195,7 @@
           {
             "default": 0.3,
             "min": 0.01,
-            "max": 2,
+            "max": 2.0,
             "step": 0.01
           }
         ],
@@ -13338,8 +14203,8 @@
           "FLOAT",
           {
             "default": 1.1,
-            "min": 1,
-            "max": 5,
+            "min": 1.0,
+            "max": 5.0,
             "step": 0.01
           }
         ]
@@ -13421,9 +14286,9 @@
         "fps": [
           "FLOAT",
           {
-            "default": 24,
-            "min": 1,
-            "max": 120
+            "default": 24.0,
+            "min": 1.0,
+            "max": 120.0
           }
         ],
         "batch_size": [
@@ -13561,6 +14426,76 @@
     "category": "Kandinsky 6/SR",
     "output_node": false
   },
+  "Kandinsky6MagCache": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL"
+        ],
+        "steps": [
+          "INT",
+          {
+            "default": 50,
+            "min": 1,
+            "max": 1000
+          }
+        ],
+        "threshold": [
+          "FLOAT",
+          {
+            "default": 0.02,
+            "min": 0.0001,
+            "max": 1.0,
+            "step": 0.0001
+          }
+        ],
+        "max_skip_steps": [
+          "INT",
+          {
+            "default": 4,
+            "min": 1,
+            "max": 32
+          }
+        ],
+        "retention_ratio": [
+          "FLOAT",
+          {
+            "default": 0.1,
+            "min": 0.0,
+            "max": 0.95,
+            "step": 0.01
+          }
+        ]
+      },
+      "optional": {}
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "steps",
+        "threshold",
+        "max_skip_steps",
+        "retention_ratio"
+      ],
+      "optional": []
+    },
+    "is_input_list": false,
+    "output": [
+      "MODEL"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "MODEL"
+    ],
+    "name": "Kandinsky6MagCache",
+    "display_name": "Kandinsky 6 MagCache (Pro)",
+    "description": "",
+    "python_module": "custom_nodes.kandinsky6",
+    "category": "Kandinsky 6",
+    "output_node": false
+  },
   "Kandinsky6RemoveReferenceLatent": {
     "input": {
       "required": {
@@ -13641,7 +14576,7 @@
           {
             "default": 0,
             "min": 0,
-            "max": 18446744073709552000,
+            "max": 18446744073709551615,
             "control_after_generate": true,
             "tooltip": "The random seed used for creating the noise."
           }
@@ -13658,9 +14593,9 @@
         "cfg": [
           "FLOAT",
           {
-            "default": 1,
-            "min": 0,
-            "max": 100,
+            "default": 1.0,
+            "min": 0.0,
+            "max": 100.0,
             "step": 0.1,
             "round": 0.01,
             "tooltip": "The Classifier-Free Guidance scale balances creativity and adherence to the prompt. Higher values result in images more closely matching the prompt however too high values will negatively impact quality."
@@ -13755,9 +14690,9 @@
         "denoise": [
           "FLOAT",
           {
-            "default": 1,
-            "min": 0,
-            "max": 1,
+            "default": 1.0,
+            "min": 0.0,
+            "max": 1.0,
             "step": 0.01,
             "tooltip": "The amount of denoising applied, lower values will maintain the structure of the initial image allowing for image to image sampling."
           }
@@ -13873,7 +14808,7 @@
           {
             "default": 42,
             "min": 0,
-            "max": 18446744073709552000,
+            "max": 18446744073709551615,
             "control_after_generate": true
           }
         ],
@@ -13907,7 +14842,7 @@
           "FLOAT",
           {
             "default": 0.2,
-            "min": 0,
+            "min": 0.0,
             "max": 0.95,
             "step": 0.01
           }
@@ -13915,9 +14850,9 @@
         "frame_rate": [
           "FLOAT",
           {
-            "default": 24,
-            "min": 1,
-            "max": 240
+            "default": 24.0,
+            "min": 1.0,
+            "max": 240.0
           }
         ],
         "target_resolution": [
@@ -14142,6 +15077,28 @@
           {
             "tooltip": "RECOMMENDED with vae + source_image: wire the SAME latent you feed KSampler.latent_image. Lets the node VAE-encode the source here, before sampling starts, instead of on the first step — otherwise the VAE is pulled onto the GPU mid-sampling and can evict part of the diffusion model, slowing every remaining step on VRAM-tight setups"
           }
+        ],
+        "ref_position": [
+          [
+            "aligned (trained)",
+            "beside (right of target)",
+            "bag of features"
+          ],
+          {
+            "default": "aligned (trained)",
+            "tooltip": "where the LAST reference (the person in two-image workflows, or the only image) sits in position space. aligned (trained) = pinned onto the output layout, how the models were trained (default). beside = placed next to the canvas: identity still flows but the layout pin is gone, so the person can be restaged more freely. bag of features = experimental, content without layout"
+          }
+        ],
+        "ref_position_a": [
+          [
+            "aligned (trained)",
+            "beside (right of target)",
+            "bag of features"
+          ],
+          {
+            "default": "aligned (trained)",
+            "tooltip": "the same choice for the FIRST reference (the scene in two-image workflows); no effect with a single image. For putting a person into a scene: scene aligned + person beside"
+          }
         ]
       }
     },
@@ -14159,7 +15116,9 @@
         "vae",
         "source_image",
         "source_image_b",
-        "target_latent"
+        "target_latent",
+        "ref_position",
+        "ref_position_a"
       ]
     },
     "is_input_list": false,
@@ -14189,31 +15148,14 @@
           "COMBO",
           {
             "multiselect": false,
-            "options": [
-              "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
-              "gemma4_e2b_it_bf16.safetensors",
-              "gemma_3_12B_it_fp4_mixed.safetensors",
-              "ltx-2.3_text_projection_bf16.safetensors",
-              "minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
-              "qwen3.5_9b_int8_convrot.safetensors",
-              "qwen3VL4BAbliteratedComfyui_v10.safetensors",
-              "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-              "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-              "qwen3vl_4b_fp8_scaled.safetensors",
-              "qwen3vl_8b_fp8_scaled.safetensors",
-              "qwen_0.6b_ace15.safetensors",
-              "qwen_1.7b_ace15.safetensors",
-              "qwen_2.5_vl_7b_fp8_scaled.safetensors"
-            ]
+            "options": []
           }
         ],
         "ckpt_name": [
           "COMBO",
           {
             "multiselect": false,
-            "options": [
-              "LTX23_audio_vae_bf16.safetensors"
-            ]
+            "options": []
           }
         ],
         "device": [
@@ -14265,244 +15207,8 @@
     "essentials_category": null,
     "has_intermediate_output": false
   },
-  "LTXAddVideoICLoRAGuide": {
-    "input": {
-      "required": {
-        "positive": [
-          "CONDITIONING",
-          {}
-        ],
-        "negative": [
-          "CONDITIONING",
-          {}
-        ],
-        "vae": [
-          "VAE",
-          {}
-        ],
-        "latent": [
-          "LATENT",
-          {
-            "tooltip": "Video-only latent to condition. Must be a 5D video latent (batch, channels, frames, height, width)."
-          }
-        ],
-        "image": [
-          "IMAGE",
-          {}
-        ],
-        "frame_idx": [
-          "INT",
-          {
-            "tooltip": "Frame index to start the conditioning at. For single-frame videos, any frame_idx value is acceptable. For videos, frame_idx must be 1 modulo 8, otherwise it will be rounded down to the nearest 1 modulo 8. Negative values are counted from the end of the video.",
-            "default": 0,
-            "min": -9999,
-            "max": 9999
-          }
-        ],
-        "strength": [
-          "FLOAT",
-          {
-            "default": 1,
-            "min": 0,
-            "max": 1,
-            "step": 0.01
-          }
-        ],
-        "latent_downscale_factor": [
-          "FLOAT",
-          {
-            "tooltip": "For IC-LoRA on small grid. 1 means original size, 2 means half size, 3 means third, etc.",
-            "default": 1,
-            "min": 1,
-            "max": 10,
-            "step": 1
-          }
-        ],
-        "crop": [
-          "COMBO",
-          {
-            "tooltip": "Crop mode when resizing. 'center' crops to fit, 'disabled' stretches to fit.",
-            "default": "disabled",
-            "multiselect": false,
-            "options": [
-              "disabled",
-              "center"
-            ]
-          }
-        ],
-        "use_tiled_encode": [
-          "BOOLEAN",
-          {
-            "tooltip": "Enable tiled VAE encoding for large resolutions/long videos to reduce memory usage.",
-            "default": false
-          }
-        ],
-        "tile_size": [
-          "INT",
-          {
-            "tooltip": "Spatial tile size for tiled encoding. Only used when use_tiled_encode is enabled.",
-            "default": 256,
-            "min": 64,
-            "max": 512,
-            "step": 32
-          }
-        ],
-        "tile_overlap": [
-          "INT",
-          {
-            "tooltip": "Overlap between tiles for tiled encoding. Only used when use_tiled_encode is enabled.",
-            "default": 64,
-            "min": 16,
-            "max": 256,
-            "step": 16
-          }
-        ]
-      }
-    },
-    "input_order": {
-      "required": [
-        "positive",
-        "negative",
-        "vae",
-        "latent",
-        "image",
-        "frame_idx",
-        "strength",
-        "latent_downscale_factor",
-        "crop",
-        "use_tiled_encode",
-        "tile_size",
-        "tile_overlap"
-      ]
-    },
-    "is_input_list": false,
-    "output": [
-      "CONDITIONING",
-      "CONDITIONING",
-      "LATENT"
-    ],
-    "output_is_list": [
-      false,
-      false,
-      false
-    ],
-    "output_name": [
-      "positive",
-      "negative",
-      "latent"
-    ],
-    "output_tooltips": [
-      null,
-      null,
-      null
-    ],
-    "output_matchtypes": null,
-    "name": "LTXAddVideoICLoRAGuide",
-    "display_name": "🅛🅣🅧 Add Video IC-LoRA Guide",
-    "description": "Adds one or more conditioning frames starting at the specified frame index. Supports both single images and multi-frame videos. The latent_downscale_factor resizes input to a fraction of the target size (1 = original, 2 = half, 3 = third, etc.) for IC-LoRA on small grids.",
-    "python_module": "custom_nodes.ComfyUI-LTXVideo",
-    "category": "Lightricks/IC-LoRA",
-    "output_node": false,
-    "deprecated": false,
-    "experimental": false,
-    "dev_only": false,
-    "api_node": false,
-    "price_badge": null,
-    "search_aliases": null,
-    "essentials_category": null,
-    "has_intermediate_output": false
-  },
-  "LTXICLoRALoaderModelOnly": {
-    "input": {
-      "required": {
-        "model": [
-          "MODEL",
-          {}
-        ],
-        "lora_name": [
-          "COMBO",
-          {
-            "multiselect": false,
-            "options": [
-              "Krea-2-Turbo-Projector-Scale-LoRA-Diffusers.safetensors",
-              "LTX-2.3-22b-AV-LoRA-talking-head-v1.safetensors",
-              "LTX2.3-22B_IC-LoRA-Cameraman_v2_14000.safetensors",
-              "krea2_anygles_rank32.safetensors",
-              "krea2_darkbrush.safetensors",
-              "krea2_identity_edit_v1_2.safetensors",
-              "krea2_identity_edit_v1_2_r128.safetensors",
-              "krea2_identity_edit_v1_2_r64.safetensors",
-              "krea2_style_reference.safetensors",
-              "krea2filterbypass3.safetensors",
-              "ltx-2-19b-ic-lora-detailer.safetensors",
-              "ltx-2.3-22b-distilled-lora-dynamic_fro09_avg_rank_105_bf16.safetensors",
-              "ltx-2.3-22b-ic-lora-ingredients-0.9.safetensors",
-              "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
-              "ltx-2.3-id-lora-celebvhq-3k.safetensors",
-              "ltx2.3-transition.safetensors",
-              "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors",
-              "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
-              "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy_resized_avg_rank_21_bf16.safetensors",
-              "minimax_h3_fl2v_lightx2v_turbo_4step_v1.0_768p_resized_avg_rank_31_bf16.safetensors",
-              "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-              "minimax_h3_ref2v_lightx2v_turbo_4step_v0.1_resized_avg_rank_20_bf16.safetensors",
-              "minimax_h3_ref2v_turbo_4step_v0.1_v4_step600_dareties_fro0975.safetensors",
-              "minimax_h3_turbo_v4_step600_ema.safetensors",
-              "qwen-image-edit-2511-multiple-angles-lora.safetensors"
-            ]
-          }
-        ],
-        "strength_model": [
-          "FLOAT",
-          {
-            "default": 1,
-            "min": -100,
-            "max": 100,
-            "step": 0.01
-          }
-        ]
-      }
-    },
-    "input_order": {
-      "required": [
-        "model",
-        "lora_name",
-        "strength_model"
-      ]
-    },
-    "is_input_list": false,
-    "output": [
-      "MODEL",
-      "FLOAT"
-    ],
-    "output_is_list": [
-      false,
-      false
-    ],
-    "output_name": [
-      "model",
-      "latent_downscale_factor"
-    ],
-    "output_tooltips": [
-      null,
-      null
-    ],
-    "output_matchtypes": null,
-    "name": "LTXICLoRALoaderModelOnly",
-    "display_name": "🅛🅣🅧 IC-LoRA Loader Model Only",
-    "description": "Loads a LoRA model and extracts the latent_downscale_factor from the safetensors metadata.",
-    "python_module": "custom_nodes.ComfyUI-LTXVideo",
-    "category": "Lightricks/IC-LoRA",
-    "output_node": false,
-    "deprecated": false,
-    "experimental": false,
-    "dev_only": false,
-    "api_node": false,
-    "price_badge": null,
-    "search_aliases": null,
-    "essentials_category": null,
-    "has_intermediate_output": false
-  },
+  "LTXAddVideoICLoRAGuide": null,
+  "LTXICLoRALoaderModelOnly": null,
   "LTXVAddGuide": {
     "input": {
       "required": {
@@ -14675,9 +15381,7 @@
           {
             "tooltip": "Audio VAE checkpoint to load.",
             "multiselect": false,
-            "options": [
-              "LTX23_audio_vae_bf16.safetensors"
-            ]
+            "options": []
           }
         ]
       }
@@ -15707,12 +16411,7 @@
           "COMBO",
           {
             "multiselect": false,
-            "options": [
-              "ltx-2.3-spatial-upscaler-x2-1.1.safetensors",
-              "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
-              "minimax_h3_latent_upscaler_3d_bf16.safetensors",
-              "minimax_h3_latent_upscaler_3d_conv_v1_fp16.safetensors"
-            ]
+            "options": []
           }
         ]
       }
@@ -15961,7 +16660,9 @@
           "COMBO",
           {
             "multiselect": false,
-            "options": []
+            "options": [
+              "moge_2_vitl_normal_fp16.safetensors"
+            ]
           }
         ],
         "weight_dtype": [
@@ -16064,7 +16765,6 @@
     ],
     "essentials_category": "Basics"
   },
-  "LoadImageFuobeLive": null,
   "LoadImageMask": {
     "input": {
       "required": {
@@ -16124,7 +16824,9 @@
           "COMBO",
           {
             "multiselect": false,
-            "options": []
+            "options": [
+              "moge_2_vitl_normal_fp16.safetensors"
+            ]
           }
         ]
       }
@@ -16274,33 +16976,7 @@
           }
         ],
         "lora_name": [
-          [
-            "Krea-2-Turbo-Projector-Scale-LoRA-Diffusers.safetensors",
-            "LTX-2.3-22b-AV-LoRA-talking-head-v1.safetensors",
-            "LTX2.3-22B_IC-LoRA-Cameraman_v2_14000.safetensors",
-            "krea2_anygles_rank32.safetensors",
-            "krea2_darkbrush.safetensors",
-            "krea2_identity_edit_v1_2.safetensors",
-            "krea2_identity_edit_v1_2_r128.safetensors",
-            "krea2_identity_edit_v1_2_r64.safetensors",
-            "krea2_style_reference.safetensors",
-            "krea2filterbypass3.safetensors",
-            "ltx-2-19b-ic-lora-detailer.safetensors",
-            "ltx-2.3-22b-distilled-lora-dynamic_fro09_avg_rank_105_bf16.safetensors",
-            "ltx-2.3-22b-ic-lora-ingredients-0.9.safetensors",
-            "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
-            "ltx-2.3-id-lora-celebvhq-3k.safetensors",
-            "ltx2.3-transition.safetensors",
-            "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors",
-            "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
-            "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy_resized_avg_rank_21_bf16.safetensors",
-            "minimax_h3_fl2v_lightx2v_turbo_4step_v1.0_768p_resized_avg_rank_31_bf16.safetensors",
-            "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-            "minimax_h3_ref2v_lightx2v_turbo_4step_v0.1_resized_avg_rank_20_bf16.safetensors",
-            "minimax_h3_ref2v_turbo_4step_v0.1_v4_step600_dareties_fro0975.safetensors",
-            "minimax_h3_turbo_v4_step600_ema.safetensors",
-            "qwen-image-edit-2511-multiple-angles-lora.safetensors"
-          ],
+          [],
           {
             "tooltip": "The name of the LoRA."
           }
@@ -16376,33 +17052,7 @@
           "MODEL"
         ],
         "lora_name": [
-          [
-            "Krea-2-Turbo-Projector-Scale-LoRA-Diffusers.safetensors",
-            "LTX-2.3-22b-AV-LoRA-talking-head-v1.safetensors",
-            "LTX2.3-22B_IC-LoRA-Cameraman_v2_14000.safetensors",
-            "krea2_anygles_rank32.safetensors",
-            "krea2_darkbrush.safetensors",
-            "krea2_identity_edit_v1_2.safetensors",
-            "krea2_identity_edit_v1_2_r128.safetensors",
-            "krea2_identity_edit_v1_2_r64.safetensors",
-            "krea2_style_reference.safetensors",
-            "krea2filterbypass3.safetensors",
-            "ltx-2-19b-ic-lora-detailer.safetensors",
-            "ltx-2.3-22b-distilled-lora-dynamic_fro09_avg_rank_105_bf16.safetensors",
-            "ltx-2.3-22b-ic-lora-ingredients-0.9.safetensors",
-            "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
-            "ltx-2.3-id-lora-celebvhq-3k.safetensors",
-            "ltx2.3-transition.safetensors",
-            "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors",
-            "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
-            "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy_resized_avg_rank_21_bf16.safetensors",
-            "minimax_h3_fl2v_lightx2v_turbo_4step_v1.0_768p_resized_avg_rank_31_bf16.safetensors",
-            "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-            "minimax_h3_ref2v_lightx2v_turbo_4step_v0.1_resized_avg_rank_20_bf16.safetensors",
-            "minimax_h3_ref2v_turbo_4step_v0.1_v4_step600_dareties_fro0975.safetensors",
-            "minimax_h3_turbo_v4_step600_ema.safetensors",
-            "qwen-image-edit-2511-multiple-angles-lora.safetensors"
-          ]
+          []
         ],
         "strength_model": [
           "FLOAT",
@@ -17224,112 +17874,7 @@
   "MiniMaxH3ChainReview": null,
   "MiniMaxH3ChainSegmentSave": null,
   "MiniMaxH3ContexMaskedTarget": null,
-  "MiniMaxH3FantasticVideoEditLatent": {
-    "input": {
-      "required": {
-        "vae": [
-          "VAE",
-          {
-            "tooltip": "The H3 video VAE."
-          }
-        ],
-        "images": [
-          "IMAGE",
-          {
-            "tooltip": "The source clip's frames, at 24 fps."
-          }
-        ],
-        "mask": [
-          "MASK",
-          {
-            "tooltip": "White where the clip is regenerated: whatever is being replaced, changed or removed. One mask per frame, or a single frame for the whole clip."
-          }
-        ],
-        "grow": [
-          "INT",
-          {
-            "default": 16,
-            "min": 0,
-            "max": 256,
-            "step": 1,
-            "tooltip": "Widen the mask by this many source pixels, so edges and shadows are replaced too."
-          }
-        ],
-        "keep_audio": [
-          "BOOLEAN",
-          {
-            "default": true,
-            "tooltip": "On: the source audio is held unchanged. Off, or no audio connected: the soundtrack is generated fresh."
-          }
-        ]
-      },
-      "optional": {
-        "audio_vae": [
-          "VAE",
-          {
-            "tooltip": "The H3 audio VAE, needed to keep the source audio."
-          }
-        ],
-        "audio": [
-          "AUDIO",
-          {
-            "tooltip": "The source clip's soundtrack."
-          }
-        ],
-        "megapixels": [
-          "FLOAT",
-          {
-            "default": 0.98,
-            "min": 0,
-            "max": 16,
-            "step": 0.01,
-            "tooltip": "Sample at no more than this many megapixels, keeping the clip's shape; never enlarged. 0 samples at the clip's own size."
-          }
-        ]
-      }
-    },
-    "input_order": {
-      "required": [
-        "vae",
-        "images",
-        "mask",
-        "grow",
-        "keep_audio"
-      ],
-      "optional": [
-        "audio_vae",
-        "audio",
-        "megapixels"
-      ]
-    },
-    "is_input_list": false,
-    "output": [
-      "LATENT",
-      "INT",
-      "INT",
-      "INT"
-    ],
-    "output_is_list": [
-      false,
-      false,
-      false,
-      false
-    ],
-    "output_name": [
-      "latent",
-      "width",
-      "height",
-      "length"
-    ],
-    "name": "MiniMaxH3FantasticVideoEditLatent",
-    "display_name": "Fantastic H3 Video Edit Latent",
-    "description": "Turn a source clip and a mask into the latent MiniMax H3 samples for an edit: white areas of the mask are regenerated, everything else is held to the source. Use it in place of the empty latent, and wire width, height and length into the Text Encode. The Media Loader's Mask for editing does this for you through the RefMod Text Encode; this node is for masks made elsewhere.",
-    "python_module": "custom_nodes.ComfyUI-Fantastic-MiniMaxH3-PromptBuilder",
-    "category": "conditioning/video_models",
-    "output_node": false,
-    "has_intermediate_output": false,
-    "search_aliases": []
-  },
+  "MiniMaxH3FantasticVideoEditLatent": null,
   "MiniMaxH3GenerationProfile": null,
   "MiniMaxH3ImageToVideo": {
     "input": {
@@ -17713,31 +18258,30 @@
         ],
         "lora_name": [
           [
-            "Krea-2-Turbo-Projector-Scale-LoRA-Diffusers.safetensors",
-            "LTX-2.3-22b-AV-LoRA-talking-head-v1.safetensors",
-            "LTX2.3-22B_IC-LoRA-Cameraman_v2_14000.safetensors",
-            "krea2_anygles_rank32.safetensors",
-            "krea2_darkbrush.safetensors",
-            "krea2_identity_edit_v1_2.safetensors",
-            "krea2_identity_edit_v1_2_r128.safetensors",
-            "krea2_identity_edit_v1_2_r64.safetensors",
+            "Flux_2-Turbo-LoRA_comfyui.safetensors",
+            "Krea2-realism-V2.safetensors",
+            "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+            "Qwen-Image-Edit-2509-Light-Migration.safetensors",
+            "Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
+            "Qwen-Image-Edit-2509-Relight.safetensors",
+            "Qwen-Image-Edit-2509-White_to_Scene.safetensors",
+            "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+            "krea2_general_edit_v2.safetensors",
+            "krea2_identity_edit_v2.safetensors",
+            "krea2_inpaint_edit.safetensors",
             "krea2_style_reference.safetensors",
-            "krea2filterbypass3.safetensors",
-            "ltx-2-19b-ic-lora-detailer.safetensors",
-            "ltx-2.3-22b-distilled-lora-dynamic_fro09_avg_rank_105_bf16.safetensors",
-            "ltx-2.3-22b-ic-lora-ingredients-0.9.safetensors",
-            "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
-            "ltx-2.3-id-lora-celebvhq-3k.safetensors",
-            "ltx2.3-transition.safetensors",
-            "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors",
-            "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
-            "minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy_resized_avg_rank_21_bf16.safetensors",
-            "minimax_h3_fl2v_lightx2v_turbo_4step_v1.0_768p_resized_avg_rank_31_bf16.safetensors",
-            "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-            "minimax_h3_ref2v_lightx2v_turbo_4step_v0.1_resized_avg_rank_20_bf16.safetensors",
-            "minimax_h3_ref2v_turbo_4step_v0.1_v4_step600_dareties_fro0975.safetensors",
+            "lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
+            "lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank64_bf16.safetensors",
+            "minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
             "minimax_h3_turbo_v4_step600_ema.safetensors",
-            "qwen-image-edit-2511-multiple-angles-lora.safetensors"
+            "next-scene_lora-v2-3000.safetensors",
+            "qwen-image-2.1-outpaint-v2.safetensors",
+            "tryon-klein-4b.safetensors",
+            "uso-flux1-dit-lora-v1.safetensors",
+            "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
+            "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
+            "wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors",
+            "wan2.2_t2v_lightx2v_4steps_lora_v1.1_low_noise.safetensors"
           ]
         ],
         "strength": [
@@ -18282,8 +18826,7 @@
             "default": "pytorch attention",
             "multiselect": false,
             "options": [
-              "pytorch attention",
-              "comfy kitchen attention"
+              "pytorch attention"
             ]
           }
         ]
@@ -18750,6 +19293,183 @@
     "category": "video/nomas",
     "output_node": false
   },
+  "NomasExplore": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL",
+          {}
+        ],
+        "clip": [
+          "CLIP",
+          {}
+        ],
+        "vae": [
+          "VAE",
+          {}
+        ],
+        "turn": [
+          "NOMAS_TURN",
+          {}
+        ],
+        "seed": [
+          "INT",
+          {
+            "default": 42,
+            "min": 0,
+            "max": 18446744073709551615
+          }
+        ],
+        "width": [
+          "INT",
+          {
+            "default": 1280,
+            "min": 256,
+            "max": 2048,
+            "step": 32
+          }
+        ],
+        "height": [
+          "INT",
+          {
+            "default": 704,
+            "min": 256,
+            "max": 2048,
+            "step": 32
+          }
+        ],
+        "change": [
+          "STRING",
+          {
+            "multiline": false,
+            "default": ""
+          }
+        ],
+        "action": [
+          "STRING",
+          {
+            "multiline": false,
+            "default": ""
+          }
+        ],
+        "seconds": [
+          "FLOAT",
+          {
+            "default": 3.0,
+            "min": 0.5,
+            "max": 15.0,
+            "step": 0.5
+          }
+        ],
+        "steps": [
+          "INT",
+          {
+            "advanced": true,
+            "default": 8,
+            "min": 1,
+            "max": 16
+          }
+        ],
+        "history": [
+          "COMBO",
+          {
+            "advanced": true,
+            "default": "window",
+            "multiselect": false,
+            "options": [
+              "window",
+              "full"
+            ]
+          }
+        ],
+        "controls": [
+          "STRING",
+          {
+            "advanced": true,
+            "multiline": false,
+            "default": ""
+          }
+        ]
+      },
+      "optional": {}
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "clip",
+        "vae",
+        "turn",
+        "seed",
+        "width",
+        "height",
+        "change",
+        "action",
+        "seconds",
+        "steps",
+        "history",
+        "controls"
+      ],
+      "optional": []
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE",
+      "LATENT",
+      "NOMAS_WORLD"
+    ],
+    "output_is_list": [
+      false,
+      false,
+      false
+    ],
+    "output_name": [
+      "turn_frames",
+      "LATENT",
+      "world"
+    ],
+    "name": "NomasExplore",
+    "display_name": "Nomas Explore",
+    "description": "Explore a Hy-Nomas world interactively: hold W/A/S/D and the arrow keys (or drag with the mouse) to record a camera move, and each move becomes the next turn of the world. Holds the world in memory between runs.",
+    "python_module": "custom_nodes.ComfyUI-HyNomas",
+    "category": "video/nomas",
+    "output_node": true
+  },
+  "NomasPromptJSON": {
+    "input": {
+      "required": {
+        "json": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": ""
+          }
+        ]
+      },
+      "optional": {}
+    },
+    "input_order": {
+      "required": [
+        "json"
+      ],
+      "optional": []
+    },
+    "is_input_list": false,
+    "output": [
+      "NOMAS_TURN"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "turn"
+    ],
+    "name": "NomasPromptJSON",
+    "display_name": "Nomas Prompt (JSON)",
+    "description": "A whole Hy-Nomas prompt as JSON (perspective_view, Style, subject_list, segments with start_time / end_time), as in the release's examples/prompts.json. Each segment becomes one turn.",
+    "python_module": "custom_nodes.ComfyUI-HyNomas",
+    "category": "video/nomas",
+    "output_node": false
+  },
   "NomasWorldContinue": {
     "input": {
       "required": {
@@ -18783,9 +19503,9 @@
           "FLOAT",
           {
             "tooltip": "Unless the camera path sets it.",
-            "default": 5,
+            "default": 5.0,
             "min": 0.5,
-            "max": 30,
+            "max": 30.0,
             "step": 0.5
           }
         ],
@@ -18864,7 +19584,7 @@
           {
             "default": 42,
             "min": 0,
-            "max": 18446744073709552000,
+            "max": 18446744073709551615,
             "control_after_generate": true
           }
         ],
@@ -19020,9 +19740,9 @@
           "FLOAT",
           {
             "tooltip": "Length of the turn, unless a camera path sets it.",
-            "default": 5,
+            "default": 5.0,
             "min": 0.5,
-            "max": 30,
+            "max": 30.0,
             "step": 0.5
           }
         ]
@@ -19058,7 +19778,6 @@
     "category": "video/nomas",
     "output_node": false
   },
-  "OpenH3LoadRefinedLatent": null,
   "OpenH3RegenFastVAEDecode": null,
   "OpenH3RegenFinish": null,
   "OpenH3RegenLora": null,
@@ -19115,7 +19834,6 @@
     "has_intermediate_output": false
   },
   "Orion4D_FXMax_DCTLToneMapper": null,
-  "PasteBackFuobeLive": null,
   "Pixal3DConditioning": {
     "input": {
       "required": {
@@ -20147,88 +20865,28 @@
           "COMBO",
           {
             "multiselect": false,
-            "options": [
-              "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
-              "gemma4_e2b_it_bf16.safetensors",
-              "gemma_3_12B_it_fp4_mixed.safetensors",
-              "ltx-2.3_text_projection_bf16.safetensors",
-              "minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
-              "qwen3.5_9b_int8_convrot.safetensors",
-              "qwen3VL4BAbliteratedComfyui_v10.safetensors",
-              "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-              "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-              "qwen3vl_4b_fp8_scaled.safetensors",
-              "qwen3vl_8b_fp8_scaled.safetensors",
-              "qwen_0.6b_ace15.safetensors",
-              "qwen_1.7b_ace15.safetensors",
-              "qwen_2.5_vl_7b_fp8_scaled.safetensors"
-            ]
+            "options": []
           }
         ],
         "clip_name2": [
           "COMBO",
           {
             "multiselect": false,
-            "options": [
-              "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
-              "gemma4_e2b_it_bf16.safetensors",
-              "gemma_3_12B_it_fp4_mixed.safetensors",
-              "ltx-2.3_text_projection_bf16.safetensors",
-              "minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
-              "qwen3.5_9b_int8_convrot.safetensors",
-              "qwen3VL4BAbliteratedComfyui_v10.safetensors",
-              "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-              "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-              "qwen3vl_4b_fp8_scaled.safetensors",
-              "qwen3vl_8b_fp8_scaled.safetensors",
-              "qwen_0.6b_ace15.safetensors",
-              "qwen_1.7b_ace15.safetensors",
-              "qwen_2.5_vl_7b_fp8_scaled.safetensors"
-            ]
+            "options": []
           }
         ],
         "clip_name3": [
           "COMBO",
           {
             "multiselect": false,
-            "options": [
-              "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
-              "gemma4_e2b_it_bf16.safetensors",
-              "gemma_3_12B_it_fp4_mixed.safetensors",
-              "ltx-2.3_text_projection_bf16.safetensors",
-              "minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
-              "qwen3.5_9b_int8_convrot.safetensors",
-              "qwen3VL4BAbliteratedComfyui_v10.safetensors",
-              "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-              "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-              "qwen3vl_4b_fp8_scaled.safetensors",
-              "qwen3vl_8b_fp8_scaled.safetensors",
-              "qwen_0.6b_ace15.safetensors",
-              "qwen_1.7b_ace15.safetensors",
-              "qwen_2.5_vl_7b_fp8_scaled.safetensors"
-            ]
+            "options": []
           }
         ],
         "clip_name4": [
           "COMBO",
           {
             "multiselect": false,
-            "options": [
-              "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
-              "gemma4_e2b_it_bf16.safetensors",
-              "gemma_3_12B_it_fp4_mixed.safetensors",
-              "ltx-2.3_text_projection_bf16.safetensors",
-              "minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
-              "qwen3.5_9b_int8_convrot.safetensors",
-              "qwen3VL4BAbliteratedComfyui_v10.safetensors",
-              "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-              "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-              "qwen3vl_4b_fp8_scaled.safetensors",
-              "qwen3vl_8b_fp8_scaled.safetensors",
-              "qwen_0.6b_ace15.safetensors",
-              "qwen_1.7b_ace15.safetensors",
-              "qwen_2.5_vl_7b_fp8_scaled.safetensors"
-            ]
+            "options": []
           }
         ]
       }
@@ -20270,8 +20928,6 @@
     "essentials_category": null,
     "has_intermediate_output": false
   },
-  "Qwen21EncodeFuobeLive": null,
-  "Qwen21ReferenceFuobeLive": null,
   "QwenImage21Cache": {
     "input": {
       "required": {
@@ -20906,6 +21562,172 @@
     "has_intermediate_output": false,
     "search_aliases": []
   },
+  "RTDETR_detect": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL",
+          {
+            "display_name": "model"
+          }
+        ],
+        "image": [
+          "IMAGE",
+          {
+            "display_name": "image"
+          }
+        ],
+        "threshold": [
+          "FLOAT",
+          {
+            "display_name": "threshold",
+            "default": 0.5
+          }
+        ],
+        "class_name": [
+          "COMBO",
+          {
+            "tooltip": "Filter detections by class. Set to 'all' to disable filtering.",
+            "default": "all",
+            "multiselect": false,
+            "options": [
+              "all",
+              "person",
+              "bicycle",
+              "car",
+              "motorcycle",
+              "airplane",
+              "bus",
+              "train",
+              "truck",
+              "boat",
+              "traffic light",
+              "fire hydrant",
+              "stop sign",
+              "parking meter",
+              "bench",
+              "bird",
+              "cat",
+              "dog",
+              "horse",
+              "sheep",
+              "cow",
+              "elephant",
+              "bear",
+              "zebra",
+              "giraffe",
+              "backpack",
+              "umbrella",
+              "handbag",
+              "tie",
+              "suitcase",
+              "frisbee",
+              "skis",
+              "snowboard",
+              "sports ball",
+              "kite",
+              "baseball bat",
+              "baseball glove",
+              "skateboard",
+              "surfboard",
+              "tennis racket",
+              "bottle",
+              "wine glass",
+              "cup",
+              "fork",
+              "knife",
+              "spoon",
+              "bowl",
+              "banana",
+              "apple",
+              "sandwich",
+              "orange",
+              "broccoli",
+              "carrot",
+              "hot dog",
+              "pizza",
+              "donut",
+              "cake",
+              "chair",
+              "couch",
+              "potted plant",
+              "bed",
+              "dining table",
+              "toilet",
+              "tv",
+              "laptop",
+              "mouse",
+              "remote",
+              "keyboard",
+              "cell phone",
+              "microwave",
+              "oven",
+              "toaster",
+              "sink",
+              "refrigerator",
+              "book",
+              "clock",
+              "vase",
+              "scissors",
+              "teddy bear",
+              "hair drier",
+              "toothbrush"
+            ]
+          }
+        ],
+        "max_detections": [
+          "INT",
+          {
+            "display_name": "max_detections",
+            "tooltip": "Maximum number of detections to return per image. In order of descending confidence score.",
+            "default": 100
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "image",
+        "threshold",
+        "class_name",
+        "max_detections"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "BOUNDING_BOX"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "bboxes"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "RTDETR_detect",
+    "display_name": "Run Real-Time Detection (RT-DETR)",
+    "description": "",
+    "python_module": "comfy_extras.nodes_rtdetr",
+    "category": "image/detection",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "bbox",
+      "bounding box",
+      "object detection",
+      "coco"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
   "RTXTrueHDR": null,
   "RTXVideoFrameGeneration": null,
   "RTXVideoSuperResolution": null,
@@ -21349,7 +22171,9 @@
           {
             "multiline": true
           }
-        ],
+        ]
+      },
+      "optional": {
         "case_insensitive": [
           "BOOLEAN",
           {
@@ -21376,7 +22200,9 @@
     "input_order": {
       "required": [
         "string",
-        "regex_pattern",
+        "regex_pattern"
+      ],
+      "optional": [
         "case_insensitive",
         "multiline",
         "dotall"
@@ -21520,6 +22346,209 @@
     ],
     "essentials_category": null,
     "has_intermediate_output": false
+  },
+  "RemakeConditioning": {
+    "input": {
+      "required": {
+        "clip": [
+          "CLIP"
+        ],
+        "vae": [
+          "VAE"
+        ],
+        "audio_vae": [
+          "VAE"
+        ],
+        "source": [
+          "IMAGE",
+          {
+            "tooltip": "The source clip's frames, at 24 fps. Supplies motion, camera, framing and everything the prompt does not change."
+          }
+        ],
+        "prompt": [
+          "STRING",
+          {
+            "multiline": true,
+            "tooltip": "The six-section prompt, used verbatim."
+          }
+        ],
+        "ref_1": [
+          "IMAGE",
+          {
+            "tooltip": "<Picture 1>: usually a frame of the source painted in an image editor."
+          }
+        ],
+        "pins": [
+          "STRING",
+          {
+            "default": "",
+            "tooltip": "Optional: one output frame per reference image, e.g. '12, 190'. Each reference is then pinned as a keyframe at that frame for the first part of the denoise."
+          }
+        ],
+        "frames": [
+          "INT",
+          {
+            "default": 124,
+            "min": 90,
+            "max": 345,
+            "step": 17,
+            "tooltip": "Output length at 24 fps, 17n+5."
+          }
+        ],
+        "short_edge": [
+          "INT",
+          {
+            "default": 480,
+            "min": 480,
+            "max": 736,
+            "step": 32,
+            "tooltip": "480 (832x480 for 16:9) or 736 (1280x736)."
+          }
+        ]
+      },
+      "optional": {
+        "audio": [
+          "AUDIO",
+          {
+            "tooltip": "The soundtrack kept in the output, usually the source's own. Silence when not connected."
+          }
+        ],
+        "ref_2": [
+          "IMAGE"
+        ],
+        "ref_3": [
+          "IMAGE"
+        ],
+        "ref_4": [
+          "IMAGE"
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "clip",
+        "vae",
+        "audio_vae",
+        "source",
+        "prompt",
+        "ref_1",
+        "pins",
+        "frames",
+        "short_edge"
+      ],
+      "optional": [
+        "audio",
+        "ref_2",
+        "ref_3",
+        "ref_4"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "CONDITIONING",
+      "LATENT"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "positive",
+      "latent"
+    ],
+    "name": "RemakeConditioning",
+    "display_name": "Viggle Remake Conditioning",
+    "description": "",
+    "python_module": "custom_nodes.ComfyUI-Viggle-Remake",
+    "category": "Viggle Remake",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "RemakeKeyframeUntil": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL"
+        ],
+        "keyframe_until": [
+          "FLOAT",
+          {
+            "default": 0.9,
+            "min": 0,
+            "max": 1,
+            "step": 0.01,
+            "tooltip": "The keyframes condition every forward whose sigma is at least this; below it they are dropped and the references alone remain."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "keyframe_until"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MODEL"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "MODEL"
+    ],
+    "name": "RemakeKeyframeUntil",
+    "display_name": "Viggle Remake Keyframe Until",
+    "description": "",
+    "python_module": "custom_nodes.ComfyUI-Viggle-Remake",
+    "category": "Viggle Remake",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "RemakeNoise": {
+    "input": {
+      "required": {
+        "positive": [
+          "CONDITIONING"
+        ],
+        "seed": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 18446744073709552000,
+            "control_after_generate": true
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "positive",
+        "seed"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "NOISE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "NOISE"
+    ],
+    "name": "RemakeNoise",
+    "display_name": "Viggle Remake Noise",
+    "description": "",
+    "python_module": "custom_nodes.ComfyUI-Viggle-Remake",
+    "category": "Viggle Remake",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
   },
   "RemeshMesh": {
     "input": {
@@ -22621,6 +23650,557 @@
     "essentials_category": null,
     "has_intermediate_output": false
   },
+  "SAM3DBody_Loader": {
+    "input": {
+      "required": {
+        "model_file": [
+          "COMBO",
+          {
+            "multiselect": false,
+            "options": [
+              "instanthmr_medium.safetensors",
+              "instanthmr_medium_commercial.safetensors",
+              "sam_3d_body_dinov3_int8_convrot.safetensors"
+            ]
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model_file"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SAM3D_BODY_MODEL"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "sam3d_body_model"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "SAM3DBody_Loader",
+    "display_name": "Load SAM3D Body Model",
+    "description": "",
+    "python_module": "comfy_extras.nodes_sam3d_body",
+    "category": "image/detection",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SAM3DBody_Render": {
+    "input": {
+      "required": {
+        "pose_data": [
+          "MHR_POSE_DATA,KIMODO_POSE_DATA",
+          {
+            "tooltip": "MHR pose data, or external Y-up rig pose data (KimodoSample). All render styles work for external rigs that carry OpenPose joint maps in their _skeleton_override (KimodoSample does)."
+          }
+        ],
+        "width": [
+          "INT",
+          {
+            "tooltip": "Output width in pixels. 0 = use pose data's native image_size. If only one of width/height is set, the other is derived preserving the original aspect.",
+            "default": 0,
+            "min": 0,
+            "max": 16384,
+            "step": 8
+          }
+        ],
+        "height": [
+          "INT",
+          {
+            "tooltip": "Output height in pixels. 0 = use pose data's native image_size. If only one of width/height is set, the other is derived preserving the original aspect.",
+            "default": 0,
+            "min": 0,
+            "max": 16384,
+            "step": 8
+          }
+        ],
+        "render_style": [
+          "COMFY_DYNAMICCOMBO_V3",
+          {
+            "tooltip": "'mesh' = 3D MHR mesh rasterized through the camera. 'silhouette' = binary mask of the mesh. 'openpose_2d' = flat 2D skeleton 'openpose_3d' = openpose skeleton as flat-shaded 3D model 'scail' = SCAIL 3D capsules ",
+            "options": [
+              {
+                "key": "mesh",
+                "inputs": {
+                  "required": {
+                    "shader": [
+                      "COMFY_DYNAMICCOMBO_V3",
+                      {
+                        "tooltip": "Preset shader. 'normals' = current surface normal in camera space (OpenGL Y+ normal-map convention: +X→R, +Y→G, +Z→B). 'rainbow' = RealisDance style body-Y jet; the 'rainbow_face_*' variants override face verts with normal/per-region colors; 'depth' = linear gray.",
+                        "options": [
+                          {
+                            "key": "default",
+                            "inputs": {
+                              "required": {}
+                            }
+                          },
+                          {
+                            "key": "normals",
+                            "inputs": {
+                              "required": {}
+                            }
+                          },
+                          {
+                            "key": "rainbow",
+                            "inputs": {
+                              "required": {
+                                "rainbow_tilt_z": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Rotate rainbow jet axis around Z (forward). Differentiates left/right.",
+                                    "default": -35,
+                                    "min": -90,
+                                    "max": 90,
+                                    "step": 0.5
+                                  }
+                                ],
+                                "rainbow_tilt_x": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Rotate rainbow jet axis around X (right). Differentiates front/back.",
+                                    "default": 0,
+                                    "min": -90,
+                                    "max": 90,
+                                    "step": 0.5
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "key": "rainbow_face_normal",
+                            "inputs": {
+                              "required": {
+                                "rainbow_tilt_z": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Rotate rainbow jet axis around Z (forward). Differentiates left/right.",
+                                    "default": -35,
+                                    "min": -90,
+                                    "max": 90,
+                                    "step": 0.5
+                                  }
+                                ],
+                                "rainbow_tilt_x": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Rotate rainbow jet axis around X (right). Differentiates front/back.",
+                                    "default": 0,
+                                    "min": -90,
+                                    "max": 90,
+                                    "step": 0.5
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "key": "rainbow_face_semantic",
+                            "inputs": {
+                              "required": {
+                                "rainbow_tilt_z": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Rotate rainbow jet axis around Z (forward). Differentiates left/right.",
+                                    "default": -35,
+                                    "min": -90,
+                                    "max": 90,
+                                    "step": 0.5
+                                  }
+                                ],
+                                "rainbow_tilt_x": [
+                                  "FLOAT",
+                                  {
+                                    "tooltip": "Rotate rainbow jet axis around X (right). Differentiates front/back.",
+                                    "default": 0,
+                                    "min": -90,
+                                    "max": 90,
+                                    "step": 0.5
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "key": "depth",
+                            "inputs": {
+                              "required": {}
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "opacity": [
+                      "FLOAT",
+                      {
+                        "tooltip": "Mesh alpha over the background image, or over black when none is connected.",
+                        "default": 1,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      }
+                    ],
+                    "person_palette_falloff": [
+                      "FLOAT",
+                      {
+                        "tooltip": "Per-person desaturation toward white: track k gets a (1 - falloff^k) pastel mix (SCAIL 'softer second person'). 1.0 = off.",
+                        "default": 0.6,
+                        "min": 0.1,
+                        "max": 1,
+                        "step": 0.05
+                      }
+                    ],
+                    "region": [
+                      "COMBO",
+                      {
+                        "tooltip": "'hands_only' filters faces via the precomputed `hand_vert_mask` (LBS weights against canonical hand KPs) — isolates the hand mesh for debugging. Falls back to full mesh if the mask is missing.",
+                        "default": "full_body",
+                        "multiselect": false,
+                        "options": [
+                          "full_body",
+                          "hands_only"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "key": "silhouette",
+                "inputs": {
+                  "required": {}
+                }
+              },
+              {
+                "key": "openpose_2d",
+                "inputs": {
+                  "required": {
+                    "marker_radius_px": [
+                      "INT",
+                      {
+                        "tooltip": "Body keypoint dot radius (px).",
+                        "default": 4,
+                        "min": 1,
+                        "max": 32,
+                        "step": 1
+                      }
+                    ],
+                    "stick_width_px": [
+                      "INT",
+                      {
+                        "tooltip": "Body limb ellipse half-width (px). DWPose default = 4.",
+                        "default": 4,
+                        "min": 1,
+                        "max": 32,
+                        "step": 1
+                      }
+                    ],
+                    "limb_alpha": [
+                      "FLOAT",
+                      {
+                        "tooltip": "Per-limb alpha. DWPose default = 0.6.",
+                        "default": 0.6,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.05
+                      }
+                    ],
+                    "face_style": [
+                      "COMBO",
+                      {
+                        "tooltip": "'full' = all face landmarks (sapiens-238 if present, else rig-fallback ~30). 'eyes_mouth' = rig-fallback subset (~12 dots: eyes + outer lips only). 'disabled' = no face dots.",
+                        "default": "disabled",
+                        "multiselect": false,
+                        "options": [
+                          "disabled",
+                          "full",
+                          "eyes_mouth"
+                        ]
+                      }
+                    ],
+                    "hand_style": [
+                      "COMBO",
+                      {
+                        "tooltip": "Draw 21+21 hand keypoints + sticks. 'disabled' = no hands. 'dwpose' = solid-blue dots; 'openpose' = rainbow dots.",
+                        "default": "disabled",
+                        "multiselect": false,
+                        "options": [
+                          "disabled",
+                          "dwpose",
+                          "openpose"
+                        ]
+                      }
+                    ],
+                    "person_palette_falloff": [
+                      "FLOAT",
+                      {
+                        "tooltip": "Per-person desaturation: track k blends toward white by 1 - falloff^k. Track 0 stays vivid; 1.0 disables falloff.",
+                        "default": 0.6,
+                        "min": 0.1,
+                        "max": 1,
+                        "step": 0.05
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "key": "openpose_3d",
+                "inputs": {
+                  "required": {
+                    "radius_m": [
+                      "FLOAT",
+                      {
+                        "tooltip": "Limb capsule radius in meters (thin = stick-like).",
+                        "default": 0.015,
+                        "min": 0.004,
+                        "max": 0.1,
+                        "step": 0.001
+                      }
+                    ],
+                    "include_hands": [
+                      "BOOLEAN",
+                      {
+                        "tooltip": "Draw 21+21 hand keypoints as 3D capsules.",
+                        "default": true
+                      }
+                    ],
+                    "person_palette_falloff": [
+                      "FLOAT",
+                      {
+                        "tooltip": "Per-person desaturation: track k blends toward white by 1 - falloff^k. Track 0 stays vivid; 1.0 disables falloff.",
+                        "default": 0.6,
+                        "min": 0.1,
+                        "max": 1,
+                        "step": 0.05
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "key": "scail",
+                "inputs": {
+                  "required": {
+                    "radius_m": [
+                      "FLOAT",
+                      {
+                        "tooltip": "Capsule radius in meters (SCAIL reference: ~0.022 m).",
+                        "default": 0.022,
+                        "min": 0.005,
+                        "max": 0.2,
+                        "step": 0.001
+                      }
+                    ],
+                    "hand_style": [
+                      "COMBO",
+                      {
+                        "tooltip": "Composite 2D OpenPose hands on top of the 3D capsule body (matches SCAIL — no 3D hand capsules). 'disabled' = no hands. 'dwpose' = solid-blue hand dots; 'openpose' = rainbow dots. Sticks stay rainbow per-finger either way.",
+                        "default": "dwpose",
+                        "multiselect": false,
+                        "options": [
+                          "disabled",
+                          "dwpose",
+                          "openpose"
+                        ]
+                      }
+                    ],
+                    "face_style": [
+                      "COMBO",
+                      {
+                        "tooltip": "'full' = all face landmarks (sapiens-238 if present, else rig-fallback ~30). 'eyes_mouth' = rig-fallback subset (~12 dots: eyes + outer lips only). 'disabled' = no face dots.",
+                        "default": "disabled",
+                        "multiselect": false,
+                        "options": [
+                          "disabled",
+                          "full",
+                          "eyes_mouth"
+                        ]
+                      }
+                    ],
+                    "person_palette_falloff": [
+                      "FLOAT",
+                      {
+                        "tooltip": "Per-person desaturation: track k blends toward white by 1 - falloff^k. Track 0 stays vivid; 1.0 disables falloff.",
+                        "default": 0.6,
+                        "min": 0.1,
+                        "max": 1,
+                        "step": 0.05
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "background": [
+          "IMAGE",
+          {
+            "tooltip": "Per-frame background. Omitted = black canvas."
+          }
+        ],
+        "camera_info": [
+          "LOAD3D_CAMERA",
+          {
+            "tooltip": "Free 6DOF camera override. When wired, the pose is re-projected through this camera (position/target/zoom/rotation/FoV) instead of the predicted one. "
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "pose_data",
+        "width",
+        "height",
+        "render_style"
+      ],
+      "optional": [
+        "background",
+        "camera_info"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "image"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "SAM3DBody_Render",
+    "display_name": "Render 3D Body Pose",
+    "description": "",
+    "python_module": "comfy_extras.nodes_sam3d_body",
+    "category": "image/detection",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "Render SAM3D Body",
+      "sam3d render",
+      "kimodo render"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SAM3DBody_Smooth": {
+    "input": {
+      "required": {
+        "mhr_pose_data": [
+          "MHR_POSE_DATA",
+          {}
+        ],
+        "strength": [
+          "FLOAT",
+          {
+            "tooltip": "Smoothing strength. 0 = raw, 1 = smoothed.",
+            "default": 1,
+            "min": 0,
+            "max": 1,
+            "step": 0.05
+          }
+        ],
+        "method": [
+          "COMBO",
+          {
+            "tooltip": "gaussian: symmetric weighted average, best general-purpose smoother.\nsavgol: sliding polynomial fit, preserves sharp peaks.",
+            "default": "savgol",
+            "multiselect": false,
+            "options": [
+              "gaussian",
+              "savgol"
+            ]
+          }
+        ],
+        "window": [
+          "INT",
+          {
+            "tooltip": "Temporal window in frames (odd values).",
+            "advanced": true,
+            "default": 7,
+            "min": 1,
+            "max": 51,
+            "step": 2
+          }
+        ],
+        "rotation_threshold_degrees": [
+          "FLOAT",
+          {
+            "tooltip": "Disables smoothing for this root rotation rate (degree/frame) to preserve fast spins. 30° suits most content, low values might disable smoothing on ordinary jitter and silently impacts quality. 0 = disable.",
+            "advanced": true,
+            "default": 30,
+            "min": 0,
+            "max": 90,
+            "step": 1
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "mhr_pose_data",
+        "strength",
+        "method",
+        "window",
+        "rotation_threshold_degrees"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MHR_POSE_DATA"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "mhr_pose_data"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "SAM3DBody_Smooth",
+    "display_name": "Smooth SAM3D Body Pose Data",
+    "description": "Reduce frame-to-frame jitter via temporal smoothing.",
+    "python_module": "comfy_extras.nodes_sam3d_body",
+    "category": "image/detection",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
   "SAM3_Detect": {
     "input": {
       "required": {
@@ -22933,7 +24513,9 @@
       "required": {
         "model_name": [
           [
-            "sam_vit_b_01ec64.pth"
+            "sam_vit_b_01ec64.pth",
+            "sam_vit_h_4b8939.pth",
+            "sam_vit_l_0b3195.pth"
           ],
           {
             "tooltip": "The detection accuracy varies depending on the SAM model. ESAM can only be used if ComfyUI-YoloWorld-EfficientSAM is installed."
@@ -23348,8 +24930,7 @@
         "filename_prefix": [
           "STRING",
           {
-            "default": "ComfyUI",
-            "multiline": false
+            "default": "ComfyUI"
           }
         ],
         "fps": [
@@ -23378,7 +24959,6 @@
         "method": [
           "COMBO",
           {
-            "multiselect": false,
             "options": [
               "default",
               "fastest",
@@ -23388,12 +24968,8 @@
         ]
       },
       "hidden": {
-        "prompt": [
-          "PROMPT"
-        ],
-        "extra_pnginfo": [
-          "EXTRA_PNGINFO"
-        ]
+        "prompt": "PROMPT",
+        "extra_pnginfo": "EXTRA_PNGINFO"
       }
     },
     "input_order": {
@@ -23420,24 +24996,12 @@
     "output_name": [
       "images"
     ],
-    "output_tooltips": [
-      null
-    ],
-    "output_matchtypes": null,
     "name": "SaveAnimatedWEBP",
     "display_name": "Save Animated WEBP",
     "description": "",
     "python_module": "comfy_extras.nodes_images",
     "category": "image",
-    "output_node": true,
-    "deprecated": false,
-    "experimental": false,
-    "dev_only": false,
-    "api_node": false,
-    "price_badge": null,
-    "search_aliases": null,
-    "essentials_category": null,
-    "has_intermediate_output": false
+    "output_node": true
   },
   "SaveAudio": {
     "input": {
@@ -23901,15 +25465,14 @@
                     "input_color_space": [
                       "COMBO",
                       {
-                        "tooltip": "Colorspace of the input tensor. The EXR is always written as scene-linear in the matching gamut.\nsRGB — input is sRGB-encoded Rec.709; the inverse sRGB EOTF is applied.\nHDR — input is HLG-encoded Rec.2020 (BT.2100); the inverse HLG OETF is applied to get scene-linear light.\nlinear — input is already scene-linear (Rec.709 primaries); written through unchanged. Use this for renderer/compositor output.\nlinear ACEScg — input is already scene-linear ACEScg (AP1 / D60); written through unchanged with ACEScg chromaticities.",
+                        "tooltip": "Colorspace of the input tensor. The EXR is always written as scene-linear in the matching gamut.\nsRGB — input is sRGB-encoded Rec.709; the inverse sRGB EOTF is applied.\nHDR — input is HLG-encoded Rec.2020 (BT.2100); the inverse HLG OETF is applied to get scene-linear light.\nlinear — input is already scene-linear (Rec.709 primaries); written through unchanged. Use this for renderer/compositor output.",
                         "advanced": true,
                         "default": "sRGB",
                         "multiselect": false,
                         "options": [
                           "sRGB",
                           "HDR",
-                          "linear",
-                          "linear ACEScg"
+                          "linear"
                         ]
                       }
                     ]
@@ -24060,7 +25623,6 @@
     "essentials_category": "Basics",
     "has_intermediate_output": false
   },
-  "SaveImageFuobeLive": null,
   "SaveSVGNode": {
     "input": {
       "required": {
@@ -24912,310 +26474,6 @@
     "essentials_category": null,
     "has_intermediate_output": false
   },
-  "SeedVR2LoadDiTModel": {
-    "input": {
-      "required": {
-        "model": [
-          "COMBO",
-          {
-            "tooltip": "DiT (Diffusion Transformer) model for video upscaling.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
-            "default": "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
-            "multiselect": false,
-            "options": [
-              "seedvr2_ema_3b-Q4_K_M.gguf",
-              "seedvr2_ema_3b-Q8_0.gguf",
-              "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
-              "seedvr2_ema_3b_fp16.safetensors",
-              "seedvr2_ema_7b-Q4_K_M.gguf",
-              "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
-              "seedvr2_ema_7b_fp16.safetensors",
-              "seedvr2_ema_7b_sharp-Q4_K_M.gguf",
-              "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors",
-              "seedvr2_ema_7b_sharp_fp16.safetensors"
-            ]
-          }
-        ],
-        "device": [
-          "COMBO",
-          {
-            "tooltip": "GPU device for DiT model inference (upscaling phase)",
-            "default": "cuda:0",
-            "multiselect": false,
-            "options": [
-              "cuda:0"
-            ]
-          }
-        ]
-      },
-      "optional": {
-        "blocks_to_swap": [
-          "INT",
-          {
-            "tooltip": "Number of transformer blocks to swap between devices for VRAM optimization.\n• 0: Disabled (default)\n• 3B model: 0-32 blocks\n• 7B model: 0-36 blocks\n\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
-            "default": 0,
-            "min": 0,
-            "max": 36,
-            "step": 1
-          }
-        ],
-        "swap_io_components": [
-          "BOOLEAN",
-          {
-            "tooltip": "Offload input/output embeddings and normalization layers to reduce VRAM.\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
-            "default": false
-          }
-        ],
-        "offload_device": [
-          "COMBO",
-          {
-            "tooltip": "Device to offload DiT model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)\n\nRequired for BlockSwap (blocks_to_swap or swap_io_components).",
-            "default": "none",
-            "multiselect": false,
-            "options": [
-              "none",
-              "cpu",
-              "cuda:0"
-            ]
-          }
-        ],
-        "cache_model": [
-          "BOOLEAN",
-          {
-            "tooltip": "Keep DiT model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
-            "default": false
-          }
-        ],
-        "attention_mode": [
-          "COMBO",
-          {
-            "tooltip": "Attention computation backend:\n• sdpa: PyTorch scaled_dot_product_attention (default, stable, always available)\n• flash_attn_2: Flash Attention 2 (Ampere+, requires flash-attn package)\n• flash_attn_3: Flash Attention 3 (Hopper+, requires flash-attn with FA3 support)\n• sageattn_2: SageAttention 2 (requires sageattention package)\n• sageattn_3: SageAttention 3 (Blackwell/RTX 50xx only, requires sageattn3 package)\n\nSDPA is recommended - stable and works everywhere.\nFlash Attention and SageAttention provide speedup through optimized CUDA kernels on compatible GPUs.",
-            "default": "sdpa",
-            "multiselect": false,
-            "options": [
-              "sdpa",
-              "flash_attn_2",
-              "flash_attn_3",
-              "sageattn_2",
-              "sageattn_3"
-            ]
-          }
-        ],
-        "torch_compile_args": [
-          "TORCH_COMPILE_ARGS",
-          {
-            "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 20-40% speedup with compatible PyTorch 2.0+ and Triton installation."
-          }
-        ]
-      }
-    },
-    "input_order": {
-      "required": [
-        "model",
-        "device"
-      ],
-      "optional": [
-        "blocks_to_swap",
-        "swap_io_components",
-        "offload_device",
-        "cache_model",
-        "attention_mode",
-        "torch_compile_args"
-      ]
-    },
-    "is_input_list": false,
-    "output": [
-      "SEEDVR2_DIT"
-    ],
-    "output_is_list": [
-      false
-    ],
-    "output_name": [
-      "SEEDVR2_DIT"
-    ],
-    "output_tooltips": [
-      "DiT model configuration containing model path, device settings, BlockSwap parameters, and compilation options. Connect to Video Upscaler node."
-    ],
-    "output_matchtypes": null,
-    "name": "SeedVR2LoadDiTModel",
-    "display_name": "SeedVR2 (Down)Load DiT Model",
-    "description": "Load and configure SeedVR2 DiT (Diffusion Transformer) model for video upscaling. Supports BlockSwap memory optimization for low VRAM systems, model caching for batch processing, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
-    "python_module": "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler",
-    "category": "SEEDVR2",
-    "output_node": false,
-    "deprecated": false,
-    "experimental": false,
-    "dev_only": false,
-    "api_node": false,
-    "price_badge": null,
-    "search_aliases": null,
-    "essentials_category": null,
-    "has_intermediate_output": false
-  },
-  "SeedVR2LoadVAEModel": {
-    "input": {
-      "required": {
-        "model": [
-          "COMBO",
-          {
-            "tooltip": "VAE (Variational Autoencoder) model for encoding/decoding.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
-            "default": "ema_vae_fp16.safetensors",
-            "multiselect": false,
-            "options": [
-              "ema_vae_fp16.safetensors"
-            ]
-          }
-        ],
-        "device": [
-          "COMBO",
-          {
-            "tooltip": "GPU device for VAE model inference (encoding/decoding phases)",
-            "default": "cuda:0",
-            "multiselect": false,
-            "options": [
-              "cuda:0"
-            ]
-          }
-        ]
-      },
-      "optional": {
-        "encode_tiled": [
-          "BOOLEAN",
-          {
-            "tooltip": "Enable tiled encoding to reduce VRAM usage during the encoding phase",
-            "default": false
-          }
-        ],
-        "encode_tile_size": [
-          "INT",
-          {
-            "tooltip": "Encoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when encode_tiled is enabled.",
-            "default": 1024,
-            "min": 64,
-            "step": 32
-          }
-        ],
-        "encode_tile_overlap": [
-          "INT",
-          {
-            "tooltip": "Pixel overlap between encoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when encode_tiled is enabled.",
-            "default": 128,
-            "min": 0,
-            "step": 32
-          }
-        ],
-        "decode_tiled": [
-          "BOOLEAN",
-          {
-            "tooltip": "Enable tiled decoding to reduce VRAM usage during the decoding phase",
-            "default": false
-          }
-        ],
-        "decode_tile_size": [
-          "INT",
-          {
-            "tooltip": "Decoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when decode_tiled is enabled.",
-            "default": 1024,
-            "min": 64,
-            "step": 32
-          }
-        ],
-        "decode_tile_overlap": [
-          "INT",
-          {
-            "tooltip": "Pixel overlap between decoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when decode_tiled is enabled.",
-            "default": 128,
-            "min": 0,
-            "step": 32
-          }
-        ],
-        "tile_debug": [
-          "COMBO",
-          {
-            "tooltip": "Tile debug visualization mode:\n• 'false': No visualization overlay (default)\n• 'encode': Show encoding tile boundaries\n• 'decode': Show decoding tile boundaries\n\nOnly works when respective tiling is enabled.",
-            "default": "false",
-            "multiselect": false,
-            "options": [
-              "false",
-              "encode",
-              "decode"
-            ]
-          }
-        ],
-        "offload_device": [
-          "COMBO",
-          {
-            "tooltip": "Device to offload VAE model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)",
-            "default": "none",
-            "multiselect": false,
-            "options": [
-              "none",
-              "cpu",
-              "cuda:0"
-            ]
-          }
-        ],
-        "cache_model": [
-          "BOOLEAN",
-          {
-            "tooltip": "Keep VAE model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
-            "default": false
-          }
-        ],
-        "torch_compile_args": [
-          "TORCH_COMPILE_ARGS",
-          {
-            "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 15-25% speedup with compatible PyTorch 2.0+ and Triton installation."
-          }
-        ]
-      }
-    },
-    "input_order": {
-      "required": [
-        "model",
-        "device"
-      ],
-      "optional": [
-        "encode_tiled",
-        "encode_tile_size",
-        "encode_tile_overlap",
-        "decode_tiled",
-        "decode_tile_size",
-        "decode_tile_overlap",
-        "tile_debug",
-        "offload_device",
-        "cache_model",
-        "torch_compile_args"
-      ]
-    },
-    "is_input_list": false,
-    "output": [
-      "SEEDVR2_VAE"
-    ],
-    "output_is_list": [
-      false
-    ],
-    "output_name": [
-      "SEEDVR2_VAE"
-    ],
-    "output_tooltips": [
-      "VAE model configuration containing model path, device settings, tiling parameters, and compilation options. Connect to Video Upscaler node."
-    ],
-    "output_matchtypes": null,
-    "name": "SeedVR2LoadVAEModel",
-    "display_name": "SeedVR2 (Down)Load VAE Model",
-    "description": "Load and configure SeedVR2 VAE (Variational Autoencoder) for encoding/decoding video frames to/from latent space. Supports tiled processing to handle high resolutions on limited VRAM, model caching, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
-    "python_module": "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler",
-    "category": "SEEDVR2",
-    "output_node": false,
-    "deprecated": false,
-    "experimental": false,
-    "dev_only": false,
-    "api_node": false,
-    "price_badge": null,
-    "search_aliases": null,
-    "essentials_category": null,
-    "has_intermediate_output": false
-  },
   "SeedVR2PostProcessing": {
     "input": {
       "required": {
@@ -25337,204 +26595,6 @@
       "pad",
       "preprocess"
     ],
-    "essentials_category": null,
-    "has_intermediate_output": false
-  },
-  "SeedVR2VideoUpscaler": {
-    "input": {
-      "required": {
-        "image": [
-          "IMAGE",
-          {
-            "tooltip": "Input video frames as image batch.\nAccepts both RGB (3-channel) and RGBA (4-channel) formats.\nOutput format will match input format."
-          }
-        ],
-        "dit": [
-          "SEEDVR2_DIT",
-          {
-            "tooltip": "DiT model configuration from SeedVR2 (Down)Load DiT Model node"
-          }
-        ],
-        "vae": [
-          "SEEDVR2_VAE",
-          {
-            "tooltip": "VAE model configuration from SeedVR2 (Down)Load VAE Model node"
-          }
-        ],
-        "seed": [
-          "INT",
-          {
-            "tooltip": "Random seed for reproducible generation (default: 42).\nSame seed with same inputs produces identical output.",
-            "default": 42,
-            "min": 0,
-            "max": 4294967295,
-            "step": 1
-          }
-        ],
-        "resolution": [
-          "INT",
-          {
-            "tooltip": "Target resolution for the shortest edge in pixels (default: 1080).\nAutomatically maintains aspect ratio of input.\nEven values required for optimal processing.",
-            "default": 1080,
-            "min": 16,
-            "max": 16384,
-            "step": 2
-          }
-        ],
-        "max_resolution": [
-          "INT",
-          {
-            "tooltip": "Maximum resolution limit for any dimension (default: 0, no limit).\nIf any edge exceeds this after applying resolution,\nboth dimensions are scaled down proportionally.\nUseful to prevent excessive VRAM usage on extreme aspect ratios.",
-            "default": 0,
-            "min": 0,
-            "max": 16384,
-            "step": 2
-          }
-        ],
-        "batch_size": [
-          "INT",
-          {
-            "tooltip": "Number of frames processed together per batch (default: 5).\nMust follow pattern 4n+1: 1, 5, 9, 13, 17, 21, ...\n\n• Higher values: Better temporal consistency and faster processing\n• Lower values: Reduced VRAM usage\n\nIdeally match to shot length for best quality.",
-            "default": 5,
-            "min": 1,
-            "max": 16384,
-            "step": 4
-          }
-        ],
-        "uniform_batch_size": [
-          "BOOLEAN",
-          {
-            "tooltip": "Pad final batch to match batch_size (default: False).\nPrevents temporal artifacts caused by small final batch.\nAdd extra compute but recommended for optimal quality.",
-            "default": false
-          }
-        ],
-        "color_correction": [
-          "COMBO",
-          {
-            "tooltip": "Corrects color shifts in upscaled output to match original input (default: lab).\nThe upscaling process may alter colors; this applies color grading to restore them.\n\n• lab: Perceptual color matching with detail preservation (recommended)\n• wavelet: Frequency-based natural colors, preserves fine details\n• wavelet_adaptive: Wavelet base with targeted saturation correction\n• hsv: Hue-conditional saturation matching\n• adain: Statistical style transfer approach\n• none: No color correction applied",
-            "default": "lab",
-            "multiselect": false,
-            "options": [
-              "lab",
-              "wavelet",
-              "wavelet_adaptive",
-              "hsv",
-              "adain",
-              "none"
-            ]
-          }
-        ]
-      },
-      "optional": {
-        "temporal_overlap": [
-          "INT",
-          {
-            "tooltip": "Overlapping frames between consecutive batches (default: 0, disabled).\nImproves temporal consistency across batch boundaries through blending.\nValues 1-4 work well for most content.",
-            "default": 0,
-            "min": 0,
-            "max": 16,
-            "step": 1
-          }
-        ],
-        "prepend_frames": [
-          "INT",
-          {
-            "tooltip": "Number of frames to prepend (reversed from start) before processing (default: 0).\nHelps reduce artifacts at video beginning.\nPrepended frames are automatically removed from final output.",
-            "default": 0,
-            "min": 0,
-            "max": 32,
-            "step": 1
-          }
-        ],
-        "input_noise_scale": [
-          "FLOAT",
-          {
-            "tooltip": "Input noise injection scale (default: 0.0, disabled).\nAdds controlled variation to input images before encoding.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan help with certain types of artifacts.",
-            "default": 0,
-            "min": 0,
-            "max": 1,
-            "step": 0.001
-          }
-        ],
-        "latent_noise_scale": [
-          "FLOAT",
-          {
-            "tooltip": "Latent space noise injection scale (default: 0.0, disabled).\nAdds controlled variation during the diffusion process.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan soften details if input_noise_scale doesn't help.",
-            "default": 0,
-            "min": 0,
-            "max": 1,
-            "step": 0.001
-          }
-        ],
-        "offload_device": [
-          "COMBO",
-          {
-            "tooltip": "Device for storing intermediate tensors between processing phases (default: cpu).\n• 'none': Keep all tensors on inference device (fastest but highest VRAM usage)\n• 'cpu': Offload to system RAM (recommended for long videos, slower transfers)\n• 'cuda:X': Offload to another GPU (good balance if available, faster than CPU)",
-            "default": "cpu",
-            "multiselect": false,
-            "options": [
-              "none",
-              "cpu",
-              "cuda:0"
-            ]
-          }
-        ],
-        "enable_debug": [
-          "BOOLEAN",
-          {
-            "tooltip": "Enable detailed debug logging (default: False).\nShows memory usage, timing information, and processing details.\nUseful for troubleshooting errors and performance issues.",
-            "default": false
-          }
-        ]
-      }
-    },
-    "input_order": {
-      "required": [
-        "image",
-        "dit",
-        "vae",
-        "seed",
-        "resolution",
-        "max_resolution",
-        "batch_size",
-        "uniform_batch_size",
-        "color_correction"
-      ],
-      "optional": [
-        "temporal_overlap",
-        "prepend_frames",
-        "input_noise_scale",
-        "latent_noise_scale",
-        "offload_device",
-        "enable_debug"
-      ]
-    },
-    "is_input_list": false,
-    "output": [
-      "IMAGE"
-    ],
-    "output_is_list": [
-      false
-    ],
-    "output_name": [
-      "IMAGE"
-    ],
-    "output_tooltips": [
-      "Upscaled video frames with color correction applied. Format (RGB/RGBA) matches input. Range [0, 1] normalized for ComfyUI compatibility."
-    ],
-    "output_matchtypes": null,
-    "name": "SeedVR2VideoUpscaler",
-    "display_name": "SeedVR2 Video Upscaler (v2.5.24)",
-    "description": "SeedVR2 main upscaling node: processes video frames using DiT and VAE models with diffusion-based enhancement. Handles RGB/RGBA formats, maintains temporal consistency across frames, applies color correction, and manages VRAM through intelligent tensor offloading. \n\nRequires DiT and VAE model configurations.",
-    "python_module": "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler",
-    "category": "SEEDVR2",
-    "output_node": false,
-    "deprecated": false,
-    "experimental": false,
-    "dev_only": false,
-    "api_node": false,
-    "price_badge": null,
-    "search_aliases": null,
     "essentials_category": null,
     "has_intermediate_output": false
   },
@@ -27043,7 +28103,7 @@
         "negative_prompt": [
           "STRING",
           {
-            "tooltip": "Empty is the null caption Fibo 2.0 was trained with for CFG with edit workflows.",
+            "tooltip": "Empty is the null caption Fibo 2.0 was trained with for classifier-free guidance.",
             "advanced": true,
             "multiline": true
           }
@@ -27407,7 +28467,7 @@
                         "default": 0.7,
                         "min": 0.01,
                         "max": 2,
-                        "step": 0.000001
+                        "step": 1e-06
                       }
                     ],
                     "top_k": [
@@ -27510,7 +28570,7 @@
         "mtp": [
           "COMBO",
           {
-            "tooltip": "Speculative decoding with the checkpoint's multi-token-prediction head. No effect without MTP weights. auto adapts the draft depth and breadth to observed token matches and execution cost; 2-5 pins a constant draft depth; tree modes pin both breadth and depth. Sampled output stays correctly distributed but differs from non-MTP output for the same seed.",
+            "tooltip": "Speculative decoding with the checkpoint's multi-token-prediction head. No effect without MTP weights. auto adapts the draft depth; 2-5 pins it. Sampled output stays correctly distributed but differs from non-MTP output for the same seed.",
             "default": "auto",
             "multiselect": false,
             "options": [
@@ -27519,11 +28579,7 @@
               "2",
               "3",
               "4",
-              "5",
-              "tree2s1",
-              "tree2s2",
-              "tree3s1",
-              "tree4s1m8"
+              "5"
             ]
           }
         ],
@@ -28519,28 +29575,7 @@
     "input": {
       "required": {
         "unet_name": [
-          [
-            "10Eros_v1.4_Bob_DMD_INT8_Convrot.safetensors",
-            "Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors",
-            "acestep_v1.5_turbo.safetensors",
-            "drama3_w4a8experts_bf16.safetensors",
-            "ideogram4_int8_convrot.safetensors",
-            "ideogram4_unconditional_int8_convrot.safetensors",
-            "krea2_turbo_convrot_int4_fast.safetensors",
-            "krea2_turbo_int8_convrot.safetensors",
-            "ltx-2.3-22b-distilled-1.1_transformer_only_int8_convrot.safetensors",
-            "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
-            "ltx-2.5-22b-distilled-transformer-nvfp4.safetensors",
-            "minimax_h3_fl2v_turbo_silver_dareties_comfy_pruned_v1.safetensors",
-            "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-            "minimax_h3_fl2va_pruned_nvfp4.safetensors",
-            "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-            "minimax_h3_ref2va_pruned_nvfp4.safetensors",
-            "minimax_music3_dit_int8_convrot.safetensors",
-            "moss_image_sft_int8_convrot.safetensors",
-            "qwen_edit_2511_int4_tensorwise_mixed.safetensors",
-            "qwen_image_edit_2511_int8_convrot.safetensors"
-          ]
+          []
         ],
         "weight_dtype": [
           [
@@ -28621,44 +29656,17 @@
     "experimental": true,
     "search_aliases": []
   },
-  "UnifiedModelLoader": {
+  "UnetLoaderGGUF": {
     "input": {
       "required": {
-        "model_name": [
-          [
-            "10Eros_v1.4_Bob_DMD_INT8_Convrot.safetensors",
-            "FireRed-Image-Edit-1.1-Q4_K_M.gguf",
-            "LTX-2.5-Distilled-Q3_K_M.gguf",
-            "MiniMax-H3-FL2VA-Pruned-Q4_K_M.gguf",
-            "MiniMax-H3-Ref2VA-Pruned-Q4_K_M.gguf",
-            "Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors",
-            "acestep_v1.5_turbo.safetensors",
-            "drama3_w4a8experts_bf16.safetensors",
-            "ideogram4_int8_convrot.safetensors",
-            "ideogram4_unconditional_int8_convrot.safetensors",
-            "krea2_turbo-Q4_K_M.gguf",
-            "krea2_turbo_convrot_int4_fast.safetensors",
-            "krea2_turbo_int8_convrot.safetensors",
-            "ltx-2.3-22b-distilled-1.1_transformer_only_int8_convrot.safetensors",
-            "ltx-2.3-22b-distilled-UD-Q4_K_M.gguf",
-            "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
-            "ltx-2.5-22b-distilled-transformer-nvfp4.safetensors",
-            "minimax_h3_fl2v_turbo_silver_dareties_comfy_pruned_v1.safetensors",
-            "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-            "minimax_h3_fl2va_pruned_nvfp4.safetensors",
-            "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-            "minimax_h3_ref2va_pruned_nvfp4.safetensors",
-            "minimax_music3_dit_int8_convrot.safetensors",
-            "moss_image_sft_int8_convrot.safetensors",
-            "qwen_edit_2511_int4_tensorwise_mixed.safetensors",
-            "qwen_image_edit_2511_int8_convrot.safetensors"
-          ]
+        "unet_name": [
+          []
         ]
       }
     },
     "input_order": {
       "required": [
-        "model_name"
+        "unet_name"
       ]
     },
     "is_input_list": false,
@@ -28669,13 +29677,13 @@
       false
     ],
     "output_name": [
-      "model"
+      "MODEL"
     ],
-    "name": "UnifiedModelLoader",
-    "display_name": "Load Diffusion Model (Unified Router)",
-    "description": "Single entry for Krea2 Turbo: pick one file (model_name). Routes by extension/comfy_quant -> GGUF loader (.gguf), INT4 ConvRot loader (convrot_w4a4 .safetensors), or W8A8 loader (int8_tensorwise .safetensors). Delegates to existing loaders.",
-    "python_module": "custom_nodes.krea2-model-router",
-    "category": "loaders",
+    "name": "UnetLoaderGGUF",
+    "display_name": "Unet Loader (GGUF)",
+    "description": "",
+    "python_module": "custom_nodes.ComfyUI-GGUF",
+    "category": "bootleg",
     "output_node": false,
     "has_intermediate_output": false,
     "search_aliases": []
@@ -29340,32 +30348,6 @@
       "required": {
         "vae_name": [
           [
-            "LTX23_audio_vae_bf16.safetensors",
-            "LTX23_video_vae_bf16.safetensors",
-            "Wan2_1_VAE_fp32.safetensors",
-            "ace_1.5_vae.safetensors",
-            "drama3_codec.safetensors",
-            "flux2-vae.safetensors",
-            "flux2-vae_small.safetensors",
-            "krea2RealVae_v10.safetensors",
-            "ltx-2.5-audio-vae-bf16.safetensors",
-            "ltx-2.5-video-vae-bf16.safetensors",
-            "ltx-2.5-video-vae-conv-bf16.safetensors",
-            "minimax_h3_audio_vae_fp32.safetensors",
-            "minimax_h3_video_vae_fp16.safetensors",
-            "minimax_h3_video_vae_int8_convrot.safetensors",
-            "minimax_music3_dav.safetensors",
-            "pruna_ltx2.3_vae_comfy_bf16.safetensors",
-            "qwen_image_vae.safetensors",
-            "taeh3.safetensors",
-            "taeltx2_3.safetensors",
-            "wan_2.1_vae.safetensors",
-            "taeh3.safetensors",
-            "taesdxl",
-            "taesd3",
-            "taef1",
-            "taesd",
-            "taef2",
             "pixel_space"
           ]
         ]
@@ -29585,7 +30567,8 @@
             "LTXV",
             "Hunyuan",
             "Cosmos",
-            "Wan"
+            "Wan",
+            "H3"
           ],
           {
             "default": "AnimateDiff",
@@ -29664,6 +30647,19 @@
                   4,
                   1
                 ]
+              },
+              "H3": {
+                "target_rate": 24,
+                "dim": [
+                  32,
+                  0,
+                  1344,
+                  768
+                ],
+                "frames": [
+                  17,
+                  5
+                ]
               }
             }
           }
@@ -29716,6 +30712,228 @@
     "name": "VHS_LoadVideo",
     "display_name": "Load Video (Upload) 🎥🅥🅗🅢",
     "description": "Load Video 🎥🅥🅗🅢<div style=\"font-size: 0.8em\"><div id=VHS_shortdesc>Loads a video from the input folder</div></div><div style=\"font-size: 0.8em\"><div vhs_title=\"Inputs\" style=\"display: flex; font-size: 0.8em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">Inputs: <div vhs_title=\"meta_batch\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">meta_batch: (optional) Connect to a Meta Batch manager to divide extremely long sequences into sub batches. See the documentation for Meta Batch Manager</div></div><div vhs_title=\"vae\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">vae: (optional) If provided the node will output latents instead of images. This drastically reduces the required RAM (not VRAM) when working with long (100+ frames) sequences<div style=\"font-size: 1em\">Using this is strongly encouraged unless connecting to a node that requires a blue image connection such as Apply Controllnet</div></div></div></div></div><div vhs_title=\"Outputs\" style=\"display: flex; font-size: 0.8em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">Outputs: <div vhs_title=\"IMAGE\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">IMAGE: The loaded images</div></div><div vhs_title=\"frame_count\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">frame_count: The length of images just returned</div></div><div vhs_title=\"audio\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">audio: The audio from the loaded video</div></div><div vhs_title=\"video_info\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">video_info: Exposes additional info about the video such as the source frame rate, or the total length</div></div><div vhs_title=\"LATENT\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">LATENT: The loaded images pre-converted to latents. Only available when a vae is connected</div></div></div></div><div vhs_title=\"Widgets\" style=\"display: flex; font-size: 0.8em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">Widgets: <div vhs_title=\"video\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">video: The video file to be loaded. Lists all files with a video extension in the ComfyUI/Input folder</div></div><div vhs_title=\"force_rate\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">force_rate: Drops or duplicates frames so that the produced output has the target frame rate. Many motion models are trained on videos of a specific frame rate and will give better results if input matches that frame rate. If set to 0, all frames are returned. May give unusual results with inputs that have a variable frame rate like animated gifs. Reducing this value can also greatly reduce the execution time and memory requirements.</div></div><div vhs_title=\"force_size\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">force_size: Previously was used to provide suggested resolutions. Instead, custom_width and custom_height can be disabled by setting to 0.</div></div><div vhs_title=\"custom_width\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">custom_width: Allows for an arbitrary width to be entered, cropping to maintain aspect ratio if both are set</div></div><div vhs_title=\"custom_height\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">custom_height: Allows for an arbitrary height to be entered, cropping to maintain aspect ratio if both are set</div></div><div vhs_title=\"frame_load_cap\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">frame_load_cap: The maximum number of frames to load. If 0, all frames are loaded.</div></div><div vhs_title=\"skip_first_frames\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">skip_first_frames: A number of frames which are discarded before producing output.</div></div><div vhs_title=\"select_every_nth\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">select_every_nth: Similar to frame rate. Keeps only the first of every n frames and discard the rest. Has better compatibility with variable frame rate inputs such as gifs. When combined with force_rate, select_every_nth_applies after force_rate so the resulting output has a frame rate equivalent to force_rate/select_every_nth. select_every_nth does not apply to skip_first_frames</div></div><div vhs_title=\"format\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">format: Updates other widgets so that only values supported by the given format can be entered and provides recommended defaults.</div></div><div vhs_title=\"choose video to upload\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">choose video to upload: An upload button is provided to upload local files to the input folder</div></div><div vhs_title=\"videopreview\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">videopreview: Displays a preview for the selected video input. If advanced previews is enabled, this preview will reflect the frame_load_cap, force_rate, skip_first_frames, and select_every_nth values chosen. If the video has audio, it will also be previewed when moused over. Additional preview options can be accessed with right click.</div></div></div></div></div>",
+    "python_module": "custom_nodes.ComfyUI-VideoHelperSuite",
+    "category": "Video Helper Suite 🎥🅥🅗🅢",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "VHS_LoadVideoFFmpeg": {
+    "input": {
+      "required": {
+        "video": [
+          [
+            "fuobe_validate.mp4"
+          ]
+        ],
+        "force_rate": [
+          "FLOAT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 60,
+            "step": 1,
+            "disable": 0
+          }
+        ],
+        "custom_width": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 8192,
+            "disable": 0
+          }
+        ],
+        "custom_height": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 8192,
+            "disable": 0
+          }
+        ],
+        "frame_load_cap": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 9007199254740991,
+            "step": 1,
+            "disable": 0
+          }
+        ],
+        "start_time": [
+          "FLOAT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 9007199254740991,
+            "step": 0.001,
+            "widgetType": "VHSTIMESTAMP"
+          }
+        ]
+      },
+      "optional": {
+        "meta_batch": [
+          "VHS_BatchManager"
+        ],
+        "vae": [
+          "VAE"
+        ],
+        "format": [
+          [
+            "None",
+            "AnimateDiff",
+            "Mochi",
+            "LTXV",
+            "Hunyuan",
+            "Cosmos",
+            "Wan",
+            "H3"
+          ],
+          {
+            "default": "AnimateDiff",
+            "formats": {
+              "None": {},
+              "AnimateDiff": {
+                "target_rate": 8,
+                "dim": [
+                  8,
+                  0,
+                  512,
+                  512
+                ]
+              },
+              "Mochi": {
+                "target_rate": 24,
+                "dim": [
+                  16,
+                  0,
+                  848,
+                  480
+                ],
+                "frames": [
+                  6,
+                  1
+                ]
+              },
+              "LTXV": {
+                "target_rate": 24,
+                "dim": [
+                  32,
+                  0,
+                  768,
+                  512
+                ],
+                "frames": [
+                  8,
+                  1
+                ]
+              },
+              "Hunyuan": {
+                "target_rate": 24,
+                "dim": [
+                  16,
+                  0,
+                  848,
+                  480
+                ],
+                "frames": [
+                  4,
+                  1
+                ]
+              },
+              "Cosmos": {
+                "target_rate": 24,
+                "dim": [
+                  16,
+                  0,
+                  1280,
+                  704
+                ],
+                "frames": [
+                  8,
+                  1
+                ]
+              },
+              "Wan": {
+                "target_rate": 16,
+                "dim": [
+                  8,
+                  0,
+                  832,
+                  480
+                ],
+                "frames": [
+                  4,
+                  1
+                ]
+              },
+              "H3": {
+                "target_rate": 24,
+                "dim": [
+                  32,
+                  0,
+                  1344,
+                  768
+                ],
+                "frames": [
+                  17,
+                  5
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "hidden": {
+        "force_size": "STRING",
+        "unique_id": "UNIQUE_ID"
+      }
+    },
+    "input_order": {
+      "required": [
+        "video",
+        "force_rate",
+        "custom_width",
+        "custom_height",
+        "frame_load_cap",
+        "start_time"
+      ],
+      "optional": [
+        "meta_batch",
+        "vae",
+        "format"
+      ],
+      "hidden": [
+        "force_size",
+        "unique_id"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE",
+      "MASK",
+      "AUDIO",
+      "VHS_VIDEOINFO"
+    ],
+    "output_is_list": [
+      false,
+      false,
+      false,
+      false
+    ],
+    "output_name": [
+      "IMAGE",
+      "mask",
+      "audio",
+      "video_info"
+    ],
+    "name": "VHS_LoadVideoFFmpeg",
+    "display_name": "Load Video FFmpeg (Upload) 🎥🅥🅗🅢",
+    "description": "Load Video FFmpeg 🎥🅥🅗🅢<div style=\"font-size: 0.8em\"><div id=VHS_shortdesc>Loads a video from the input folder using ffmpeg instead of opencv</div></div><div style=\"font-size: 0.8em\">Provides faster execution speed, transparency support, and allows specifying start time in seconds</div><div style=\"font-size: 0.8em\"><div vhs_title=\"Inputs\" style=\"display: flex; font-size: 0.8em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">Inputs: <div vhs_title=\"meta_batch\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">meta_batch: (optional) Connect to a Meta Batch manager to divide extremely long sequences into sub batches. See the documentation for Meta Batch Manager</div></div><div vhs_title=\"vae\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">vae: (optional) If provided the node will output latents instead of images. This drastically reduces the required RAM (not VRAM) when working with long (100+ frames) sequences<div style=\"font-size: 1em\">Using this is strongly encouraged unless connecting to a node that requires a blue image connection such as Apply Controllnet</div></div></div></div></div><div vhs_title=\"Outputs\" style=\"display: flex; font-size: 0.8em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">Outputs: <div vhs_title=\"IMAGE\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">IMAGE: The loaded images</div></div><div vhs_title=\"mask\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">mask: Transparency data from the loaded video</div></div><div vhs_title=\"audio\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">audio: The audio from the loaded video</div></div><div vhs_title=\"video_info\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">video_info: Exposes additional info about the video such as the source frame rate, or the total length</div></div><div vhs_title=\"LATENT\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">LATENT: The loaded images pre-converted to latents. Only available when a vae is connected</div></div></div></div><div vhs_title=\"Widgets\" style=\"display: flex; font-size: 0.8em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">Widgets: <div vhs_title=\"video\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">video: The video file to be loaded. Lists all files with a video extension in the ComfyUI/Input folder</div></div><div vhs_title=\"force_rate\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">force_rate: Drops or duplicates frames so that the produced output has the target frame rate. Many motion models are trained on videos of a specific frame rate and will give better results if input matches that frame rate. If set to 0, all frames are returned. May give unusual results with inputs that have a variable frame rate like animated gifs. Reducing this value can also greatly reduce the execution time and memory requirements.</div></div><div vhs_title=\"force_size\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">force_size: Previously was used to provide suggested resolutions. Instead, custom_width and custom_height can be disabled by setting to 0.</div></div><div vhs_title=\"custom_width\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">custom_width: Allows for an arbitrary width to be entered, cropping to maintain aspect ratio if both are set</div></div><div vhs_title=\"custom_height\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">custom_height: Allows for an arbitrary height to be entered, cropping to maintain aspect ratio if both are set</div></div><div vhs_title=\"frame_load_cap\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">frame_load_cap: The maximum number of frames to load. If 0, all frames are loaded.</div></div><div vhs_title=\"start_time\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">start_time: A timestamp, in seconds from the start of the video, to start loading frames from. </div></div><div vhs_title=\"format\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">format: Updates other widgets so that only values supported by the given format can be entered and provides recommended defaults.</div></div><div vhs_title=\"choose video to upload\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">choose video to upload: An upload button is provided to upload local files to the input folder</div></div><div vhs_title=\"videopreview\" style=\"display: flex; font-size: 1em\" class=\"VHS_collapse\"><div style=\"color: #AAA; height: 1.5em;\">[<span style=\"font-family: monospace\">-</span>]</div><div style=\"width: 100%\">videopreview: Displays a preview for the selected video input. If advanced previews is enabled, this preview will reflect the frame_load_cap, force_rate, skip_first_frames, and select_every_nth values chosen. If the video has audio, it will also be previewed when moused over. Additional preview options can be accessed with right click.</div></div></div></div></div>",
     "python_module": "custom_nodes.ComfyUI-VideoHelperSuite",
     "category": "Video Helper Suite 🎥🅥🅗🅢",
     "output_node": false,
@@ -29810,39 +31028,49 @@
           [
             "image/gif",
             "image/webp",
-            "video/koolook-ASTRA-h264.json",
-            "video/koolook-ProRes.json",
-            "video/ffmpeg-gif",
-            "video/h265-mp4",
+            "video/ProRes",
+            "video/webm",
             "video/ffv1-mkv",
-            "video/nvenc_hevc-mp4",
             "video/nvenc_av1-mp4",
-            "video/nvenc_h264-mp4",
+            "video/h265-mp4",
             "video/8bit-png",
             "video/h264-mp4",
-            "video/webm",
-            "video/ProRes",
+            "video/nvenc_hevc-mp4",
+            "video/nvenc_h264-mp4",
+            "video/ffmpeg-gif",
             "video/av1-webm",
             "video/16bit-png"
           ],
           {
             "formats": {
-              "video/koolook-ASTRA-h264.json": [
+              "video/ProRes": [
+                [
+                  "profile",
+                  [
+                    "lt",
+                    "standard",
+                    "hq",
+                    "4444",
+                    "4444xq"
+                  ],
+                  {
+                    "default": "hq"
+                  }
+                ]
+              ],
+              "video/webm": [
                 [
                   "pix_fmt",
                   [
-                    "yuv420p10le",
-                    "yuv420p"
-                  ],
-                  {
-                    "default": "yuv420p10le"
-                  }
+                    "yuv420p",
+                    "yuva420p"
+                  ]
                 ],
                 [
                   "crf",
                   "INT",
                   {
-                    "default": 5,
+                    "default": 20,
                     "min": 0,
                     "max": 100,
                     "step": 1
@@ -29860,67 +31088,6 @@
                   "BOOLEAN",
                   {
                     "default": false
-                  }
-                ]
-              ],
-              "video/koolook-ProRes.json": [
-                [
-                  "profile",
-                  [
-                    "lt",
-                    "standard",
-                    "hq",
-                    "4444",
-                    "4444xq"
-                  ],
-                  {
-                    "default": "hq"
-                  }
-                ]
-              ],
-              "video/ffmpeg-gif": [
-                [
-                  "dither",
-                  [
-                    "bayer",
-                    "heckbert",
-                    "floyd_steinberg",
-                    "sierra2",
-                    "sierra2_4a",
-                    "sierra3",
-                    "burkes",
-                    "atkinson",
-                    "none"
-                  ],
-                  {
-                    "default": "sierra2_4a"
-                  },
-                  "[0:v] split [a][b]; [a] palettegen=reserve_transparent=on:transparency_color=ffffff [p]; [b][p] paletteuse=dither=$val"
-                ]
-              ],
-              "video/h265-mp4": [
-                [
-                  "pix_fmt",
-                  [
-                    "yuv420p10le",
-                    "yuv420p"
-                  ]
-                ],
-                [
-                  "crf",
-                  "INT",
-                  {
-                    "default": 22,
-                    "min": 0,
-                    "max": 100,
-                    "step": 1
-                  }
-                ],
-                [
-                  "save_metadata",
-                  "BOOLEAN",
-                  {
-                    "default": true
                   }
                 ]
               ],
@@ -30040,7 +31207,7 @@
                   }
                 ]
               ],
-              "video/nvenc_hevc-mp4": [
+              "video/nvenc_av1-mp4": [
                 [
                   "pix_fmt",
                   [
@@ -30073,7 +31240,66 @@
                   }
                 ]
               ],
-              "video/nvenc_av1-mp4": [
+              "video/h265-mp4": [
+                [
+                  "pix_fmt",
+                  [
+                    "yuv420p10le",
+                    "yuv420p"
+                  ]
+                ],
+                [
+                  "crf",
+                  "INT",
+                  {
+                    "default": 22,
+                    "min": 0,
+                    "max": 100,
+                    "step": 1
+                  }
+                ],
+                [
+                  "save_metadata",
+                  "BOOLEAN",
+                  {
+                    "default": true
+                  }
+                ]
+              ],
+              "video/h264-mp4": [
+                [
+                  "pix_fmt",
+                  [
+                    "yuv420p",
+                    "yuv420p10le"
+                  ]
+                ],
+                [
+                  "crf",
+                  "INT",
+                  {
+                    "default": 19,
+                    "min": 0,
+                    "max": 100,
+                    "step": 1
+                  }
+                ],
+                [
+                  "save_metadata",
+                  "BOOLEAN",
+                  {
+                    "default": true
+                  }
+                ],
+                [
+                  "trim_to_audio",
+                  "BOOLEAN",
+                  {
+                    "default": false
+                  }
+                ]
+              ],
+              "video/nvenc_hevc-mp4": [
                 [
                   "pix_fmt",
                   [
@@ -30139,85 +31365,24 @@
                   }
                 ]
               ],
-              "video/h264-mp4": [
+              "video/ffmpeg-gif": [
                 [
-                  "pix_fmt",
+                  "dither",
                   [
-                    "yuv420p",
-                    "yuv420p10le"
-                  ]
-                ],
-                [
-                  "crf",
-                  "INT",
-                  {
-                    "default": 19,
-                    "min": 0,
-                    "max": 100,
-                    "step": 1
-                  }
-                ],
-                [
-                  "save_metadata",
-                  "BOOLEAN",
-                  {
-                    "default": true
-                  }
-                ],
-                [
-                  "trim_to_audio",
-                  "BOOLEAN",
-                  {
-                    "default": false
-                  }
-                ]
-              ],
-              "video/webm": [
-                [
-                  "pix_fmt",
-                  [
-                    "yuv420p",
-                    "yuva420p"
-                  ]
-                ],
-                [
-                  "crf",
-                  "INT",
-                  {
-                    "default": 20,
-                    "min": 0,
-                    "max": 100,
-                    "step": 1
-                  }
-                ],
-                [
-                  "save_metadata",
-                  "BOOLEAN",
-                  {
-                    "default": true
-                  }
-                ],
-                [
-                  "trim_to_audio",
-                  "BOOLEAN",
-                  {
-                    "default": false
-                  }
-                ]
-              ],
-              "video/ProRes": [
-                [
-                  "profile",
-                  [
-                    "lt",
-                    "standard",
-                    "hq",
-                    "4444",
-                    "4444xq"
+                    "bayer",
+                    "heckbert",
+                    "floyd_steinberg",
+                    "sierra2",
+                    "sierra2_4a",
+                    "sierra3",
+                    "burkes",
+                    "atkinson",
+                    "none"
                   ],
                   {
-                    "default": "hq"
-                  }
+                    "default": "sierra2_4a"
+                  },
+                  "[0:v] split [a][b]; [a] palettegen=reserve_transparent=on:transparency_color=ffffff [p]; [b][p] paletteuse=dither=$val"
                 ]
               ],
               "video/av1-webm": [
@@ -31218,8 +32383,6 @@
     "has_intermediate_output": false,
     "search_aliases": []
   },
-  "ViggleTurboLora": null,
-  "ViggleTurboSigmas": null,
   "VoxCPM2_Clone": {
     "input": {
       "required": {
@@ -32198,7 +33361,7 @@
             "default": 0.5,
             "min": 0,
             "max": 1,
-            "step": 1e-9
+            "step": 1e-09
           }
         ],
         "fy": [
@@ -32208,7 +33371,7 @@
             "default": 0.5,
             "min": 0,
             "max": 1,
-            "step": 1e-9
+            "step": 1e-09
           }
         ],
         "cx": [
@@ -35096,5 +36259,581 @@
     "has_intermediate_output": false
   },
   "ZenImage21AdapterLoader": null,
-  "ZenImage21TextEncode": null
+  "ZenImage21TextEncode": null,
+  "CropFuobeLive": null,
+  "Hi3DLoadMesh": null,
+  "Hi3DModelLoader": null,
+  "Hi3DRefine": null,
+  "IdolCamera": null,
+  "IdolPreprocessImage": null,
+  "IdolPruneSplat": null,
+  "LoadImageFuobeLive": null,
+  "OpenH3LoadRefinedLatent": null,
+  "PasteBackFuobeLive": null,
+  "Qwen21EncodeFuobeLive": null,
+  "Qwen21ReferenceFuobeLive": null,
+  "SaveImageFuobeLive": null,
+  "SeedVR2LoadDiTModel": {
+    "input": {
+      "required": {
+        "model": [
+          "COMBO",
+          {
+            "tooltip": "DiT (Diffusion Transformer) model for video upscaling.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
+            "default": "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+            "multiselect": false,
+            "options": [
+              "seedvr2_ema_3b-Q4_K_M.gguf",
+              "seedvr2_ema_3b-Q8_0.gguf",
+              "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+              "seedvr2_ema_3b_fp16.safetensors",
+              "seedvr2_ema_7b-Q4_K_M.gguf",
+              "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+              "seedvr2_ema_7b_fp16.safetensors",
+              "seedvr2_ema_7b_sharp-Q4_K_M.gguf",
+              "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+              "seedvr2_ema_7b_sharp_fp16.safetensors"
+            ]
+          }
+        ],
+        "device": [
+          "COMBO",
+          {
+            "tooltip": "GPU device for DiT model inference (upscaling phase)",
+            "default": "cuda:0",
+            "multiselect": false,
+            "options": [
+              "cuda:0"
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "blocks_to_swap": [
+          "INT",
+          {
+            "tooltip": "Number of transformer blocks to swap between devices for VRAM optimization.\n• 0: Disabled (default)\n• 3B model: 0-32 blocks\n• 7B model: 0-36 blocks\n\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
+            "default": 0,
+            "min": 0,
+            "max": 36,
+            "step": 1
+          }
+        ],
+        "swap_io_components": [
+          "BOOLEAN",
+          {
+            "tooltip": "Offload input/output embeddings and normalization layers to reduce VRAM.\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
+            "default": false
+          }
+        ],
+        "offload_device": [
+          "COMBO",
+          {
+            "tooltip": "Device to offload DiT model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)\n\nRequired for BlockSwap (blocks_to_swap or swap_io_components).",
+            "default": "none",
+            "multiselect": false,
+            "options": [
+              "none",
+              "cpu",
+              "cuda:0"
+            ]
+          }
+        ],
+        "cache_model": [
+          "BOOLEAN",
+          {
+            "tooltip": "Keep DiT model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
+            "default": false
+          }
+        ],
+        "attention_mode": [
+          "COMBO",
+          {
+            "tooltip": "Attention computation backend:\n• sdpa: PyTorch scaled_dot_product_attention (default, stable, always available)\n• flash_attn_2: Flash Attention 2 (Ampere+, requires flash-attn package)\n• flash_attn_3: Flash Attention 3 (Hopper+, requires flash-attn with FA3 support)\n• sageattn_2: SageAttention 2 (requires sageattention package)\n• sageattn_3: SageAttention 3 (Blackwell/RTX 50xx only, requires sageattn3 package)\n\nSDPA is recommended - stable and works everywhere.\nFlash Attention and SageAttention provide speedup through optimized CUDA kernels on compatible GPUs.",
+            "default": "sdpa",
+            "multiselect": false,
+            "options": [
+              "sdpa",
+              "flash_attn_2",
+              "flash_attn_3",
+              "sageattn_2",
+              "sageattn_3"
+            ]
+          }
+        ],
+        "torch_compile_args": [
+          "TORCH_COMPILE_ARGS",
+          {
+            "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 20-40% speedup with compatible PyTorch 2.0+ and Triton installation."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "device"
+      ],
+      "optional": [
+        "blocks_to_swap",
+        "swap_io_components",
+        "offload_device",
+        "cache_model",
+        "attention_mode",
+        "torch_compile_args"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SEEDVR2_DIT"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SEEDVR2_DIT"
+    ],
+    "output_tooltips": [
+      "DiT model configuration containing model path, device settings, BlockSwap parameters, and compilation options. Connect to Video Upscaler node."
+    ],
+    "output_matchtypes": null,
+    "name": "SeedVR2LoadDiTModel",
+    "display_name": "SeedVR2 (Down)Load DiT Model",
+    "description": "Load and configure SeedVR2 DiT (Diffusion Transformer) model for video upscaling. Supports BlockSwap memory optimization for low VRAM systems, model caching for batch processing, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
+    "python_module": "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler",
+    "category": "SEEDVR2",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SeedVR2LoadVAEModel": {
+    "input": {
+      "required": {
+        "model": [
+          "COMBO",
+          {
+            "tooltip": "VAE (Variational Autoencoder) model for encoding/decoding.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
+            "default": "ema_vae_fp16.safetensors",
+            "multiselect": false,
+            "options": [
+              "ema_vae_fp16.safetensors"
+            ]
+          }
+        ],
+        "device": [
+          "COMBO",
+          {
+            "tooltip": "GPU device for VAE model inference (encoding/decoding phases)",
+            "default": "cuda:0",
+            "multiselect": false,
+            "options": [
+              "cuda:0"
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "encode_tiled": [
+          "BOOLEAN",
+          {
+            "tooltip": "Enable tiled encoding to reduce VRAM usage during the encoding phase",
+            "default": false
+          }
+        ],
+        "encode_tile_size": [
+          "INT",
+          {
+            "tooltip": "Encoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when encode_tiled is enabled.",
+            "default": 1024,
+            "min": 64,
+            "step": 32
+          }
+        ],
+        "encode_tile_overlap": [
+          "INT",
+          {
+            "tooltip": "Pixel overlap between encoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when encode_tiled is enabled.",
+            "default": 128,
+            "min": 0,
+            "step": 32
+          }
+        ],
+        "decode_tiled": [
+          "BOOLEAN",
+          {
+            "tooltip": "Enable tiled decoding to reduce VRAM usage during the decoding phase",
+            "default": false
+          }
+        ],
+        "decode_tile_size": [
+          "INT",
+          {
+            "tooltip": "Decoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when decode_tiled is enabled.",
+            "default": 1024,
+            "min": 64,
+            "step": 32
+          }
+        ],
+        "decode_tile_overlap": [
+          "INT",
+          {
+            "tooltip": "Pixel overlap between decoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when decode_tiled is enabled.",
+            "default": 128,
+            "min": 0,
+            "step": 32
+          }
+        ],
+        "tile_debug": [
+          "COMBO",
+          {
+            "tooltip": "Tile debug visualization mode:\n• 'false': No visualization overlay (default)\n• 'encode': Show encoding tile boundaries\n• 'decode': Show decoding tile boundaries\n\nOnly works when respective tiling is enabled.",
+            "default": "false",
+            "multiselect": false,
+            "options": [
+              "false",
+              "encode",
+              "decode"
+            ]
+          }
+        ],
+        "offload_device": [
+          "COMBO",
+          {
+            "tooltip": "Device to offload VAE model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)",
+            "default": "none",
+            "multiselect": false,
+            "options": [
+              "none",
+              "cpu",
+              "cuda:0"
+            ]
+          }
+        ],
+        "cache_model": [
+          "BOOLEAN",
+          {
+            "tooltip": "Keep VAE model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
+            "default": false
+          }
+        ],
+        "torch_compile_args": [
+          "TORCH_COMPILE_ARGS",
+          {
+            "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 15-25% speedup with compatible PyTorch 2.0+ and Triton installation."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "device"
+      ],
+      "optional": [
+        "encode_tiled",
+        "encode_tile_size",
+        "encode_tile_overlap",
+        "decode_tiled",
+        "decode_tile_size",
+        "decode_tile_overlap",
+        "tile_debug",
+        "offload_device",
+        "cache_model",
+        "torch_compile_args"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SEEDVR2_VAE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SEEDVR2_VAE"
+    ],
+    "output_tooltips": [
+      "VAE model configuration containing model path, device settings, tiling parameters, and compilation options. Connect to Video Upscaler node."
+    ],
+    "output_matchtypes": null,
+    "name": "SeedVR2LoadVAEModel",
+    "display_name": "SeedVR2 (Down)Load VAE Model",
+    "description": "Load and configure SeedVR2 VAE (Variational Autoencoder) for encoding/decoding video frames to/from latent space. Supports tiled processing to handle high resolutions on limited VRAM, model caching, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
+    "python_module": "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler",
+    "category": "SEEDVR2",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SeedVR2VideoUpscaler": {
+    "input": {
+      "required": {
+        "image": [
+          "IMAGE",
+          {
+            "tooltip": "Input video frames as image batch.\nAccepts both RGB (3-channel) and RGBA (4-channel) formats.\nOutput format will match input format."
+          }
+        ],
+        "dit": [
+          "SEEDVR2_DIT",
+          {
+            "tooltip": "DiT model configuration from SeedVR2 (Down)Load DiT Model node"
+          }
+        ],
+        "vae": [
+          "SEEDVR2_VAE",
+          {
+            "tooltip": "VAE model configuration from SeedVR2 (Down)Load VAE Model node"
+          }
+        ],
+        "seed": [
+          "INT",
+          {
+            "tooltip": "Random seed for reproducible generation (default: 42).\nSame seed with same inputs produces identical output.",
+            "default": 42,
+            "min": 0,
+            "max": 4294967295,
+            "step": 1
+          }
+        ],
+        "resolution": [
+          "INT",
+          {
+            "tooltip": "Target resolution for the shortest edge in pixels (default: 1080).\nAutomatically maintains aspect ratio of input.\nEven values required for optimal processing.",
+            "default": 1080,
+            "min": 16,
+            "max": 16384,
+            "step": 2
+          }
+        ],
+        "max_resolution": [
+          "INT",
+          {
+            "tooltip": "Maximum resolution limit for any dimension (default: 0, no limit).\nIf any edge exceeds this after applying resolution,\nboth dimensions are scaled down proportionally.\nUseful to prevent excessive VRAM usage on extreme aspect ratios.",
+            "default": 0,
+            "min": 0,
+            "max": 16384,
+            "step": 2
+          }
+        ],
+        "batch_size": [
+          "INT",
+          {
+            "tooltip": "Number of frames processed together per batch (default: 5).\nMust follow pattern 4n+1: 1, 5, 9, 13, 17, 21, ...\n\n• Higher values: Better temporal consistency and faster processing\n• Lower values: Reduced VRAM usage\n\nIdeally match to shot length for best quality.",
+            "default": 5,
+            "min": 1,
+            "max": 16384,
+            "step": 4
+          }
+        ],
+        "uniform_batch_size": [
+          "BOOLEAN",
+          {
+            "tooltip": "Pad final batch to match batch_size (default: False).\nPrevents temporal artifacts caused by small final batch.\nAdd extra compute but recommended for optimal quality.",
+            "default": false
+          }
+        ],
+        "color_correction": [
+          "COMBO",
+          {
+            "tooltip": "Corrects color shifts in upscaled output to match original input (default: lab).\nThe upscaling process may alter colors; this applies color grading to restore them.\n\n• lab: Perceptual color matching with detail preservation (recommended)\n• wavelet: Frequency-based natural colors, preserves fine details\n• wavelet_adaptive: Wavelet base with targeted saturation correction\n• hsv: Hue-conditional saturation matching\n• adain: Statistical style transfer approach\n• none: No color correction applied",
+            "default": "lab",
+            "multiselect": false,
+            "options": [
+              "lab",
+              "wavelet",
+              "wavelet_adaptive",
+              "hsv",
+              "adain",
+              "none"
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "temporal_overlap": [
+          "INT",
+          {
+            "tooltip": "Overlapping frames between consecutive batches (default: 0, disabled).\nImproves temporal consistency across batch boundaries through blending.\nValues 1-4 work well for most content.",
+            "default": 0,
+            "min": 0,
+            "max": 16,
+            "step": 1
+          }
+        ],
+        "prepend_frames": [
+          "INT",
+          {
+            "tooltip": "Number of frames to prepend (reversed from start) before processing (default: 0).\nHelps reduce artifacts at video beginning.\nPrepended frames are automatically removed from final output.",
+            "default": 0,
+            "min": 0,
+            "max": 32,
+            "step": 1
+          }
+        ],
+        "input_noise_scale": [
+          "FLOAT",
+          {
+            "tooltip": "Input noise injection scale (default: 0.0, disabled).\nAdds controlled variation to input images before encoding.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan help with certain types of artifacts.",
+            "default": 0,
+            "min": 0,
+            "max": 1,
+            "step": 0.001
+          }
+        ],
+        "latent_noise_scale": [
+          "FLOAT",
+          {
+            "tooltip": "Latent space noise injection scale (default: 0.0, disabled).\nAdds controlled variation during the diffusion process.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan soften details if input_noise_scale doesn't help.",
+            "default": 0,
+            "min": 0,
+            "max": 1,
+            "step": 0.001
+          }
+        ],
+        "offload_device": [
+          "COMBO",
+          {
+            "tooltip": "Device for storing intermediate tensors between processing phases (default: cpu).\n• 'none': Keep all tensors on inference device (fastest but highest VRAM usage)\n• 'cpu': Offload to system RAM (recommended for long videos, slower transfers)\n• 'cuda:X': Offload to another GPU (good balance if available, faster than CPU)",
+            "default": "cpu",
+            "multiselect": false,
+            "options": [
+              "none",
+              "cpu",
+              "cuda:0"
+            ]
+          }
+        ],
+        "enable_debug": [
+          "BOOLEAN",
+          {
+            "tooltip": "Enable detailed debug logging (default: False).\nShows memory usage, timing information, and processing details.\nUseful for troubleshooting errors and performance issues.",
+            "default": false
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image",
+        "dit",
+        "vae",
+        "seed",
+        "resolution",
+        "max_resolution",
+        "batch_size",
+        "uniform_batch_size",
+        "color_correction"
+      ],
+      "optional": [
+        "temporal_overlap",
+        "prepend_frames",
+        "input_noise_scale",
+        "latent_noise_scale",
+        "offload_device",
+        "enable_debug"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "IMAGE"
+    ],
+    "output_tooltips": [
+      "Upscaled video frames with color correction applied. Format (RGB/RGBA) matches input. Range [0, 1] normalized for ComfyUI compatibility."
+    ],
+    "output_matchtypes": null,
+    "name": "SeedVR2VideoUpscaler",
+    "display_name": "SeedVR2 Video Upscaler (v2.5.24)",
+    "description": "SeedVR2 main upscaling node: processes video frames using DiT and VAE models with diffusion-based enhancement. Handles RGB/RGBA formats, maintains temporal consistency across frames, applies color correction, and manages VRAM through intelligent tensor offloading. \n\nRequires DiT and VAE model configurations.",
+    "python_module": "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler",
+    "category": "SEEDVR2",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "UnifiedModelLoader": {
+    "input": {
+      "required": {
+        "model_name": [
+          [
+            "10Eros_v1.4_Bob_DMD_INT8_Convrot.safetensors",
+            "FireRed-Image-Edit-1.1-Q4_K_M.gguf",
+            "LTX-2.5-Distilled-Q3_K_M.gguf",
+            "MiniMax-H3-FL2VA-Pruned-Q4_K_M.gguf",
+            "MiniMax-H3-Ref2VA-Pruned-Q4_K_M.gguf",
+            "Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors",
+            "acestep_v1.5_turbo.safetensors",
+            "drama3_w4a8experts_bf16.safetensors",
+            "ideogram4_int8_convrot.safetensors",
+            "ideogram4_unconditional_int8_convrot.safetensors",
+            "krea2_turbo-Q4_K_M.gguf",
+            "krea2_turbo_convrot_int4_fast.safetensors",
+            "krea2_turbo_int8_convrot.safetensors",
+            "ltx-2.3-22b-distilled-1.1_transformer_only_int8_convrot.safetensors",
+            "ltx-2.3-22b-distilled-UD-Q4_K_M.gguf",
+            "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+            "ltx-2.5-22b-distilled-transformer-nvfp4.safetensors",
+            "minimax_h3_fl2v_turbo_silver_dareties_comfy_pruned_v1.safetensors",
+            "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+            "minimax_h3_fl2va_pruned_nvfp4.safetensors",
+            "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "minimax_h3_ref2va_pruned_nvfp4.safetensors",
+            "minimax_music3_dit_int8_convrot.safetensors",
+            "moss_image_sft_int8_convrot.safetensors",
+            "qwen_edit_2511_int4_tensorwise_mixed.safetensors",
+            "qwen_image_edit_2511_int8_convrot.safetensors"
+          ]
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model_name"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MODEL"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "model"
+    ],
+    "name": "UnifiedModelLoader",
+    "display_name": "Load Diffusion Model (Unified Router)",
+    "description": "Single entry for Krea2 Turbo: pick one file (model_name). Routes by extension/comfy_quant -> GGUF loader (.gguf), INT4 ConvRot loader (convrot_w4a4 .safetensors), or W8A8 loader (int8_tensorwise .safetensors). Delegates to existing loaders.",
+    "python_module": "custom_nodes.krea2-model-router",
+    "category": "loaders",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "ViggleTurboLora": null,
+  "ViggleTurboSigmas": null
 }

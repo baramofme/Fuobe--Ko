@@ -2,6 +2,7 @@
 
 import {
   ArchiveRestore,
+  ScanFace,
   LetterText,
   Disc3,
   Layers3,
@@ -78,7 +79,7 @@ import { useShare } from "@/components/share/share-provider";
 import { useSkillBuilder } from "@/components/skills/skill-builder-provider";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCreateGeneration, useEngineMode, useGenerationActions, useIsAccount, useLikelyVisitor, useSaveElement, useStatus } from "@/lib/api";
+import { useCreateGeneration, useEngineMode, useGenerationActions, useIsAccount, useIsOwner, useLikelyVisitor, useSaveElement, useStatus } from "@/lib/api";
 import { askDeleteForGood } from "@/components/studio/delete-for-good";
 import { placeholdersOn } from "@/lib/demo-mode";
 import { ELEMENT_KINDS, type ElementKind } from "@/lib/catalog/elements";
@@ -147,6 +148,7 @@ export const ACTION_ICONS: Record<OutputActionId, LucideIcon> = {
   "delete-own": Trash2,
   restore: ArchiveRestore,
   "restore-video": Palette,
+  "fix-faces": ScanFace,
   "export-pro": Film,
   "extend-song": ListMusic,
   "remix-song": Disc3,
@@ -551,6 +553,7 @@ export function ActionMenu({
 }) {
   const actions = useGenerationActions();
   const { t } = useI18n();
+  const owner = useIsOwner();
   const destructive = list.filter((a) => a.destructive);
   const rest = list.filter((a) => !a.destructive);
   // Focus goes back to ⋯ when the menu closes, except when it hands over to the Save-as-element popover.
@@ -583,7 +586,7 @@ export function ActionMenu({
         <DropdownMenuItem key={a.id} asChild>
           <Link href={a.href} prefetch={false}>
             <Icon /> {a.label}
-            <OwnSetupChip setup={a.ownSetup} className="ml-auto" />
+            {!owner && <OwnSetupChip setup={a.ownSetup} className="ml-auto" />}
           </Link>
         </DropdownMenuItem>
       );
@@ -599,7 +602,7 @@ export function ActionMenu({
         }}
       >
         <Icon className={cn(a.id === "favorite" && g.favorite && "fill-current")} /> {a.id === "save-character" ? t("studio.result.saveAsElementEllipsis") : a.label}
-        <OwnSetupChip setup={a.ownSetup} className="ml-auto" />
+        {!owner && <OwnSetupChip setup={a.ownSetup} className="ml-auto" />}
       </DropdownMenuItem>
     );
   };

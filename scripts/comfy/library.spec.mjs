@@ -238,6 +238,13 @@ export const CUSTOM_NODE_REPOS = {
   // Clean up voice (NVIDIA RE-USE): Fuobe's own pack, in this repository (comfy-nodes/ComfyUI-RE-USE), pinned at the commit
   // that last changed it (tests/reuse-pack-pin.test.ts checks it). install-comfyui.sh copies it from the checkout.
   'ComfyUI-RE-USE': 'https://github.com/workingprototype/Fuobe/tree/8cc0417b5cb8a603f06502d97d5c6d8c6035ea0d/comfy-nodes/ComfyUI-RE-USE',
+  // Fuobe's pinned form of jtydhr88's pack (only the loader and the predictor; NOTICE says what differs).
+  'ComfyUI-InstantHMR': 'https://github.com/workingprototype/Fuobe/tree/e4b74735062298af07bb931aed280a440d1b2958/comfy-nodes/ComfyUI-InstantHMR',
+  'ComfyUI-BodyDouble': 'https://github.com/workingprototype/Fuobe/tree/26d386bdacb371d06aa2325ac1b90373a11ff6b7/comfy-nodes/ComfyUI-BodyDouble',
+  // HyperFlow H3 Flash (minimax-h3-flash-*): Video Rebirth's GGUF loader and step schedule (GPL-3.0, v1.0.0), which reads the
+  // GGUF through city96's ComfyUI-GGUF (Apache-2.0) and needs it installed beside it.
+  'ComfyUI-HyperFlow-Flash': 'https://github.com/Video-Rebirth/ComfyUI-HyperFlow-Flash/tree/20a22ab2b075f3c948eb5dba62637ff89fc0f363',
+  'ComfyUI-GGUF': 'https://github.com/city96/ComfyUI-GGUF/tree/6ea2651e7df66d7585f6ffee804b20e92fb38b8a',
   // Hi3D 1.0 mesh refinement (hi3d-refine, docs/research/hi3d-refine.json): T8star's nodes (MIT code, vendored Hi3D code under
   // the Hi3D Open License 1.0), v0.5.1. Opt-in in install-comfyui.sh (HI3D=1): it needs an Ampere-or-newer NVIDIA GPU and
   // CUDA kernels (spconv, triton), so it is not on the validation server (mesh-refine-hi3d lists it with `packs`).
@@ -284,6 +291,8 @@ export const CUSTOM_NODE_REPOS = {
   'comfyui-image-detail-contrast': 'https://github.com/D3voz/comfyui-image-detail-contrast/tree/485a5e246424ce012b998862b45f06d21e8d63b2',
   Orion4D_FXMax: 'https://github.com/orion4d/Orion4D_FXMax/tree/7048e8423ad7d1a6a52119d0d4870c2b7fc2885f',
   SolarRenderer: 'https://github.com/Enderfga/SolarRenderer/tree/0ca4f5e45b062cc9e9aee506de46aabdc22e4c3d',
+  // Fuobe Reshoot: two Python files in Viggle's model repository, downloaded at a pinned revision (install-comfyui.sh RESHOOT=1).
+  'ComfyUI-Viggle-Remake': 'https://huggingface.co/Viggle/Viggle-Remake/tree/21665fa7a1e038e0a5312fb15f37b18d0f06f117/comfyui/ComfyUI-Viggle-Remake',
   'ComfyUI-H3-FaceRefine': 'https://github.com/Carasibana/ComfyUI-H3-FaceRefine',
   'ComfyUI-Impact-Pack': 'https://github.com/ltdrdata/ComfyUI-Impact-Pack',
   comfyui_controlnet_aux: 'https://github.com/Fannovel16/comfyui_controlnet_aux/tree/a587a4c1594524c1d2de5cd1a86cd868ff448e1c',
@@ -315,6 +324,12 @@ export const PACK_CLASSES = {
   // Only the pack's own classes: Preprocess / PostProcessing / Conditioning / TemporalChunk / TemporalMerge are core (comfy_extras.nodes_seedvr).
   'ComfyUI-SeedVR2_VideoUpscaler': /^SeedVR2(Load(VAE|DiT)Model|VideoUpscaler|TorchCompileSettings)$/,
   'ComfyUI-RE-USE': /^REUSE(Loader|Enhance)$/,
+  // Body Double: only the loader and the predictor are the pack's; the render, smoothing and GLB nodes are ComfyUI's own.
+  'ComfyUI-InstantHMR': /^InstantHMR(Loader|Predict)$/,
+  // Body Double's own pack (this repository at its pinned commit): the body fit and the look over the whole outline.
+  'ComfyUI-BodyDouble': /^BodyDouble(Fit|Look)$/,
+  'ComfyUI-HyperFlow-Flash': /^HyperFlow(GGUFLoader|Sigmas)$/,
+  'ComfyUI-GGUF': /^(UnetLoaderGGUF|UnetLoaderGGUFAdvanced|CLIPLoaderGGUF|DualCLIPLoaderGGUF|TripleCLIPLoaderGGUF|QuadrupleCLIPLoaderGGUF)$/,
   // Live edit's nodes (fuobe_live.py), which Fuobe writes into custom_nodes itself.
   'fuobe-live': /FuobeLive$/,
   'zen-image-edit-comfyui': /^ZenImage21(AdapterLoader|TextEncode)$/,
@@ -338,6 +353,7 @@ export const PACK_CLASSES = {
   'comfyui-image-detail-contrast': /^ImageDetailContrast$/,
   Orion4D_FXMax: /^Orion4D_FXMax_/,
   SolarRenderer: /^SolarRenderer(Model|LoraLoader|Conditioning|Sigmas)$/,
+  'ComfyUI-Viggle-Remake': /^Remake(Conditioning|KeyframeUntil|Noise)$/,
   'ComfyUI-H3-FaceRefine': /^H3Face(TrackCrop|MaskSAM|Stitch)$/,
   'ComfyUI-Impact-Pack': /^SAMLoader$/,
   comfyui_controlnet_aux: /^Metric3D-NormalMapPreprocessor$/,
@@ -348,6 +364,12 @@ export const PACK_CLASSES = {
 // Model download locations for files that the source workflow does not annotate
 // (UI templates usually carry node.properties.models; custom-node examples do not).
 export const KNOWN_MODELS = {
+  // Body Double: InstantHMR medium (the pack's checkpoint: network + MHR rig), the RT-DETR v4 person detector and the SAM 3D
+  // Body int8 file whose rig the skinned GLB export reads, at the revisions read on 2026-11-08.
+  'instanthmr_medium.safetensors': { folder: 'detection', url: 'https://huggingface.co/jtydhr88/ComfyUI-InstantHMR/resolve/964effb58c3358ca8a0e35da386f49de1480ac9e/instanthmr_medium.safetensors' },
+  'instanthmr_medium_commercial.safetensors': { folder: 'detection', url: 'https://huggingface.co/jtydhr88/ComfyUI-InstantHMR/resolve/964effb58c3358ca8a0e35da386f49de1480ac9e/instanthmr_medium_commercial.safetensors' },
+  'rt_detr_v4-x-hgnet_fp16.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/Comfy-Org/RT-DETR/resolve/8d913979f84c84f155b70ee77d96571a4728430b/diffusion_models/rt_detr_v4-x-hgnet_fp16.safetensors' },
+  'sam_3d_body_dinov3_int8_convrot.safetensors': { folder: 'detection', url: 'https://huggingface.co/Comfy-Org/sam-3d-body/resolve/7c974aea58e062252a6cb5b6f9b7f639d545b729/detection/sam_3d_body_dinov3_int8_convrot.safetensors' },
   // World mode (nm10-hy-nomas-world): nynxz/Hy-Nomas, Tencent's Hy-Nomas converted for ComfyUI's core loaders, at the
   // revision read on 2026-11-03. The DiT is Apache-2.0; the PixelUMM decoder is NVIDIA One-Way Noncommercial (its card).
   'nomas_dit_distilled_int8_convrot.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/nynxz/Hy-Nomas/resolve/e8ddc4bfa664d69213930552493c220c3af56f41/nomas_dit_distilled_int8_convrot.safetensors' },
@@ -451,6 +473,9 @@ export const KNOWN_MODELS = {
   'minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors': { folder: 'loras', url: 'https://huggingface.co/lightx2v/Minimax-h3-Turbo/resolve/3ec17a324ced54151364f24f8b5fb6bf7e26414f/minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors' },
   // Regenerate in Cinema (n7-10): LightX2V's FL2V Turbo 4-step v1.2 (Apache-2.0 in its card at 3ec17a3), the 768p draft of rdh's "Prompt to 2K".
   'minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors': { folder: 'loras', url: 'https://huggingface.co/lightx2v/Minimax-h3-Turbo/resolve/3ec17a324ced54151364f24f8b5fb6bf7e26414f/minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors' },
+  // Fuobe Reshoot: Viggle Remake's swap and edit weights, each merged into H3's transformer at fp32 and quantized to int8.
+  'viggle_remake_swap_pruned_int8_convrot.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/Viggle/Viggle-Remake/resolve/21665fa7a1e038e0a5312fb15f37b18d0f06f117/int8/viggle_remake_swap_pruned_int8_convrot.safetensors' },
+  'viggle_remake_edit_pruned_int8_convrot.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/Viggle/Viggle-Remake/resolve/21665fa7a1e038e0a5312fb15f37b18d0f06f117/int8/viggle_remake_edit_pruned_int8_convrot.safetensors' },
   'h3_character_swap_v1.5.safetensors': { folder: 'loras', url: 'https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA/resolve/d06323b7c8e70e97cdab48b78a1e05f786c8cba9/h3_character_swap_v1.5.safetensors' },
   'h3_character_swap_pro4500_1000.safetensors': { folder: 'loras', url: 'https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA/resolve/a665bb7e3bb9804e487d2925f67744f554c8ad49/h3_character_swap_pro4500_1000.safetensors' },
   'H3-Person-Remover-V1.safetensors': { folder: 'loras', url: 'https://huggingface.co/akatz-ai/MiniMax-H3-Person-Remover-LoRA/resolve/fe136b3dc93aea993b9f194d48ea9859fdc2de14/H3-Person-Remover-V1.safetensors' },
@@ -485,6 +510,10 @@ export const KNOWN_MODELS = {
   'fastvideo_fasth3_trim_8step_int8_convrot.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/FastVideo/FastVideo-FastH3-Trim-Comfy/resolve/f66c13dc17391dd4da99242a407918b92bf7d5fc/diffusion_models/fastvideo_fasth3_trim_8step_int8_convrot.safetensors' },
   'fastvideo_fasth3_trim_8step_fp8.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/FastVideo/FastVideo-FastH3-Trim-Comfy/resolve/f66c13dc17391dd4da99242a407918b92bf7d5fc/diffusion_models/fastvideo_fasth3_trim_8step_fp8.safetensors' },
   'fastvideo_fasth3_trim_8step_nvfp4.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/FastVideo/FastVideo-FastH3-Trim-Comfy/resolve/f66c13dc17391dd4da99242a407918b92bf7d5fc/diffusion_models/fastvideo_fasth3_trim_8step_nvfp4.safetensors' },
+  // HyperFlow H3 Flash (Video Rebirth): a 14B distill of H3 FL2VA (pruned, low-rank, two-time conditioning; 4/6/8 steps, CFG 1)
+  // as GGUF, at the revision read on 2026-11-08. MiniMax H3 Community License (its card).
+  'minimax_h3_fl2va_hyperflow_flash_14b-Q8_0.gguf': { folder: 'diffusion_models', url: 'https://huggingface.co/VideoRebirthAI/hyperflow-h3-flash/resolve/9e9ed14b8be4b751d7517b8ca58dd199d509720c/fl2va_gguf/minimax_h3_fl2va_hyperflow_flash_14b-Q8_0.gguf' },
+  'minimax_h3_fl2va_hyperflow_flash_14b-Q4_K_M.gguf': { folder: 'diffusion_models', url: 'https://huggingface.co/VideoRebirthAI/hyperflow-h3-flash/resolve/9e9ed14b8be4b751d7517b8ca58dd199d509720c/fl2va_gguf/minimax_h3_fl2va_hyperflow_flash_14b-Q4_K_M.gguf' },
   // Fast decode: Sol-H3-VAE (Efficient-Large-Model, distilled from the H3 VAE decoder; weights under the MiniMax H3 licence per
   // its card, code Apache-2.0) as Comfy-Org repacked it for the core loader (ComfyUI #17411, master from 2026-10-28).
   'minimax_h3_sol_vae_int8_convrot.safetensors': { folder: 'vae', url: 'https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/912b6e38b2092ec4d2e86d24183e0d59ea059d48/vae/minimax_h3_sol_vae_int8_convrot.safetensors' },
@@ -506,7 +535,8 @@ export const KNOWN_MODELS = {
   'qwen_image_layered_fp8mixed.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/Comfy-Org/Qwen-Image-Layered_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_layered_fp8mixed.safetensors' },
   'qwen_image_layered_control_bf16.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/DiffSynth-Studio/Qwen-Image-Layered-Control/resolve/main/qwen_image_layered_control_bf16.safetensors' },
   'qwen_image_layered_vae.safetensors': { folder: 'vae', url: 'https://huggingface.co/Comfy-Org/Qwen-Image-Layered_ComfyUI/resolve/main/split_files/vae/qwen_image_layered_vae.safetensors' },
-  'qwen_image_edit_2511_fp8mixed.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors' },
+  // Qwen-Image-Edit 2511 loads Comfy-Org's int8 ConvRot build; `variants`: the same weights in another precision in the same repo.
+  'qwen_image_edit_2511_int8_convrot.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors', variants: ['qwen_image_edit_2511_fp8mixed.safetensors'] },
   'Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors': { folder: 'loras', url: 'https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors' },
   'flux-2-klein-4b-fp8.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8/resolve/main/flux-2-klein-4b-fp8.safetensors' },
   'flux2-vae.safetensors': { folder: 'vae', url: 'https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/vae/flux2-vae.safetensors' },
@@ -721,6 +751,8 @@ const H3_LICENSE_SOL =
   'and weights under the MiniMax H3 Community License';
 // The FastH3 tiers: FastVideo's distills carry the MiniMax H3 Community License (their cards).
 const H3_LICENSE_FASTH3 = `${H3_LICENSE} · FastH3 V2 and FastH3 Trim (FastVideo): MiniMax H3 Community License`;
+// HyperFlow H3 Flash (Video Rebirth): a derivative of MiniMax H3 under its Community License (its card); the nodes GPL-3.0.
+const H3_LICENSE_FLASH = `${H3_LICENSE} · HyperFlow H3 Flash (Video Rebirth): MiniMax H3 Community License · ComfyUI-HyperFlow-Flash nodes GPL-3.0 · ComfyUI-GGUF Apache-2.0`;
 const H3_NOTES_FASTH3_FILES =
   'Files: the FastH3 diffusion file, the Qwen3-VL 32B NVFP4-AWQ text encoder (15.69 GB; every FastH3 template pairs it with every diffusion file; offloaded ' +
   'after encoding), the int8 video VAE (3.17 GB) and the audio VAE (0.61 GB).';
@@ -1281,6 +1313,7 @@ export const SPEC = [
     export: 'image_qwen_image_edit_2511',
     transforms: [
       { op: 'resolveSwitches', booleans: { '170:168': false } },
+      { op: 'set', node: '170:161', input: 'unet_name', value: 'qwen_image_edit_2511_int8_convrot.safetensors' },
       // Single-image edit: drop the template's second (material) reference.
       { op: 'delete', node: '170:149', input: 'image2' },
       { op: 'delete', node: '170:151', input: 'image2' },
@@ -1305,6 +1338,7 @@ export const SPEC = [
     export: 'image_qwen_image_edit_2511',
     transforms: [
       { op: 'resolveSwitches', booleans: { '170:168': false } },
+      { op: 'set', node: '170:161', input: 'unet_name', value: 'qwen_image_edit_2511_int8_convrot.safetensors' },
       { op: 'addNodes', nodes: { 1201: { class_type: 'LoadImage', inputs: { image: 'reference3.png' }, _meta: { title: 'Load Image (image 3)' } } } },
       { op: 'set', node: '170:149', input: 'image3', value: ['1201', 0] },
       { op: 'set', node: '170:151', input: 'image3', value: ['1201', 0] },
@@ -2138,7 +2172,7 @@ export const SPEC = [
     defaults: { width: 1344, height: 768, frames: 124, fps: 24 },
     limits: { maxFrames: 362, dimensionMultiple: 32, maxImages: 9, maxVideos: 3, maxAudios: 3, maxReferences: 12, maxReferenceGroupSec: 15 },
     // The clips' loader is added per run (expandH3References), so the graph itself doesn't hold it.
-    runtimeNodes: ['VHS_LoadVideo'],
+    runtimeNodes: ['VHS_LoadVideoFFmpeg'],
     vramGb: 32,
     license: H3_FLEX_LICENSE,
     notes:
@@ -2213,6 +2247,42 @@ export const SPEC = [
       'FastVideo\'s timings (5 s with sound): RTX 5090 13.4 s at 480p, 35.4 s at 768p; RTX 4090 43.9 s / 132.8 s; none measured here. Text to video only: the Trim ' +
       `cards name eight-step text-to-video and no frame conditioning. ${H3_NOTES_CANVAS} ${H3_NOTES_LAYOUT} ${H3_NOTES_FASTH3_FILES}`,
   },
+  // ---- HyperFlow H3 Flash (Options → GPU tier → Flash, any card): Video Rebirth's GGUF distill of H3 FL2VA through its own
+  // loader and step schedule, as its hyperflow_t2v / i2v / flf2v templates, on the FastH3 graphs' node ids. src/lib/gpu/h3-tier.ts
+  // binds `unet` to the card's file (Q8_0 on 32 GB or more, else Q4_K_M).
+  ...[
+    ['minimax-h3-flash-t2v', 't2v', 'Text to Video', false, false],
+    ['minimax-h3-flash-i2v', 'i2v', 'Image to Video', true, false],
+    ['minimax-h3-flash-flf2v', 'flf2v', 'Start + End Frame to Video', true, true],
+  ].map(([id, capability, what, first, last]) => ({
+    id,
+    title: `MiniMax H3 ${what} + Audio (HyperFlow H3 Flash, 6 steps)`,
+    capability,
+    handBuilt: `hand-built/${id}.json`,
+    bindings: {
+      prompt: [b('131', 'prompt')],
+      ...(first && { image: [b('138', 'image')] }),
+      ...(last && { endImage: [b('140', 'image')] }),
+      width: [b('131', 'width')], height: [b('131', 'height')], frames: [b('131', 'length')],
+      seed: [b('129', 'noise_seed')], unet: [b('127', 'unet_name')],
+      filenamePrefix: [b('174', 'filename_prefix')],
+    },
+    outputs: [{ node: '174', kind: 'video' }],
+    defaults: { width: 1344, height: 768, frames: 124, fps: 24, steps: 6 },
+    limits: { maxFrames: 362, dimensionMultiple: 32 },
+    vramGb: 16,
+    optionalModels: ['minimax_h3_fl2va_hyperflow_flash_14b-Q4_K_M.gguf'],
+    runtimeNodes: ['UnetLoaderGGUF'],
+    license: H3_LICENSE_FLASH,
+    notes:
+      `${what} with sound on Video Rebirth's HyperFlow H3 Flash (VideoRebirthAI/hyperflow-h3-flash @ 9e9ed14b): H3 FL2VA pruned to 13.7B with low-rank ` +
+      'factors and two-time (t, r) conditioning, sampled in 6 steps with no CFG. MiniMaxH3ImageToVideo' + (first ? (last ? ' with first_frame and last_frame' : ' with first_frame') : ' with no frames') +
+      ', HyperFlowGGUFLoader (unet: Q8_0, 14.93 GB, or Q4_K_M, 9.05 GB; weights_in auto) -> HyperFlowSigmas 6 steps (its own schedule at video shift 12), ' +
+      'KSamplerSelect euler, BasicGuider (CFG 1). ComfyUI-HyperFlow-Flash reads the GGUF through the dequantizing ops of ComfyUI-GGUF, so both packs are needed ' +
+      '(runtimeNodes names the ComfyUI-GGUF loader so the GPU pre-flight asks for it). Measured on an RTX 5090 at 1280x960, 124 frames: about 7 min ' +
+      'for the 6 steps with either file. ' + (first ? H3_NOTES_FIRST_FRAME + ' ' : '') +
+      `${H3_NOTES_CANVAS} ${H3_NOTES_LAYOUT} Files: the HyperFlow GGUF, the Qwen3-VL 32B NVFP4-AWQ text encoder (15.69 GB), the int8 video VAE (3.17 GB) and the audio VAE (0.61 GB).`,
+  })),
   {
     id: 'infinitetalk-native',
     title: 'InfiniteTalk Lip-sync (native, single speaker, ~6 s)',
@@ -2978,7 +3048,7 @@ export const SPEC = [
       vramGb: 0,
       license: 'no model (ComfyUI core nodes + VideoHelperSuite loader)',
       notes:
-        `Hard-cut join of ${n} clips in order, each resampled to fps (VHS_LoadVideo force_rate, default 25 = InfiniteTalk's rate) so clips made at 16 fps (Wan) and 25 fps play at their real speed, ` +
+        `Hard-cut join of ${n} clips in order, each resampled to fps (VHS_LoadVideoFFmpeg force_rate, default 25 = InfiniteTalk's rate) so clips made at 16 fps (Wan) and 25 fps play at their real speed, ` +
         'scaled and centre-cropped to width x height -> BatchImagesNode -> CreateVideo(fps) with a soundtrack: ' +
         (sound === 1
           ? 'clip 1\'s own sound from the start (a voiced presenter followed by silent b-roll, or a reference ad followed by a new CTA). '
@@ -3110,7 +3180,7 @@ export const SPEC = [
       'CorridorKey2 downloads about 5.1 GB into models/corridorkey2/ on first run: corridorkey_v2.safetensors (2.66 GB) and foundation_stats.safetensors from nikopueringer/CorridorKey2.0 (its main revision, cf44a8db when checked), NVIDIA C-RADIOv4-SO400M @ c0457f5d (1.72 GB), Microsoft MoGe-2 ViT-B @ ca5f0e07 (0.42 GB) and Google DeepMind RVM small (0.27 GB, md5-checked)',
     ],
     notes:
-      'VHS_LoadVideo decodes framesPerBatch frames per pass (VHS_BatchManager, 48 by default) and the three VHS_VideoCombine encodes stay open across passes, so memory stays flat on a long clip. ' +
+      'VHS_LoadVideoFFmpeg decodes framesPerBatch frames per pass (VHS_BatchManager, 48 by default) and the three VHS_VideoCombine encodes stay open across passes, so memory stays flat on a long clip. ' +
       'CorridorKey2 (hashu786/ComfyUI-CorridorKey2, which vendors Corridor\'s CorridorKey 2.0 code unmodified at 485f5e9) keys each pass as one clip at native resolution, with overlapping temporal Hann windows ' +
       '(window auto: the largest that fits the free VRAM) and no hint, so the model picks the subject; despill 0.5 (Corridor\'s default), input sRGB. Each pass starts its temporal context afresh. ' +
       'Only the outputs a node reads are computed. Roles: node 7 cutout (output 4, the despilled straight RGBA, as a transparent WebM, VP9 yuva420p, with the clip\'s sound; params.format prores_4444 switches it to ' +
@@ -4240,7 +4310,7 @@ export const SPEC = [
     vramGb: 0,
     license: 'n/a (no model)',
     notes:
-      'VHS_LoadVideo resamples to fps (force_rate) first, then skips startFrame frames (= params.startTime * fps) and keeps frames (= (endTime - startTime) * fps, 4n+1 for Wan); ImageScale crops to width x height (aspect ratio + resolution). ' +
+      'VHS_LoadVideoFFmpeg resamples to fps (force_rate) first, then skips startFrame frames (= params.startTime * fps) and keeps frames (= (endTime - startTime) * fps, 4n+1 for Wan); ImageScale crops to width x height (aspect ratio + resolution). ' +
       '81 frames @16 fps = 5.06 s, the Wan 2.2 window. Second output = the segment\'s first frame (restyle it, then video-restyle-wan22-fun-vace). Also the Mixed Media frame sampler (fps 4-24). Runs on CPU.',
   },
   {
@@ -4654,7 +4724,7 @@ export const SPEC = [
     notes:
       'All-ComfyUI alternative that transcribes and burns in one job (word-by-word captions from words_alignment). One style per run (font, size, colour, border, centred). ' +
       'The default open route is captions-qwen3-asr + captions-burnin (chosen because of this NC code licence, which is now information: Settings → Models & licences); install-comfyui.sh installs ComfyUI-Whisper unless NC_PACKS=0. Save SRT (not an output node) is dropped; the transcript text is kept. ' +
-      'VHS_LoadVideo decodes the whole clip and Add Subtitles To Frames copies it (about 2.5 copies of the frames in RAM): the provider refuses clips that would need more than half of the ComfyUI server\'s RAM and points to the chunked route. ' +
+      'VHS_LoadVideoFFmpeg decodes the whole clip and Add Subtitles To Frames copies it (about 2.5 copies of the frames in RAM): the provider refuses clips that would need more than half of the ComfyUI server\'s RAM and points to the chunked route. ' +
       'sourceLanguage takes Whisper\'s own names (the provider maps ISO codes: tl/fil -> Tagalog, he -> Hebrew).',
   },
   {
@@ -4708,7 +4778,7 @@ export const SPEC = [
     autoDownloads: ['DownloadAndLoadWav2VecModel fetches TencentGameMate/chinese-wav2vec2-base (0.38 GB) on first run'],
     notes:
       'Same model files as infinitetalk-wanwrapper (no new download). The source frames are VAE-encoded and only the last steps are re-denoised (steps 4, startStep 2), so camera, background and body stay; ' +
-      'mouth, head and upper body follow the new audio. 81-frame windows until the audio ends. Changed from the original graph: VHS_LoadVideo gets only custom_width (height 0 keeps the source\'s proportions, no squashing) ' +
+      'mouth, head and upper body follow the new audio. 81-frame windows until the audio ends. Changed from the original graph: VHS_LoadVideoFFmpeg gets only custom_width (height 0 keeps the source\'s proportions, no squashing) ' +
       'and ImageResizeKJv2 crops to width x height, which the provider takes from the source\'s own shape (aspect ratio "auto", read from the MP4 header) at the chosen resolution; ' +
       'frames (num_frames and VHS frame_load_cap) = the voice\'s length at 25 fps, at most 1000 (40 s): the provider refuses a longer voice instead of cutting it. Pass the clean dubbed voice, then mux the background with video-mux-audio.',
   },
@@ -4952,7 +5022,7 @@ export const SPEC = [
     license: 'Tencent Hunyuan Community License (territory EXCLUDES the EU, UK and South Korea)',
     autoDownloads: ['HunyuanDependenciesLoader fetches the SigLIP2 and CLAP text encoders into the Hugging Face cache on first run'],
     notes:
-      'Same model files as sfx-hunyuan-foley (no new download). VHS_LoadVideo samples the clip at 8 fps, 512 px wide (frames = duration x fps, so a 60 s clip holds 481 small frames), ' +
+      'Same model files as sfx-hunyuan-foley (no new download). VHS_LoadVideoFFmpeg samples the clip at 8 fps, 512 px wide (frames = duration x fps, so a 60 s clip holds 481 small frames), ' +
       'HunyuanFoleySampler gets them as its image input and makes duration seconds of 48 kHz sound in sync. Concatenate Video lays it under the untouched picture (stream copy); ' +
       'a sound longer than the clip is cut at its end. Outputs: the video with the new sound, then the sound alone (MP3).',
   },
@@ -5409,8 +5479,8 @@ export const SPEC = [
     license: 'n/a (no model; ComfyUI core + VideoHelperSuite GPL-3.0 code)',
     notes:
       'The Canvas Video concatenator, one job per clip, then video-concat-encoded joins them: every clip comes out at the film\'s size (width x height, scaled to cover and centre-cropped), ' +
-      'at fps (30) and as H.264 + AAC from VHS, so ConcatenateVideo can copy the packets. VHS_LoadVideo resamples to fps and skips round(startTime x fps) frames, keeping round(duration x fps) ' +
-      '(duration 0 = to the end); its sound is cut to the same window (VHS lazy audio: start = skipped frames / fps, length = kept frames / fps), so picture and sound stay in sync. ' +
+      'at fps (30) and as H.264 + AAC from VHS, so ConcatenateVideo can copy the packets. VHS_LoadVideoFFmpeg (ffmpeg decodes the colours as the file tags them) resamples to fps and starts at startTime, keeping round(duration x fps) ' +
+      '(duration 0 = to the end); its sound is cut to the same window (VHS lazy audio: start = startTime, length = kept frames / fps), so picture and sound stay in sync. ' +
       'framesPerBatch frames per pass (64): memory stays flat however long the clip. Muted clips and clips with no sound: the provider replaces the combine\'s audio with an EmptyAudio as long as the window ' +
       '(silenceVhsAudio), so every clip of a film has a sound track; when the window\'s length is unknown (no header, no end) the sound is dropped instead.',
   },
@@ -5865,7 +5935,7 @@ export const SPEC = [
     notes:
       'Content Factory "Use as reference": the clip\'s frames AND sound go into one TextGenerate call and come back as a JSON style brief (role brief): format, hook, pacing, shots, visual_style, animation_style, ' +
       'narration, music, captions, topic_ideas (5). The instruction forbids copying the reference\'s people, logos or exact words. Strip ``` fences before parsing. ' +
-      'VHS_LoadVideo resamples to 24 fps (fixed: TextGenerate assumes 24 fps and keeps every 24th frame, i.e. 1 fps, each capped at 70 soft tokens); frames = the frame cap at 24 fps (720 = the first 30 s), ' +
+      'VHS_LoadVideoFFmpeg resamples to 24 fps (fixed: TextGenerate assumes 24 fps and keeps every 24th frame, i.e. 1 fps, each capped at 70 soft tokens); frames = the frame cap at 24 fps (720 = the first 30 s), ' +
       'startFrame = frames skipped at 24 fps, frameWidth = 384 px wide (about 0.7 GB of frames for 720). In ComfyUI v0.41 only the Gemma 4 and MiniMax text encoders read a video input ' +
       '(the Qwen3.5 encoder ignores it). Same model file as speech-translate-gemma4 (no new download). For a long clip, brief the first 30 s (the default).',
   },
@@ -5971,7 +6041,7 @@ export const SPEC = [
     vramGb: 0,
     license: 'n/a (no model; VideoHelperSuite GPL-3.0 code and the system ffmpeg\'s prores_ks / libx265 / ffv1 / libx264 encoders)',
     notes:
-      'video-export-pro with VHS_LoadVideo decoding framesPerBatch frames per pass (64 by default) into one VHS_VideoCombine encode that stays open across passes, at the source frame rate, with the source\'s sound: ' +
+      'video-export-pro with VHS_LoadVideoFFmpeg decoding framesPerBatch frames per pass (64 by default) into one VHS_VideoCombine encode that stays open across passes, at the source frame rate, with the source\'s sound: ' +
       'the export Fuobe\'s Export mode runs (video-export-pro decodes the whole clip). Same params.format mapping (prores_422_hq -> video/ProRes + hq, prores_4444 -> + 4444, h265_10bit -> video/h265-mp4 (yuv420p10le), ' +
       'ffv1 -> video/ffv1-mkv, h264 -> video/h264-mp4; exr -> video-export-exr). VHS lists only <prefix>_00001-audio.<ext> when the clip has sound, <prefix>_00001.<ext> otherwise, on the last pass. ' +
       'Caveat: VHS\'s ProRes "hq" profile leaves the pixel format to prores_ks, which picks yuv444p10le for the RGB frames, so "ProRes 422 HQ" is the HQ profile (apch) carrying 4:4:4 10-bit samples ' +
@@ -6133,7 +6203,7 @@ export const SPEC = [
       'bundled in the wheel; free, proprietary, runs only on NVIDIA GPUs, no redistributing or reverse engineering, no published benchmarks without NVIDIA\'s permission); ' +
       'the wheel also carries the NVIDIA Open Model License (models commercially usable; NVIDIA claims no outputs) · ComfyUI Nvidia VFX Nodes Apache-2.0 · VideoHelperSuite GPL-3.0 code',
     notes:
-      'Built like upscale-video-esrgan-chunked: VHS_LoadVideo decodes framesPerBatch frames per pass (VHS_BatchManager re-queues the prompt until the clip is done) and one H.264 encode stays open across ' +
+      'Built like upscale-video-esrgan-chunked: VHS_LoadVideoFFmpeg decodes framesPerBatch frames per pass (VHS_BatchManager re-queues the prompt until the clip is done) and one H.264 encode stays open across ' +
       'passes; the last pass writes the file with the source\'s sound at the source frame rate. RTX Video Super Resolution (node 6) scales by min(4, max(1, shortSide / the clip\'s shorter edge)) ' +
       '(ComfyMathExpression 5 from VHS_VideoInfo\'s loaded size), rounds the size to 8 and splits its own work into chunks of at most 16 MP of output; ResizeImageMaskNode 7 then lands exactly on shortSide ' +
       '(the shape kept). rtxQuality: ULTRA (compressed sources, the default) or HIGHBITRATE_ULTRA (clean, high-bitrate sources); LOW-HIGH are faster. Needs an NVIDIA RTX card, ComfyUI on a CUDA ' +
@@ -6445,6 +6515,33 @@ export const SPEC = [
     license: `${OJ_H3_LICENCE} · Metric3D BSD-2-Clause`,
     notes: 'Genjutsu Motion transfer\'s "MiniMax H3" model (oss-h3-motion): video-from-picture-h3 with the character photo itself as Picture 1 (no prepared first frame) and words that put the character in the photo\'s setting. video = the part fitted at 24 fps, image = the character photo. params.extra.openjutsu: seconds, quality 480p | 720p, motion 0 | 512 | 768, seed (the same settings as From picture\'s video).',
   },
+  // Fuobe Reshoot (Genjutsu): Viggle Remake (Viggle AI) on ComfyUI's own MiniMax H3, its swap or edit weights merged at
+  // fp32 and quantized to int8 (one file replaces the base model and the LoRA), the pack's three nodes (keyframes pinned
+  // at real frames, the clip's soundtrack held clean, the reference noise order), 6 steps. Qwen3-VL 8B describes the part's
+  // motion and its paragraph goes where the six-section prompt says {scene}. Genjutsu fits the part first (24 fps, the
+  // canvas's short edge on 32 px steps) and paints its first frame; the provider writes the settings by node title
+  // (src/lib/reshoot-graph.ts).
+  ...['swap', 'edit'].map((mode) => ({
+    id: `video-reshoot-${mode}-h3`,
+    title: mode === 'swap'
+      ? 'Fuobe Reshoot, who\'s in it: a new person plays the part, from a painted first frame (Viggle Remake swap on MiniMax H3, int8), the clip\'s motion, camera, timing and sound kept'
+      : 'Fuobe Reshoot, what\'s in it: an outfit, an object, the place, the weather or the light changed from a painted first frame (Viggle Remake edit on MiniMax H3, int8), the rest of the shot and its sound kept',
+    capability: mode === 'swap' ? 'video-swap' : 'video-scene-edit',
+    handBuilt: `hand-built/video-reshoot-${mode}-h3.json`,
+    packs: ['ComfyUI-Viggle-Remake', 'ComfyUI-VideoHelperSuite'],
+    bindings: { video: [b('6', 'video')], image: [b('7', 'image')], prompt: [b('12', 'string')], seed: [b('14', 'seed')] },
+    outputs: [{ node: '20', kind: 'video' }],
+    defaults: {},
+    limits: { maxDurationSec: 12.25 },
+    vramGb: 30,
+    license:
+      'Viggle Remake weights: MiniMax H3 Community License (a Model Derivative of MiniMax H3, © Viggle AI); show "MiniMax H3" on the product\'s interface; commercial use above US$20M yearly revenue needs MiniMax\'s written authorization · ' +
+      'ComfyUI-Viggle-Remake nodes Apache-2.0 · MiniMax H3 text encoder and VAEs under the MiniMax H3 Community License · Qwen3-VL 8B describer Apache-2.0',
+    notes:
+      'video = the part fitted at 24 fps on the canvas (short edge 480 or 736, both sides on 32 px steps), image = the painted first frame (pinned at frame 0), prompt = Remake\'s six-section prompt with {scene} where the motion paragraph goes. ' +
+      'params.extra.openjutsu: frames (17n + 5, 90-294 at 480p, 90-175 at 720p), quality 480p | 720p, describe (the describer\'s instruction), seed. ' +
+      'Weights touched one stage after another: describer 9.4 GB, NVFP4 text encoder 15.7 GB, Remake int8 21 GB, VAEs 5.8 GB. The authors measured 832x480 x 226 frames in about 14 s a step on a B200 (6 steps).',
+  })),
   {
     id: 'video-fix-faces-h3',
     title: 'Fix faces: H3-FaceRefine tracks the character\'s face, MiniMax H3 redraws it in overlapping sections and it is pasted back (faces over 20 % of the frame are left alone)',
@@ -6502,5 +6599,46 @@ export const SPEC = [
       'the two masks are joined (ImageCompositeMasked of the mask images, so old long hair goes too), grown by maskGrow and blurred by maskBlur (GrowMaskWithBlur), and only that area comes from the swap: ' +
       "every other pixel is the shot's, which removes Qwen 2.1's colour and detail drift over the whole picture. pasteBack false returns the whole swap (the switch is lazy, SAM does not run). " +
       "No head found: the shot comes back unchanged. BFS's own workflow runs the Pruna 8-step LoRA with deis_2m (RES4LYF); this graph keeps core samplers. RTX 5090: about 130 s a photo warm, about 250 s when the models load, peak about 28 GB.",
+  },
+  // Body Double (app-body-double): InstantHMR (ComfyUI-InstantHMR) recovers every person's MHR body and ComfyUI-BodyDouble lines it up
+  // with them; SAM 3.1 and MoGe-2 draw the double over each person's whole outline; ComfyUI's SAM 3D Body nodes render the pose and export a skinned GLB.
+  {
+    id: 'body-double-photo-instanthmr',
+    title: 'Body Double photo (every person\'s double over their whole outline, a pose render and a skinned GLB)',
+    capability: 'body-capture',
+    handBuilt: 'hand-built/body-double-photo-instanthmr.json',
+    packs: ['ComfyUI-InstantHMR', 'ComfyUI-BodyDouble'],
+    bindings: { image: [b('1', 'image')], look: [b('40', 'look')], maxPeople: [b('3', 'max_detections')] },
+    defaults: { look: 'holo', maxPeople: 8 },
+    outputs: [{ node: '7', kind: 'image' }, { node: '12', kind: 'model3d', role: 'body' }, { node: '9', kind: 'image', role: 'pose' }],
+    limits: { maxWidth: 4096, maxHeight: 4096 },
+    vramGb: 8,
+    license: "InstantHMR weights SAM License: the medium file is NON-COMMERCIAL (some training images are research-only); instanthmr_medium_commercial is the commercial-use variant. ComfyUI-InstantHMR code Apache-2.0; ComfyUI-BodyDouble MIT; MHR body model Apache-2.0; RT-DETR v4 Apache-2.0; SAM 3.1 and SAM 3D Body (its rig, for the skinned GLB) under Meta's SAM License, commercial use allowed under its terms; MoGe-2 MIT; VideoHelperSuite GPL-3.0 code",
+    notes:
+      'RT-DETR v4 x (fp16, class person, threshold 0.5, up to maxPeople boxes) -> InstantHMR medium (HGNetV2-B4, 288 px square crops 1.2x the box, focal 1.05x the image diagonal) -> ' +
+      'one MHR body per person -> BodyDoubleFit (each body moved so its 3D keypoints land on its 2D keypoints; the network\'s translation is kept when the fit runs away). ' +
+      "The double covers each person's whole outline, clothes and hair included: SAM 3.1 segments every RT-DETR person box (one mask per frame), MoGe-2 (resolution 9) gives the picture's normals and depth, and BodyDoubleLook fills the mask in the look: holo (normals), clay (normals lit from above left), thermal (nearness and facing on a Turbo colour map), ghost (holo at half strength), xray (cyan glass with bright rims) or skeleton (the SCAIL skeleton over the picture). " +
+      'Role pose: the SCAIL render on black. Role body: BuildPoseFile body_mesh with the SAM 3D Body int8 rig: one skinned mesh per person (127 joints, 72 face morph targets), centred. ' +
+      'On a CPU alone: about 2.5 min a 2048 px photo, most of it MoGe; seconds on a GPU.',
+  },
+  {
+    id: 'body-double-clip-instanthmr',
+    title: 'Body Double clip (the double over every frame, a pose video and an animated skinned GLB)',
+    capability: 'body-capture-video',
+    handBuilt: 'hand-built/body-double-clip-instanthmr.json',
+    packs: ['ComfyUI-InstantHMR', 'ComfyUI-BodyDouble', 'ComfyUI-VideoHelperSuite'],
+    bindings: { video: [b('1', 'video')], frames: [b('1', 'frame_load_cap')], look: [b('40', 'look')] },
+    defaults: { frames: 360, look: 'holo' },
+    outputs: [{ node: '7', kind: 'video' }, { node: '12', kind: 'model3d', role: 'body' }, { node: '9', kind: 'video', role: 'pose' }],
+    limits: { maxWidth: 4096, maxHeight: 4096 },
+    vramGb: 10,
+    license: "InstantHMR weights SAM License: the medium file is NON-COMMERCIAL (some training images are research-only); instanthmr_medium_commercial is the commercial-use variant. ComfyUI-InstantHMR code Apache-2.0; ComfyUI-BodyDouble MIT; MHR body model Apache-2.0; RT-DETR v4 Apache-2.0; SAM 3.1 and SAM 3D Body (its rig, for the skinned GLB) under Meta's SAM License, commercial use allowed under its terms; MoGe-2 MIT; VideoHelperSuite GPL-3.0 code",
+    notes:
+      'VHS_LoadVideoFFmpeg at 24 fps, up to frames (360 = 15 s), scaled to 960 px on the long side -> RT-DETR v4 (the performer: the best person box per frame) -> InstantHMR medium -> ' +
+      'SAM3DBody_Smooth (gaussian, window 7, flips over 30 degrees kept) -> BodyDoubleFit. ' +
+      "The double covers each person's whole outline, clothes and hair included: SAM 3.1 segments every RT-DETR person box (one mask per frame), MoGe-2 (resolution 9) gives the picture's normals and depth, and BodyDoubleLook fills the mask in the look: holo (normals), clay (normals lit from above left), thermal (nearness and facing on a Turbo colour map), ghost (holo at half strength), xray (cyan glass with bright rims) or skeleton (the SCAIL skeleton over the picture). " +
+      'Thermal and xray use one depth range for the whole clip, so their colours hold still. H.264, metadata off. Role pose: the SCAIL pose video on black. ' +
+      'Role body: BuildPoseFile body_mesh, an animated skinned GLB (127 joints, 72 face morphs, 24 fps, camera translation absolute). The clip\'s sound is not carried. ' +
+      'RTX 5090: SAM 3.1 and MoGe-2 take about 2 min for 124 frames (5 s).',
   },
 ];

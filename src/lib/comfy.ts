@@ -100,7 +100,10 @@ export interface ManifestOutput {
     // Watermark Remover: the repair's verdict (QWMFinal), folded into the picture outputs' meta.
     | "quality"
     // Watermark Remover: a tile's scan report (QWMDetect on a quarter of the photo), merged into the "report" output.
-    | "scan-tile";
+    | "scan-tile"
+    // Body Double: the SCAIL pose render (on black) and the skinned body GLB (animated for a clip).
+    | "pose"
+    | "body";
 }
 
 export interface ManifestWorkflow {
@@ -170,7 +173,25 @@ export function applyBindings(
       node.inputs[t.input] = value;
     }
   }
+  startInSeconds(out);
   return { workflow: out, missing };
+}
+
+/**
+ * The ffmpeg video loader starts at a time, not a frame: a start frame bound into it (the specs' startFrame / windowStart
+ * bindings name skip_first_frames, as VHS_LoadVideo has it) becomes start_time = frames / its frame rate. Only a loader
+ * with a set rate takes one; at the clip's own rate (force_rate 0) the frame can't be placed, so it says so.
+ */
+function startInSeconds(wf: ComfyWorkflow): void {
+  for (const [id, n] of Object.entries(wf)) {
+    if (n.class_type !== "VHS_LoadVideoFFmpeg" || !("skip_first_frames" in n.inputs)) continue;
+    const frames = Number(n.inputs.skip_first_frames);
+    const fps = n.inputs.force_rate;
+    delete n.inputs.skip_first_frames;
+    if (!frames) continue;
+    if (typeof fps !== "number" || !(fps > 0)) throw new Error(`Video loader ${id}: a start frame needs a set frame rate`);
+    n.inputs.start_time = Math.round((frames / fps) * 10000) / 10000;
+  }
 }
 
 /**
@@ -684,17 +705,41 @@ export function tagMetaBatch(wf: ComfyWorkflow, job: string): ComfyWorkflow {
   return out;
 }
 
+/** The VHS video loaders: their audio is output 2, read lazily (a file without sound stops the run once it is read). */
+const VHS_VIDEO_LOADERS = new Set(["VHS_LoadVideo", "VHS_LoadVideoFFmpeg"]);
+/** Inputs that may go without sound: a VHS soundtrack link into them is dropped for a silent clip. */
+const OPTIONAL_SOUND: Record<string, string[]> = { VHS_VideoCombine: ["audio"], CreateVideo: ["audio"], TextGenerate: ["audio"], RemakeConditioning: ["audio"] };
+/** Nodes that pad the sound they get to the loaded frames themselves: an empty track is enough (and never too long). */
+const PADS_TO_FRAMES = new Set(["H3SoundtrackOrSilence"]);
 /**
- * A clip with no sound: VHS_LoadVideo fails ("failed to extract audio") once its audio output is read, so
- * the links from that output (VHS_VideoCombine.audio) are dropped. Only for clips whose header says so.
+ * A clip with no sound: a VHS video loader fails ("failed to extract audio") once its audio output is read, so no
+ * link from that output is left. Where sound is optional (VHS_VideoCombine.audio) the link is dropped, and the
+ * result has no sound track. Where a node needs sound (the Openjutsu graphs' AudioConcat, H3 Face Chunks) it
+ * gets stereo silence `seconds` long (the clip's length; 1 s when unknown), and H3 Soundtrack or Silence an empty
+ * track it pads to the loaded frames, so a silent clip runs and its result is silent. Only for clips whose header
+ * says they have no sound.
  */
-export function dropVhsAudio(wf: ComfyWorkflow): ComfyWorkflow {
-  const loaders = new Set(Object.entries(wf).filter(([, n]) => n.class_type === "VHS_LoadVideo").map(([id]) => id));
+export function dropVhsAudio(wf: ComfyWorkflow, seconds?: number): ComfyWorkflow {
+  const loaders = new Set(Object.entries(wf).filter(([, n]) => VHS_VIDEO_LOADERS.has(n.class_type)).map(([id]) => id));
   if (!loaders.size) return wf;
   const out = cloneWorkflow(wf);
+  const clipLength = seconds && Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds * 1000) / 1000 : 1;
+  const silences = new Map<number, string>();
+  const silence = (length: number) => {
+    let id = silences.get(length);
+    if (id) return id;
+    id = "silence";
+    for (let k = 2; out[id]; k++) id = `silence${k}`;
+    out[id] = { class_type: "EmptyAudio", inputs: { duration: length, sample_rate: 44100, channels: 2 }, _meta: { title: length ? "Silence as long as the clip" : "No sound (padded to the frames)" } };
+    silences.set(length, id);
+    return id;
+  };
   for (const n of Object.values(out)) {
-    const a = n.inputs.audio;
-    if (isLinkValue(a) && loaders.has(a[0]) && a[1] === 2) delete n.inputs.audio;
+    for (const [input, v] of Object.entries(n.inputs)) {
+      if (!isLinkValue(v) || !loaders.has(v[0]) || v[1] !== 2) continue;
+      if (OPTIONAL_SOUND[n.class_type]?.includes(input)) delete n.inputs[input];
+      else n.inputs[input] = [silence(PADS_TO_FRAMES.has(n.class_type) ? 0 : clipLength), 0];
+    }
   }
   return out;
 }
@@ -705,7 +750,7 @@ export function dropVhsAudio(wf: ComfyWorkflow): ComfyWorkflow {
  * loader's own sound is then never read (a file without one would stop VHS).
  */
 export function silenceVhsAudio(wf: ComfyWorkflow, seconds: number): ComfyWorkflow {
-  const loaders = new Set(Object.entries(wf).filter(([, n]) => n.class_type === "VHS_LoadVideo").map(([id]) => id));
+  const loaders = new Set(Object.entries(wf).filter(([, n]) => VHS_VIDEO_LOADERS.has(n.class_type)).map(([id]) => id));
   if (!loaders.size) return wf;
   const out = cloneWorkflow(wf);
   let id = "silence";

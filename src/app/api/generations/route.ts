@@ -31,6 +31,7 @@ import { decidePlace, lateRefusal, moderateRun, policyWait, poolQuote, readWishe
 import { withRunStamp, type RunStamp } from "@/server/run-stamp";
 import { hostedRunsOn } from "@/server/hosted-switch";
 import { endTry, notePressRun, pressPrior, pressRun, pressTries, pressTry, readPressId } from "@/server/run-requests";
+import { limitFields, limitWords } from "@/lib/limit-words";
 
 /**
  * List generations, newest first. Filters: kind / kinds, features (`x*` = prefix), models, statuses,
@@ -138,7 +139,8 @@ function limitAnswer(r: AdmitRefused["refusal"]): Answer {
     const late = lateRefusal(r.error);
     return { status: late.status, body: late.body as Answer["body"], headers: late.headers };
   }
-  return { status: r.status, body: { error: r.error, code: r.code }, headers: r.status === 429 ? { "Retry-After": String(r.retryAfterS ?? 30) } : {} };
+  const limit = "limit" in r && r.limit ? { limit: r.limit, refreshAt: r.refreshAt } : {};
+  return { status: r.status, body: { error: r.error, code: r.code, ...limit }, headers: r.status === 429 ? { "Retry-After": String(r.retryAfterS ?? 30) } : {} };
 }
 
 /** Start a generation; `?preview=1` only says what it would run as (model, operation, jobs, outputs, cost). */
@@ -178,7 +180,8 @@ export async function POST(request: Request) {
   // or key only (src/lib/own-setup.ts), as on the Genjutsu page: an account's run goes there (accountRun answers Connect
   // your GPU or Add your key when it has neither), a run on this install's GPUs is refused with the setup's label
   // (hosted-run.ts poolGate), and a guest signs up first. Never this studio's own GPU for a visitor.
-  let req = account ? { ...asked, account: account.id, engine: accountEngineMode(account.id) === "open" ? ("open" as const) : asked.engine } : { ...asked, account: undefined };
+  // The owner's run sent with an API token (a script, the CLI, an agent) and no source of its own reads as automated.
+  let req = account ? { ...asked, account: account.id, source: undefined, sourceName: undefined, engine: accountEngineMode(account.id) === "open" ? ("open" as const) : asked.engine } : { ...asked, account: undefined, ...(token && !asked.source && { source: "api" as const }) };
   const onOwn = <T,>(fn: () => T): T => (account ? asAccount(account.id, fn) : fn());
   // A visitor's price check: priced as it would run, as that visitor (an account: its own GPU and keys; a guest: the open
   // engine, no demo).
@@ -197,7 +200,7 @@ export async function POST(request: Request) {
   const ownLimits = (id: string): Response | null => {
     if (ownActiveRuns(id, { except: replaces?.ids, waitingApart: true }) >= ACCOUNT_LIMITS.activeRuns) return refuse(429, ACCOUNT_MESSAGES.activeRuns, { code: ACTIVE_RUNS_CODE }, { "Retry-After": "30" });
     const rate = hit(`run:${id}`, ACCOUNT_LIMITS.runsPerHour, 60 * 60_000);
-    if (!rate.ok) return refuse(429, ACCOUNT_MESSAGES.runRate, {}, { "Retry-After": String(rate.retryAfterS) });
+    if (!rate.ok) return refuse(429, limitWords("runs", rate.retryAfterS), limitFields("runs", rate.retryAfterS), { "Retry-After": String(rate.retryAfterS) });
     rated = true;
     return null;
   };
@@ -309,7 +312,7 @@ export async function POST(request: Request) {
       if ("refuse" in plan) {
         unhitRun();
         const over = plan.refuse;
-        return refuse(over.status, over.error, { code: over.code }, { "Retry-After": String(over.retryAfterS) });
+        return refuse(over.status, over.error, { code: over.code, ...(over.limit && { limit: over.limit, refreshAt: over.refreshAt }) }, { "Retry-After": String(over.retryAfterS) });
       }
       // The request as it runs there (no more outputs than the policy's cap per run): planned and priced as it is.
       if (onPool.capped) {

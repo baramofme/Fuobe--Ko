@@ -31,6 +31,7 @@ import { NotificationSettings } from "@/components/notification-settings";
 import { SecuritySettings } from "@/components/security-settings";
 import { radioKeys, radioTab } from "@/components/studio/radio-keys";
 import { AutoPatternsSetting } from "@/components/auto-patterns-setting";
+import { UploadSwitchesSettings } from "@/components/upload-switches-settings";
 
 function Section({
   id,
@@ -704,7 +705,16 @@ export function SettingsForm({ prices }: { prices?: string }) {
           value={(get("enhanceProvider")?.value || "auto").replace(/^ollama$/, "local")}
           onChange={set("enhanceProvider")}
           options={[
-            { value: "auto", label: "Automatic", hint: "Claude when a key is set, then a local model, then the offline rewriter." },
+            {
+              value: "auto",
+              label: "Automatic",
+              hint: status?.llm?.free?.known
+                ? `Claude when a key is set, then a local model, then ${status.llm.free.label} (free), then the offline rewriter.`
+                : "Claude when a key is set, then a local model, then the offline rewriter.",
+            },
+            ...(status?.llm?.free?.known || get("enhanceProvider")?.value === "free"
+              ? [{ value: "free", label: `${status?.llm?.free?.label ?? "Your workers"} (free)`, hint: "A small open model on your workers' text slots. Nothing goes to a paid API." }]
+              : []),
             { value: "anthropic", label: "Claude", hint: "Claude through your Anthropic key (paid per use)." },
             { value: "local", label: "Local model only", hint: "A local, open-source model (Ollama, LM Studio, Unsloth Studio or your own server). Claude is never called." },
             { value: "none", label: "Offline rewriter", hint: "Built-in rules, no LLM. Text steps (translate, write) are off." },
@@ -742,6 +752,14 @@ export function SettingsForm({ prices }: { prices?: string }) {
       </Section>
 
       <Section
+        id="uploads"
+        title="Uploads · fit in the browser"
+        description="When a file doesn't fit a tool, the visitor's browser can fix it before it is uploaded. Switch a step off if it causes trouble: that kind of file is then refused with the reason, as before, and the server's own checks still apply."
+      >
+        <UploadSwitchesSettings />
+      </Section>
+
+      <Section
         id="demo"
         title="Placeholder results"
         description="Off unless you turn it on. For giving a tour of this studio without keys or a GPU: runs cost nothing and make stand-in media instead of the real thing."
@@ -765,9 +783,26 @@ export function SettingsForm({ prices }: { prices?: string }) {
       </Section>
 
       <Section
+        id="failed-runs"
+        title="Failed runs"
+        description="What a person reads when a run of theirs on this studio's GPUs can't finish. The details are cleaned first: no folders, addresses, keys or prompt text, and nobody sees another person's."
+      >
+        <ChoiceField
+          id="setting-run-failure-detail"
+          label="Show people"
+          value={get("runFailureDetail")?.value ?? "full"}
+          onChange={set("runFailureDetail")}
+          options={[
+            { value: "full", label: "Full details", hint: "The plain sentence, and under it what went wrong: ComfyUI's own reason, such as a node that isn't installed or a model file it doesn't have." },
+            { value: "friendly", label: "Friendly only", hint: "The plain sentence only. You still read the full reason in each run's details." },
+          ]}
+        />
+      </Section>
+
+      <Section
         id="auto-image"
         title="Auto image model"
-        description="Auto is the Image studio's first pick on the open engine: Ideogram 4 for most pictures and for lettering, Qwen-Image 2.1 for edits, and Krea 2 Realism for the prompts below, which Ideogram 4's safety filter often declines. When Ideogram 4 declines a run anyway, Krea 2 Realism, FIBO 2 Dev, then MOSS-Image make it."
+        description="Auto is the Image studio's first pick on the open engine: Krea 2 Realism for every picture, MOSS-Image first for lettering, posters and logos, and Qwen-Image 2.1 for edits. When the first model is switched off, can't run or fails, the other one makes the same run, at no extra charge. Prompts that match the lines below start on Krea 2 Realism too, and their run details name the line."
         inactive={mode === "cloud" ? "Not used in Paid APIs only mode" : undefined}
       >
         <AutoPatternsSetting setting={get("autoImagePatterns")} saving={save.isPending} onSave={set("autoImagePatterns")} />

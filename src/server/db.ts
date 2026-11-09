@@ -717,7 +717,9 @@ export const WORKER_JOBS_KEEP_MS = 365 * 24 * 60 * 60_000;
  * that runs its waiting jobs, until its lease lapses) and what its tab said about its ComfyUI. relay_tasks: one per
  * ComfyUI job of a run on someone's computer, with the graph as the server built it and where the job is. relay_inputs:
  * the files staged for a job, under the names ComfyUI gets. worker_jobs: which worker took which task and when, and what
- * became of it (rows are only added; each is kept a year, like the admin API's log). Safe to run on every start.
+ * became of it (rows are only added; each is kept a year, like the admin API's log). worker_events: each worker's state
+ * changes, handoffs, stages, claims, admin actions and its own log lines (worker-events.ts; pruned after 7 or 30 days).
+ * Safe to run on every start.
  */
 export const RELAY_TABLES = `CREATE TABLE IF NOT EXISTS relay_runners (
     principal TEXT PRIMARY KEY,
@@ -810,6 +812,21 @@ export const RELAY_TABLES = `CREATE TABLE IF NOT EXISTS relay_runners (
     seen_at INTEGER
   );
   CREATE INDEX IF NOT EXISTS relay_workers_principal ON relay_workers(principal);
+  CREATE TABLE IF NOT EXISTS queue_overrides (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    target TEXT NOT NULL,
+    action TEXT NOT NULL,
+    worker_id TEXT,
+    gens_json TEXT,
+    until INTEGER,
+    set_by TEXT NOT NULL,
+    set_at INTEGER NOT NULL,
+    ended_at INTEGER,
+    ended_by TEXT,
+    end_why TEXT
+  );
+  CREATE INDEX IF NOT EXISTS queue_overrides_live ON queue_overrides(ended_at, kind, target);
   CREATE TABLE IF NOT EXISTS relay_pairings (
     id TEXT PRIMARY KEY,
     code TEXT NOT NULL UNIQUE,
@@ -846,7 +863,27 @@ export const RELAY_TABLES = `CREATE TABLE IF NOT EXISTS relay_runners (
   CREATE TRIGGER IF NOT EXISTS worker_jobs_no_update BEFORE UPDATE ON worker_jobs BEGIN SELECT RAISE(ABORT, 'worker_jobs only grows'); END;
   CREATE TRIGGER IF NOT EXISTS worker_jobs_kept BEFORE DELETE ON worker_jobs
     WHEN OLD.at > CAST(strftime('%s', 'now') AS INTEGER) * 1000 - ${WORKER_JOBS_KEEP_MS}
-    BEGIN SELECT RAISE(ABORT, 'worker_jobs rows are kept a year'); END;`;
+    BEGIN SELECT RAISE(ABORT, 'worker_jobs rows are kept a year'); END;
+  CREATE TABLE IF NOT EXISTS worker_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    worker_id TEXT,
+    worker_name TEXT,
+    kind TEXT NOT NULL,
+    event TEXT NOT NULL,
+    words TEXT,
+    task_id TEXT,
+    generation_id TEXT,
+    lane TEXT,
+    state TEXT,
+    detail_json TEXT
+  );
+  CREATE INDEX IF NOT EXISTS worker_events_at ON worker_events(at);
+  CREATE INDEX IF NOT EXISTS worker_events_kind_at ON worker_events(kind, at);
+  CREATE INDEX IF NOT EXISTS worker_events_worker ON worker_events(worker_id, id);
+  CREATE INDEX IF NOT EXISTS worker_events_worker_kind ON worker_events(worker_id, kind, id);
+  CREATE INDEX IF NOT EXISTS worker_events_task ON worker_events(task_id);
+  CREATE INDEX IF NOT EXISTS worker_events_generation ON worker_events(generation_id);`;
 
 /**
  * The optional external services' tables (billing.ts, moderation.ts). billing_outbox: every settle, refund and release
@@ -1014,6 +1051,8 @@ const HOOK_COLUMNS: [string, string, string][] = [
   ["run_requests", "tries", "INTEGER NOT NULL DEFAULT 0"],
   ["run_requests", "starting", "INTEGER NOT NULL DEFAULT 0"],
   ["run_requests", "answer_json", "TEXT"],
+  // A failed run's technical detail, for the owner only, when the person read a plain sentence (generations.ts Row.detail).
+  ["generations", "detail", "TEXT"],
 ];
 
 /**
@@ -1067,6 +1106,10 @@ const RELAY_COLUMNS: [string, string, string][] = [
   // picture came (the picture is a file in the task's folder): kept in the database, so every app process sees them.
   ["relay_tasks", "progress_json", "TEXT"],
   ["relay_tasks", "preview_at", "INTEGER"],
+  // ComfyUI's own reason a job failed, in one short line (src/lib/comfy-reason.ts): the owner's only.
+  ["relay_tasks", "comfy_why", "TEXT"],
+  // A worker's slowest nodes for the job, as JSON (src/lib/node-times.ts): the owner's only.
+  ["relay_tasks", "exec_nodes", "TEXT"],
   // A pool worker's next token (workers.ts offerNextToken) and where its token was used from (hashed networks).
   ["relay_workers", "next_token_hash", "TEXT"],
   ["relay_workers", "next_expires_at", "INTEGER"],
@@ -1084,6 +1127,21 @@ const RELAY_COLUMNS: [string, string, string][] = [
   ["relay_tasks", "slot", "TEXT"],
   ["relay_tasks", "finish_json", "TEXT"],
   ["relay_workers", "cpu_slot_json", "TEXT"],
+  // Why a worker that may work doesn't start the line's work now, as its last beat said (WorkerBeat.holding; NULL: none).
+  ["relay_workers", "holding_json", "TEXT"],
+  // A worker's last claim for its GPU's slot, and the answer in words (pool.ts workerClaim).
+  ["relay_workers", "asked_at", "INTEGER"],
+  ["relay_workers", "asked_words", "TEXT"],
+  // The owner's mode for one worker (computer/queue-controls.ts), and local work on its PC as its last beat said.
+  ["relay_workers", "mode_json", "TEXT"],
+  ["relay_workers", "local_work_json", "TEXT"],
+  // A worker's code commit as its last beat said, since when it is behind the studio's catalog, and the owner's "Update
+  // now" (when, by whom, and the commit it was on then) until it is on new code (pool.ts askWorkerUpdate).
+  ["relay_workers", "commit_sha", "TEXT"],
+  ["relay_workers", "behind_since", "INTEGER"],
+  ["relay_workers", "update_asked_at", "INTEGER"],
+  ["relay_workers", "update_asked_by", "TEXT"],
+  ["relay_workers", "update_asked_commit", "TEXT"],
 ];
 
 declare global {
@@ -1115,6 +1173,24 @@ function forgetDroppedBranchMigrations(db: Database.Database): void {
   const forget = (id: number) => db.prepare("DELETE FROM _migrations WHERE id = ?").run(id);
   if (done(23) && !has("table", "gpu_snapshots") && hasColumn("users", "auth_user_id")) forget(23);
   if (done(24) && !hasColumn("assets", "account_id") && has("trigger", "audit_log_no_delete")) forget(24);
+}
+
+/** The settings row that says the choice below was made for this data folder (once, whatever it was). */
+export const FAILURE_DETAIL_CHOSEN = "runs.failureDetail.chosen";
+
+/**
+ * What people read when a run fails (settings.ts runFailureDetail): a new install starts with "full", the default. An
+ * install whose data folder already had migrations when this build first opened it read the plain sentence only until
+ * now, and keeps it: "friendly" is saved for it, before any request is served. Done once per data folder (its marker
+ * row), so the owner's later choice, either way, stays across restarts and updates.
+ */
+function keepFriendlyFailures(db: Database.Database, fresh: boolean): void {
+  if (db.prepare("SELECT 1 FROM settings WHERE key = ?").get(FAILURE_DETAIL_CHOSEN)) return;
+  db.transaction(() => {
+    if (db.prepare("SELECT 1 FROM settings WHERE key = ?").get(FAILURE_DETAIL_CHOSEN)) return;
+    if (!fresh) db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('runs.failureDetail', 'friendly')").run();
+    db.prepare("INSERT INTO settings (key, value) VALUES (?, '1')").run(FAILURE_DETAIL_CHOSEN);
+  }).immediate();
 }
 
 /** Add a column found missing: another server starting at the same moment may have just added it. */
@@ -1157,6 +1233,7 @@ function open(): Database.Database {
       db.prepare("INSERT INTO _migrations (id) VALUES (?)").run(i);
     }).immediate();
   });
+  keepFriendlyFailures(db, done.size === 0);
   // Placeholder results are opt-in (settings.ts, demoMode): a saved "auto", which made a placeholder whenever the model
   // wasn't connected, is cleared, so the install runs with the default "off". A saved "on" stays. Safe on every start.
   db.exec("DELETE FROM settings WHERE key = 'demo.mode' AND value NOT IN ('on', 'off')");
@@ -1185,6 +1262,31 @@ function open(): Database.Database {
   db.exec(ADMIN_TABLES);
   // The runs let in whose rows are still being made (pool-limits.ts openAdmission): not a numbered migration either.
   db.exec(ADMISSION_TABLES);
+  // The free text helper's line and the workers' text slots (text-helper.ts): not a numbered migration either.
+  db.exec(HELPER_TABLES);
+  for (const [table, column, type] of [
+    ["helper_jobs", "images_json", "TEXT"],
+    ["helper_slots", "vision", "INTEGER NOT NULL DEFAULT 0"],
+    // Chat: its turns, its own sampling, the words so far as its slot sends them, and the slots that take chats.
+    ["helper_jobs", "messages_json", "TEXT"],
+    ["helper_jobs", "sampling_json", "TEXT"],
+    ["helper_jobs", "stream", "INTEGER NOT NULL DEFAULT 0"],
+    ["helper_jobs", "partial", "TEXT"],
+    ["helper_jobs", "partial_at", "INTEGER"],
+    ["helper_slots", "chat", "INTEGER NOT NULL DEFAULT 0"],
+    // Why a slot takes no jobs for now ("updating": its worker restarts on new code), and since when.
+    ["helper_slots", "away", "TEXT"],
+    ["helper_slots", "away_at", "INTEGER"],
+    // Tool calling: the tools a chat offers and how to choose, the calls in its answer and why it stopped, the slots
+    // that take tools.
+    ["helper_jobs", "tools_json", "TEXT"],
+    ["helper_jobs", "tool_choice_json", "TEXT"],
+    ["helper_jobs", "tool_calls_json", "TEXT"],
+    ["helper_jobs", "finish", "TEXT"],
+    ["helper_slots", "tools", "INTEGER NOT NULL DEFAULT 0"],
+  ]) {
+    if (!(db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === column)) addColumn(db, `ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
   // Skills: the runs that wait across studios. A data folder that ran claude/fuobe-parity-4's earlier build of this
   // feature (its numbered migration at place 27, a skill_runs with no engine column and runs kept in another shape)
   // keeps that table under another name, so these runs start from an empty table. Nothing is deleted.
@@ -1194,6 +1296,16 @@ function open(): Database.Database {
   db.exec(SKILL_TABLES);
   // An account's own canvases (account-canvas.ts): not a numbered migration, so branches never clash over its place.
   db.exec(ACCOUNT_CANVAS_TABLES);
+  // Fuobe Chat (src/server/chat/store.ts): not a numbered migration either.
+  db.exec(CHAT_TABLES);
+  // When a chat was archived (it leaves the list, kept under Archived), for tables made before it.
+  if (!(db.prepare("PRAGMA table_info(account_chat_threads)").all() as { name: string }[]).some((c) => c.name === "archived_at")) {
+    addColumn(db, "ALTER TABLE account_chat_threads ADD COLUMN archived_at INTEGER");
+  }
+  // A chat message's plan to make something (its runs and their inputs), for tables made before it.
+  if (!(db.prepare("PRAGMA table_info(account_chat_messages)").all() as { name: string }[]).some((c) => c.name === "data_json")) {
+    addColumn(db, "ALTER TABLE account_chat_messages ADD COLUMN data_json TEXT");
+  }
   // Where an account's runs go, as it picked (run-on.ts): read only while hosted runs are on, empty otherwise.
   db.exec(RUN_ON_TABLES);
   // Runs on this install's GPUs waiting to enter the line (pool-holds.ts): empty unless hosted runs are on.
@@ -1217,6 +1329,13 @@ function open(): Database.Database {
   } catch (e) {
     console.warn(`[fuobe] Couldn't index runs by account: ${(e as Error).message}`);
   }
+  // The live stream's sweep reads the runs updated in the last moments (live.ts sweepForeign): through this index, not
+  // by reading every run. Not a numbered migration either; a failure only leaves the sweep slower.
+  try {
+    db.exec("CREATE INDEX IF NOT EXISTS generations_updated ON generations(updated_at)");
+  } catch (e) {
+    console.warn(`[fuobe] Couldn't index runs by update time: ${(e as Error).message}`);
+  }
   keepPrivate(file);
   return db;
 }
@@ -1233,6 +1352,73 @@ const ACCOUNT_CANVAS_TABLES = `CREATE TABLE IF NOT EXISTS account_canvases (
     summary_json TEXT
   );
   CREATE INDEX IF NOT EXISTS account_canvases_account ON account_canvases(account_id, updated_at DESC);`;
+
+/**
+ * Fuobe Chat (src/server/chat/store.ts): chats, their messages, the characters people make, their chat settings and the
+ * public copies of shared chats. `account_id` is an account's id, or "owner" for the owner's own chats.
+ */
+const CHAT_TABLES = `CREATE TABLE IF NOT EXISTS account_chat_threads (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    character_id TEXT,
+    tool TEXT,
+    play TEXT,
+    mature INTEGER NOT NULL DEFAULT 0,
+    summary TEXT,
+    summary_upto INTEGER NOT NULL DEFAULT 0,
+    share_token TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS account_chat_threads_account ON account_chat_threads(account_id, updated_at DESC);
+  CREATE TABLE IF NOT EXISTS account_chat_messages (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    seq INTEGER NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content TEXT NOT NULL,
+    image_url TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS account_chat_messages_thread ON account_chat_messages(thread_id, seq);
+  CREATE TABLE IF NOT EXISTS account_chat_characters (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    tagline TEXT NOT NULL,
+    persona TEXT NOT NULL,
+    scenario TEXT NOT NULL,
+    greeting TEXT NOT NULL,
+    mature INTEGER NOT NULL DEFAULT 0,
+    accent TEXT NOT NULL,
+    portrait_url TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS account_chat_characters_account ON account_chat_characters(account_id, updated_at DESC);
+  CREATE TABLE IF NOT EXISTS account_chat_prefs (
+    account_id TEXT PRIMARY KEY,
+    mature_at INTEGER,
+    engine TEXT NOT NULL DEFAULT 'site',
+    key_sealed TEXT,
+    key_last4 TEXT,
+    key_model TEXT,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS account_chat_shares (
+    token TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
+    mature INTEGER NOT NULL DEFAULT 0,
+    snapshot_json TEXT NOT NULL,
+    portrait_url TEXT,
+    views INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS account_chat_shares_thread ON account_chat_shares(thread_id);`;
 
 /**
  * Where an account's runs go while hosted runs are on, as it picked (run-on.ts): this install's GPUs, its own GPU, or
@@ -1294,6 +1480,47 @@ const ADMISSION_TABLES = `CREATE TABLE IF NOT EXISTS open_admissions (
     at INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS open_admissions_account ON open_admissions(account, at);`;
+
+/** Text jobs for the workers' text slots, and when each slot last asked for one (src/server/text-helper.ts). */
+const HELPER_TABLES = `CREATE TABLE IF NOT EXISTS helper_jobs (
+    id TEXT PRIMARY KEY,
+    who TEXT NOT NULL,
+    task TEXT NOT NULL,
+    system TEXT NOT NULL,
+    user TEXT NOT NULL,
+    max_tokens INTEGER NOT NULL,
+    json INTEGER NOT NULL DEFAULT 0,
+    state TEXT NOT NULL,
+    worker_id TEXT,
+    lease TEXT,
+    created_at INTEGER NOT NULL,
+    claimed_at INTEGER,
+    done_at INTEGER,
+    text TEXT,
+    error TEXT,
+    images_json TEXT,
+    messages_json TEXT,
+    sampling_json TEXT,
+    stream INTEGER NOT NULL DEFAULT 0,
+    partial TEXT,
+    partial_at INTEGER,
+    tools_json TEXT,
+    tool_choice_json TEXT,
+    tool_calls_json TEXT,
+    finish TEXT
+  );
+  CREATE INDEX IF NOT EXISTS helper_jobs_line ON helper_jobs(state, created_at);
+  CREATE TABLE IF NOT EXISTS helper_slots (
+    worker_id TEXT PRIMARY KEY,
+    seen_at INTEGER NOT NULL,
+    model TEXT,
+    device TEXT,
+    vision INTEGER NOT NULL DEFAULT 0,
+    chat INTEGER NOT NULL DEFAULT 0,
+    away TEXT,
+    away_at INTEGER,
+    tools INTEGER NOT NULL DEFAULT 0
+  );`;
 
 export function db(): Database.Database {
   globalThis.__fuobeDb ??= open();

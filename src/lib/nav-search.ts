@@ -78,6 +78,13 @@ export const INTENTS: readonly Intent[] = [
   { id: "channel", triggers: ["youtube", "channel", "faceless", "episode", "series", "podcast"], targets: ["faceless", "content-factory", "explainer", "audio"] },
   { id: "film", triggers: ["film", "movie", "cinematic", "scene", "shot", "director", "trailer", "music video"], targets: ["cinema", "storyboard", "motions", "katana"] },
   { id: "dance", triggers: ["dance", "choreography", "pose", "moves", "tiktok dance"], targets: ["motion-control", "app-dance", "genjutsu"] },
+  { id: "chat", triggers: ["chat", "chatbot", "talk to", "talk with", "talk about", "ask", "advice", "roleplay", "role play", "brainstorm"], targets: ["chat"] },
+  // Assist is Chat now: its words lead there.
+  {
+    id: "assist",
+    triggers: ["assist", "assistant", "agent", "plan", "planner", "make me", "do it for me", "skills", "memory", "scheduled"],
+    targets: ["chat", "chat-skills", "chat-memory", "chat-scheduled"],
+  },
   { id: "talk", triggers: ["talk", "talking", "speak", "lipsync", "lip sync", "avatar", "presenter", "spokesperson"], targets: ["lipsync", "app-talking-photo", "audio-speech"] },
   { id: "sound", triggers: ["sound", "audio"], targets: ["audio", "audio-clean", "audio-sfx", "audio-music"] },
   { id: "voice", triggers: ["voice", "voiceover", "voice over", "narration", "narrator", "tts", "text to speech", "read aloud"], targets: ["audio-speech", "audio", "lipsync"] },
@@ -121,6 +128,20 @@ export const INTENTS: readonly Intent[] = [
     targets: ["motions", "edit", "upscale", "video"],
   },
   { id: "hook", triggers: ["hook", "thumbnail", "first seconds", "retention", "engagement"], targets: ["virality", "app-hook-frame"] },
+  // Fuobe FX: the words of an FX pipeline lead to its page, then to the tool that does the job.
+  { id: "fx", triggers: ["fx", "vfx", "visual effects", "compositing", "compositor", "comp", "post production", "postproduction"], targets: ["area-fx", "genjutsu", "video-tools", "upscale"] },
+  {
+    id: "roto",
+    triggers: ["roto", "rotoscope", "rotoscoping", "matte", "mattes", "alpha", "keying", "chroma key", "depth pass", "z pass"],
+    targets: ["video-tools-matte", "video-tools-green-screen", "app-video-background-remover", "video-tools-depth", "area-fx"],
+  },
+  {
+    id: "clean-plate",
+    triggers: ["clean plate", "plate", "paint out", "wire removal", "rig removal", "remove person"],
+    targets: ["video-tools-remove-object", "video-tools-remove-person", "app-object-remover", "area-fx"],
+  },
+  { id: "exr", triggers: ["exr", "openexr", "hdr", "prores", "10 bit", "lossless"], targets: ["upscale-export", "upscale-hdr", "area-fx"] },
+  { id: "retime", triggers: ["retime", "frame interpolation", "interpolate", "interpolation", "60fps", "120fps"], targets: ["upscale-fps", "area-fx"] },
 ];
 
 /**

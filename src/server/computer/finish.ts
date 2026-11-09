@@ -7,12 +7,13 @@ import type { HistoryEntryLike, WantedFile } from "@/lib/relay";
 import { accountTotalBytes, accountUsage, diskFloorBytes, diskFreeBytes, diskHasRoom } from "../account-files";
 import { db } from "../db";
 import { pictureWithoutMetadata } from "../media-clean";
+import { glbSelfContained } from "../model-input";
 import { ACCOUNT_TURNTABLE, accountFinishProblem, FINISHED_3D_OPS, MODEL_FINISH_VERSION, modelToFinish, OWN_ORBIT, withTurntable } from "../model3d-finish";
 import { getSetting } from "../settings";
 import { absolutePath, deleteAsset, getAsset, readRef, saveFile, type Asset } from "../storage";
 import { tenantAccount } from "../tenant";
 import { cpuSlotOf, poolWaitMs, RETRY_WINDOW_MS, runPlaceOf, ticketReady } from "./pool";
-import { createTask, endTask, json, receivedFile, resultOf, stageInput, stagedInput, type FinishedPlan, type TaskRow } from "./tasks";
+import { createTask, endTask, json, receivedFile, resultOf, stageInput, stagedInput, type FinishedPlan, type Principal, type TaskRow } from "./tasks";
 import type { WorkerRow } from "./workers";
 
 /**
@@ -63,13 +64,15 @@ export function finishTask(generationId: string, kind: FinishKind, step = 0): Ta
 
 /**
  * The wait the run was stamped with (the billing service's limit; 0: as long as it takes, so none), else this
- * install's (FUOBE_POOL_WAIT_MIN). Undefined: no limit.
+ * install's (FUOBE_POOL_WAIT_MIN, when set). Undefined: no limit.
  */
 function runWaitMs(generationId: string): number | undefined {
   const r = db().prepare("SELECT json_extract(request_json, '$.waitMs') AS w FROM generations WHERE id = ?").get(generationId) as { w: unknown } | undefined;
   const w = r?.w === null || r?.w === undefined ? NaN : Number(r.w);
   if (w === 0) return undefined;
-  return Number.isFinite(w) && w > 0 ? w : poolWaitMs();
+  if (Number.isFinite(w) && w > 0) return w;
+  // This install's own limit, when it sets one (none by default: as long as it takes).
+  return poolWaitMs() || undefined;
 }
 
 /**
@@ -85,12 +88,15 @@ function runWaitMs(generationId: string): number | undefined {
 export function queueFinish(o: {
   kind: FinishKind;
   generationId: string;
-  account: string;
+  /** The run's account; none: the owner's run. */
+  account?: string;
   inputs: { slot: string; data: Buffer; contentType: string; name: string }[];
   settings: Record<string, unknown>;
   step?: number;
+  /** Its class and place in the line, in place of the run's own (a preview made for an older result goes last). */
+  place?: { class: "paid" | "free" | "owner"; rankAt: number };
 }): string {
-  const principal = `acct:${o.account}` as const;
+  const principal: Principal = o.account ? `acct:${o.account}` : "owner";
   const queued = () => {
     const had = finishTask(o.generationId, o.kind, o.step ?? 0);
     return had && had.state !== "canceled" ? had.id : null;
@@ -118,7 +124,7 @@ export function queueFinish(o: {
       if (again) return again;
       // The run's class and place in line (pool.ts runPlaceOf): a chain's camera path is queued for a step that has no
       // job of its own yet, and keeps the place of the steps of its run before it.
-      const run = runPlaceOf(o.generationId);
+      const run = o.place ?? runPlaceOf(o.generationId);
       const now = Date.now();
       const wait = runWaitMs(o.generationId);
       const t = createTask({
@@ -132,7 +138,7 @@ export function queueFinish(o: {
         pool: {
           pools: ["pool"],
           account: o.account,
-          class: run?.class ?? "free",
+          class: run?.class ?? (o.account ? "free" : "owner"),
           rankAt: run?.rankAt ?? now,
           lane: "small",
           needs: { workflowId: `finish-${o.kind}`, files: [], packs: [], minVramBytes: 0 },
@@ -276,29 +282,7 @@ export function stopWorkerFinish(generationId: string): void {
   for (const t of live) endTask(t.id, "canceled", { error: "Stopped" });
 }
 
-/**
- * Is this a binary glTF 2 whose every buffer and picture is inside the file (no URI, or a data: URI)? This server
- * checks the worker's web GLB again before it keeps it: it reads only the header and the JSON chunk.
- */
-export function glbSelfContained(b: Buffer): boolean {
-  if (b.length < 20 || b.readUInt32LE(0) !== 0x46546c67 || b.readUInt32LE(4) !== 2 || b.readUInt32LE(16) !== 0x4e4f534a) return false;
-  const len = b.readUInt32LE(12);
-  if (20 + len > b.length) return false;
-  let j: { buffers?: unknown; images?: unknown };
-  try {
-    j = JSON.parse(b.subarray(20, 20 + len).toString("utf8"));
-  } catch {
-    return false;
-  }
-  if (!j || typeof j !== "object") return false;
-  const list = (v: unknown) => (v === undefined ? [] : Array.isArray(v) ? v : null);
-  const parts = [list(j.buffers), list(j.images)];
-  if (parts.some((x) => x === null)) return false;
-  return parts.flat().every((x) => {
-    const uri = (x as { uri?: unknown } | null)?.uri;
-    return uri === undefined || (typeof uri === "string" && uri.startsWith("data:"));
-  });
-}
+export { glbSelfContained };
 
 /** glbSelfContained for a file, reading only its header and its JSON chunk (at most 64 MB of it). */
 export function glbFileSelfContained(file: string): boolean {

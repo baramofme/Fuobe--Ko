@@ -234,7 +234,7 @@ const standIn = (o: { steps: number; stepMs: number; uploadDir?: string }) => [
 ];
 
 /** Start `fuobe worker run` in this process with a CPU slot (`cpuSlot`), its ComfyUIs stand-in processes of their own. */
-function start(w: W, s: Studio, p: Pc, o: { gpu?: { steps: number; stepMs: number }; cpu?: { steps: number; stepMs: number }; cpuSlot?: boolean; finishers?: unknown; shrinkPreview?: (b: Blob) => Promise<Blob | null> } = {}) {
+function start(w: W, s: Studio, p: Pc, o: { gpu?: { steps: number; stepMs: number }; cpu?: { steps: number; stepMs: number }; cpuSlot?: boolean; finishers?: unknown; shrinkPreview?: (b: Blob) => Promise<Blob | null>; textSlot?: Record<string, unknown>; text?: Record<string, unknown>; codeWatch?: { check: (t: number) => boolean } } = {}) {
   const ctrl = new AbortController();
   const cfg = {
     site: SITE,
@@ -248,6 +248,7 @@ function start(w: W, s: Studio, p: Pc, o: { gpu?: { steps: number; stepMs: numbe
     stallMin: 10,
     ffmpeg: null,
     cpuSlot: o.cpuSlot !== false,
+    ...(o.textSlot && { textSlot: o.textSlot }),
   };
   const done = runWorker(cfg, {
     fetch: router(w, s),
@@ -269,6 +270,8 @@ function start(w: W, s: Studio, p: Pc, o: { gpu?: { steps: number; stepMs: numbe
     allLanes,
     ...(o.finishers !== undefined && { finishers: o.finishers }),
     ...(o.shrinkPreview && { shrinkPreview: o.shrinkPreview }),
+    ...(o.text && { text: o.text }),
+    ...(o.codeWatch && { codeWatch: o.codeWatch }),
   });
   const r = { ctrl, done };
   running.push(r);
@@ -647,5 +650,111 @@ describe("live previews from the worker", () => {
     expect(a[a.indexOf("-vf") + 1]).toMatch(/min\(512,iw\).*min\(512,ih\)/);
     expect(a).toEqual(expect.arrayContaining(["-map_metadata", "-1", "-frames:v", "1"]));
     expect(a[a.length - 1]).toBe("out.jpg");
+  });
+});
+
+describe("the worker program's text slot", () => {
+  it("answers the free helper's text job beside its other slots, with its own server on 127.0.0.1", async () => {
+    const helper = await import("@/server/text-helper");
+    const { spawn } = await import("node:child_process");
+    const w = addWorker();
+    const s = studio();
+    const p = pc();
+    const model = path.join(p.home, "model.gguf");
+    fs.writeFileSync(model, "stand-in model");
+    const server = path.join(p.home, "fake-llama.mjs");
+    fs.writeFileSync(
+      server,
+      [
+        'import http from "node:http";',
+        "const arg = (n) => process.argv[process.argv.indexOf(n) + 1];",
+        'http.createServer((req, res) => {',
+        '  if (req.headers.authorization !== "Bearer " + arg("--api-key")) { res.writeHead(401); return res.end(); }',
+        '  if (req.url === "/health") { res.writeHead(200); return res.end("{}"); }',
+        '  let body = ""; req.on("data", (d) => (body += d));',
+        '  req.on("end", () => { const b = JSON.parse(body); res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ choices: [{ message: { content: "[Verse] " + b.messages.at(-1).content } }] })); });',
+        '}).listen(Number(arg("--port")), "127.0.0.1");',
+      ].join("\n"),
+    );
+    const pids: number[] = [];
+    start(w, s, p, {
+      textSlot: { server, model, sha256: crypto.createHash("sha256").update("stand-in model").digest("hex"), claimWaitMs: 1000 },
+      text: {
+        spawn: (_cmd: string, args: string[], o: object) => {
+          const child = spawn(process.execPath, [server, ...args], o);
+          if (child.pid) pids.push(child.pid);
+          return child;
+        },
+        kill: async (pid: number) => {
+          try {
+            process.kill(pid);
+          } catch {}
+        },
+      },
+    });
+    await until(() => helper.helperLive(), 30_000);
+    const answer = await helper.askHelper({ task: "lyrics", system: "Write lyrics.", user: "rain on neon", waitMs: 20_000 });
+    expect(answer).toEqual({ text: "[Verse] rain on neon" });
+    expect(pids.length).toBe(1);
+    expect(p.logs.join("\n")).toContain("Starting llama-server on the CPU");
+  });
+
+  it("new code waits for the GPU's job: text jobs are answered meanwhile, a text job in hand ends before the restart, and the studio hears it comes back", async () => {
+    const helper = await import("@/server/text-helper");
+    const { spawn } = await import("node:child_process");
+    const w = addWorker();
+    const s = studio();
+    const p = pc();
+    const model = path.join(p.home, "model.gguf");
+    fs.writeFileSync(model, "stand-in model");
+    const server = path.join(p.home, "fake-llama.mjs");
+    // A stand-in llama-server: words that ask to be slow take 4 s.
+    fs.writeFileSync(
+      server,
+      [
+        'import http from "node:http";',
+        "const arg = (n) => process.argv[process.argv.indexOf(n) + 1];",
+        "http.createServer((req, res) => {",
+        '  if (req.headers.authorization !== "Bearer " + arg("--api-key")) { res.writeHead(401); return res.end(); }',
+        '  if (req.url === "/health") { res.writeHead(200); return res.end("{}"); }',
+        '  let body = ""; req.on("data", (d) => (body += d));',
+        '  req.on("end", () => { const b = JSON.parse(body); const words = b.messages.at(-1).content; setTimeout(() => { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ choices: [{ message: { content: "[Verse] " + words } }] })); }, words.includes("slow") ? 4000 : 0); });',
+        '}).listen(Number(arg("--port")), "127.0.0.1");',
+      ].join("\n"),
+    );
+    let updating = false;
+    const gpu = ownerTask(GPU_WORKFLOW);
+    // A GPU job of about 5 s.
+    const r = start(w, s, p, {
+      gpu: { steps: 50, stepMs: 100 },
+      codeWatch: { check: () => updating },
+      textSlot: { server, model, sha256: crypto.createHash("sha256").update("stand-in model").digest("hex"), claimWaitMs: 1000 },
+      text: {
+        spawn: (_cmd: string, args: string[], o: object) => spawn(process.execPath, [server, ...args], o),
+        kill: async (pid: number) => {
+          try {
+            process.kill(pid);
+          } catch {}
+        },
+      },
+    });
+    let doneAt = 0;
+    const done = r.done.then((v) => ((doneAt = Date.now()), v));
+    await until(() => helper.helperLive() && row(gpu.id).state === "running", 30_000);
+    // New code is installed while the GPU's job runs: the worker waits for it, and its text slot goes on.
+    updating = true;
+    await until(() => p.logs.some((l) => l.includes("restarting after this job")), 10_000);
+    expect(await helper.askHelper({ task: "lyrics", system: "s", user: "rain", waitMs: 10_000 })).toEqual({ text: "[Verse] rain" });
+    expect(row(gpu.id).state).toBe("running");
+    // A slow text job still in hand when the GPU's job ends: the restart waits for its answer.
+    let answeredAt = 0;
+    const slow = await helper.askHelper({ task: "lyrics", system: "s", user: "slow rain", waitMs: 10_000 }).then((a) => ((answeredAt = Date.now()), a));
+    expect(slow).toEqual({ text: "[Verse] slow rain" });
+    expect(await done).toBe("update");
+    expect((await ended(gpu.id)).state).toBe("done");
+    expect(doneAt).toBeGreaterThanOrEqual(answeredAt);
+    // The studio heard it is coming back on new code: a chat waits for it rather than being told it's busy.
+    expect(db().prepare("SELECT away FROM helper_slots WHERE worker_id = ?").get(w.id)).toEqual({ away: "updating" });
+    expect(helper.helperState(Date.now(), { chat: true })).toBe("starting");
   });
 });

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Fragment } from "react";
-import { ArrowRight, AudioLines, Box, CalendarClock, ImageIcon, ListChecks, Plug, ScanEye, Sparkles, TextCursorInput, Undo2, Video, Zap, type LucideIcon } from "lucide-react";
+import { ArrowRight, AudioLines, Box, CalendarClock, Camera, Film, ImageIcon, ListChecks, Plug, ScanEye, Sparkles, TextCursorInput, Undo2, Users, Video, Zap, type LucideIcon } from "lucide-react";
 import { GitHubMark } from "@/components/github-mark";
 import { BeforeAfter } from "@/components/home/before-after";
+import { BodyDoubleShowcase } from "@/components/home/body-double-showcase";
+import { FxCard } from "@/components/fx/fx-card";
 import {
   AssistAction,
   AssistExamples,
@@ -26,7 +28,7 @@ import { PresetCard } from "@/components/preset-gallery";
 import { ASSIST_SUGGESTIONS } from "@/lib/assist";
 import { WORKFLOWS_ON_GITHUB } from "@/lib/comfy-install";
 import { FUOBE_REPO } from "@/lib/connections";
-import { HOME_LIVE, presetHref, type HomeShowcase } from "@/lib/home-showcase";
+import { HOME_BODY_DOUBLE, HOME_LIVE, presetHref, type HomeShowcase } from "@/lib/home-showcase";
 import { area } from "@/lib/nav-areas";
 import { studioCount } from "@/lib/nav-model";
 import { staggered, type AutoPlay } from "@/lib/preview-playback";
@@ -35,6 +37,7 @@ import { plainTagline } from "@/lib/plain-tagline";
 import { DEFAULT_LANG, keySnake, translate, translateOr, type Lang } from "@/lib/i18n/store";
 import { getServerLang } from "@/lib/i18n/server-lang";
 import type { PresetCardData } from "@/lib/preset-cards";
+import type { FxView } from "@/lib/fx-compare";
 
 /*
  * Home's sections under the wall. Server components: their words, numbers and links ship as HTML, and only the
@@ -300,6 +303,40 @@ export async function LiveEditSection() {
   );
 }
 
+/** Body Double: its picture on the right (Live edit's is on the left), the looks to try under it. */
+export function BodyDoubleSection() {
+  const points: [LucideIcon, string][] = [
+    [Users, "Everyone in a photo, clothes and hair included"],
+    [Film, "Motion capture from a clip, as an animated 3D file"],
+    [Camera, "Live from your camera, in the browser"],
+  ];
+  return (
+    <section aria-labelledby="home-body-double" data-reveal className={cn(SECTION, "[--cv:860px] sm:[--cv:980px] md:[--cv:940px] lg:[--cv:540px] xl:[--cv:570px]")}>
+      <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-12 lg:gap-10">
+        <div className="min-w-0 lg:order-1 lg:col-span-5">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-highlight px-2 py-0.5 text-[11px] font-semibold text-highlight-foreground">New · Body Double</span>
+          <h2 id="home-body-double" className={cn(H2, "mt-3")}>
+            {HOME_BODY_DOUBLE.title}
+          </h2>
+          <p className={LINE}>{HOME_BODY_DOUBLE.line}</p>
+          <ul className="mt-4 space-y-2 text-[14px]">
+            {points.map(([Icon, t]) => (
+              <li key={t} className="flex items-center gap-2.5">
+                <Icon className="size-4 shrink-0 text-primary" />
+                {t}
+              </li>
+            ))}
+          </ul>
+          <IntentLink href={HOME_BODY_DOUBLE.href} className="group mt-6 inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-[14px] font-medium text-primary-foreground transition hover:opacity-90">
+            Open Body Double <ArrowRight className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" />
+          </IntentLink>
+        </div>
+        <BodyDoubleShowcase className="w-full lg:order-2 lg:col-span-7" />
+      </div>
+    </section>
+  );
+}
+
 /** Heights of the Audio card's bars (0–1): a waveform drawn once, not a recording. */
 const WAVE = [
   0.3, 0.45, 0.7, 0.5, 0.85, 1, 0.75, 0.55, 0.4, 0.6, 0.9, 0.7, 0.45, 0.3, 0.5, 0.8, 0.95, 0.65, 0.4, 0.55, 0.75, 0.5, 0.35, 0.6, 0.8, 0.55, 0.35, 0.25,
@@ -362,6 +399,8 @@ export interface Destination {
   line: string;
   card?: HomeShowcase["studios"][number]["card"];
   drawn?: "live";
+  /** A Fuobe FX item's before and after, shown in place of its cover (FxCard). */
+  fx?: FxView;
 }
 
 /** A pill under the cards: its name, and its icon from the navigation. */
@@ -421,7 +460,9 @@ export function DestinationsSection({
 }) {
   const items = cards.map((s, i) => (
     <div key={s.href} className={grid ? "min-w-0" : cn(RAIL_ITEM, sm !== undefined && i >= sm && "sm:max-lg:hidden")}>
-      {s.card ? (
+      {s.fx ? (
+        <FxCard href={s.href} label={s.label} line={s.line} view={s.fx} sizes={grid ? GRID_SIZES : STUDIO_SIZES} />
+      ) : s.card ? (
         <StudioCard
           href={s.href}
           label={s.label}

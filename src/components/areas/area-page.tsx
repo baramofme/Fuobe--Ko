@@ -175,7 +175,7 @@ async function StudioFeatures({ section, subs }: { section: string; subs: AreaSh
 export async function MoreInFuobe({ current }: { current: AreaId }) {
   const lang = await getServerLang();
   const others = AREAS.filter((a) => a.id !== current).map((a) => entry(a.entryId));
-  const list = [...others, entry("canvas"), entry("assist")].filter((e): e is NavEntry => !!e);
+  const list = [...others, entry("canvas"), entry("chat")].filter((e): e is NavEntry => !!e);
   return (
     <section aria-labelledby="more-in-fuobe" data-reveal className="mt-10 sm:mt-14">
       <h2 id="more-in-fuobe" className="mb-2 font-sans text-[13px] font-medium">

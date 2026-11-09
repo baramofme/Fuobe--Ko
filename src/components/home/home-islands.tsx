@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowRight, Check, Copy, Pause, Play } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CardPending, IntentLink } from "@/components/intent-link";
 import { useFadeEdges } from "@/components/use-fade-edges";
 import { useRailStills } from "@/components/use-rail-stills";
-import { PresetPreview, setPreviewsPaused, usePreviewPlayback, usePreviewsPaused } from "@/components/preset-preview";
+import { PresetPreview, usePreviewPlayback } from "@/components/preset-preview";
 import { CONNECT_GPU_EVENT, signInHref, useHydrated, useIsOwner, useStatus } from "@/lib/api";
 import { placeOf } from "@/lib/place-name";
 import { copyWithToast } from "@/lib/clipboard";
@@ -40,29 +40,8 @@ export function HomeRail({ className, children }: { className?: string; children
   );
 }
 
-/** Stops every preview playing by itself, on every page, for this visit; a hover still plays one. */
-export function PausePreviews({ className }: { className?: string }) {
-  const { t } = useI18n();
-  const paused = usePreviewsPaused();
-  const Icon = paused ? Play : Pause;
-  const label = paused ? t("home.islands.playPreviews") : t("home.islands.pausePreviews");
-  return (
-    <button
-      type="button"
-      onClick={() => setPreviewsPaused(!paused)}
-      aria-label={label}
-      title={label}
-      // 44 px to tap: its hit area reaches past its 28 px circle.
-      className={cn(
-        "relative inline-flex size-7 shrink-0 items-center justify-center gap-1.5 rounded-full border text-[12px] text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-accent hover:text-foreground sm:w-[8.5rem]",
-        className,
-      )}
-    >
-      <Icon className="size-3" />
-      <span className="max-sm:hidden">{label}</span>
-    </button>
-  );
-}
+/** Home's first screen shows it too (home-bento.tsx); it lives on its own so the bar's menus share it. */
+export { PausePreviews } from "@/components/pause-previews";
 
 /** The self-host card's Copy button: the commands go to the clipboard, and the icon turns to a check for a moment. */
 export function CopyCommand({ text }: { text: string }) {
@@ -176,8 +155,8 @@ export function AssistAction() {
   const { t } = useI18n();
   const owner = useIsOwner();
   const arrow = <ArrowRight className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />;
-  return owner ? (
-    <IntentLink href="/assist" className={ASSIST_ACTION}>
+  return useIsOwner() ? (
+    <IntentLink href="/chat/make" className={ASSIST_ACTION}>
       {t("home.islands.openAssist")} {arrow}
     </IntentLink>
   ) : (
@@ -203,7 +182,7 @@ export function AssistExamples({ prompts, skills }: { prompts: string[]; skills:
         {prompts.map((s) => (
           <li key={s}>
             {owner ? (
-              <IntentLink href={`/assist?prompt=${encodeURIComponent(s)}`} className={cn(row, "group transition-colors hover:bg-muted")}>
+              <IntentLink href={`/chat/make?prompt=${encodeURIComponent(s)}`} className={cn(row, "group transition-colors hover:bg-muted")}>
                 <span className="min-w-0">{s}</span>
                 <ArrowRight className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-[3px] group-hover:text-foreground" />
               </IntentLink>
@@ -221,7 +200,7 @@ export function AssistExamples({ prompts, skills }: { prompts: string[]; skills:
           {skills.map((s) => (
             <li key={s.name}>
               {owner ? (
-                <IntentLink href={`/assist?skill=${s.name}`} className={cn(chip, "transition-colors hover:bg-accent")}>
+                <IntentLink href={`/chat/make?skill=${s.name}`} className={cn(chip, "transition-colors hover:bg-accent")}>
                   {s.title}
                 </IntentLink>
               ) : (
@@ -320,5 +299,79 @@ export function StartSteps() {
         </li>
       ))}
     </ol>
+  );
+}
+
+/** Where the cue leads: the composer under the first screen (home-view.tsx). */
+export const START_CREATING_ID = "start-creating";
+
+/**
+ * The first screen's way down to the composer. From md it is a button in the middle of the screen's foot row. While
+ * that row is under the fold (a phone, a short laptop screen) a copy of it floats over the bottom of the screen, above
+ * the phone's tabs, until the page is scrolled. A tap scrolls to the composer; with a mouse or trackpad the prompt box
+ * also takes the cursor (a phone keeps its keyboard closed).
+ */
+export function ScrollCue({ footId }: { footId: string }) {
+  const [float, setFloat] = useState(false);
+  useEffect(() => {
+    const foot = document.getElementById(footId);
+    if (!foot) return;
+    let below = false;
+    let scrolled = window.scrollY > 120;
+    let ready = false;
+    const update = () => setFloat(ready && below && !scrolled);
+    // Floats until the whole foot row is on the screen: a sliver of it at the bottom edge is easy to miss.
+    const io = new IntersectionObserver(
+      ([e]) => {
+        below = e.intersectionRatio < 0.98 && e.boundingClientRect.top > 0;
+        update();
+      },
+      { threshold: [0, 0.98] },
+    );
+    io.observe(foot);
+    const onScroll = () => {
+      if (window.scrollY <= 120) return;
+      scrolled = true;
+      update();
+      window.removeEventListener("scroll", onScroll);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    // After the headline has risen into place, so the two don't move at once.
+    const t = window.setTimeout(() => {
+      ready = true;
+      update();
+    }, 1200);
+    return () => {
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.clearTimeout(t);
+    };
+  }, [footId]);
+
+  const go = () => {
+    const box = document.getElementById(START_CREATING_ID);
+    if (!box) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    box.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+    if (window.matchMedia("(pointer: fine)").matches) box.querySelector("textarea")?.focus({ preventScroll: true });
+    setFloat(false);
+  };
+
+  const label = (
+    <>
+      Start creating
+      <ArrowDown aria-hidden className="hb-cue-arrow size-3.5" />
+    </>
+  );
+  return (
+    <>
+      <button type="button" onClick={go} className="hb-cue max-md:hidden">
+        {label}
+      </button>
+      {/* The floating copy repeats the button above for pointers only: keyboards and screen readers reach that one. */}
+      <button type="button" onClick={go} aria-hidden tabIndex={-1} data-shown={float || undefined} className="hb-cue hb-cue-float">
+        {label}
+      </button>
+    </>
   );
 }

@@ -11,6 +11,8 @@
  * - Only the owner's own job waits: no turn. Local ComfyUI work that runs a job is left alone; once it runs nothing, it
  *   is asked to free its memory (its /queue read, then its /free) and the worker takes the job.
  * - The counters fail: a lock that names ComfyUI work leads to a turn.
+ * - Its own job: memory the counters can't place (they fail under load) is no other program; a game that stays pauses it
+ *   after the grace time, one that leaves within it keeps the job.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -60,7 +62,9 @@ beforeEach(() => {
 
 type W = { id: string; token: string };
 const task = (id: string) => db().prepare("SELECT * FROM relay_tasks WHERE id = ?").get(id) as import("@/server/computer/tasks").TaskRow;
-const workerRow = (w: W) => db().prepare("SELECT * FROM relay_workers WHERE id = ?").get(w.id) as { local_why: string | null; paused_local: number; local_until: number | null };
+const workerRow = (w: W) => db().prepare("SELECT * FROM relay_workers WHERE id = ?").get(w.id) as { local_why: string | null; paused_local: number; local_until: number | null; holding_json: string | null };
+/** Why the worker holds the line's work back, as its last beat said (the owner's queue view shows it). */
+const holdingWhy = (w: W) => (JSON.parse(workerRow(w).holding_json ?? "null") as { why: string } | null)?.why ?? null;
 
 function addWorker(): W {
   const w = pool.addWorker(`pc-${Math.random().toString(36).slice(2, 8)}`);
@@ -151,20 +155,21 @@ const GAME_PID = 5555;
 
 /**
  * The PC's GPU as the fakes show it: local ComfyUI work on 8188 holding `workMb`, a game holding `gameMb`, the desktop
- * 500 MB (the baseline says 600), and the worker's own ComfyUI 1000 MB once it runs. `counters: false`: they can't be read.
+ * 500 MB (the baseline says 600), and the worker's own ComfyUI `ownMb` (1000 MB) once it runs; its own /system_stats
+ * gives no torch number. `counters: false` (or a function that says false): they can't be read.
  */
-function fakeGpu(p: Pc, o: { workMb?: number; gameMb?: number; counters?: boolean }) {
+function fakeGpu(p: Pc, o: { workMb?: number; gameMb?: number; ownMb?: () => number; counters?: boolean | (() => boolean) }) {
   const own = () => comfyOf(p);
   const procs = () => [
     { pid: WORK_PID, mb: o.workMb ?? 0 },
     { pid: GAME_PID, mb: o.gameMb ?? 0 },
     { pid: 77, mb: 500 },
-    ...(own() ? [{ pid: own()!.pid, mb: 1000 }] : []),
+    ...(own() ? [{ pid: own()!.pid, mb: o.ownMb?.() ?? 1000 }] : []),
   ];
   return {
     readGpu: async () => ({ usedMb: procs().reduce((n, c) => n + c.mb, 0), tempC: 50, apps: [] }),
     readCounters: async () => {
-      if (o.counters === false) return null;
+      if ((typeof o.counters === "function" ? o.counters() : o.counters) === false) return null;
       const rows = procs();
       const text = [
         `"(PDH-CSV 4.0)",${rows.map((r) => `"\\\\PC\\GPU Process Memory(pid_${r.pid}_${LUID})\\Dedicated Usage"`).join(",")}`,
@@ -208,7 +213,7 @@ function fakeLocal(o: { busy: boolean; onFree?: () => void }) {
   return { o, calls, fetch };
 }
 
-function start(w: W, p: Pc, gpu: ReturnType<typeof fakeGpu>, o: { lockOwners?: string[]; studio?: { older: boolean }; local?: ReturnType<typeof fakeLocal> } = {}) {
+function start(w: W, p: Pc, gpu: ReturnType<typeof fakeGpu>, o: { lockOwners?: string[]; studio?: { older: boolean }; local?: ReturnType<typeof fakeLocal>; stepMs?: number; gpuGraceMs?: number } = {}) {
   const ctrl = new AbortController();
   const cfg = {
     site: SITE,
@@ -216,7 +221,7 @@ function start(w: W, p: Pc, gpu: ReturnType<typeof fakeGpu>, o: { lockOwners?: s
     comfyDir: p.comfyDir,
     workDir: p.workDir,
     modelDirs: [],
-    comfyCommand: [process.execPath, "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", FAKE, "--port", "{port}", "--cors", "off", "--steps", "4", "--step-ms", "40", "--worker-guard", "1"],
+    comfyCommand: [process.execPath, "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", FAKE, "--port", "{port}", "--cors", "off", "--steps", "4", "--step-ms", String(o.stepMs ?? 40), "--worker-guard", "1"],
     comfyGuard: true,
     ffmpeg: null,
     yieldFolder: p.turns,
@@ -241,6 +246,7 @@ function start(w: W, p: Pc, gpu: ReturnType<typeof fakeGpu>, o: { lockOwners?: s
     catalogVersion: "a".repeat(64),
     gpuEveryMs: 200,
     turnGraceMs: 1500,
+    ...(o.gpuGraceMs !== undefined && { gpuGraceMs: o.gpuGraceMs }),
     // Local ComfyUI work is never a real port here: busy unless the test says otherwise.
     localFetch: (o.local ?? fakeLocal({ busy: true })).fetch,
     ...gpu,
@@ -285,6 +291,8 @@ describe("studio jobs first", () => {
     await until(() => workerRow(w).local_why === "waiting-for-yield");
     expect(workerRow(w).paused_local).toBe(0);
     await until(() => comfyAnswers(p));
+    // Its beat says why the job waits on it.
+    await until(() => holdingWhy(w) === "waiting-for-yield");
     await sleep(1500);
     expect(task(id).state).toBe("waiting");
     expect(task(id).worker_id).toBeNull();
@@ -299,6 +307,39 @@ describe("studio jobs first", () => {
     await until(() => site(p)?.siteWaiting === 0, 20_000);
     expect(p.logs.some((l) => /lets go of its memory/.test(l))).toBe(true);
     expect(workerRow(w).local_why).toBeNull();
+    // Nothing waits for it: it holds nothing back.
+    expect(holdingWhy(w)).toBeNull();
+  });
+
+  it("the counters fail for a moment while no lock names anyone: the last good read stands in, no busy pause", async () => {
+    const w = addWorker();
+    const p = pc();
+    addTask();
+    let countersOk = true;
+    start(w, p, fakeGpu(p, { workMb: 9000, counters: () => countersOk }));
+    await until(() => workerRow(w).local_why === "waiting-for-yield");
+    countersOk = false;
+    for (let i = 0; i < 30; i++) {
+      expect(workerRow(w).local_why?.startsWith("gpu-busy") ?? false).toBe(false);
+      await sleep(50);
+    }
+    expect(p.logs.some((l) => /Another program is using the GPU/.test(l))).toBe(false);
+  });
+
+  it("the port table can't be read for a while: the last one stands, no busy pause", async () => {
+    const w = addWorker();
+    const p = pc();
+    addTask();
+    const gpu = fakeGpu(p, { workMb: 9000 });
+    let listOk = true;
+    const readListeners = gpu.readListeners;
+    start(w, p, { ...gpu, readListeners: (async () => (listOk ? readListeners() : null)) as unknown as typeof readListeners });
+    await until(() => workerRow(w).local_why === "waiting-for-yield");
+    listOk = false;
+    for (let i = 0; i < 30; i++) {
+      expect(workerRow(w).local_why?.startsWith("gpu-busy") ?? false).toBe(false);
+      await sleep(50);
+    }
   });
 
   it("a game holds the GPU: the busy pause, and no turn is asked for", async () => {
@@ -359,6 +400,11 @@ describe("studio jobs first", () => {
     expect(local.calls.length).toBeGreaterThan(0);
     expect(new Set(local.calls)).toEqual(new Set(["GET 127.0.0.1:8188/queue"]));
     expect(p.logs.some((l) => /owner's job waits for local ComfyUI work to finish/.test(l))).toBe(true);
+    // The studio hears why: the owner's queue view shows the worker holding the job back, and since when.
+    await until(() => holdingWhy(w) === "local-work");
+    const { liveQueue } = await import("@/server/computer/queue-live");
+    expect(liveQueue().holding).toEqual([expect.objectContaining({ task: null, code: "local-work", why: "Waiting for local ComfyUI work to finish", waiting: 1 })]);
+    expect(liveQueue().holding[0].since).toBeLessThanOrEqual(Date.now());
   });
 
   it("only the owner's own job waits and local ComfyUI work runs nothing: it is asked to free its memory, and the job runs", async () => {
@@ -417,5 +463,95 @@ describe("studio jobs first", () => {
     fs.writeFileSync(path.join(p.lock, "owner.txt"), "someone-else 2026-11-04T09:00:00Z\n");
     await until(() => workerRow(w).local_why?.startsWith("gpu-busy"));
     await until(() => site(p)?.siteWaiting === 0);
+  });
+
+  it("the owner's mode reaches the turns folder (mode.json), and local work's own word (local.json) reaches the studio", async () => {
+    const qc = await import("@/server/computer/queue-controls");
+    const w = addWorker();
+    const p = pc();
+    const c = qc.checkModeChange({ worker: w.id, mode: "people-only", forMin: 30 }, "owner");
+    if ("error" in c) throw new Error(c.error);
+    qc.applyModeChange(c);
+    start(w, p, fakeGpu(p, { workMb: 0 }));
+    const mode = await until(() => {
+      try {
+        return JSON.parse(fs.readFileSync(path.join(p.turns, "mode.json"), "utf8")) as { mode: string; localWork: string; until: number | null; at: number };
+      } catch {
+        return null;
+      }
+    });
+    expect(mode).toMatchObject({ mode: "people-only", localWork: "pause" });
+    expect(mode.until).toBeGreaterThan(Date.now() + 25 * 60_000);
+    await until(() => p.logs.some((l) => /The owner set who goes first: people-only/.test(l)));
+    // Back to normal: the next beat answer says people first.
+    const back = qc.checkModeChange({ worker: w.id, mode: null }, "owner");
+    if ("error" in back) throw new Error(back.error);
+    qc.applyModeChange(back);
+    await until(() => JSON.parse(fs.readFileSync(path.join(p.turns, "mode.json"), "utf8")).localWork === "yield");
+    // The helper on the PC's side writes its state: the beat carries it, codes and counts only.
+    fs.writeFileSync(path.join(p.turns, "local.json"), JSON.stringify({ state: "paused", why: "people-only", waiting: 42, running: false, at: Date.now(), job: "a secret name" }));
+    const kept = await until(() => (db().prepare("SELECT local_work_json FROM relay_workers WHERE id = ?").get(w.id) as { local_work_json: string | null }).local_work_json);
+    expect(JSON.parse(kept)).toEqual({ state: "paused", why: "people-only", waiting: 42, running: false, at: expect.any(Number) });
+  });
+});
+
+describe("its own job and the busy pause", () => {
+  const inJob = (id: string) => ["sending", "queued", "running", "collecting"].includes(task(id)?.state ?? "");
+  const ended = (id: string, p: Pc) => ["done", "failed"].includes(task(id).state) || p.logs.some((l) => /Another program/.test(l));
+
+  it("its job loads 20 GB that torch doesn't report and the counters fail under the load: no pause, the job finishes", async () => {
+    const w = addWorker();
+    const p = pc();
+    let id = "";
+    let loaded = false;
+    let failedReads = 0;
+    const gpu = fakeGpu(p, {
+      // The weights stay loaded after the job, as ComfyUI keeps them.
+      ownMb: () => ((loaded ||= !!id && inJob(id)) ? 20_000 : 1000),
+      counters: () => {
+        const ok = !id || !inJob(id);
+        if (!ok) failedReads++;
+        return ok;
+      },
+    });
+    id = addTask();
+    start(w, p, gpu, { stepMs: 500 });
+    await until(() => ended(id, p), 60_000);
+    expect(p.logs.filter((l) => /Another program|Stopping its own ComfyUI/.test(l))).toEqual([]);
+    expect(failedReads).toBeGreaterThanOrEqual(3);
+    expect(task(id).state).toBe("done");
+    await sleep(1000);
+    expect(p.logs.some((l) => /Another program/.test(l))).toBe(false);
+  });
+
+  it("a game that comes mid-job and stays pauses it after the grace time, and its ComfyUI stops", async () => {
+    const w = addWorker();
+    const p = pc();
+    const gpu: { gameMb: number } = { gameMb: 0 };
+    const id = addTask();
+    start(w, p, fakeGpu(p, gpu), { stepMs: 3000, gpuGraceMs: 1000 });
+    await until(() => task(id).state === "running");
+    const at = Date.now();
+    gpu.gameMb = 6000;
+    await until(() => p.logs.some((l) => /Another program is using the GPU \(game\): pausing/.test(l)), 30_000);
+    expect(Date.now() - at).toBeGreaterThanOrEqual(1000);
+    expect(task(id).state).not.toBe("done");
+    await until(() => p.logs.some((l) => /Stopping its own ComfyUI \(paused\)/.test(l)));
+    expect(workerRow(w).local_why).toBe("gpu-busy:game");
+  });
+
+  it("a game that leaves within the grace time keeps the job", async () => {
+    const w = addWorker();
+    const p = pc();
+    const gpu: { gameMb: number } = { gameMb: 0 };
+    const id = addTask();
+    start(w, p, fakeGpu(p, gpu), { stepMs: 1500, gpuGraceMs: 4000 });
+    await until(() => task(id).state === "running");
+    gpu.gameMb = 6000;
+    await sleep(700);
+    gpu.gameMb = 0;
+    await until(() => ended(id, p), 60_000);
+    expect(p.logs.filter((l) => /Another program|Stopping its own ComfyUI/.test(l))).toEqual([]);
+    expect(task(id).state).toBe("done");
   });
 });

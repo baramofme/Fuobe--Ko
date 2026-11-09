@@ -66,6 +66,24 @@ describe("search by what you want to make", () => {
     const top = labels("talking photo");
     expect(top).toContain("Lipsync & avatars");
     expect(top).toContain("Talking Photo");
+    expect(top).not.toContain("Chat");
+  });
+
+  it("“chat”, “talk”, “ask”, “advice”, “roleplay” → Chat, for every viewer", () => {
+    for (const entries of [GUEST, ACCOUNT, OWNER]) {
+      expect(searchNav("chat", entries).best[0]).toMatchObject({ label: "Chat", href: "/chat" });
+      for (const q of ["ask", "advice", "roleplay", "role play", "ask for advice", "talk to ai", "talk about ideas", "brainstorm ideas"]) {
+        expect(searchNav(q, entries).best.map((h) => h.href), q).toContain("/chat");
+      }
+      // Assist is Chat now: its words find Chat.
+      for (const q of ["assist", "assistant", "agent", "planner", "make me a plan", "do it for me", "skills", "memory", "scheduled"]) {
+        expect(searchNav(q, entries).best.map((h) => h.href), q).toContain("/chat");
+      }
+      expect(searchNav("assist", entries).best[0]).toMatchObject({ label: "Chat", href: "/chat" });
+      expect(all("assist", entries).map((h) => h.label)).not.toContain("Assist");
+      // "talk" alone is mostly lipsync and voices: Chat is listed with them, first of the rest.
+      expect(all("talk", entries).map((h) => h.href)).toContain("/chat");
+    }
   });
 
   it("“make my product video for amazon” → Marketing Studio first", () => {
@@ -243,5 +261,15 @@ describe("plain requests find the right place", () => {
     for (const entries of [GUEST, ACCOUNT]) expect(entries.some((e) => /comfy/i.test(e.hint ?? "") && e.kind === "model")).toBe(false);
     const owner = [...navSearchEntries(entriesFor("owner")), ...indexEntries(index, "both", undefined, { owner: true })];
     expect(owner.some((e) => e.kind === "model" && /ComfyUI/.test(e.hint ?? ""))).toBe(true);
+  });
+});
+
+describe("Fuobe FX in search", () => {
+  it("finds its page from an FX artist's words, for every viewer", () => {
+    for (const entries of [OWNER, GUEST, ACCOUNT])
+      for (const q of ["vfx", "fx", "compositing", "roto", "matte", "clean plate", "exr", "fuobe fx"]) expect(all(q, entries).map((h) => h.href), q).toContain("/fx");
+    expect(labels("vfx")[0]).toBe("Fuobe FX");
+    expect(labels("roto")).toContain("Remove background");
+    expect(labels("clean plate")).toContain("Remove object");
   });
 });

@@ -1,6 +1,7 @@
 import {
   AppsSection,
   AssistSection,
+  BodyDoubleSection,
   EffectsSection,
   HomeFooter,
   LiveEditSection,
@@ -43,7 +44,7 @@ export default async function Page() {
     <HomeView
       openModels={roundedDown(home.facts.openModels)}
       chips={HOME_TRY}
-      assist={{ label: "Plan a perfume ad with Assist", href: `/assist?prompt=${encodeURIComponent(ASSIST_SUGGESTIONS[0])}` }}
+      assist={{ label: "Plan a perfume ad with Assist", href: `/chat/make?prompt=${encodeURIComponent(ASSIST_SUGGESTIONS[0])}` }}
       goals={<GoalRow names={goalTapNames()} />}
       bento={<HomeBento bento={home.bento} />}
       prices={starterPriceLine()}
@@ -51,6 +52,8 @@ export default async function Page() {
     >
       {/* Live edit is the highlight: its own section comes first, right under the first screen and the composer. */}
       <LiveEditSection />
+      {/* Body Double: everyone in a shot as their double, and Live from the camera. */}
+      <BodyDoubleSection />
       {/* Camera motions, then Effects. */}
       <MotionsSection facts={home.facts} motions={home.motions} />
       <EffectsSection facts={home.facts} effects={home.effects} />

@@ -76,6 +76,23 @@ export interface WorkerRow {
   ceiling_json?: string | null;
   /** Its CPU slot (src/lib/relay.ts CpuSlot), as its last beat said. NULL: none. */
   cpu_slot_json?: string | null;
+  /** Why it doesn't start the line's work now (src/lib/relay.ts WorkerHolding), as its last beat said. NULL: none. */
+  holding_json?: string | null;
+  /** Its last claim for its GPU's slot, and the answer in words (pool.ts workerClaim). */
+  asked_at?: number | null;
+  asked_words?: string | null;
+  /** The owner's mode for this worker (queue-controls.ts ModeSetting), winning over its pool's while it lasts. NULL: none. */
+  mode_json?: string | null;
+  /** Local work on its PC (a queue of the owner's own), as its last beat said (src/lib/relay.ts LocalWork). NULL: none. */
+  local_work_json?: string | null;
+  /** The commit its code came from, as its last beat said. NULL: unknown. */
+  commit_sha?: string | null;
+  /** Since when its beats say a catalog other than the studio's. NULL: it is on the studio's. */
+  behind_since?: number | null;
+  /** The owner's "Update now": when, by whom, and the commit it was on then. NULL: not asked, or done. */
+  update_asked_at?: number | null;
+  update_asked_by?: string | null;
+  update_asked_commit?: string | null;
 }
 
 const sha = (s: string) => crypto.createHash("sha256").update(s).digest("hex");

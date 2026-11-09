@@ -14,6 +14,8 @@ import { mergeScanReports, qualityOf } from "@/lib/watermark";
 import { H3_LATENT_DRAFT_WORKFLOW, REGEN_COPY, REGEN_LATENT_WORKFLOW, REGEN_WORKFLOW } from "@/lib/catalog/regenerate";
 import { fixFromPromptError } from "@/lib/gpu/fix-codes";
 import { loadIndex } from "../gpu/index-file";
+import type { FileNeed } from "@/lib/lanes";
+import { graphLoraNames, runtimeNeeds } from "@/lib/runtime-files";
 import { installedDbs, type DbsModel } from "@/lib/av/split";
 import { installedReuse, type ReuseModel } from "@/lib/av/clean-voice";
 import { RTX_FRAMEGEN_WORKFLOW, RTX_HDR_WORKFLOW, RTX_MISSING } from "@/lib/catalog/rtx-video";
@@ -30,6 +32,7 @@ import { ocrText, parseOcrFrame, parseOcrLines, type OcrFrame } from "@/lib/ocr"
 import { getSetting, isCandidate, savedSetting } from "../settings";
 import { decodePng } from "../png";
 import { pictureWithoutMetadata } from "../media-clean";
+import { MODEL_INPUT_MAX_BYTES, modelForWorkers, modelFormat } from "../model-input";
 import { probeAvi } from "../avi-probe";
 import { probeWebm } from "../webm-probe";
 import { adoptFile, contentTypeFor, readRef, saveFile, scratchDir } from "../storage";
@@ -51,7 +54,9 @@ import { hfPage } from "@/lib/gpu/plan";
 import { fileTitle } from "@/lib/gpu/readiness";
 import { formatBytes } from "@/lib/gpu/requirements";
 import type { FileKey } from "@/lib/gpu/types";
+import { isEngineWords, plainEngineFailure } from "@/lib/engine-error";
 import {
+  FILE_TROUBLE_WORDS,
   makingWords,
   META_BATCH_HISTORY,
   POOL_WORDS,
@@ -88,10 +93,11 @@ import {
   type Principal,
   type TaskRow,
 } from "../computer/tasks";
-import { attemptDeadline, poolFacts, poolFields, poolLane, poolWaitMs, poolWaitWords, runPlaceOf, workersCanRun } from "../computer/pool";
+import { attemptDeadline, ownerRunClass, poolFacts, poolFields, poolLane, poolWaitMs, poolWaitWords, runPlaceOf, workersCanRun, workersHold } from "../computer/pool";
+import { notOnGpusText } from "../runs-here";
 import { catalogVersion } from "../computer/catalog-version";
 import { ticketProblem, type JobTicket } from "@/lib/job-ticket";
-import { catalogKnows, ticketFor } from "@/lib/ticket-compose";
+import { catalogKnows, ticketFor, ticketGraphSha } from "@/lib/ticket-compose";
 import { ownerWaitMs } from "../queue-settings";
 import { worldcastBase, worldcastHealth } from "../worldcast";
 
@@ -225,7 +231,15 @@ export const workersTake = (kind: "image" | "video" | "audio"): boolean => poolM
  * motion photo's clip): none of that ever leaves for a worker. A JPEG keeps its orientation. A kind of picture whose
  * such parts this server can't blank that way (a GIF, an SVG, an animated WebP, say) is made again from its pixels here.
  */
-export async function forWorkers(data: Buffer, contentType: string, name: string, o: { onWorker?: boolean } = {}): Promise<{ data: Buffer; contentType: string; name: string }> {
+export async function forWorkers(data: Buffer, contentType: string, name: string, o: { onWorker?: boolean; account?: boolean } = {}): Promise<{ data: Buffer; contentType: string; name: string }> {
+  // A 3D file (a splat for Any Angle's angles, a GLB to refine): checked by its bytes as a worker's results are.
+  const format = modelFormat(contentType, name);
+  if (format) {
+    if (data.length > MODEL_INPUT_MAX_BYTES) throw new ProviderError("This 3D file is too big for the shared GPUs.");
+    const sent = modelForWorkers(format, data, o.account ?? !!o.onWorker);
+    if (!sent) throw new ProviderError("The shared GPUs don't take this kind of file.");
+    return { data: sent, contentType: format === "spz" ? "model/x-spz" : format === "glb" ? "model/gltf-binary" : "model/ply", name: name.replace(/\.[^.]*$/, "") + `.${format}` };
+  }
   const kind = contentType.split("/")[0];
   if (!poolMedia().has(kind)) throw new ProviderError(kind === "video" ? "The shared GPUs don't take clips yet." : kind === "audio" ? "The shared GPUs don't take sound yet." : "The shared GPUs don't take this kind of file.");
   if (kind !== "image") return { data, contentType, name };
@@ -291,7 +305,7 @@ export const POOL_NOT_LOCAL = "This install's ComfyUI address isn't on this mach
  * limit (the run was taken in line once; the wait limit applies only before its first start). The run's wait limit is
  * the one stamped on it (0: as long as it takes), else the install's own (FUOBE_POOL_WAIT_MIN).
  */
-function accountPoolFields(workflowId: string, account: string, generationId: string | undefined, o: { size: NonNullable<Parameters<typeof poolFields>[1]>["size"]; catalogVersion?: string }) {
+function accountPoolFields(workflowId: string, account: string, generationId: string | undefined, o: { size: NonNullable<Parameters<typeof poolFields>[1]>["size"]; catalogVersion?: string; graphSha?: boolean; runtime?: FileNeed[] }) {
   const stamp = runStamp();
   const run = generationId ? runPlaceOf(generationId) : null;
   // A run that waited to enter the line (pool-holds.ts) enters where its release says (stamp.rankAt): for the system's
@@ -307,7 +321,20 @@ function accountPoolFields(workflowId: string, account: string, generationId: st
     waitMs: run?.started || run?.later ? undefined : (stamp?.waitMs ?? poolWaitMs()),
     size: o.size,
     catalogVersion: o.catalogVersion,
+    graphSha: o.graphSha,
+    runtime: o.runtime,
   });
+}
+
+/**
+ * Where the owner's job waits in line on the workers. A run a script said it made (a batch, a drill, an example, a
+ * test: pool.ts ownerRunClass) is the owner's class, after every person's run, in the order its jobs came. A hands-on
+ * run waits as a person's free run does: a later step of it keeps its run's place (runPlaceOf).
+ */
+function ownerPoolFields(workflowId: string, generationId: string | undefined, o: { size: NonNullable<Parameters<typeof poolFields>[1]>["size"]; runtime?: FileNeed[] }) {
+  const cls = generationId ? ownerRunClass(generationId) : "owner";
+  const run = cls === "free" && generationId ? runPlaceOf(generationId) : null;
+  return poolFields(workflowId, { class: cls, ...(run?.rankAt != null && { rankAt: run.rankAt }), waitMs: ownerWaitMs(), size: o.size, runtime: o.runtime });
 }
 
 /** Said to the owner when a job is larger than every worker's PC may ever run (its ceiling: `fuobe worker setup`). */
@@ -315,6 +342,16 @@ export const NO_WORKER_FOR_SIZE = "No worker may run a job this large: each PC's
 
 /** Said to an account when its run is larger than this install's GPUs ever make (refused before it is queued). */
 export const POOL_TOO_BIG = "This size isn't offered here yet. Pick a smaller size, a shorter clip or fewer results.";
+
+/**
+ * Said to the owner when no worker that may run the job's workflow verified a file the job adds at run time (a look's or
+ * a motion's LoRA), naming the files.
+ */
+export const noWorkerForFiles = (files: readonly string[]): string =>
+  `No worker has ${files.length > 1 ? "these files" : "this file"} yet: ${files.join(", ")}. Put ${files.length > 1 ? "them" : "it"} in a worker's loras folder (a library LoRA is verified by its pinned size and SHA-256), then run it again.`;
+
+/** Said to an account when its run adds a file no GPU here verified (refused before it is queued; the price check said so first). */
+export const POOL_NO_FILES = "This style runs on your own GPU. Connect your GPU to use it, or pick another one.";
 
 /** Said to the owner when no worker is allowed the lane of a job sent to the workers. */
 export const NO_WORKER_FOR_LANE = "No worker can run this model yet. Allow its lane for a worker that has its model files, in Settings → Open-source engine · ComfyUI → Workers.";
@@ -766,6 +803,8 @@ export function collectOutputs(entry: HistoryEntry, manifest: ManifestWorkflow |
         const meta: Record<string, unknown> = {};
         if (spec?.stem) meta.stem = spec.stem;
         if (spec?.role) meta.role = spec.role;
+        // Body Double's skinned body GLB carries its own animation (a clip's motion capture): viewers play it.
+        if (spec?.role === "body" && kind === "model3d") meta.rigged = true;
         // A splat says what it is (the viewer and the download name go by it): spz, ply or ksplat.
         if (spec?.role === "splat" && ext) meta.format = ext;
         if (spec?.role === "splat" && idolSplat) Object.assign(meta, idolSplat);
@@ -1296,6 +1335,19 @@ export function accountTicket(p: PreparedPrompt, principal: Principal, o: { outp
   return ticket;
 }
 
+/**
+ * Put its graph's fingerprint on a job ticket (graphSha: src/lib/ticket-compose.ts ticketGraphSha), as this studio's
+ * composer makes it with this catalog. A ticket it can't make one for goes without (only a worker built for this
+ * catalog takes it then). Returns the ticket.
+ */
+export async function withGraphSha(ticket: JobTicket, generationId: string): Promise<JobTicket> {
+  const catalog = { has: (id: string) => loadManifest().workflows.some((w) => w.id === id), get: getWorkflow };
+  const sha = await ticketGraphSha({ ticket, generationId, inputs: ticket.inputs.map((i) => ({ name: i.name, sha256: i.sha256 })) }, { catalog, catalogVersion: ticket.catalogVersion }).catch(() => null);
+  if (sha) ticket.graphSha = sha;
+  else delete ticket.graphSha;
+  return ticket;
+}
+
 /** What ComfyUI's /prompt answers when it refuses a graph. */
 export type PromptRefusalBody = { error?: { type?: string; message?: string; extra_info?: { class_type?: string } }; node_errors?: unknown };
 
@@ -1578,7 +1630,7 @@ async function uploadTo(worker: ComfyWorker, data: Buffer, contentType: string, 
   const account = server ? tenantAccount() : undefined;
   if (account) {
     if (!installComfyLocal(worker)) throw new ProviderError(POOL_NOT_LOCAL);
-    if (contentType.startsWith("image/")) ({ data, contentType, name } = await forWorkers(data, contentType, name));
+    if (contentType.startsWith("image/") || modelFormat(contentType, name)) ({ data, contentType, name } = await forWorkers(data, contentType, name, { account: true }));
   }
   const form = new FormData();
   const ext = name.includes(".") ? name.split(".").pop() : contentType.split("/")[1];
@@ -1817,12 +1869,41 @@ async function pollComputer(principal: Principal, meta: Record<string, unknown>,
   // line after an attempt (a worker paused, went quiet, gave it back), it shows its kept place as any waiting run does,
   // and once a worker has it again, the usual words: never a restart.
   const res: PollResult = t.state === "waiting" ? { state: "queued", message: poolWaitWords(t) } : await pollTask(principal, t, meta, manifest, made);
+  if (res.state === "failed") return poolFailure(res);
   if (res.state !== "queued" && res.state !== "running") return res;
   const deadline = attemptDeadline(t);
   const clocks = { ownClocks: true as const, ...(deadline && { deadline }) };
   // An account's run says only where it is: in line, or working on it (the owner's own runs keep the workers' words).
   if (!tenantAccount()) return { state: res.state, progress: res.progress, message: res.message, ...clocks };
   return t.state === "waiting" ? { state: "queued", message: POOL_WORDS.inLine, ...clocks } : { state: "running", progress: res.progress, message: POOL_WORDS.working, ...clocks };
+}
+
+/**
+ * Words a failed run on the workers keeps as they are: about the person's own files, their own stop or their files'
+ * room, or already one of the plain sentences (src/lib/engine-error.ts).
+ */
+function poolKeeps(error: string): boolean {
+  return (
+    error === RELAY_WORDS.stopped ||
+    (Object.values(FILE_TROUBLE_WORDS) as string[]).includes(error) ||
+    (Object.values(ACCOUNT_MESSAGES) as string[]).includes(error) ||
+    /^Your files have reached \d+ GB\b/.test(error) ||
+    isEngineWords(error)
+  );
+}
+
+/**
+ * A failed run on this install's GPUs (an account's, a guest's, or the owner's own on the workers): the person reads one
+ * plain sentence for its kind of failure, never the engine's words (a node's name, a worker's folder, ffmpeg's output).
+ * The engine's words, cleaned, go in `detail`: the owner's only (generations.detail, the log). What the GPU was missing
+ * stays as the owner's "Fix it".
+ */
+export function poolFailure(res: Extract<PollResult, { state: "failed" }>): PollResult {
+  // ComfyUI's own reason, when the worker reported one, is the owner's detail before the server's reading of it.
+  if (poolKeeps(res.error)) return { state: "failed", error: res.error, ...(res.detail && { detail: res.detail }), ...(res.fix && { fix: res.fix }), ...(res.lost && { lost: true as const }) };
+  const plain = plainEngineFailure(res.error, res.fix?.code);
+  const detail = res.detail ?? plain.detail;
+  return { state: "failed", error: plain.words, ...(detail && { detail }), ...(res.fix && { fix: res.fix }), ...(res.lost && { lost: true as const }) };
 }
 
 /** Where a task is (on someone's computer, or with a worker), in the words its tile shows. */
@@ -1880,10 +1961,11 @@ async function pollTask(principal: Principal, t: TaskRow, meta: Record<string, u
       }
       return { state: "succeeded", outputs: await withLayerBoxes(outputs) };
     }
+    // ComfyUI's own reason (the owner's only: `detail`), when the tab or worker reported one.
     case "canceled":
-      return { state: "failed", error: t.error === "switched" ? RELAY_WORDS.switched : t.error === "disconnected" ? RELAY_WORDS.disconnected : RELAY_WORDS.stopped };
+      return { state: "failed", error: t.error === "switched" ? RELAY_WORDS.switched : t.error === "disconnected" ? RELAY_WORDS.disconnected : RELAY_WORDS.stopped, ...(t.comfy_why && { detail: t.comfy_why }) };
     default:
-      return { state: "failed", ...relayFailure(t, manifest) };
+      return { state: "failed", ...relayFailure(t, manifest), ...(t.comfy_why && { detail: t.comfy_why }) };
   }
 }
 
@@ -1955,14 +2037,27 @@ export const comfyProvider: ProviderAdapter = {
       const metaBatch = !!meta.metaBatch;
       const forPool = onWorkers(computer);
       // The owner's job that no worker is allowed and able to run would wait with no end (the owner's jobs have no wait
-      // limit unless the owner sets one): it is refused now, as an account's run is.
-      if (forPool && computer === "owner" && !workersCanRun(manifest.id)) throw new ProviderError(NO_WORKER_FOR_LANE);
+      // limit unless the owner sets one): it is refused now, as an account's run is. Its true cause in plain words: no
+      // worker has its files, or one has them but isn't allowed its lane.
+      if (forPool && computer === "owner" && !workersCanRun(manifest.id)) {
+        throw new ProviderError(workersHold(manifest.id) ? NO_WORKER_FOR_LANE : notOnGpusText(model?.name ?? "this model", "files"));
+      }
       // A job larger than every PC that could run it may ever make (its ceiling) would never be taken: refused now, the
       // owner's and an account's alike, before it waits in line.
       if (forPool && workersCanRun(manifest.id) && !workersCanRun(manifest.id, { size: prepared.size })) throw new ProviderError(computer === "owner" ? NO_WORKER_FOR_SIZE : POOL_TOO_BIG);
+      // The files the graph loads beyond its workflow's own (a look's, a motion's or a recipe's LoRAs): only a worker that
+      // verified each one takes the task, and a job no worker could take is refused now, never left to wait for nothing
+      // (or refused by a worker for a file it hasn't verified).
+      const runtime = forPool ? runtimeNeeds(graphLoraNames(wf), loadIndex(), manifest.id) : null;
+      if (runtime && workersCanRun(manifest.id) && (runtime.unknown.length || !workersCanRun(manifest.id, { files: runtime.files }))) {
+        const lacking = [...runtime.unknown, ...runtime.files.filter((f) => !workersCanRun(manifest.id, { files: [f] })).map((f) => f.name)];
+        throw new ProviderError(computer === "owner" ? noWorkerForFiles(lacking.length ? lacking : runtime.files.map((f) => f.name)) : POOL_NO_FILES);
+      }
       const outputs = Math.max(1, manifest.outputs.length) * Math.max(1, Math.round(Number(input.numOutputs) || 1));
       // An account's run on the workers: a job ticket, and the worker composes the graph (the owner's own jobs keep theirs).
       const ticket = forPool && computer !== "owner" ? accountTicket(prepared, computer, { outputs, kind: model?.kind }) : undefined;
+      // Its graph's fingerprint: a worker built for another catalog runs it when its composer makes the same graph.
+      if (ticket) await withGraphSha(ticket, generationId);
       const task = createTask({
         principal: computer,
         generationId,
@@ -1982,13 +2077,14 @@ export const comfyProvider: ProviderAdapter = {
         ...(forPool && {
           pool:
             computer === "owner"
-              ? // The owner's jobs on the workers: the lane and files they need, after every person's run (the owner's
-                // class), with the owner's own wait limit (none unless the owner sets one: queue-settings.ts).
-                poolFields(manifest.id, { class: "owner", waitMs: ownerWaitMs(), size: prepared.size })
+              ? // The owner's jobs on the workers: the lane and files they need, with the owner's own wait limit (none
+                // unless the owner sets one: queue-settings.ts). A script's run (a batch, a drill…) waits after every
+                // person's run (the owner's class); a hands-on run waits with people's runs, at its run's place.
+                ownerPoolFields(manifest.id, generationId, { size: prepared.size, runtime: runtime?.files })
               : // An account's: the lane and files they need, in its class (paid before free), in the order they came
                 // (with the billing service's head start inside the class), with the wait set for the run.
                 // A ticket's task goes only to a worker built for its catalog, and inside that PC's ceiling.
-                accountPoolFields(manifest.id, computer.slice(5), generationId, { size: prepared.size, catalogVersion: ticket?.catalogVersion }),
+                accountPoolFields(manifest.id, computer.slice(5), generationId, { size: prepared.size, catalogVersion: ticket?.catalogVersion, graphSha: !!ticket?.graphSha, runtime: runtime?.files }),
         }),
       });
       // (`workers`: the run keeps its task's clocks, pool.ts, even when a poll of it fails.)

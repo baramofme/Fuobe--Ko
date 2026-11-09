@@ -39,13 +39,14 @@ const { AccountSections } = await import("@/components/nav/account-menu");
 const { avatarDot, refillWords } = await import("@/components/nav/status-chips");
 const { COVER_SIZES, CoverThumb } = await import("@/components/nav/cover-thumb");
 const { NavUiProvider } = await import("@/components/nav/nav-ui");
+const { TooltipProvider } = await import("@/components/ui/tooltip");
 const { navCovers } = await import("@/lib/nav-covers");
 const { entriesFor, entry, launcherColumns, NAV_ENTRIES, studioCount } = await import("@/lib/nav-model");
 const { studiosMenu } = await import("@/lib/mega-menus");
 
 const covers = navCovers();
 const Nav = NavUiProvider as (p: { covers: typeof covers; children?: ReactNode }) => ReactNode;
-const render = (node: ReactNode) => renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(Nav, { covers }, node)));
+const render = (node: ReactNode) => renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(TooltipProvider, null, createElement(Nav, { covers }, node))));
 /** Every link in the markup: its tag (attributes) and its href (React escapes & as &amp;). */
 const anchors = (html: string) => [...html.matchAll(/<a\s[^>]*>/g)].map((m) => ({ tag: m[0], href: (/href="([^"]*)"/.exec(m[0])?.[1] ?? "").replaceAll("&amp;", "&") }));
 const hrefs = (html: string) => anchors(html).map((a) => a.href);
@@ -116,13 +117,16 @@ describe("which bar item holds the page", () => {
     expect(barActive("/live-edit").create).toBe(true);
   });
 
-  it("marks the galleries, Canvas, Assist and Library on their pages", () => {
+  it("marks the galleries, Canvas, Chat (on Assist's pages too) and Library on their pages", () => {
     expect(barActive("/apps")).toMatchObject({ apps: true, studios: false });
     expect(barActive("/apps/app-billboard-ad").apps).toBe(true);
     expect(barActive("/motions").motions).toBe(true);
     expect(barActive("/effects").motions).toBe(true);
     expect(barActive("/canvas/p1").canvas).toBe(true);
-    expect(barActive("/assist/skills").assist).toBe(true);
+    expect(barActive("/assist/skills").chat).toBe(true);
+    expect(barActive("/assist").chat).toBe(true);
+    expect(barActive("/chat").chat).toBe(true);
+    expect(barActive("/chat/abc123")).toMatchObject({ chat: true, create: false });
     expect(barActive("/library").library).toBe(true);
   });
 
@@ -140,29 +144,29 @@ describe("which bar item holds the page", () => {
   });
 });
 
-describe("the launcher's columns", () => {
+describe("the Studios menu's tiles", () => {
   const html = render(createElement(LauncherColumns, { kind: undefined, now: Date.parse("2026-11-02") }));
 
-  it("shows every studio, Apps and the Sound column, 8/6/5/6/5/3 (Ads Studio under Marketing Studio), each column's lead first", () => {
+  it("shows every studio, Apps and the Sound column, 4/6/5/4/5/3 (Ads Studio under Marketing Studio; the FX studios are Fuobe FX's), each column's lead first", () => {
     const main = anchors(html).filter((a) => !a.tag.includes("data-sub"));
-    expect(main).toHaveLength(33);
-    expect(new Set(main.map((a) => a.href)).size).toBe(33);
-    expect(launcherColumns(undefined).map((c) => 1 + c.rest.length)).toEqual([8, 6, 6, 6, 5, 3]);
+    expect(main).toHaveLength(27);
+    expect(new Set(main.map((a) => a.href)).size).toBe(27);
+    for (const h of ["/genjutsu", "/character-swap", "/motion-control", "/video-tools", "/extend", "/reframe"]) expect(main.map((a) => a.href), h).not.toContain(h);
+    expect(launcherColumns(undefined).map((c) => 1 + c.rest.length)).toEqual([4, 6, 6, 4, 5, 3]);
     // Ads Studio stays in the model (the phone's sheet keeps its tile); the desktop menu lists it under Marketing Studio.
-    expect(studiosMenu(undefined).columns.map((c) => 1 + c.rows.filter((e) => !e.under).length)).toEqual([8, 6, 5, 6, 5, 3]);
+    expect(studiosMenu(undefined).columns.map((c) => 1 + c.rows.filter((e) => !e.under).length)).toEqual([4, 6, 5, 4, 5, 3]);
     expect(studiosMenu(undefined).columns.flatMap((c) => c.rows.filter((e) => e.under).map((e) => [e.id, e.under]))).toEqual([["ads", "marketing"]]);
     expect(launcherColumns(undefined).map((c) => c.lead.id)).toEqual(["cinema", "shorts", "marketing", "fashion-factory", "audio", "upscale"]);
-    expect(html).toContain("grid-cols-6");
-    // The arrow keys' places: the lead, its features, then each row and its features, top to bottom.
-    for (const [i, c] of studiosMenu(undefined).columns.entries()) {
-      const at = (href: string, sub: boolean) => anchors(html).find((a) => a.href === href && a.tag.includes(`data-col="${i}"`) && a.tag.includes("data-sub") === sub)?.tag ?? "";
-      let r = 0;
-      for (const e of [c.lead!, ...c.rows.filter((x) => !x.under)]) {
-        expect(at(e.href, false), e.id).toContain(`data-col="${i}" data-row="${r++}"`);
-        for (const s of e.subs ?? []) expect(at(s.href, true), s.id).toContain(`data-col="${i}" data-row="${r++}"`);
-      }
-    }
-    expect(studioCount()).toBe(29);
+    // "All": every tile flows down balanced columns (three, four from lg, five from xl), each group starting with its name.
+    expect(html).toContain("columns-3 lg:columns-4 xl:columns-5");
+    // One row of names above them: All, then each group (each a button that shows that group alone). No counts in
+    // it: the header line says how many.
+    expect(html).toMatch(/aria-pressed="true"[^>]*>All<\/button>/);
+    for (const label of ["Film &amp; video", "Social &amp; shorts", "Sell &amp; advertise", "People &amp; fashion", "Sound", "Finish &amp; convert"])
+      expect(html, label).toMatch(new RegExp(`aria-pressed="false"[^>]*>${label}</button>`));
+    // Every link is in the arrow keys' set (their places are set from where the tiles land, in the browser).
+    for (const a of anchors(html)) expect(a.tag, a.href).toContain("data-key");
+    expect(studioCount()).toBe(23);
   });
 
   it("lists what a studio holds inside under it, by the names of its own tabs", () => {
@@ -172,35 +176,35 @@ describe("the launcher's columns", () => {
         .find((e) => e.id === id)
         ?.subs?.map((s) => s.label);
     expect(subs("marketing")).toEqual(["Click to Ad", "Ads Studio", "Ad Multiplier"]);
-    expect(subs("genjutsu")).toEqual(["Motion transfer", "Character swap", "Object swap", "Restyle", "Insert", "From picture", "Finish"]);
+    // Genjutsu and Video tools are Fuobe FX's (its own menu lists their modes).
+    expect(subs("genjutsu")).toBeUndefined();
+    expect(subs("video-tools")).toBeUndefined();
     expect(subs("upscale")).toEqual(["Image", "Video", "FPS Boost", "SDR to HDR", "Export"]);
     expect(subs("audio")).toEqual(["Speech", "Dialogue", "Voice change", "See all 15"]);
-    expect(subs("video-tools")).toEqual(["Relight", "Captions", "Remove object", "See all 13"]);
-    for (const w of ["Click to Ad", "Ads Studio", "Ad Multiplier", "Motion transfer", "FPS Boost"]) expect(words(html)).toContain(w);
-    // Under a hairline, quieter than a row, with no picture and no line of their own (nav-subs.css: 24 px
-    // names with a mouse, 44 px pills to tap on a touch screen).
+    for (const w of ["Click to Ad", "Ads Studio", "Ad Multiplier", "FPS Boost"]) expect(words(html)).toContain(w);
+    // Small quiet pills under the studio's tile, with no picture and no line of their own.
     const sub = anchors(html).find((a) => a.tag.includes("data-sub"))!.tag;
     expect(sub).toContain("text-muted-foreground");
-    expect(html).toMatch(/<ul[^>]*class="nav-subs /);
+    expect(sub).toContain("rounded-full");
     // A "See all N" says whose.
     expect(html).toContain('aria-label="See all 15 in Audio"');
   });
 
-  it("labels the groups, and every link has its studio's real cover in a box of fixed size", () => {
+  it("names the groups, and every tile has its studio's real cover in a 4:3 box", () => {
     for (const label of ["Film &amp; video", "Social &amp; shorts", "Sell &amp; advertise", "People &amp; fashion", ">Sound<", "Finish &amp; convert"]) expect(html).toContain(label);
     for (const c of launcherColumns(undefined)) {
       for (const e of [c.lead, ...c.rest].filter((x) => x.id !== "ads")) {
         const cover = covers[e.cover!];
         expect(cover, e.id).toBeDefined();
-        // The lead card shows the 320 px copy (and the poster by its srcset); a row the 96 px one.
-        expect(html).toContain(`src="${(e === c.lead ? cover.thumb : (cover.mini ?? cover.thumb)).replaceAll("&", "&amp;")}"`);
+        // Every tile shows the 320 px copy, and the poster by its srcset on a sharp screen.
+        expect(html).toContain(`src="${cover.thumb.replaceAll("&", "&amp;")}"`);
+        expect(html).toContain(`${cover.poster} 512w`);
       }
-      // The lead's 4:3 card picks the poster on sharp screens.
-      expect(html).toContain(`${covers[c.lead.cover!].poster} 512w`);
     }
-    // The six lead cards load as the panel warms; a row's picture when the row shows (lazy). A studio's features have none.
-    expect(count(html, 'loading="eager"')).toBe(6);
-    expect(count(html, 'alt=""')).toBe(33);
+    // The tiles at the top of each of the five columns load as the panel warms; the rest when they show (lazy). A
+    // studio's features have no picture.
+    expect(count(html, 'loading="eager"')).toBe(15);
+    expect(count(html, 'alt=""')).toBe(27);
   });
 
   it("marks the open page's studio, and nothing else", () => {
@@ -212,11 +216,11 @@ describe("the launcher's columns", () => {
 
   it("on a studio's feature, marks the feature and shows its studio as holding the page (no second aria-current)", () => {
     const studio = (html: string, href: string) => anchors(html).find((a) => a.href === href && !a.tag.includes("data-sub"))?.tag ?? "";
-    const restyle = render(createElement(LauncherColumns, { kind: undefined, current: "genjutsu-restyle", now: 0 }));
-    expect(count(restyle, 'aria-current="page"')).toBe(1);
-    expect(anchors(restyle).find((a) => a.href === "/genjutsu?mode=restyle")?.tag).toContain('aria-current="page"');
-    expect(studio(restyle, "/genjutsu")).toContain('data-active=""');
-    expect(studio(restyle, "/genjutsu")).not.toContain("aria-current");
+    const multi = render(createElement(LauncherColumns, { kind: undefined, current: "image-to-3d-multi", now: 0 }));
+    expect(count(multi, 'aria-current="page"')).toBe(1);
+    expect(anchors(multi).find((a) => a.href === "/image-to-3d?mode=multi")?.tag).toContain('aria-current="page"');
+    expect(studio(multi, "/image-to-3d")).toContain('data-active=""');
+    expect(studio(multi, "/image-to-3d")).not.toContain("aria-current");
     // A lead card too (Marketing Studio on Click to Ad), and a feature the menu doesn't link for a visitor (Character
     // Sheet's modes): its studio is still marked.
     expect(studio(render(createElement(LauncherColumns, { kind: undefined, current: "marketing-click-to-ad", now: 0 })), "/marketing")).toContain('data-active=""');
@@ -224,22 +228,17 @@ describe("the launcher's columns", () => {
     expect(count(cast, 'aria-current="page"')).toBe(0);
     expect(studio(cast, "/character-sheet")).toContain('data-active=""');
     // Nothing is marked as holding a page on a studio's own page.
-    expect(render(createElement(LauncherColumns, { kind: undefined, current: "genjutsu", now: 0 }))).not.toContain("data-active");
+    expect(render(createElement(LauncherColumns, { kind: undefined, current: "image-to-3d", now: 0 }))).not.toContain("data-active");
   });
 
-  it("gives Genjutsu's modes wrapped lines on a short window, and hangs a row's features on its name's column", () => {
+  it("shows every studio's features under its tile, whatever the window's height (the panel scrolls inside)", () => {
     const ul = (id: string) => html.match(new RegExp(`<ul[^>]*data-subs="${id}"[^>]*>`))?.[0] ?? "";
-    expect(ul("genjutsu")).toContain("data-subs-line");
-    // With a mouse it never hides (the line takes over); on a touch screen it needs 1024 px.
-    expect(ul("genjutsu")).not.toContain("[@media(max-height:799.98px)]:hidden");
-    expect(ul("genjutsu")).toContain("[@media(pointer:coarse)_and_(max-height:1023.98px)]:hidden");
-    expect(ul("video-tools")).toContain("[@media(max-height:879.98px)]:hidden");
-    expect(ul("video-tools")).not.toContain("data-subs-line");
-    // No pad after an odd list (the next row follows 4 px below, as rows do); features under a row are marked to
-    // start on its name (nav-subs.css), under a lead card on the card's words.
-    expect(html).not.toContain("data-odd");
-    expect(ul("genjutsu")).toContain("data-under");
-    expect(ul("marketing")).not.toContain("data-under");
+    // Genjutsu's modes are Fuobe FX's menu's.
+    expect(ul("genjutsu")).toBe("");
+    for (const id of ["image-to-3d", "marketing", "upscale", "audio"]) {
+      expect(ul(id), id).not.toBe("");
+      expect(ul(id), id).not.toContain("max-height");
+    }
   });
 
   it("shows New badges only until their date", () => {
@@ -280,7 +279,8 @@ describe("the bar's shell", () => {
     expect(html).toContain('aria-expanded="false"');
     // Studios is its name only: no count beside it.
     expect(html).not.toContain(`>${studioCount()}<`);
-    for (const h of ["/", "/assist", "/library", "/?new=1"]) expect(hrefs(html), h).toContain(h);
+    for (const h of ["/", "/chat", "/library", "/?new=1"]) expect(hrefs(html), h).toContain(h);
+    expect(hrefs(html)).not.toContain("/assist");
     for (const h of ["/create", "/studios", "/apps", "/motions-and-effects", "/canvas"]) expect(html, h).toContain(`data-href="${h}"`);
     // Search's name is the words it shows (sr-only below lg).
     expect(html).toContain(">Search Fuobe</span>");
@@ -376,6 +376,19 @@ describe("the account menu's sections (as the phone's You sheet shows them)", ()
     expect(words(html)).toContain("3 runs left");
   });
 
+  it("says where the runs go beside the balance, in the bar and the sheet, as a button that opens its menu", () => {
+    state.hydrated = true;
+    state.viewer = ACCOUNT;
+    const balance = { amount: 1, chip: "Free", text: "Free runs", detail: [] };
+    state.status = install({ viewer: { kind: "account", gpu: { connected: false }, hosted: true, placeName: "Fuobe Cloud", balance } });
+    const bar = render(createElement(TopBar));
+    const pill = /<button[^>]*data-runs="site"[^>]*>/.exec(bar)?.[0] ?? "";
+    expect(pill).toContain('aria-label="Where your runs go: Free on Fuobe Cloud. Change"');
+    expect(pill).toContain('aria-haspopup="menu"');
+    expect(words(bar)).toContain("Free · Fuobe Cloud");
+    expect(words(sheet())).toContain("Free · Fuobe Cloud");
+  });
+
   it("shows the owner the install's status as the sidebar's footer did", () => {
     state.hydrated = true;
     state.viewer = OWNER;
@@ -438,11 +451,12 @@ describe("menu items: one button each, the area's page inside its menu", () => {
   /** The opening tag of a menu item's button. */
   const item = (html: string, id: string) => new RegExp(`<button[^>]*data-bar-menu="${id}"[^>]*>`).exec(html)?.[0] ?? "";
 
-  it("gives Create, Studios, Apps, Motions & effects, Canvas and More one button each, named by its words", () => {
+  it("gives Create, Studios, Fuobe FX, Apps, Motions & effects, Canvas and More one button each, named by its words", () => {
     const html = render(createElement(TopBar));
     const hubs = [
       ["create", "/create"],
       ["studios", "/studios"],
+      ["fx", "/fx"],
       ["apps", "/apps"],
       ["motions", "/motions-and-effects"],
       ["canvas", "/canvas"],
@@ -461,14 +475,14 @@ describe("menu items: one button each, the area's page inside its menu", () => {
     expect(item(html, "studios")).not.toContain("sr-only");
     // The Studios item is still the launcher's disclosure button (search hands focus back to it).
     expect(item(html, "studios")).toContain("data-studios-trigger");
-    for (const name of ["Create menu", "Studios menu", "Apps menu", "Motions &amp; effects menu", "Canvas menu"]) expect(html, name).not.toContain(`aria-label="${name}"`);
+    for (const name of ["Create menu", "Studios menu", "Fuobe FX menu", "Apps menu", "Motions &amp; effects menu", "Canvas menu"]) expect(html, name).not.toContain(`aria-label="${name}"`);
     expect(html).not.toContain("data-bar-split");
     // The bar's own items are plain disclosure buttons, never menu widgets. The language selector's
     // Radix dropdown trigger is the one legitimate menu popup — it stamps aria-haspopup="menu" itself.
     expect(html).not.toMatch(/role="menu"|role="menuitem"/);
     expect(count(html, 'aria-haspopup="menu"')).toBe(1);
     expect(html).toMatch(/aria-haspopup="menu"[^>]*aria-label="Language"/);
-    expect(count(html, "data-bar-menu=")).toBe(6);
+    expect(count(html, "data-bar-menu=")).toBe(7);
   });
 
   it("marks the item anywhere in its area, its own page included, and only that item", () => {
@@ -484,6 +498,13 @@ describe("menu items: one button each, the area's page inside its menu", () => {
     html = render(createElement(TopBar));
     expect(item(html, "create")).not.toContain("data-active");
     expect(item(html, "canvas")).toContain('data-active="true"');
+    // Fuobe FX: its page and its studios mark its item, not Studios.
+    for (const path of ["/fx", "/genjutsu", "/video-tools/depth"]) {
+      state.path = path;
+      html = render(createElement(TopBar));
+      expect(item(html, "fx"), path).toContain('data-active="true"');
+      expect(item(html, "studios"), path).not.toContain("data-active");
+    }
   });
 
   it("links the launcher's header to every studio with previews", async () => {
@@ -498,14 +519,16 @@ describe("menu items: one button each, the area's page inside its menu", () => {
 });
 
 describe("create and prefetch", () => {
-  it("puts the create tools in two columns of five", () => {
+  it("puts the create tools in two columns of five, Chat in Assist's place", () => {
     const cols = createColumns(undefined);
     expect(cols.map((c) => c.label)).toEqual(["Make", "Edit a picture"]);
     expect(cols.map((c) => c.entries.map((e) => e.id))).toEqual([
-      ["image", "video", "assist", "canvas", "storyboard"],
+      ["image", "video", "chat", "canvas", "storyboard"],
       ["edit", "live-edit", "inpaint", "layers", "color-grade"],
     ]);
     expect(CREATE_HREFS).toHaveLength(10);
+    expect(CREATE_HREFS).toContain("/chat");
+    expect(CREATE_HREFS).not.toContain("/assist");
     for (const kind of ["guest", "account", "owner"] as const) expect(createColumns(kind).flatMap((c) => c.entries)).toHaveLength(10);
   });
 
@@ -513,10 +536,25 @@ describe("create and prefetch", () => {
     const list = prefetchHrefs(undefined);
     expect(new Set(list).size).toBe(list.length);
     for (const c of launcherColumns(undefined)) for (const e of [c.lead, ...c.rest]) expect(list).toContain(e.href);
-    for (const id of ["image", "video", "edit", "live-edit", "inpaint", "layers", "color-grade", "canvas", "assist", "library", "favorites"]) expect(list).toContain(entry(id)!.href);
+    for (const id of ["image", "video", "edit", "live-edit", "inpaint", "layers", "color-grade", "canvas", "chat", "library", "favorites"]) expect(list).toContain(entry(id)!.href);
     for (const h of list) expect(h.startsWith("/") && !h.includes("#"), h).toBe(true);
     // The same for every viewer: none of these is owner-only.
     expect(prefetchHrefs("owner")).toEqual(list);
     expect(list.every((h) => entriesFor("guest").some((e) => e.href === h))).toBe(true);
+  });
+});
+
+describe("the menus' clips on any device", () => {
+  it("play eight at once on a capable device, three on a modest one, none on a slow connection or when saving data", async () => {
+    const { playCap, PLAY_AT_ONCE, PLAY_AT_ONCE_MODEST } = await import("@/components/nav/mega-panel");
+    const dev = (o: object) => o as Navigator;
+    expect(PLAY_AT_ONCE).toBe(8);
+    expect(playCap(dev({ hardwareConcurrency: 10, deviceMemory: 16 }))).toBe(PLAY_AT_ONCE);
+    // Safari says neither: it counts as capable (its Low Power Mode refuses autoplay by itself).
+    expect(playCap(dev({}))).toBe(PLAY_AT_ONCE);
+    expect(playCap(dev({ hardwareConcurrency: 4, deviceMemory: 8 }))).toBe(PLAY_AT_ONCE_MODEST);
+    expect(playCap(dev({ hardwareConcurrency: 8, deviceMemory: 4 }))).toBe(PLAY_AT_ONCE_MODEST);
+    expect(playCap(dev({ hardwareConcurrency: 8, connection: { effectiveType: "3g" } }))).toBe(0);
+    expect(playCap(dev({ hardwareConcurrency: 8, connection: { effectiveType: "4g", saveData: true } }))).toBe(0);
   });
 });

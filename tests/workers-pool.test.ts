@@ -354,7 +354,7 @@ describe("losing a worker (checks 3, 4, 5)", () => {
     clock += 2 * MIN;
     pool.sweepPool(clock);
     expect(state(id).state).toBe("failed");
-    expect(state(id).error).toBe("The GPUs were busy. Not charged.");
+    expect(state(id).error).toBe("This one didn't start in time — try again, or try a similar model.");
   });
 
   it("a person's task with no wait limit (the policy's 0) never fails for a wait: 40 minutes with every worker paused, it is still in line", () => {
@@ -401,12 +401,138 @@ describe("order (checks 8, 9)", () => {
     expect(state(long).state).toBe("waiting");
   });
 
+  it("people first: every person's run goes before the owner's own jobs, even one a day older; each in the order they came", () => {
+    const w = worker("people-first");
+    const owner1 = task({ rankAgoMs: 24 * 60 * MIN });
+    const owner2 = task({ rankAgoMs: 23 * 60 * MIN });
+    const guest = task({ account: "guest", rankAgoMs: 2 * MIN });
+    const person = task({ account: "acct-a", rankAgoMs: 1 * MIN });
+    const order: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const c = claim(w);
+      order.push(c!.id);
+      db().prepare("UPDATE relay_tasks SET state = 'done' WHERE id = ?").run(c!.id);
+    }
+    expect(order).toEqual([guest, person, owner1, owner2]);
+  });
+
+  it("the owner's own jobs get no head start: a boost moves only a person's run up in its class", () => {
+    expect(pool.poolFields("wf-a", { boostMs: 60 * MIN }, clock).rankAt).toBe(clock);
+    expect(pool.poolFields("wf-a", { class: "owner", boostMs: 60 * MIN }, clock).rankAt).toBe(clock);
+    expect(pool.poolFields("wf-a", { account: "acct-a", boostMs: 60 * MIN }, clock).rankAt).toBe(clock - 60 * MIN);
+    expect(pool.poolFields("wf-a", { account: "acct-a", boostMs: 48 * 60 * MIN }, clock).rankAt).toBe(clock - 24 * 60 * MIN);
+  });
+
+  it("a warm lane never makes a person wait: with a pick allowance, a person's run in another lane goes before the warm lane", () => {
+    const w = worker("warm-people", { lanes: [LANE_A, LANE_B] });
+    db().prepare("UPDATE relay_workers SET warm_lane = ?, switch_after_ms = ? WHERE id = ?").run(LANE_A, 30 * MIN, w.id);
+    saveQueueSettings({ ...queueSettings(), pickAllowanceMs: 60 * MIN });
+    try {
+      // The owner's job in the warm lane, older than the person's run that just came in another lane.
+      const ownerWarm = task({ lane: LANE_A, rankAgoMs: 10 * MIN });
+      const person = task({ lane: LANE_B, account: "acct-a", rankAgoMs: 0 });
+      expect(claim(w)?.id).toBe(person);
+      db().prepare("UPDATE relay_tasks SET state = 'done' WHERE id = ?").run(person);
+      // Two people's runs: the older one goes first, whatever lane is warm.
+      const older = task({ lane: LANE_B, account: "acct-b", rankAgoMs: 1 * MIN });
+      const warmPerson = task({ lane: LANE_A, account: "acct-c", rankAgoMs: 0 });
+      expect(claim(w)?.id).toBe(older);
+      db().prepare("UPDATE relay_tasks SET state = 'done' WHERE id = ?").run(older);
+      expect(claim(w)?.id).toBe(warmPerson);
+      db().prepare("UPDATE relay_tasks SET state = 'done' WHERE id = ?").run(warmPerson);
+      // Among the owner's own jobs only, the warm lane still goes first while the best one is inside the allowance.
+      db().prepare("UPDATE relay_workers SET warm_lane = ? WHERE id = ?").run(LANE_B, w.id);
+      const ownerB = task({ lane: LANE_B, rankAgoMs: 0 });
+      expect(claim(w)?.id).toBe(ownerB);
+      expect(state(ownerWarm).state).toBe("waiting");
+    } finally {
+      saveQueueSettings(QUEUE_DEFAULTS);
+    }
+  });
+
   it("tasks in one class go by rank_at, not by arrival", () => {
     const w = worker("rank");
     const later = task({ rankAgoMs: 0 });
     const boosted = task({ rankAgoMs: 24 * 60 * MIN });
     expect(claim(w)?.id).toBe(boosted);
     expect(state(later).state).toBe("waiting");
+  });
+});
+
+describe("people first: the owner's own job on a worker makes room for a person's run", () => {
+  const PAUSED = "Paused for a moment · starts again automatically";
+
+  it("the beat stops the owner's job, which goes back in line with no attempt counted and its place kept; the person's run is claimed next; then the owner's job runs again", () => {
+    const w = worker("preempt");
+    const owner1 = task({ rankAgoMs: 10 * MIN });
+    const owner2 = task({ rankAgoMs: 5 * MIN });
+    expect(claim(w)?.id).toBe(owner1);
+    const rank = state(owner1).rank_at;
+    // No person waits: the owner's job goes on.
+    expect(beat(w, {}, [owner1]).stops).toEqual([]);
+    const person = task({ account: "acct-p" });
+    const a = beat(w, {}, [owner1]);
+    expect(a.stops.map((x) => x.task)).toEqual([owner1]);
+    const back = state(owner1);
+    expect(back.state).toBe("waiting");
+    expect(back.requeues).toBe(0);
+    expect(back.worker_id).toBeNull();
+    expect(back.rank_at).toBe(rank);
+    expect(pool.poolWaitWords(back, clock)).toBe(PAUSED);
+    // The next claim takes the person's run, then the owner's jobs in their own order.
+    expect(claim(w)?.id).toBe(person);
+    expect(beat(w, {}, [person]).stops).toEqual([]);
+    db().prepare("UPDATE relay_tasks SET state = 'done' WHERE id = ?").run(person);
+    expect(claim(w)?.id).toBe(owner1);
+    expect(JSON.parse(state(owner1).extra_json ?? "{}").preempted).toBeUndefined();
+    expect(state(owner2).state).toBe("waiting");
+    expect(pool.poolWaitWords(state(owner2), clock)).not.toBe(PAUSED);
+  });
+
+  it("never a person's run for another person, paid or free", () => {
+    const w = worker("people");
+    const a = task({ account: "acct-a", rankAgoMs: 2 * MIN });
+    expect(claim(w)?.id).toBe(a);
+    task({ account: "acct-b" });
+    db().prepare("UPDATE relay_tasks SET class = 'paid' WHERE state = 'waiting' AND account = 'acct-b'").run();
+    expect(beat(w, {}, [a]).stops).toEqual([]);
+    expect(state(a).worker_id).toBe(w.id);
+  });
+
+  it("not while another free worker can take the person's run, nor a job saving its results, nor one whose results the worker keeps", () => {
+    const w = worker("busy-owner");
+    const own = task({ rankAgoMs: 5 * MIN });
+    expect(claim(w)?.id).toBe(own);
+    const idle = worker("idle");
+    task({ account: "acct-p" });
+    expect(beat(w, {}, [own]).stops).toEqual([]);
+    // The other worker goes away: now the owner's job makes room, unless its results are being saved or kept.
+    pool.patchWorker(idle.id, { paused: true });
+    db().prepare("UPDATE relay_tasks SET state = 'collecting' WHERE id = ?").run(own);
+    expect(beat(w, {}, [own]).stops).toEqual([]);
+    db().prepare("UPDATE relay_tasks SET state = 'running' WHERE id = ?").run(own);
+    const b = pool.workerBeat(row(w), pool.cleanBeat({ device: `wkr-${w.id}`, protocol: 2, version: "1.0.0", local: { paused: false, why: null, until: null }, gpu: {}, inventoryHash: null, running: [{ task: own }], stopped: [], held: [own] }), clock);
+    expect(b.stops).toEqual([]);
+    expect(beat(w, {}, [own]).stops.map((x) => x.task)).toEqual([own]);
+  });
+
+  it("not when the person's run can't run on this worker, nor while the worker may take no work", () => {
+    const w = worker("other-lane", { lanes: [LANE_A] });
+    const own = task({ rankAgoMs: 5 * MIN });
+    expect(claim(w)?.id).toBe(own);
+    task({ account: "acct-p", lane: LANE_B });
+    expect(beat(w, {}, [own]).stops).toEqual([]);
+    task({ account: "acct-q" });
+    // Our work first and Balanced keep the owner's job going; People first (the default) makes room.
+    for (const mode of ["ours-first", "balanced"]) {
+      db().prepare("UPDATE relay_workers SET mode_json = ? WHERE id = ?").run(JSON.stringify({ mode, until: null, by: "test", at: clock }), w.id);
+      expect(beat(w, {}, [own]).stops).toEqual([]);
+    }
+    db().prepare("UPDATE relay_workers SET mode_json = NULL WHERE id = ?").run(w.id);
+    pool.patchWorker(w.id, { drain: true });
+    expect(beat(w, {}, [own]).stops).toEqual([]);
+    pool.patchWorker(w.id, { drain: false });
+    expect(beat(w, {}, [own]).stops.map((x) => x.task)).toEqual([own]);
   });
 });
 

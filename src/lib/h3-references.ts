@@ -62,7 +62,7 @@ export function h3ReferenceProblem(r: H3References): string | null {
       if (s > L.maxSec + 0.05) return `${g.one} ${i + 1} is ${fmt(s)}: trim it to ${L.maxSec} s or less`;
     }
     const sum = g.list.reduce<number>((a, s) => a + (s ?? 0), 0);
-    if (sum > L.groupSec + 0.05) return `${g.all} add up to ${fmt(sum)}: keep them to ${L.groupSec} s together`;
+    if (sum > L.groupSec + 0.05) return `${g.all} add up to ${fmt(sum)}, and H3 takes ${L.groupSec} s of them together: cut ${fmt(Math.ceil((sum - L.groupSec) * 10) / 10)}`;
   }
   return null;
 }
@@ -133,8 +133,8 @@ export function expandH3References(wf: ComfyWorkflow, files: H3ReferenceFiles): 
   files.videos.forEach((name, i) => {
     const id = `ref_video_${i}`;
     out[id] = {
-      class_type: "VHS_LoadVideo",
-      inputs: { video: name, force_rate: 24, custom_width: 0, custom_height: 0, frame_load_cap: H3_REFERENCE_LIMITS.maxSec * 24, skip_first_frames: 0, select_every_nth: 1, format: "None" },
+      class_type: "VHS_LoadVideoFFmpeg",
+      inputs: { video: name, force_rate: 24, custom_width: 0, custom_height: 0, frame_load_cap: H3_REFERENCE_LIMITS.maxSec * 24, start_time: 0, format: "None" },
       _meta: { title: `Clip ${i + 1}` },
     };
     ref.inputs[`ref_videos.ref_video_${i}`] = [id, 0];

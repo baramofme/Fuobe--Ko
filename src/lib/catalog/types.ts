@@ -108,6 +108,9 @@ export type Operation =
   | "scene-edit" // video part (+ a picture) + params.extra (change / remove / new background) → the scene edited, the rest kept
   | "picture-frame" // video part (+ a character picture) → its first frame with the character in that pose (or relit)
   | "picture-video" // video part + an approved first frame (+ what happens) → the frame animated with the part's motion
+  // Body Double (InstantHMR)
+  | "body-capture" // image → every person's 3D body drawn over it (params.extra look), a skinned GLB of the bodies and a pose picture
+  | "body-capture-video" // video → the body drawn over every frame, an animated skinned GLB (motion capture) and a pose video
   // Hosted tools: insert a moment, retexture
   | "insert-moment" // video + params.startTime / params.endTime (+ prompt, reference images and clips, params.duration: the new scene's length) → the clip with a new scene between them
   | "retexture-3d" // 3D model (inputs.model3d) + prompt or a style image → the same model with new textures
@@ -156,6 +159,8 @@ export const OPERATION_LABELS: Record<Operation, string> = {
   dub: "Translate & dub",
   "bg-remove-video": "Video background removal",
   "depth-video": "Video depth map",
+  "body-capture": "Body capture",
+  "body-capture-video": "Video body capture",
   "relight-video": "Video relight",
   concat: "Join clips",
   frame: "Extract frame",
@@ -249,6 +254,8 @@ export const OPERATION_OUTPUT: Record<Operation, MediaKind> = {
   dub: "video",
   "bg-remove-video": "video",
   "depth-video": "video",
+  "body-capture": "image",
+  "body-capture-video": "video",
   "relight-video": "video",
   concat: "video",
   frame: "image",
@@ -666,6 +673,13 @@ export interface ModelRoute {
   /** fal endpoint id, replicate "owner/name", or ComfyUI workflow id from the manifest. */
   endpoint: string;
   map?: FieldMap;
+  /**
+   * The endpoint takes the end frame without a start frame (fal's H3, H3 Max and H3 Max Turbo image to video: "It may be
+   * provided alone"; the clip then takes the end frame's shape). A run with only an end frame goes to its start-and-end
+   * route; on a model without it, the end frame needs a start frame (endFrameAloneProblem in plan.ts).
+   * A route field, not a map field, so the browser's slimmed catalog (slimModel) keeps it.
+   */
+  endAlone?: boolean;
   /**
    * The parts of `map` the composer previews a result with ("1920×1080 → 2880×1620", an EXR frame count, the canvas a
    * layout is compiled at), kept by slimModel when it drops the field maps for the browser. The server reads `map`.
@@ -1290,10 +1304,7 @@ export interface GenerationRequest {
    * Unset: the install's engine mode, else the first one connected (your GPU before the cloud).
    */
   engine?: Engine;
-  /**
-   * An account's cloud run on this provider's key when the model is on several ("Run with your Replicate key"): its
-   * routes there go first. Without a key for it the run asks for one.
-   */
+  /** The provider a cloud run goes on when the model is on several; its route runs while ready (an account without its key is asked for one). */
   prefer?: "fal" | "replicate";
   /** Chained jobs: where the previous job's image goes among `inputs.images` (one dependency). */
   chainFrom?: "first" | "last";
@@ -1349,6 +1360,14 @@ export interface GenerationRequest {
   title?: string;
   /** Server-set: the name of the batch it belongs to (an Assist plan's summary): the Library stack's title. */
   batchTitle?: string;
+  /**
+   * Where an owner's run came from, as the script or runner that made it said (POST /api/generations): "hands-on" (none
+   * said, from the site), a batch, drill, example or test run, or "api" (sent with an API token and no source of its
+   * own: a script, the CLI or an agent). The admin runs list tells them apart. An account's run never has one.
+   */
+  source?: RunSource;
+  /** The script, runner or app that made an owner's run, in its own words ("Object Remover examples"): shown beside its source. */
+  sourceName?: string;
   /**
    * Server-set: made by a run of a skill's recipe (src/lib/recipe.ts): the skill's name and the run's id (its batch), so
    * a run's history can be read back. Stripped from API input, like chainFilled.
@@ -1539,6 +1558,12 @@ export interface Generation {
    */
   trouble?: RunTrouble;
   /**
+   * A failed run's technical reason, cleaned (ComfyUI's own words, or the engine's: no folders, addresses, keys or
+   * prompt text), shown under the plain sentence in `error`. Only while the install shows failure details to people
+   * (Settings → Failed runs: "full"), and only in the run as its own person reads it.
+   */
+  errorDetail?: string;
+  /**
    * An account's run waiting for its own GPU or key to come back (it goes on by itself): why, the buttons that help
    * (Start your pod, Run with your key…), and when it stops waiting.
    */
@@ -1594,9 +1619,10 @@ export interface Generation {
 
 /**
  * Why Auto picked its model: a picture to work from ("edit"), lettering ("text"), a prompt the owner's patterns match
- * ("trigger"), anything else ("plain"), or Ideogram 4 declined the run and this model made it in its place ("declined").
+ * ("trigger"), anything else ("plain"), or the model before it couldn't make the run and this one, Auto's next, made it
+ * ("fallback"; "declined" on older runs, where Ideogram 4 declined it).
  */
-export type AutoWhy = "edit" | "text" | "trigger" | "plain" | "declined";
+export type AutoWhy = "edit" | "text" | "trigger" | "plain" | "fallback" | "declined";
 
 /** The model Auto picked for a run (GenerationRequest.auto). */
 export interface AutoPick {
@@ -1753,7 +1779,7 @@ export interface Preset {
   /** Fuobe DoP's relight effects: a step that makes the start frame first, on each engine (src/lib/catalog/dop.ts). */
   prestep?: PresetPrestep;
   /** An app that is a tool of its own: its page renders that tool rather than the composer (Clean up voice, Relight, Any Angle, Tap to Recolor, Watermark Remover). */
-  tool?: "clean-voice" | "relight" | "any-angle" | "recolor" | "watermark";
+  tool?: "clean-voice" | "relight" | "any-angle" | "recolor" | "body-double" | "fix-faces" | "watermark";
   /** The recipe its preview was made with (src/lib/catalog/preset-recipe-book.json): the route it opens on follows it. */
   recipe?: PresetRecipeBook;
 }
@@ -1782,3 +1808,7 @@ export interface PrestepRoute {
 
 /** Route endpoint for models without an extend API: last frame → image-to-video → join (src/server/chains.ts). */
 export const LAST_FRAME_CHAIN = "chain:last-frame";
+
+/** Where an owner's run came from (GenerationRequest.source). */
+export const RUN_SOURCES = ["hands-on", "batch", "drill", "example", "test", "api"] as const;
+export type RunSource = (typeof RUN_SOURCES)[number];

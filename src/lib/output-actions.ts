@@ -13,10 +13,12 @@ import { storedPath } from "./share";
 import { decodeMoss, LAYOUT_PARAM, readLayout, type LayoutDraft } from "./layout-prompt";
 import { REMOVE_DIALOGUE_FEATURE } from "./av/remove-dialogue";
 import { idolCameraStills, showableOutputs } from "./av/idol-camera-still";
-import { canEnhance, canRerender, REGEN_OFFERED, regenerateFamily, regenerateHref, rerenderLabel } from "./catalog/regenerate";
+import { preview3dOf } from "./preview3d";
+import { canEnhance, canRerender, ENHANCE_LABEL, REGEN_OFFERED, regenerateFamily, regenerateHref, rerenderLabel } from "./catalog/regenerate";
 import { CLEAN_FEATURE } from "./av/clean-voice";
 import { exportsCleanly } from "./av/keying";
 import { anyAngleHref } from "./catalog/any-angle";
+import { FIX_FACES, fixFacesHref } from "./catalog/fix-faces";
 import { isInstrumental, lyricsOf, songFormat, STEMS_FORMATS } from "./lyrics";
 import { CLEAN_DIALOGUE_FEATURE, cleanDialogueHref } from "./av/clean-dialogue";
 import { MAX_SIDE as MAX_WATERMARK_SIDE, WATERMARK_APP_ID, WATERMARK_FEATURE } from "./watermark";
@@ -80,6 +82,7 @@ export type OutputActionId =
   | "delete-own"
   | "restore"
   | "restore-video"
+  | "fix-faces"
   | "export-pro"
   | "delete-forever";
 
@@ -195,6 +198,12 @@ export function outputActions(g: Generation, index: number, ctx: ActionContext =
       // Old, faded or black-and-white footage (Fuobe Restore): Video tools → Restore & colourise with the clip in. It runs
       // on the viewer's own GPU or fal.ai key (own-setup.ts), and says so.
       out.push({ id: "restore-video", label: t("studio.actions.restoreColourise"), href: `/video-tools/restore?video=${q(o.url)}`, placement: "menu", ownSetup: "video-tools:restore" });
+      // Soft or smeared faces (MiniMax H3's small faces): Fix Faces with the clip in, and the start picture as the face
+      // when the video was made from one. Not offered on Fix Faces' own results.
+      if (g.status === "succeeded" && g.feature !== FIX_FACES.feature) {
+        const start = /minimax-h3/.test(g.modelId) ? g.request.inputs?.images?.[0] : undefined;
+        out.push({ id: "fix-faces", label: "Fix faces", href: fixFacesHref(o.url, start), placement: "menu", ownSetup: FIX_FACES.model });
+      }
       // A mask or clean foreground from Remove background or Green screen: on to ProRes 4444 or EXR for the edit (Export runs on
       // your GPU). A cut-out isn't offered: Export would drop its transparency (src/lib/av/keying.ts).
       if (ctx.engineMode !== "cloud" && exportsCleanly(g.op, g.request?.params)) link("export-pro", t("studio.actions.exportPro"), `/upscale/export?video=${q(o.url)}&format=prores_4444`);
@@ -547,6 +556,9 @@ export function editOnlyFormat(g: Partial<Pick<Generation, "op" | "request">> | 
  * its orbit, and its orbit stands in.
  */
 export function modelPreview(g: Pick<Generation, "outputs">, o: OutputFile): { poster?: string; video?: string } {
+  // Its own preview (src/lib/preview3d.ts) first: the still and the turntable on the light studio.
+  const ready = preview3dOf(o);
+  if (ready) return { poster: ready.poster.light, video: ready.clip.light };
   const m = (o.meta ?? {}) as Record<string, unknown>;
   const cameraStills = idolCameraStills(g);
   const str = (...keys: string[]) => keys.map((k) => m[k]).find((v): v is string => typeof v === "string" && v.length > 0 && !cameraStills.has(v));

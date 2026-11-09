@@ -7,6 +7,7 @@ import { directRunFeatures } from "@/lib/catalog/genjutsu";
 import { ENHANCE_FEATURES, REGEN_MODEL, wantsH3TwoK } from "@/lib/catalog/regenerate";
 import { RESTORE } from "@/lib/catalog/restore";
 import { wantsVoiceFirst } from "@/lib/av/voice-first";
+import { FIX_FACES, wantsFixFacesAfter } from "@/lib/catalog/fix-faces";
 import { ownSetupGraphs, ownSetupOnly, type OwnSetup } from "@/lib/own-setup";
 import { controlSetup } from "@/lib/own-setup-controls";
 import { RTX_CLASSES, rtxCardOf } from "@/lib/catalog/rtx-video";
@@ -28,7 +29,7 @@ import { ownSetupOnlyNow } from "./own-setup-live";
  */
 
 /** The ids a request's own setup is asked by: its model, then the modes and options of it that have their own. */
-export function requestSetupIds(req: Pick<GenerationRequest, "modelId" | "op" | "feature" | "params">): string[] {
+export function requestSetupIds(req: Pick<GenerationRequest, "modelId" | "op" | "feature" | "params" | "inputs">): string[] {
   const ids = [req.modelId];
   const extra = req.params?.extra ?? {};
   if (wantsH3TwoK(req.modelId, req.params?.resolution)) ids.push("regenerate:h3-2k");
@@ -41,6 +42,8 @@ export function requestSetupIds(req: Pick<GenerationRequest, "modelId" | "op" | 
     if (id) ids.push(id);
   }
   if (wantsVoiceFirst(req)) ids.push("sound:clean-voice-first");
+  // Fix faces after an H3 take: Fix faces' own setup too.
+  if (wantsFixFacesAfter(req)) ids.push(FIX_FACES.model);
   const genjutsu = extra.openjutsu;
   const features = directRunFeatures(req.modelId, genjutsu && typeof genjutsu === "object" ? (genjutsu as Record<string, unknown>) : {});
   for (const f of features ?? []) ids.push(`genjutsu:${f}`);
@@ -154,3 +157,41 @@ export function poolCardRefuses(modelId: string): boolean {
 
 /** The open models this install's GPUs can't run right now (poolOwnSetups), for GET /api/status's pool rules. */
 export const poolOwnModels = (): Record<string, OwnSetup> => poolOwnSetups(poolTakes, poolCardRefuses);
+
+/**
+ * A preset's press as the cards see it: each step's open model and operation (its end frame's edit first, then its clip),
+ * with the LoRA files the step adds at run time (a motion's or an effect's).
+ */
+export interface PresetPress {
+  id: string;
+  steps: { modelId: string; op: string; loras?: string[] }[];
+}
+
+/**
+ * The presets whose press this install's GPUs can't run in whole right now, with what a visitor needs to run them on its
+ * own setup: a step none of whose workflows for its operation `takes` (a start-and-end-frame clip while only the plain
+ * clip's workflow is held, or an end frame's edit no worker holds), or whose run-time files (its LoRAs) no worker that
+ * takes it verified (`hasFiles`: hosted.ts poolHasFiles). Their cards say so before the press, as the price
+ * check does (hosted-run.ts poolGate): never "Try free" for a run whose later step can't go on there. A step with no
+ * workflow for its operation is left to the price check.
+ */
+export function poolOwnPresets(presets: readonly PresetPress[], takes: (endpoint: string) => boolean, hasFiles: (endpoint: string, loras: readonly string[]) => boolean = () => true): Record<string, OwnSetup> {
+  const out: Record<string, OwnSetup> = {};
+  const known = new Map<string, boolean>();
+  const taken = (e: string) => {
+    let v = known.get(e);
+    if (v === undefined) known.set(e, (v = takes(e)));
+    return v;
+  };
+  const byId = new Map(MODELS.map((m) => [m.id, m]));
+  for (const p of presets) {
+    for (const s of p.steps) {
+      const m = byId.get(s.modelId);
+      const endpoints = m ? [...new Set(m.routes.filter((r) => r.provider === "comfyui" && r.op === s.op).map((r) => r.endpoint))] : [];
+      if (!endpoints.length || endpoints.some((e) => taken(e) && (!s.loras?.length || hasFiles(e, s.loras)))) continue;
+      out[p.id] = needsGpu(endpoints[0]);
+      break;
+    }
+  }
+  return out;
+}

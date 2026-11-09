@@ -3,13 +3,16 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { MediaKind, Operation } from "@/lib/catalog/types";
 import { writeCaption } from "@/lib/ideogram-caption";
 import { normalizeLyrics } from "@/lib/lyrics";
+import { lyricsLanguageHint } from "@/lib/lyrics-language";
 import { activeLocal, aiHelper, chatLocal, type JsonSpec } from "./llm";
 import { engineMode, getSetting } from "./settings";
 import { tenant } from "./tenant";
+import { askHelper, freeHelperOn, helperWho, type HelperAnswer, type HelperTask } from "./text-helper";
 
 /**
  * "Enhance prompt": rewrite a short idea into a rich, model-friendly prompt.
- * Order: Claude (if an Anthropic key is set) → a local model (Ollama, LM Studio, Unsloth Studio…) → offline heuristic.
+ * Order: Claude (if an Anthropic key is set) → a local model (Ollama, LM Studio, Unsloth Studio…) → the free helper on
+ * the workers' text slots (src/server/text-helper.ts) → offline heuristic.
  */
 
 const SYSTEM = `You rewrite short creative ideas into prompts for image and video generation models.
@@ -20,7 +23,41 @@ Rules:
 - For edits (an input image is attached), write an instruction that says what to change and what to keep.
 - One paragraph, under 90 words, no preamble, no quotes around the answer, no lists.`;
 
-function instruction(prompt: string, kind: MediaKind, op: Operation): string {
+/**
+ * What the model a rewrite is for does by itself. ownStyle: it puts its own look on whatever the prompt describes (fal's H3
+ * Max looks, whose prompt field says "Describe the scene, action, camera and sound. The … style is applied automatically."),
+ * so the rewrite names no style, light, lens or film look, as Soul's enhancer does.
+ */
+export interface EnhanceHints {
+  ownStyle?: boolean;
+  /**
+   * The words are for MOSS-Image (MOSS_RULES). `filmLook`: a film look is picked, which Fuobe adds around the words after
+   * the rewrite, so the rewrite names no look of its own; `mono` when that look is black and white (no colour words).
+   */
+  moss?: { filmLook?: boolean; mono?: boolean };
+}
+
+/**
+ * How MOSS-Image reads a prompt (Fuobe's own tests of its film looks): plain prose; looks named by what shows, never by
+ * a film or camera brand; the pose pinned down; an overlay said with what and where. MOSS runs at a low CFG, so the
+ * negative field carries the opposite look, and the words name only what should be there.
+ */
+export const MOSS_RULES = [
+  "MOSS-Image reads plain prose: whole sentences, no JSON, no tag lists.",
+  "Describe a look by what it does to the picture (cool blue-teal shadows, warm orange highlights, fine grain, a soft red glow around lights, a dark vignette, a white border), never by a film stock or camera brand name: MOSS-Image ignores the names.",
+  "Pin the subject down: where they stand or sit, where the hands and weight are, where they look.",
+  "Say an overlay exactly: what it is and where in the frame (a faint city skyline across the left half, an orange light leak from the right edge).",
+  "Name only what should be in the picture. What should not be there goes in the negative prompt.",
+];
+
+function mossRules(m: NonNullable<EnhanceHints["moss"]>): string {
+  const rules = [...MOSS_RULES];
+  if (m.filmLook) rules.push("A film look is added around these words afterwards: describe the scene, the people, the place and the light only. Name no film stock, camera, colour grade, grain or lens look.");
+  if (m.mono) rules.push("The picture will be black and white: name no colours at all (hair and eyes as fair, dark or light), so none survive.");
+  return `\n\nThe model is MOSS-Image:\n- ${rules.join("\n- ")}`;
+}
+
+function instruction(prompt: string, kind: MediaKind, op: Operation, hints: EnhanceHints = {}): string {
   const what =
     op === "edit" || op === "inpaint"
       ? "an image-editing instruction"
@@ -29,7 +66,10 @@ function instruction(prompt: string, kind: MediaKind, op: Operation): string {
           ? "a text-to-video prompt"
           : "an image-to-video motion prompt (the first frame is already given; focus on motion and camera)"
         : "a text-to-image prompt";
-  return `Rewrite this as ${what}:\n\n${prompt}`;
+  const own = hints.ownStyle
+    ? "\n\nThe model applies its own visual style. Describe only the scene, the action, the camera and the sounds. Name no art style, lighting, lens or film look."
+    : "";
+  return `Rewrite this as ${what}:\n\n${prompt}${own}${hints.moss ? mossRules(hints.moss) : ""}`;
 }
 
 /** A picture for a model that can see (Content Factory's reference frames): JPEG, PNG, GIF or WebP. */
@@ -71,6 +111,18 @@ export interface LlmTextOptions {
   timeoutMs?: number;
   /** The open engine: a local model, never Claude (the AI helper set to Offline still means none). */
   ollamaOnly?: boolean;
+  /** A task the free helper takes: with one, a visitor's call and an install with nothing else set may use it. */
+  task?: HelperTask;
+  /** A guest's address key, for the free helper's limits. */
+  guestKey?: string;
+  /** How long a free helper's job may wait for a text slot. */
+  waitMs?: number;
+  /** Hears why the free helper gave no text. */
+  onHelper?: (a: Exclude<HelperAnswer, { text: string }>) => void;
+  /** Hears who answered. */
+  onAnswer?: (by: "claude" | "local" | "free") => void;
+  /** The pictures help but aren't needed: a free helper that reads words only may answer without them. */
+  imagesOptional?: boolean;
 }
 
 /** The local model in use (Ollama, LM Studio, Unsloth Studio or the custom server), thinking off where the server allows it. */
@@ -94,12 +146,16 @@ async function viaLocal(system: string, user: string, images: LlmImage[], opts: 
  * Which LLM llmText would ask right now (Claude is the one that costs money). "ollama" means a local
  * model, whichever server runs it (Ollama, LM Studio, Unsloth Studio or the custom one: Settings → AI helper).
  */
-export function llmTextBackend(): "claude" | "ollama" | null {
-  // An account's run or a visitor's price check never uses the install's AI helper (its LLM, its Claude key): the
-  // offline wording (heuristicEnhance) is used instead.
-  if (tenant()) return null;
+export function llmTextBackend(): "claude" | "ollama" | null;
+export function llmTextBackend(task?: HelperTask): "claude" | "ollama" | "free" | null;
+export function llmTextBackend(task?: HelperTask): "claude" | "ollama" | "free" | null {
+  // An account's run or a visitor's price check never uses the install's AI helper (its LLM, its Claude key): the free
+  // helper for a task it takes, else the offline wording (heuristicEnhance).
+  const free = !!task && freeHelperOn();
+  if (tenant()) return free ? "free" : null;
   const choice = aiHelper();
   if (choice === "none") return null;
+  if (choice === "free") return free ? "free" : "ollama";
   if (choice === "anthropic" || (choice === "auto" && engineMode() !== "open" && !!getSetting("anthropicKey"))) return "claude";
   return "ollama";
 }
@@ -115,10 +171,37 @@ export async function llmText(system: string, user: string, images?: LlmImage[],
 export async function llmText(system: string, user: string, a: LlmImage[] | LlmTextOptions = [], b: LlmTextOptions = {}): Promise<string | null> {
   const images: LlmImage[] = Array.isArray(a) ? a : [];
   const opts: LlmTextOptions = Array.isArray(a) ? b : a;
+  const said = (by: "claude" | "local" | "free", text: string | null) => {
+    if (text !== null) opts.onAnswer?.(by);
+    return text;
+  };
   // The open engine never calls a paid API: a local model, unless the AI helper is off.
-  const backend = opts.ollamaOnly && llmTextBackend() === "claude" ? "ollama" : llmTextBackend();
-  if (backend === "claude") return viaClaude(system, user, images).catch(() => null);
-  if (backend === "ollama") return viaLocal(system, user, images, opts).catch(() => null);
+  const first = llmTextBackend(opts.task);
+  const backend = opts.ollamaOnly && first === "claude" ? "ollama" : first;
+  if (backend === "claude") return said("claude", await viaClaude(system, user, images).catch(() => null));
+  const free = freeFor(images, opts);
+  if (backend === "ollama" || (backend === "free" && !free.on && !tenant())) {
+    const local = await viaLocal(system, user, images, opts).catch(() => null);
+    // Automatic (or the free helper, set but not answering a moment ago): the free helper when no local model answers.
+    if (local !== null || !opts.task || !["auto", "free"].includes(aiHelper())) return said("local", local);
+  } else if (backend !== "free") return null;
+  if (!free.on) return null;
+  return said("free", await viaFree(system, user, free.pictures, opts));
+}
+
+/** The free helper for this call: a slot whose model sees pictures when the call has some (unless they are optional). */
+function freeFor(images: LlmImage[], opts: LlmTextOptions): { on: boolean; pictures: LlmImage[] } {
+  if (!opts.task) return { on: false, pictures: [] };
+  if (images.length && freeHelperOn(Date.now(), { vision: true })) return { on: true, pictures: images };
+  if (images.length && !opts.imagesOptional) return { on: false, pictures: [] };
+  return { on: freeHelperOn(), pictures: [] };
+}
+
+/** The free helper's answer, or null with the reason told to `onHelper`. */
+async function viaFree(system: string, user: string, images: LlmImage[], opts: LlmTextOptions): Promise<string | null> {
+  const a = await askHelper({ task: opts.task!, system, user, json: !!opts.json, images, who: helperWho(opts.guestKey), waitMs: opts.waitMs }).catch((): HelperAnswer => ({ error: "failed" }));
+  if ("text" in a) return a.text;
+  opts.onHelper?.(a);
   return null;
 }
 
@@ -155,14 +238,20 @@ export async function llmSeesImages(o: { ollamaOnly?: boolean } = {}): Promise<b
 }
 
 /** Deterministic fallback so the toggle always does something useful offline. */
-export function heuristicEnhance(prompt: string, kind: MediaKind, op: Operation): string {
+export function heuristicEnhance(prompt: string, kind: MediaKind, op: Operation, hints: EnhanceHints = {}): string {
   const p = prompt.trim().replace(/[.\s]+$/, "");
   if (op === "edit" || op === "inpaint") return `${p}. Keep everything else unchanged: identity, pose, framing, lighting and background.`;
+  // A model with its own look gets motion and camera only: Fuobe's light, lens and film look would fight it.
+  if (kind === "video" && hints.ownStyle) {
+    return op === "t2v" ? `${p}. Natural motion, smooth camera movement.` : `${p}. Natural, fluid motion that stays consistent with the first frame, smooth camera movement.`;
+  }
   if (kind === "video") {
     return op === "t2v"
       ? `${p}. Cinematic shot, natural motion, smooth camera movement, realistic physics, soft volumetric light, shallow depth of field, rich detail, 24fps film look.`
       : `${p}. Natural, fluid motion that stays consistent with the first frame, smooth cinematic camera movement, stable identity and details.`;
   }
+  // A film look goes around the words afterwards: the light and lens it brings would fight the look's own.
+  if (hints.moss?.filmLook) return `${p}. Highly detailed, natural skin and material texture, thoughtful composition.`;
   return `${p}. Highly detailed, natural skin and material texture, cinematic lighting, thoughtful composition, shot on a full-frame camera with a 50mm lens, shallow depth of field.`;
 }
 
@@ -179,7 +268,7 @@ const SOUL_SYSTEM =
 export async function enhanceSoulWords(words: string): Promise<string> {
   const w = words.trim();
   if (!w || w.split(/\s+/).length >= 60) return words;
-  const out = (await llmText(SOUL_SYSTEM, w))?.trim().replace(/^["“]|["”]$/g, "").replace(/[.\s]+$/, "");
+  const out = (await llmText(SOUL_SYSTEM, w, { task: "soul", waitMs: 30_000 }))?.trim().replace(/^["“]|["”]$/g, "").replace(/[.\s]+$/, "");
   return out && out.length > w.length ? out : words;
 }
 
@@ -190,17 +279,20 @@ Rules:
 - A common shape is Verse, Chorus, Verse, Chorus, Bridge, Chorus; repeat the chorus word for word.
 - Short, singable lines of 5 to 10 words that rhyme or half-rhyme. Concrete images over abstractions.
 - Only the words to be sung: no stage directions, no instruments, no chord names.
-- Keep the description's language, subject, mood and any words it quotes.`;
+- Write in the language and script of the description (Hindi in Devanagari, Gujarati in Gujarati script), unless it asks for another language. The section tags stay in English.
+- Keep the description's subject, mood and any words it quotes.`;
 
 /**
  * Lyrics for a song described in `idea`, about as long as `seconds` of music and at most `max` characters, from whichever
  * LLM the install allows (Claude or a local model); null when none answers. Tags are normalized (src/lib/lyrics.ts).
  */
-export async function writeLyrics(idea: string, o: { seconds?: number; max?: number } = {}): Promise<string | null> {
+export async function writeLyrics(idea: string, o: { seconds?: number; max?: number; helper?: Pick<LlmTextOptions, "guestKey" | "onHelper"> } = {}): Promise<string | null> {
   const seconds = o.seconds && o.seconds > 0 ? Math.min(600, o.seconds) : 120;
   const sections = seconds <= 45 ? "one verse and one chorus" : seconds <= 100 ? "a verse, a chorus, a second verse and the chorus again" : "a full song (two or three verses, the chorus after each, a bridge)";
   const room = o.max ? ` Stay under ${Math.floor(o.max * 0.9)} characters.` : "";
-  const text = await llmText(LYRICS_SYSTEM, `Write lyrics for this song, about ${Math.round(seconds / 60 * 10) / 10} minutes long: ${sections}.${room}\n\n${idea.trim()}`);
+  // The script of the description says the language: a small model is told it again after the words.
+  const hint = lyricsLanguageHint(idea);
+  const text = await llmText(LYRICS_SYSTEM, `Write lyrics for this song, about ${Math.round(seconds / 60 * 10) / 10} minutes long: ${sections}.${room}\n\n${idea.trim()}${hint ? `\n\n${hint}` : ""}`, { task: "lyrics", waitMs: 75_000, ...o.helper });
   const words = normalizeLyrics(text?.replace(/^```\w*\n?|```$/g, ""));
   if (!words) return null;
   return o.max && words.length > o.max ? trimLyrics(words, o.max) : words;
@@ -213,8 +305,8 @@ export function trimLyrics(words: string, max: number): string {
   return out.length > max ? out.slice(0, max).trimEnd() : out;
 }
 
-export async function enhancePrompt(prompt: string, kind: MediaKind, op: Operation): Promise<string> {
-  return (await llmText(SYSTEM, instruction(prompt, kind, op))) ?? heuristicEnhance(prompt, kind, op);
+export async function enhancePrompt(prompt: string, kind: MediaKind, op: Operation, hints: EnhanceHints = {}, helper: Pick<LlmTextOptions, "guestKey" | "waitMs"> = {}): Promise<string> {
+  return (await llmText(SYSTEM, instruction(prompt, kind, op, hints), { task: "enhance", waitMs: 30_000, ...helper })) ?? heuristicEnhance(prompt, kind, op, hints);
 }
 
 /**
@@ -245,3 +337,6 @@ Rules:
 export function ideogramCaption(words: string, size: { width?: number; height?: number } = {}): Promise<string> {
   return writeCaption(words, size, (request) => llmText(IDEOGRAM_SYSTEM, request, { json: "object", ollamaOnly: true }));
 }
+
+/** The owner's AI helper may fall back to the free helper (Automatic, or the free helper picked), one that sees pictures when asked. */
+export const freeHelperFallback = (o: { vision?: boolean } = {}): boolean => ["auto", "free"].includes(aiHelper()) && freeHelperOn(Date.now(), o);

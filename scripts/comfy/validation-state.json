@@ -41,6 +41,18 @@
     "error": null,
     "at": "2026-10-16T20:57:20.767Z"
   },
+  "body-double-clip-instanthmr": {
+    "sha256": "c667d941f6f16fa36ef6852e0efaeab1cc800d92e3d626b864de09d5d4177577",
+    "validated": true,
+    "error": null,
+    "at": "2026-11-08T05:09:17.670Z"
+  },
+  "body-double-photo-instanthmr": {
+    "sha256": "6599cdef44aab4cccd932bb01b6443143e1f1c8baea7208c4670a8de3563d6c2",
+    "validated": true,
+    "error": null,
+    "at": "2026-11-08T05:09:17.485Z"
+  },
   "captions-burnin": {
     "sha256": "8bb4d7bca5145d94ee1d509e50e23ef40e4cd21cb7c152bbba32751eca4ea013",
     "validated": true,
@@ -515,6 +527,24 @@
     "error": null,
     "at": "2026-11-05T00:31:32.631Z"
   },
+  "minimax-h3-flash-flf2v": {
+    "sha256": "bedc8d1f675523be63c8a0602499defb31559da81c4e0838f8a584bef90bc7ae",
+    "validated": true,
+    "error": null,
+    "at": "2026-11-08T08:37:21.609Z"
+  },
+  "minimax-h3-flash-i2v": {
+    "sha256": "7c412d00c2a08c793efe2d65f6b21443ee13d9f87eb6c4530f67fe6e0fe25fde",
+    "validated": true,
+    "error": null,
+    "at": "2026-11-08T08:37:18.930Z"
+  },
+  "minimax-h3-flash-t2v": {
+    "sha256": "a8c0331ec35ce3501885b26fbe89c9ab325fb9d5d01f142fe61a9f5e10608169",
+    "validated": true,
+    "error": null,
+    "at": "2026-11-08T08:37:15.595Z"
+  },
   "minimax-h3-flex-flf2v": {
     "sha256": "a76ec6135a539210a9589118f1859746864ba13dded68f5f5fb1ab585a3995c3",
     "validated": true,
@@ -804,13 +834,13 @@
     "at": "2026-10-29T10:45:58.508Z"
   },
   "qwen-image-edit-2511": {
-    "sha256": "5deec4e50d093dabcdd74b6a97e794bcb0069a987f573ce65e8d966909c6de26",
+    "sha256": "5144ebd05728ffc9dd9ceb8b685351e9be1e6002322e080e4a6b1bb3e9d9d2db",
     "validated": true,
     "error": null,
     "at": "2026-10-22T19:21:14.050Z"
   },
   "qwen-image-edit-2511-multi": {
-    "sha256": "29278f8d1a2c84104c2bcc4cab0f8a3e33002681c32e97409afa38c5525dc641",
+    "sha256": "7ee8737c9db92ba1b4648d590ace0b153e7ff3cee4e16179061248e63063a3ad",
     "validated": true,
     "error": null,
     "at": "2026-10-16T20:57:17.108Z"
@@ -966,7 +996,7 @@
     "at": "2026-10-17T21:02:01.029Z"
   },
   "style-ref-qwen-edit-2511": {
-    "sha256": "3b27e4d5db3d00122d65af1f8080c0a2d11e1d5e1a4e6305b49d462b59aa8a03",
+    "sha256": "a486a84c720bfa8dfd1b565a5900f40b581559ff8b9ca296eec99070bfdcd4b7",
     "validated": true,
     "error": null,
     "at": "2026-10-17T21:02:00.462Z"
@@ -1260,16 +1290,16 @@
     "at": "2026-11-03T18:55:14.135Z"
   },
   "video-fix-faces-h3": {
-    "sha256": "ebd29b6754b0b406a73dec05b4cebc22bf0acf5774e732b4c42d6a57a7e0f2a6",
+    "sha256": "f2614478685aea6b16452084b2eeadf211b30494c897be2401c6bc39aa42e10d",
     "validated": true,
     "error": null,
-    "at": "2026-11-03T18:55:13.488Z"
+    "at": "2026-11-08T08:27:28.762Z"
   },
   "video-from-picture-h3": {
-    "sha256": "a07fc6d3c3ea995ebb79839a29269270a3224563031ff6b70e67a0f5dda88aeb",
+    "sha256": "19564313c384952d35a88fcc9026b89150391a6f7f13b832ec755489f82ff809",
     "validated": true,
     "error": null,
-    "at": "2026-11-04T22:58:35.061Z"
+    "at": "2026-11-08T08:27:28.210Z"
   },
   "video-from-picture-solar": {
     "sha256": "dcb8ca8b4918c4a4e9a488eb02eff30e4f77767a553f3f22d5a4e4511e606271",
@@ -1278,16 +1308,16 @@
     "at": "2026-11-04T22:58:35.056Z"
   },
   "video-group-swap-h3": {
-    "sha256": "a946ec11f2e0ed403b49e2f43a10801918829e407bd7fe3ab10a6065fc3ec25a",
+    "sha256": "f877cceb1702f887e3f939f7060984c5fbc3ea69cc4a2b4671e11043a4310115",
     "validated": true,
     "error": null,
-    "at": "2026-11-03T19:15:30.473Z"
+    "at": "2026-11-08T08:27:25.481Z"
   },
   "video-group-swap-h3-one-by-one": {
-    "sha256": "9d0da7b722affa7801f563599740f334e39308f506f41ca71ee31ed6fd5fd989",
+    "sha256": "6a5fbe1c076887799e88a9bd1b4dcc78b0dba6084bccbdae2a0d3a35d968f347",
     "validated": true,
     "error": null,
-    "at": "2026-11-05T00:47:07.475Z"
+    "at": "2026-11-08T08:27:27.653Z"
   },
   "video-h3-t2v-2k": {
     "sha256": "2193606d5114870328d785cd55f4138da105c563ca8e2dc9db37a21457d1253d",
@@ -1379,6 +1409,18 @@
     "error": null,
     "at": "2026-10-16T23:33:15.433Z"
   },
+  "video-reshoot-edit-h3": {
+    "sha256": "6bd2bac1d5a18e93afe8802288082ba1e38f5464709d53f32dc9e1020546a3a8",
+    "validated": true,
+    "error": null,
+    "at": "2026-11-07T15:43:34.647Z"
+  },
+  "video-reshoot-swap-h3": {
+    "sha256": "c09f97985be985c8dfee656d5f39c9e5417b5dd81cd0bb51730415db2ba599bb",
+    "validated": true,
+    "error": null,
+    "at": "2026-11-07T15:43:34.636Z"
+  },
   "video-restore-ltx25-tiled": {
     "sha256": "5da276f2353f7394c408dee24bf62110f74061efde401a9ba5741f85aa6d7c85",
     "validated": false,
@@ -1398,10 +1440,10 @@
     "at": "2026-11-04T21:42:15.692Z"
   },
   "video-scene-edit-h3": {
-    "sha256": "8fa9cbb6333cd03f6f06c7dc767857c87c86428d4f6fc1f233374caf828d98eb",
+    "sha256": "9ccb0dd856036f1f9fdc9eb2ca45b09deec4758c874d0beedc5b9bce3f4d1536",
     "validated": true,
     "error": null,
-    "at": "2026-11-03T19:15:31.867Z"
+    "at": "2026-11-08T08:27:27.939Z"
   },
   "video-sdr-to-hdr": {
     "sha256": "f51f27af77dd2f61d51553241b15f6b5af14e6c06ff3342b24e810dff3e87f93",

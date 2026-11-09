@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { placeOf } from "@/lib/place-name";
 import { quoteBody } from "@/lib/hosted";
-import { checkedPool, composerOnPool, composerPlace, IN_BROWSER, keyOnlyChip, mainModel, openCheckPlace, placePrice, placeRows, refusedBeforeRun, retryRequest, runPlace, toolPoolPrice, withPoolRefusal, type RunPlaceInput } from "@/lib/run-place";
+import { barRuns, checkedPool, composerOnPool, composerPlace, IN_BROWSER, keyOnlyChip, mainModel, openCheckPlace, placePrice, placeRows, refusedBeforeRun, retryRequest, runPlace, toolPoolPrice, withPoolRefusal, type RunPlaceInput } from "@/lib/run-place";
 import { RUN_SHOWN_HEADER, shownHeader } from "@/lib/guest-access";
 
 /** Where a run happens and what it costs, for each audience and engine (the composers' place chip and send button). */
@@ -306,6 +306,34 @@ describe("the Run on list", () => {
   });
 });
 
+describe("the top bar's balance pill", () => {
+  const account = { kind: "account" as const, hosted: true, placeName: "Fuobe Cloud", gpu: { connected: false } };
+  const gpu = { connected: true, online: true, device: "NVIDIA GeForce RTX 4090" };
+  it("never a bare price: the price and where the runs go, the place alone below xl, and a name that says what it does", () => {
+    const r = barRuns(account, "Free");
+    expect(r).toMatchObject({ on: "site", text: "Free · Fuobe Cloud", short: "Fuobe Cloud", tip: "Where your runs go: Free on Fuobe Cloud", rows: null });
+    expect(barRuns(account, "3 runs left", "refills in 5 h").tip).toBe("Where your runs go: 3 runs left on Fuobe Cloud, refills in 5 h");
+    // The default name reads lower case inside a sentence.
+    expect(barRuns({ ...account, placeName: undefined }, "Free")).toMatchObject({ text: "Free · Our GPUs", tip: "Where your runs go: Free on our GPUs" });
+  });
+  it("an account's own GPU or key when its runs go there, with the Run on rows to change it", () => {
+    const own = barRuns({ ...account, gpu, runOn: "gpu" }, "Free", "refills in 5 h");
+    expect(own).toMatchObject({ on: "gpu", text: "Free · Your GPU", short: "Your GPU", tip: "Where your runs go: Free on your GPU" });
+    expect(own.rows?.map((r) => [r.id, r.selected])).toEqual([
+      ["site", false],
+      ["gpu", true],
+    ]);
+    const keyed = barRuns({ ...account, keys: ["replicate", "fal"], runOn: "key" }, "Free");
+    expect(keyed).toMatchObject({ on: "key", key: "fal", text: "Your fal.ai key", tip: "Where your runs go: your fal.ai key" });
+    expect(barRuns({ ...account, keys: ["replicate", "fal"], runKey: "replicate", runOn: "key" }, "Free").text).toBe("Your Replicate key");
+    // A studio with paid models off takes no keys: its runs stay here.
+    expect(barRuns({ ...account, keys: ["fal"], runOn: "key", paidAllowed: false }, "Free")).toMatchObject({ on: "site", rows: null });
+  });
+  it("hosted runs off for the account: the chip as the service says it", () => {
+    expect(barRuns({ ...account, hosted: false }, "Free")).toMatchObject({ text: "Free", short: "Free", rows: null });
+  });
+});
+
 describe("the price check asks with the place the run names", () => {
   const req = { feature: "image", modelId: "oss-z-image-turbo", prompt: "a fox" };
   it("named: with it; named none (the server decides): with none, so the answer is where the run would really go", () => {
@@ -367,7 +395,7 @@ describe("a tool page's own price check, for a run on this studio's GPUs", () =>
     const p = toolPoolPrice({ costUsd: 0, demo: false, notes: [], place: "pool", quote: { allowed: true, amount: 0, priceVersion: "v1", text: "Free" }, line });
     expect(p?.text).toBe("Free · ready in about 3 min");
     // Every GPU away: Run stays on, and the chip says it starts when one is free.
-    expect(toolPoolPrice({ place: "pool", quote: { allowed: true, amount: 0, priceVersion: "v1", text: "Free" }, line: { place: 2, etaSeconds: null, unknown: true } })).toMatchObject({ text: "Free · starts when a GPU is free", refused: false });
+    expect(toolPoolPrice({ place: "pool", quote: { allowed: true, amount: 0, priceVersion: "v1", text: "Free" }, line: { place: 2, etaSeconds: null, unknown: true } })).toMatchObject({ text: "Free · starts automatically", refused: false });
     // Light work: ready in seconds.
     expect(toolPoolPrice({ place: "pool", quote: { allowed: true, amount: 0, priceVersion: "", text: "Free" }, line: { place: 1, etaSeconds: null, light: true } })?.text).toBe("Free · ready in seconds");
     expect(p?.text).not.toMatch(/GPU/);

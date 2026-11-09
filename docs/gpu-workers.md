@@ -172,12 +172,25 @@ install the worker from a zip file, from a copy that someone sends you, or from 
 
 **New code while the worker runs.** At its start, the worker notes three things: the commit of its checkout, the build
 stamp of its parts (`dist/build-stamp.json`), and the file `update-ready.json` in its home folder. It looks at them
-again every 15 seconds. When one of them changes and the parts match the checkout, the worker takes no new job. It
-finishes the job that it has, writes "New worker code is installed: restarting after this job." in its log, and ends
-with exit code 75. Kept results that are not sent yet stay for its next start. Whatever starts the worker can start it
-again at once on exit code 75. An update that is only half done (a new checkout whose build has not run yet) does not
-end the worker: it works on until the parts match, and checks the stamp once a minute meanwhile. A program that
-installs updates writes `update-ready.json` last, after it has checked the new build.
+again every 15 seconds. When one of them changes and the parts match the checkout, the worker restarts once no person's
+job waits for it: while the beat's `claimableNow` says that people's jobs wait that it may take, it goes on taking
+them on the code it runs, and its log says "New worker code is installed: restarting once no person's job waits for it
+(at most 30 min)." The owner's own jobs never hold the restart back. After 30 minutes it restarts anyway. Then it takes
+no new job, finishes the job that it has, writes "New worker code is installed: restarting after this job." in its log,
+and ends with exit code 75. Kept results that are not sent yet stay for its next start. `fuobe worker run` runs the
+worker as a child process: when the child ends with exit code 75, it starts it again on the new code after 3 seconds,
+so a start file's longer pause after a crash never applies to an update. Any other end is passed on as it came. When
+the starter itself (`bin/fuobe.mjs` or `bin/lib/worker/supervise.mjs`) changed with the new code, it ends with exit
+code 75 too, and whatever started it starts it again. An update that is only half done (a new checkout whose build has
+not run yet) does not end the worker: it works on until the parts match, and checks the stamp once a minute meanwhile.
+A program that installs updates writes `update-ready.json` last, after it has checked the new build.
+
+**Update now.** The owner can ask a worker to update now: **Update now** in Settings → Workers, or
+`POST /api/admin/workers/{id}/update` (docs/admin-api.md). The next beat answers carry `worker.updateNow` (when it was
+asked) until the worker runs new code, or for 15 minutes. The worker then looks at its code on disk at once, and writes
+`update: { asked, why }` into `status.json` in its home folder, so a program that installs updates can look for new
+code at once. It writes the same when a job ticket's graph changed in the studio's newer catalog (`why: "graph"`). The
+restart keeps the rules above: after the job in hand, and never while it cuts off a person's job.
 
 ### The worker's own ComfyUI
 
@@ -203,6 +216,9 @@ The worker always starts and stops its own ComfyUI process. It never uses a Comf
   variable, put it in `comfyEnv` in `worker.json` (for example `{ "comfyEnv": { "MY_SETTING": "1" } }`);
 - loads models only from this PC: `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`, `HF_DATASETS_OFFLINE=1` and
   `PIP_NO_INDEX=1` are always set. A node that downloads its model on its first run needs that model on the PC first.
+  For Ultralytics (the face detectors of Fix faces), `YOLO_OFFLINE=1` and `YOLO_AUTOINSTALL=0` stop its usage events
+  and its package installs, and `ULTRALYTICS_SAFE_LOAD=1` loads its `.pt` files with torch's weights-only loader, so
+  a detector file can't run code.
 
 **The port guard.** Before each start, the worker binds the port itself and releases it at once. If the bind fails,
 another program is using the port. The worker then does not start ComfyUI, pauses itself (its state says "port-busy")
@@ -227,6 +243,11 @@ ComfyUI:
   rebinding) sends its own name, so it is refused.
 - The request must carry the key in `X-Fuobe-Worker-Key`. The worker sends it with every request and with the live
   socket. Without it, the answer is 403.
+- Some routes are refused with 403 even with the key (`BLOCKED_ROUTES`), under ComfyUI's `/api` prefix too and in
+  any spelling: `/instanthmr/*`, the live capture routes of the full ComfyUI-InstantHMR; `/h3_facerefine/*`, the face
+  picker of ComfyUI-H3-FaceRefine, which reads a video from any path; and `/sam/*`, `/impact/*` and `/view/validate`,
+  the routes of the full ComfyUI-Impact-Pack. The copies that workers install leave them out; the guard refuses them
+  again.
 
 Before the worker sends the key, the process on the port must prove two things. It signs a random challenge with the
 key (`GET /fuobe-worker/hello`, HMAC-SHA-256), and it names its process id and its parent's. One of them must be the
@@ -334,8 +355,10 @@ local ComfyUI work counts as another program.
   or in the last 15 seconds. The worker then starts at once.
 
 When no studio job has come for a minute, the worker frees its own ComfyUI's memory (`/free`) and writes
-`siteWaiting: 0`, so your local work can go on. If no "yielded" comes within 3 minutes, the worker says so in its log
-and in its beat (`waiting-for-yield:no-answer`). It goes on waiting, with the jobs kept in line. While it waits,
+`siteWaiting: 0`, so your local work can go on. A fresh "yielding" (written in the last 15 seconds) counts as an
+answer: the helper is making room while local work finishes its job, however long that job takes. If 3 minutes go by
+with no "yielded" and no fresh "yielding", the worker says so in its log and in its beat
+(`waiting-for-yield:no-answer`). It goes on waiting, with the jobs kept in line. While it waits,
 Settings → Workers shows "Waiting for local ComfyUI work to make room", with the helper's estimate of the start when
 there is one, never "Ready".
 
@@ -379,11 +402,23 @@ default). It also keeps:
 - what it needs: the workflow, its files (folder, name, exact size, and SHA-256 where it is pinned), its node packs
   and its VRAM;
 - its class: `paid` or `free` for an account's run (the billing service says which; `free` without one), `owner` for
-  the owner's own jobs. People's runs always go first: the owner's jobs wait until no person's run waits that the
-  same worker could take.
-- `rank_at`: `created_at`, minus the head start the billing service gave the run inside its class (at most a day). A
-  job that goes back in line keeps its `rank_at`, so it keeps its place.
-- a wait limit: for an account's run, `FUOBE_POOL_WAIT_MIN` (30 minutes) or what the billing service set; for the
+  the owner's own jobs: the runs a script said it made (`source` on `POST /api/generations`: `batch`, `drill`,
+  `example` or `test`), and every other step of the same press of Run. The owner's hands-on run (no `source`) is
+  `free`, like a person's run: it waits in line with people's runs (a later step keeps its run's place), counts in the
+  beat's `claimableNow` (so local work makes room for it), is taken in People only, and never waits for a warm lane.
+  The worker still gets `class: "owner"` with it in its claim, since it comes as a graph. People's runs always go first: the owner's jobs wait until no person's run waits that the
+  same worker could take. In the modes People first (the default) and People only, a worker that runs one of the
+  owner's own jobs on its GPU makes room for a person: when a person's run waits that this worker can take, and no
+  other worker that is free can take it, the beat answer lists the owner's job in `stops`. The worker takes its
+  prompt off its ComfyUI, and the job goes back in line with no attempt counted and its `rank_at` kept. The worker's
+  next claim takes the person's run, and the owner's job runs again from the start once no person waits. Its run says
+  "Paused for a moment · starts again automatically" until then. A person's run is never stopped for another person,
+  and neither is a job that is saving its results, one whose finished results the worker keeps, or its CPU slot's
+  task. An older worker reads `stops` as it always did.
+- `rank_at`: `created_at`, minus the head start the billing service gave the run inside its class (at most a day). Only
+  people's runs get a head start: the owner's own jobs keep `created_at`, so they go in the order they came. A job that
+  goes back in line keeps its `rank_at`, so it keeps its place.
+- a wait limit: for an account's run, `FUOBE_POOL_WAIT_MIN` (none when it isn't set) or what the billing service set; for the
   owner's own jobs, the owner's wait limit (none by default; see the queue's settings below). It applies only until a
   worker first takes the job: past it, a job that no worker took fails with "The GPUs were busy".
 - how many results its workflow makes. An owner's job keeps no more than that (and at least 16), as an account's job
@@ -397,6 +432,7 @@ A worker gets a job only when all of these are true, all in one SQLite transacti
 - the job is in its pool, in a lane that the owner allows for it, after the lane's delay and `claim_after_ms`;
 - it has the workflow's files and packs (from its inventory) and enough VRAM. A workflow's need is its whole GB less
   3%, because a card reports a little less than its size (a 32 GB card shows about 31.8 GiB);
+- it verified every run-time file the job loads (see "Run-time files" below);
 - the retry rule allows it: a worker that lost or failed the job gets it again only when no other worker that can run
   the job was heard from in the last 10 minutes;
 - near the end of its hours, the job's estimate fits before the window closes;
@@ -404,9 +440,10 @@ A worker gets a job only when all of these are true, all in one SQLite transacti
   it lost track of it, and nothing new.
 
 Jobs go by class (`paid`, then `free`, then `owner`), then by the lowest `rank_at` (then the oldest). With the
-pick allowance at 0 (the default), that is the whole rule. Above 0, a worker may take a job in its warm lane (the
-models it has loaded) ahead of the best job, in the same class, while the best job has waited less than the pick
-allowance (or the worker's own `switch_after_ms`, if that is lower). With fair share on, each class goes round its
+pick allowance at 0 (the default), that is the whole rule. Above 0, a worker may take one of the owner's own jobs in its
+warm lane (the models it has loaded) ahead of the owner's best job, while that job has waited less than the pick
+allowance (or the worker's own `switch_after_ms`, if that is lower). A warm lane never makes a person wait: while a
+person's run waits that the worker can take, its next claim takes the best of them, whatever lane it has loaded. With fair share on, each class goes round its
 accounts: an account's next run goes after every other account's run that is an earlier turn of its own. An account's
 turns count the runs a worker holds for it now and those a worker finished for it since the oldest run still waiting
 in that class came.
@@ -466,6 +503,55 @@ median of the workers' measured runs). The billing service's line facts (`QueueF
 only. Rows are only added, and each is kept a year, like the admin API's log. The owner reads it at
 `GET /api/admin/workers/jobs` ([admin-api.md](admin-api.md)).
 
+**The workers' timeline.** `worker_events` keeps what each worker did, one row per change: `state` (its state changed;
+`detail.from` is the one before, and `offline` comes when it went silent), `job` (beside each row of the workers' log,
+in words: "Took a … run", "Sent back in line: went silent", "Delivered after 42 s"), `stage` (its job's stage:
+`sending`, `queued`, `loading`, `running`, `saving`), `looking` (the answer to its claims changed: `found`, `nothing` or
+`blocked`), `admin` (an action from the admin API, with who in `detail.by`), `version` (its program was updated) and
+`log` (its own log lines, from its beat). Log lines are kept 7 days, the rest 30 days. The owner reads it at
+`GET /api/admin/workers/events` ([admin-api.md](admin-api.md)).
+
+### Who goes first
+
+The owner can change who the workers serve first, through the admin API ([admin-api.md](admin-api.md), scope
+`queue:control`). Every change is in the admin log with who made it. Every change has an end: a time, the end of the
+run it is for, or "back to normal". Workers follow a change at their next claim and beat. A held run is never refused
+or hidden: it keeps its place in line and starts after the hold ends.
+
+**The mode.** A pool has a mode, and one worker can have its own mode that wins over its pool's mode until it ends:
+
+| Mode | Order on the workers | Local work on the worker's PC |
+| --- | --- | --- |
+| `people-first` (the default) | paid runs, free runs, then the owner's own jobs | makes room for people's runs (studio jobs first) |
+| `people-only` | people's runs only; the owner's own jobs wait | starts nothing new |
+| `ours-first` | the owner's own jobs, then paid runs, then free runs | keeps the GPU while it runs; people's runs start when it is idle |
+| `balanced` | paid runs, then free runs and the owner's own jobs together, by when they came | makes room for people's runs |
+
+A mode lasts 1 minute to a week (`forMin`), or until the owner switches it back. A mode past its end is gone at the next
+beat, and the admin log gets a `queue.mode.end` row (actor `system`). In `ours-first`, the beat's `claimableNow` counts
+people's runs only when local work on the PC doesn't run (its last `localWork`), or when the owner sent the run next or
+boosted the person. So the worker asks local work for no room for them.
+
+**A run.** "Run next" sends one run to the front of every worker's line, or to the front of one worker's line
+(`worker`: that worker only, no other takes it). It ends when the run ends, or after a day at most. "Hold" keeps the
+run in its place, and no worker takes it until the hold ends. Every step that the same press of Run made gets the same
+override.
+
+**A person.** "Boost" sends an account's runs (or the guests' runs) to the front, after the runs sent next, for 1 minute
+to a week. "Hold" keeps them in place until the hold ends. A run's own override wins over its person's override. The
+queue view names a person by a key (`p-` and 12 hex digits), never by an account id.
+
+The order in one look at the line: runs sent next, then boosted people's runs, then the mode's classes, each group in
+its own order (fair share included). A person's place in line (`placeInLine`, the billing service's line facts) reads
+the same order, with the pool's mode.
+
+**The turns folder.** A worker with a turns folder writes the mode from each beat answer (`worker.queue`) to
+`mode.json` there: `{ mode, localWork, until, at }`, where `localWork` is `yield`, `pause` or `run`. The helper on the
+PC's side reads it. The helper can write `local.json`: `{ state, why, waiting, running, at }`, where `state` is
+`running`, `idle`, `paused`, `yielding` or `stopped`, `why` is a short code and `waiting` is a count. The worker sends
+it in its beat as `localWork` while it is at most 2 minutes old. The studio keeps known values only, and the Workers
+and Queue views show it. No connection ever goes to the PC: the PC reads and writes files in its own folder.
+
 ### Job tickets and the PC's ceiling
 
 An account's run reaches a worker as a job ticket, never as a graph. The ticket names a workflow of the catalog, the
@@ -489,9 +575,20 @@ graphs, and so do a person's own computer's jobs (Fuobe Connect and the browser)
   pages quote, the cloud models and the record of real renders are left out, so an update that changes only what people
   read or see keeps the version, and the workers keep taking accounts' runs. The worker's build writes it
   (`dist/catalog-version.json`), and the studio computes the same from its own files (or reads `FUOBE_CATALOG_VERSION`).
-  Each beat says the worker's version. A ticket goes only to a worker with the same version.
-  A worker built from another catalog takes the owner's own jobs, and its state in Settings → Workers reads **Update
-  the worker** while accounts' runs may come to the install's GPUs. Update it (see "Install and update").
+  Each beat says the worker's version.
+- **The graph's fingerprint.** The studio puts `graphSha` on each ticket: the SHA-256 of the graph its own composer
+  makes from the ticket with no facts of any PC, in a canonical form (each node's class and inputs, keys sorted at every
+  depth, a node's `_meta` left out, and the SHA-256 of each file the composer makes; `graphFingerprint` in
+  `src/lib/ticket-compose.ts`). A worker built for the same catalog runs a ticket as before. A worker built for
+  another catalog (protocol 4 and later) composes the ticket the same way with its own build and compares: the same
+  fingerprint, and it runs the job for anyone, composed with its own PC's facts as always; any other graph, or a ticket
+  its build can't read, and it gives the job back with `update-worker`. The job goes back in line untouched (no
+  attempt counted, no failure, no charge, its place and wait kept), the worker asks for its update at once, and the
+  studio offers that job to it no more until it reports another catalog. A ticket with no fingerprint, and a worker
+  program older than protocol 4, keep the old rule: a ticket goes only to a worker with the same version.
+  While a worker is behind the studio's version for less than 3 minutes, Settings → Workers reads **Updating to the new
+  version · back in about a minute**. After that it says how long, with **Update now**. A worker program older than
+  protocol 4 takes only the owner's own jobs while it is behind.
 - **The PC is the ceiling.** `ceiling` in `worker.json` (setup asks for it) is the most the PC ever runs:
   `{ "lanes": [...], "workflows": [...], "maxMegapixels": 4, "maxSeconds": 10, "maxOutputs": 4 }`. Leave out a field
   for no limit of its own. Each beat says the ceiling. The lanes that the owner allows in Settings → Workers only
@@ -530,6 +627,10 @@ a workflow or a node pack that workers run, follow [Adding a model, a workflow o
 1. Every node type is on the allowlist that is built into the worker (`bin/lib/worker/dist/allowed-nodes.json`, made
    by `scripts/build-worker.mjs` from the catalog's workflows and the graph builders). For your own workflows, pass
    a file with `allowNodesFile` in `worker.json`. The studio can never send a file like that.
+   Some node types are never allowed, whatever the allowlist or that file says (`DENIED_NODES` in
+   `bin/lib/worker/checks.mjs`): `InstantHMRLiveCapture`; `H3FaceSelect`, which opens a video from any path; and
+   the ComfyUI-Impact-Pack nodes that install or download, drive a browser, read or write paths, or only wait. Fix
+   faces uses only Impact's `SAMLoader`.
 2. Every file that the graph reads was sent with the job, under the name the studio gave it.
 3. Every input keeps to its rule (`bin/lib/worker/dist/input-rules.json`). The build gives a rule to each input that
    could name a file, a folder, a download or code, from the values in the catalog's own workflows:
@@ -559,6 +660,27 @@ does not read the files again. The catalog's files that still have no pin are li
 (`scripts/lib/worker-catalog.mjs`), the one list of them. A test fails when a catalog file has no pin and is not on
 that list, and when a file on the list gets a pin, so the list only gets shorter.
 
+#### Run-time files
+
+Some runs load model files that are not among their workflow's own files: a Soul look's LoRAs, Soul Cinema's, a DoP
+motion's or effect's, a model recipe's, and a LoRA that a graph picks by an option. These are run-time files
+(`src/lib/runtime-files.ts`). A worker verifies them the same way, and reports them in its inventory with the catalog's
+files:
+
+- Its build writes `bin/lib/worker/dist/runtime-files.json`: every LoRA library entry
+  (`src/lib/catalog/lora-library.generated.ts`) that has a pinned size and SHA-256, in the `loras` folder. A LoRA
+  with no pin (a person's own trained LoRA, or a map LoRA with no pin) is never verified.
+- The studio keeps these files from an inventory too, and they decide which runs go to the workers. The price check and
+  the run plan every row of the run with the LoRA files it loads (`runLoraFiles`). A run goes to the workers only when
+  a worker that may run its workflow verified each run-time file (`poolHasFiles`). Otherwise the price check says
+  "This style runs on your own GPU", and Run opens the visitor's own GPU, as for a workflow that no worker runs. The
+  LoRAs are never left out to make the run fit. Preset cards say the same before the press.
+- A task stores its run-time files (`needs.runtime`, read from its graph's LoRA loaders), and only a worker that
+  verified each one claims it. A job that no worker could take is refused before it waits in line. The owner's error
+  names the files.
+
+A worker program from before run-time files reports none, so runs that add them do not go to it.
+
 The worker checks the copy that its ComfyUI loads:
 
 - Its ComfyUI looks in the worker's model folders first, in the order that `worker.json` gives (`is_default` in the
@@ -572,6 +694,21 @@ The worker checks the copy that its ComfyUI loads:
   looks in its own folders first. So a copy with the same name in ComfyUI's own `models` folder (`unet` and `clip`
   count for `diffusion_models` and `text_encoders`), or in a folder that ComfyUI's own `extra_model_paths.yaml` adds,
   must be the same file too. If it is not, the file is not reported.
+
+#### The face self-check
+
+Fix faces and the other face jobs find faces with H3-FaceRefine's face detector (`H3FaceTrackCrop`). If that detector
+gives wrong boxes in a running ComfyUI, these jobs finish and change nothing. So the worker checks the detector itself
+(`bin/lib/worker/self-check.mjs`). It runs the detector on one fixed photo (`bin/lib/worker/self-check-face.jpg`, a
+face about 168 px tall) and reads the face height from the node's report. A height from 150 to 190 px passes. One check
+takes about a second.
+
+- The worker checks after each start of its ComfyUI, and before each job that has `H3FaceTrackCrop` or
+  `H3FaceSelect`. It checks only when its ComfyUI lists `H3FaceTrackCrop` and `PreviewAny`.
+- When a check fails, the worker starts its ComfyUI again and checks once more.
+- When the second check fails too, the job goes back in line with its place kept, and the try does not count against
+  it (give-back `self-check`). The worker pauses itself (`local.why: "self-check"`), and Settings → Workers shows that
+  its face check didn't pass. After an hour, the worker starts its ComfyUI again, and the check runs again first.
 
 After each job, however it ended, nothing of it stays in its ComfyUI: the worker empties the queue, stops a prompt that
 still runs, and clears the whole history (a meta-batch's passes too). It also deletes the job's inputs and results from
@@ -646,10 +783,18 @@ Set `"cpuSlot": true` in `worker.json` (setup asks) and the worker runs one CPU 
     browser or ffmpeg for the turntable, the model comes back without one. This needs `pnpm install` in its checkout.
   - `path`, a camera path drawn through a still and its depth picture (the guide of a camera move), encoded by ffmpeg.
     This needs ffmpeg.
+  - `preview3d`, the preview of any finished 3D result: a GLB mesh, or a Gaussian splat as `.spz` or `.ply`, from any
+    run (the owner's, an account's, a provider's). `scripts/model3d/render-preview.mjs` draws one turn of the model (120
+    frames, 5 s, a loop with no seam) on the CPU, with no browser and no GPU, on a light and a dark studio backdrop, and
+    ffmpeg encodes each as H.264 (and AV1 when its ffmpeg has an AV1 encoder); the stills are the first frame. This needs
+    ffmpeg and sharp. The studio follows these jobs in `src/server/model3d-preview.ts`: every finished 3D result without
+    a preview gets one, newest first, a few at a time; an older result's job goes after everyone's runs. Without a
+    worker that draws previews, a server that runs ComfyUI itself draws them; one with workers draws only a provider's
+    result of the owner's, and an account's waits for a worker.
 
   A finishing job comes as a finish ticket (`src/lib/finish-ticket.ts`): its kind, typed settings, and its input
   files by slot, name and SHA-256. The worker checks it the same way the studio does, and sends back only the files its
-  kind makes (`web`, `turntable` and `poster`; or `path`). The studio stores them, and checks the web GLB is
+  kind makes (`web`, `turntable` and `poster`; `path`; or the preview's stills and clips). The studio stores them, and checks the web GLB is
   self-contained again before it keeps it. The owner's own runs, and runs on an account's own GPU or keys, keep the
   studio's own finish, as before.
 
@@ -716,8 +861,15 @@ The worker keeps its jobs going by itself:
 - **One retry policy for the studio.** A studio that restarts, a proxy that answers 502, 503 or 52x, a network that
   drops, or a busy studio that says when to come back is waited out. The pause grows from 1 second to at most 30
   seconds. The worker waits up to 2 minutes for a call, and up to an hour for a part of a result. It sends a call
-  again only when that is safe. A proxy's page in place of the studio's answer (a 403 that is not JSON) never stops
-  the worker.
+  again only when that is safe: a read, a part of a result, or a claim (a job that the studio gave out on a claim
+  whose answer was lost comes back on the next claim). A proxy's page in place of the studio's answer (a 403 that is
+  not JSON) never stops the worker.
+- **Its log shows trouble that lasts.** A call that gets through on its second try (a second without the studio while
+  it deploys, one dropped connection) writes nothing in the log. One missed beat writes nothing either, because the
+  next beat comes a few seconds later. Two missed beats in a row write "Can't reach the studio" with the network's
+  reason (for example `fetch failed (ECONNRESET)`), and the next beat that gets through writes "The studio answers
+  again". A claim that the studio never answered had no job, so the log says that the worker can't ask for a job,
+  not that a job stopped.
 - **A job that stalls goes back to the line.** If a job makes no progress for its stall limit, or runs past the run
   limit that the claim gives, the worker takes its prompt off its ComfyUI and gives the job back. The job keeps its
   place in the line. If its ComfyUI does not let go of the prompt within 15 seconds, the worker stops ComfyUI and
@@ -793,18 +945,27 @@ within 10 minutes of each other, each write an alert to the admin log (`worker.a
 its target), at most once an hour each.
 
 - `POST /api/gpu/computer/beat`: the browser's beat plus `{ protocol, version, canRotateToken?, local: { paused, why,
-  until }, gpu: { otherApps, tempC }, inventoryHash, warmLane, held, slept?, catalogVersion?, ceiling? }`. The answer
+  until }, gpu: { otherApps, tempC }, inventoryHash, warmLane, held, slept?, catalogVersion?, ceiling?, holding?, log? }`. The answer
   adds `worker: { paused, pauseNow, drain, autoResume, insideHours, nextChangeAt, lanes, lanesInside, minProtocol,
   sendInventory, token?, tokenExpiresAt?, catalogVersion? }` (`token`: the next token, above; `tokenExpiresAt`: when
   the token ends, for a token with a lifetime; `lanesInside`: the allowed lanes inside the PC's ceiling;
   `catalogVersion`: the studio's).
+  - `holding: { why, since, task? }` says why it doesn't start the line's work now although it may work, while work
+    waits that it could take: `starting-comfy`, `waiting-for-yield`, `local-work` (the owner's job waits for local
+    ComfyUI work to finish), `gpu-check`, `updating` (it restarts on new code after its job) or `sending-kept`;
+    `task` names a job it took that waits. A beat without it clears it. Older workers don't send it.
+  - `log: [{ at, level, line }]` (optional): the worker's own log lines since the last beat the studio answered with a
+    2xx, oldest first, at most 40 lines of 300 characters (`level`: `info`, `warn` or `error`). The worker keeps the last
+    200 lines and drops them once a beat that carried them gets a 2xx. Both sides mask each line: no tokens, keys,
+    bearer strings or emails, no full file paths (a model file keeps its name, anything else reads `[file]`), and URLs
+    without their query. Older studios ignore it.
   - `catalogVersion` and `ceiling` say the catalog its build composes job tickets for and what its PC may ever run
     (see "Job tickets and the PC's ceiling"). The facts it sends with its ComfyUI's add `gpuGen`, its GPU's
     generation (compute capability), when nvidia-smi can say.
   - `protocol` is 2 for a worker that says which inputs it takes, makes clips and sound again, and keeps its ComfyUI
     behind the guard. It is 3 for a worker that also makes an account's pictures again (see "Pictures of an account's
     run") and may have a CPU slot.
-  - `cpuSlot` (optional) says its CPU slot and the finishing jobs it runs (`{ finishes: ["model3d", "path"] }`), and
+  - `cpuSlot` (optional) says its CPU slot and the finishing jobs it runs (`{ finishes: ["model3d", "path", "preview3d"] }`), and
     `cpuRunning` the task that slot works on, as `running` does for its GPU's. With no `cpuSlot`, it has none.
   - `held` (optional) names the jobs whose finished results the worker keeps on its disk. A pause now sends those
     jobs back in line only when the worker doesn't name them.
@@ -812,8 +973,9 @@ its target), at most once an hour each.
     "waiting-for-yield", until }`, where `until` is the helper's estimate of the start time, or null. After 3 minutes
     with no answer, `why` is `"waiting-for-yield:no-answer"`. The worker may still take jobs, and its jobs keep their
     place.
-  - The answer also carries `claimableNow`, for studio jobs first: the number of people's jobs (never the owner's own)
-    that this worker may take now. `ownerWaitingNow` is the same count for the owner's own jobs: they ask for no turn,
+  - The answer also carries `claimableNow`, for studio jobs first: the number of people's jobs (the owner's hands-on
+    runs and any run the owner sent next too, never the owner's other own jobs) that this worker may take now. `ownerWaitingNow` is the same count for the
+    owner's own jobs: they ask for no turn,
     but idle local ComfyUI work is asked to free its memory for them. It counts the jobs in the worker's pool that it can run (its lanes, files and VRAM)
     and that end before its hours do. It is 0 while the worker is paused on the website, drains, is outside its hours
     or runs an older worker program. The worker's own pause on the PC does not change it. The answer has no wait time
@@ -822,8 +984,9 @@ its target), at most once an hour each.
   → `{ lanes, workflows, missing }`. `media` lists the kinds of input that the worker takes (`image`, `video`,
   `audio`). With no `media` (a worker from before it was added, which doesn't make clips and sound again), the studio
   counts pictures only. A file's `name` is the requirements index's name for it inside its folder, subfolders and all
-  (`bigvgan_vocoder/config.json`). The studio keeps only the files the index names, and hashes the list as it was
-  sent, so its hash equals the worker's `inventoryHash`.
+  (`bigvgan_vocoder/config.json`). The studio keeps only the files the index names and the run-time files (the LoRA
+  library's pinned files, as `loras/<file>`), and hashes the list as it was sent, so its hash equals the worker's
+  `inventoryHash`.
 - `POST /api/gpu/computer/claim`: the browser's claimed task plus
   `{ lane, estMs, runLimitMs, stallMs, notAfter, attempt, models, class, workflowId }`. An account's job carries
   `ticket` in place of `graph`, with its run and stall limits in it too. `class` is `owner` for the owner's own job,
@@ -846,6 +1009,11 @@ its target), at most once an hour each.
     than once counts once: the attempt whose result was kept. The studio keeps at most the run ceiling of the job's lane,
     and at most the time since the job was sent to its ComfyUI (plus a minute, because ComfyUI starts a job a moment
     before the studio hears that it was sent).
+  - `finished` can carry `nodes`: the job's slowest nodes (at most 12), as the worker timed them from its ComfyUI's live
+    socket (`src/lib/node-times.ts`). Each has the node's id, its class, its time, and for a node with steps its step
+    count and the time before its first step (its models loading). Only ids, classes, times and counts: never a prompt
+    or a file name. The studio keeps them with the job (a job sent again keeps the last ones) and shows them only to the
+    owner, in the run's details ("Slowest steps"), so a slow run shows where its time went.
   - `running` can carry `preview`: the latest preview picture of the job, a JPEG of at most 64 KB as base64, at most
     one every 2 seconds (see "Live previews"). A progress report with a preview may weigh up to about 91 KB (the
     preview as base64 and a few KB more); any other stays under the small limit. A claim says `reportPreview: true` when the run shows one: only with hosted runs on
@@ -866,6 +1034,8 @@ its target), at most once an hour each.
     and waits as a job no worker took (its wait limit holds, unless a worker ran it before). Refused later on (a worker
     that started again after an update and took its own job back), it counts as an attempt, and the job keeps its
     claim's time.
+    With `self-check` (the worker's face self-check failed twice, and it paused itself), the job goes back in line with
+    its place kept, and the try costs no attempt.
   - `failed` can also give `unknown-node`, `unsafe-path` (a path, or an input outside its rule), `model-unverified`,
     `input-crashed` (its ComfyUI stopped twice on the job), `input-unreadable` (ffmpeg could not read a clip or a
     sound), `bad-ticket` (a ticket it can't use, or a graph where a ticket belongs), `unsafe-model` (a 3D model that
@@ -881,12 +1051,20 @@ Each worker counts against its own rate limits, so three workers that beat every
 - `GET /api/admin/workers` and `POST /api/admin/workers` (`{ name, pool? }`; the answer shows the token once). Each
   worker shows its PC's `ceiling`, the allowed lanes inside it (`lanesInside`), its `catalogVersion` and whether that
   is the studio's (`catalogCurrent`). Its state is `update-worker` while it is built from another catalog and accounts'
-  runs may come to the install's GPUs.
+  runs may come to the install's GPUs. `asked` is its last claim for its GPU and the answer in words, `jobs` every job it
+  holds now in either slot (stage, progress, typical run and ETA; `current` stays its GPU's job), and `lastEvent` the
+  newest row of its timeline other than a log line.
+- `GET /api/admin/workers/events`: the workers' timeline (above), newest first, by worker, kinds and run, in pages.
 - `PATCH /api/admin/workers/<id>`: `{ paused, pauseNow, drain, autoResume, hours, allow, claimAfterMs, switchAfterMs,
   rotate, revoke }`. Hours are `{ "always": true }` or `{ "tz": "Asia/Kolkata", "days": { "mon": [["01:00", "09:00"]] } }`.
   A window can go past midnight.
 - `GET /api/admin/queue`: the jobs that wait in each lane, the oldest job, the estimate, and which workers have the
-  lane warm.
+  lane warm; and what the workers do now: `running` (each job a worker runs: its run, model, worker, step, progress,
+  start, when its run was made, and whose run it is: `user`, `guest` or `owner`), `queued` (the oldest 50 jobs waiting
+  in line, with when each run was made and its place in line), `holding` (a job a worker took that doesn't run yet, or a
+  worker that holds back jobs it could take, with the reason in plain words and since when), `next` and `nextTotal`
+  (the later steps of chains that wait for their earlier steps, with what they wait for and when each ended) and `text` (the text
+  helper's jobs waiting and running).
 - `GET` and `PATCH /api/admin/queue/settings`: the queue's settings (above).
 
 ### Behind Cloudflare

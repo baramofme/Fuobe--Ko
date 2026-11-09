@@ -14,7 +14,7 @@ import {
   type GenjutsuPlanInput,
   type GenjutsuSetup,
 } from "@/lib/catalog/genjutsu";
-import { exampleFor, exampleSettings, recipeProblem, sameRecipe, toRecipe } from "@/lib/examples/genjutsu";
+import { exampleFor, examplesOf, exampleSettings, recipeProblem, sameRecipe, toRecipe } from "@/lib/examples/genjutsu";
 import type { GenjutsuRecipe } from "@/lib/examples/types";
 import { genjutsuLive } from "@/server/genjutsu-live";
 import plan from "@/lib/examples/plan.json";
@@ -47,6 +47,7 @@ interface Body {
   character?: GenjutsuPlanInput["character"];
   object?: GenjutsuPlanInput["object"];
   finish?: GenjutsuPlanInput["finish"];
+  reshoot?: GenjutsuPlanInput["reshoot"];
   originalSound?: GenjutsuPlanInput["originalSound"];
 }
 
@@ -67,6 +68,7 @@ const planOf = (b: Body) =>
     ...(b.character && { character: b.character }),
     ...(b.object && { object: b.object }),
     ...(b.finish && { finish: b.finish }),
+    ...(b.reshoot && { reshoot: b.reshoot }),
     ...(b.originalSound && { originalSound: b.originalSound }),
   });
 
@@ -87,6 +89,7 @@ function remake(recipe: GenjutsuRecipe, own: { character?: Record<string, unknow
     ...((recipe.character || own?.character) && { character: { ...recipe.character, ...own?.character } }),
     ...(recipe.object && { object: recipe.object }),
     ...(recipe.finish && { finish: recipe.finish }),
+    ...(recipe.reshoot && { reshoot: recipe.reshoot }),
     ...(recipe.originalSound && recipe.originalSound !== "everything" && { originalSound: recipe.originalSound }),
   };
 }
@@ -169,7 +172,8 @@ describe("Genjutsu mode examples", () => {
   });
 
   it("a page sends only the examples open to everyone; the Finish recipe writes its settings out", () => {
-    expect(Object.keys(genjutsuExamples(() => false))).toEqual([]);
+    // Nothing open: only examples that need no feature of their own (a mode open to everyone, on a model with no gate).
+    for (const [mode, cards] of Object.entries(genjutsuExamples(() => false))) for (const c of cards!) expect(c.load.needs, `${mode}: ${c.id}`).toEqual([]);
     const live = genjutsuLive();
     const open = genjutsuExamples((f) => live[f]);
     for (const [mode, cards] of Object.entries(genjutsuExamples())) {
@@ -197,12 +201,11 @@ describe("Genjutsu mode examples", () => {
         .find((c) => c!.id === r.id)!;
       const mode = card.load.recipe.mode;
       // Each feature it needs closes it on its own.
-      for (const f of card.load.needs) expect(exampleFor(examples, mode, (g) => g !== f)?.id === r.id, `${r.id} without ${f}`).toBe(false);
+      for (const f of card.load.needs) expect(examplesOf(examples, mode, (g) => g !== f).some((c) => c.id === r.id), `${r.id} without ${f}`).toBe(false);
       // The committed gate (src/server/genjutsu-live.ts): what a visitor sees today.
       const live = genjutsuLive();
-      const visitor = exampleFor(examples, mode, (f) => !!live[f]);
-      if (card.load.needs.every((f) => live[f])) expect(visitor?.id, r.id).toBe(r.id);
-      else expect(visitor?.id === r.id, r.id).toBe(false);
+      const visitor = examplesOf(examples, mode, (f) => !!live[f]).map((c) => c.id);
+      expect(visitor.includes(r.id), r.id).toBe(card.load.needs.every((f) => live[f]));
     }
   });
 

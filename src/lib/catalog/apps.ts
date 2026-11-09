@@ -1,5 +1,7 @@
 import { QMA_MODEL } from "@/lib/qma";
 import { ANGLES_2511_LORA } from "./open-tools";
+import { BODY_DOUBLE, BODY_LOOKS } from "./body-double";
+import { FIX_FACES } from "./fix-faces";
 import { CUSTOM_COLOUR, ITEMS, RECOLOR, RECOLOR_TEMPLATE, SWATCHES } from "./recolor";
 import { CAST_LOOK } from "./soul-cards";
 import type { InputSlot, Preset, PresetOption, PresetRoute } from "./types";
@@ -185,6 +187,45 @@ export const APPS: Preset[] = [
       "Replace the whole head of the person in the first image, hair included, with the head of the person in the second image: their face, hair, hairline and ears. Keep the first image's body, pose, head angle, eye direction, expression, clothing, lighting, color grading and background exactly. Light the new head like the rest of the shot and match the skin tone of the neck and hands, so the result looks like an untouched photograph.",
     open: { modelId: "oss-qwen-head-swap", promptTemplate: HEAD_SWAP_OPEN },
     parity: "Brings the whole head over: face, hair and ears, lit like the shot. Everything else stays exactly as it was.",
+  }),
+  // Body Double: a tool of its own (src/components/body-double/body-double-tool.tsx). A photo or a clip runs InstantHMR on the
+  // GPU (the body drawn over it, a skinned GLB, the pose); Live runs it in the browser from the camera, with no GPU at all.
+  app({
+    id: BODY_DOUBLE.appId,
+    name: "Body Double",
+    category: "Identity",
+    description: "Your 3D body twin from a photo, a clip or your camera",
+    icon: "PersonStanding",
+    hue: 265,
+    badges: ["new"],
+    tool: "body-double",
+    inputs: [{ key: "image", label: "Photo", accept: "image", required: true, hint: "Anyone in full view; every person gets a body" }],
+    options: [{ key: "look", label: "Look", choices: BODY_LOOKS.map((l) => ({ value: l.value, label: l.label, prompt: l.hint, extra: { ...l.extra } })) }],
+    prompt: "Body capture",
+    cloud: null,
+    open: { modelId: BODY_DOUBLE.photoModel, op: BODY_DOUBLE.photoOp },
+    openAlso: [{ modelId: BODY_DOUBLE.clipModel, op: BODY_DOUBLE.clipOp }],
+    parity: "Every person's 3D body, pose and hands. Photos and clips run on a GPU; Live runs in your browser.",
+  }),
+  // Fix Faces: a tool of its own (src/components/fix-faces/fix-faces-tool.tsx) that runs Genjutsu's Finish with its Fix faces
+  // tool. With no photo, the clip's clearest face is found in the browser (src/lib/fix-faces/face-frame.ts).
+  app({
+    id: FIX_FACES.appId,
+    name: "Fix Faces",
+    category: "Identity",
+    description: "Soft or smeared faces in a video, redrawn sharp and true",
+    icon: "ScanFace",
+    hue: 330,
+    badges: ["new"],
+    tool: "fix-faces",
+    inputs: [
+      { key: "video", label: "Video", accept: "video", required: true, hint: `Up to ${FIX_FACES.maxSeconds} seconds, one main person` },
+      { key: "image", label: "Face photo", accept: "image", hint: "Optional: the clip's clearest face is used otherwise" },
+    ],
+    prompt: "Fix the faces",
+    cloud: null,
+    open: { modelId: FIX_FACES.model, op: "face-fix-video" },
+    parity: "Faces redrawn frame by frame with MiniMax H3 and pasted back at full size, the sound kept. Runs on a GPU.",
   }),
   app({
     name: "Character Swap",

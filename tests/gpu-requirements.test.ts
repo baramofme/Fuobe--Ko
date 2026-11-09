@@ -134,9 +134,11 @@ describe("requirements.json", () => {
   // dialogue and MiniMax H3 on smaller cards (eleven graphs and their files) took it to 264 KB / 33.1 KB gzipped, so the budget
   // moves to 320 KB / 40 KB. Green screen, RTX Video, Edit speech, Pika H3 Flex, Kandinsky 6.0, World mode, MiniMax H3's 2K
   // draft and finish, Hi3D and Idol 3D's clean splats, quick mesh and four views beside them took it to 310 KB / 38.7 KB gzipped.
-  it("stays within its size budget (320 KB, 40 KB gzipped)", () => {
-    expect(Buffer.byteLength(text)).toBeLessThanOrEqual(320 * 1024);
-    expect(zlib.gzipSync(text).length).toBeLessThanOrEqual(40 * 1024);
+  // The apps since then and Body Double (two graphs, a pack, four files) took it to 318 KB / 40.1 KB, so the budget moves to
+  // 352 KB / 44 KB.
+  it("stays within its size budget (352 KB, 44 KB gzipped)", () => {
+    expect(Buffer.byteLength(text)).toBeLessThanOrEqual(352 * 1024);
+    expect(zlib.gzipSync(text).length).toBeLessThanOrEqual(44 * 1024);
   });
 });
 
@@ -225,7 +227,8 @@ describe("packs.json: the single source of pack pins", () => {
     const repos = CUSTOM_NODE_REPOS as Record<string, string>;
     expect(Object.keys(repos).sort()).toEqual(Object.keys(packs).sort());
     for (const [name, url] of Object.entries(repos)) {
-      const tree = /^(https:\/\/github\.com\/[^/]+\/[^/]+)\/tree\/([0-9a-f]{40})(?:\/(.+))?$/.exec(url);
+      // A folder at a commit: on GitHub, or in a Hugging Face model repo (ComfyUI-Viggle-Remake).
+      const tree = /^(https:\/\/(?:github\.com|huggingface\.co)\/[^/]+\/[^/]+)\/tree\/([0-9a-f]{40})(?:\/(.+))?$/.exec(url);
       // One node file in a Hugging Face model repo (viggle_turbo): the repo, the commit and the file.
       const hfFile = /^(https:\/\/huggingface\.co\/[^/]+\/[^/]+)\/resolve\/([0-9a-f]{40})\/(.+\.py)$/.exec(url);
       if (hfFile) {

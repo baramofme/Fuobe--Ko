@@ -9,6 +9,7 @@
 
 import type { FinishTicket } from "./finish-ticket";
 import type { Ceiling, JobTicket } from "./job-ticket";
+import type { NodeTime } from "./node-times";
 
 /** Where a task is. */
 export type RelayState = "waiting" | "sending" | "queued" | "running" | "collecting" | "done" | "failed" | "canceled";
@@ -40,9 +41,11 @@ export type TabFailure = (typeof TAB_FAILURES)[number];
  * Why a worker gives a task back to the line (another worker, or this one later, runs it): it made no progress for too
  * long ("stalled"), it ran past its run limit ("run-limit"), or it takes clips or sound and this worker can't make them
  * again ("media"). Two more cost the task nothing (it never ran there): its job ticket was made for another catalog
- * than the worker's ("update-worker"), or the job is more than its PC allows ("outside-ceiling").
+ * than the worker's ("update-worker"), or the job is more than its PC allows ("outside-ceiling"). One more costs it
+ * nothing too: the worker's own check before the run failed ("self-check": its face detector read the fixed photo wrong,
+ * bin/lib/worker/self-check.mjs), and the worker pauses itself.
  */
-export const GIVE_BACK = ["stalled", "run-limit", "media", "update-worker", "outside-ceiling"] as const;
+export const GIVE_BACK = ["stalled", "run-limit", "media", "update-worker", "outside-ceiling", "self-check"] as const;
 export type GiveBackWhy = (typeof GIVE_BACK)[number];
 
 /** What the tab reports about one task. */
@@ -52,8 +55,11 @@ export type ReportEvent =
    * `kept`: a worker sends results it kept from an earlier try instead (nothing new runs, so it isn't another attempt).
    */
   | { event: "sent"; promptId: string; number?: number; kept?: boolean }
-  /** ComfyUI's /prompt refused it (its answer, as it was). */
-  | { event: "refused"; status: number; body: unknown }
+  /**
+   * ComfyUI's /prompt refused it (its answer, as it was). `why`, on this report and on "finished", "passes" and
+   * "failed": ComfyUI's reason in one short line (src/lib/comfy-reason.ts), for the owner only.
+   */
+  | { event: "refused"; status: number; body: unknown; why?: string }
   /** Waiting in ComfyUI's queue: how many prompts are before it. */
   | { event: "queued"; position: number }
   /**
@@ -64,14 +70,15 @@ export type ReportEvent =
   /**
    * Finished: its /history entry. A worker adds the most VRAM it took (for the benchmarks), how long its ComfyUI spent
    * executing the job (`execMs`: execution only, no waits, no uploads), its GPU's name (`device`), and `kept` when the
-   * results are ones it kept from an earlier try (their time doesn't count toward the lane's times).
+   * results are ones it kept from an earlier try (their time doesn't count toward the lane's times). `nodes`: its slowest
+   * nodes as its ComfyUI's socket timed them (src/lib/node-times.ts), for the owner's run details.
    */
-  | { event: "finished"; entry: HistoryEntryLike; peakVramBytes?: number; execMs?: number; device?: string; kept?: boolean }
+  | { event: "finished"; entry: HistoryEntryLike; peakVramBytes?: number; execMs?: number; device?: string; kept?: boolean; why?: string; nodes?: NodeTime[] }
   /**
    * A meta-batch job (VHS re-queues it pass by pass): whether a pass is still queued, and the passes' entries so far. The
    * last one (not running) is the job's end: a worker adds `execMs`, `device` and `kept` as for "finished".
    */
-  | { event: "passes"; running: boolean; entries: HistoryEntryLike[]; execMs?: number; device?: string; kept?: boolean }
+  | { event: "passes"; running: boolean; entries: HistoryEntryLike[]; execMs?: number; device?: string; kept?: boolean; why?: string }
   /** A worker gives the task back to the line (it counts as an attempt). */
   | { event: "give-back"; why: GiveBackWhy }
   /** ComfyUI has no trace of it (restarted): the server sends it again once. */
@@ -81,7 +88,7 @@ export type ReportEvent =
   /** A stop the server asked for is done. */
   | { event: "stopped" }
   /** The tab gave up for one of its own reasons. */
-  | { event: "failed"; reason: TabFailure; status?: number };
+  | { event: "failed"; reason: TabFailure; status?: number; why?: string };
 
 export type ReportEventName = ReportEvent["event"];
 
@@ -242,6 +249,13 @@ export interface WorkerAnswer {
   catalogVersion?: string;
   /** The lanes it may take now: the owner's allowed lanes (`lanes`), narrowed to its PC's ceiling. */
   lanesInside?: string[];
+  /** The owner's mode it follows now (absent: an older studio, which has people first). */
+  queue?: WorkerQueueMode;
+  /**
+   * The owner asked it to update now (when they asked): it looks for new code at once, and restarts on it after the job
+   * in hand. Sent until it comes back on the studio's version, or for a quarter of an hour.
+   */
+  updateNow?: number;
 }
 
 /** What a worker says in its beat, on top of a browser's. */
@@ -249,14 +263,17 @@ export interface WorkerBeat {
   device: string;
   protocol: number;
   version: string;
+  /** The commit its code came from (absent: an older worker, or a copy that isn't a git checkout). */
+  commit?: string;
   /** It saves the next token a beat answer gives it (`worker.token`) and uses it from its next call on. */
   canRotateToken?: boolean;
   ready: boolean;
   why: string | null;
   /**
    * Its own pause switch: by hand ("here", "here-until:<ms>", "here-now"), by itself ("gpu-busy:<process>",
-   * "comfy-crashes", "port-busy", "models-not-ready": a model folder isn't there yet). Not paused, `why` may say that it
-   * waits for local ComfyUI work to make room ("waiting-for-yield", "waiting-for-yield:no-answer").
+   * "comfy-crashes", "port-busy", "models-not-ready": a model folder isn't there yet, "self-check": its face detector's
+   * check failed twice). Not paused, `why` may say that it waits for local ComfyUI work to make room
+   * ("waiting-for-yield", "waiting-for-yield:no-answer").
    */
   local: { paused: boolean; why: string | null; until: number | null };
   gpu: { otherApps: { pid: number; name: string; vramBytes: number }[]; tempC: number | null };
@@ -283,6 +300,71 @@ export interface WorkerBeat {
   cpuSlot?: CpuSlot | null;
   /** The tasks its CPU slot works on, with where each is (as `running` for its GPU's). */
   cpuRunning?: { task: string; position?: number; value?: number; max?: number; node?: string; nodesDone?: number }[];
+  /**
+   * Why it doesn't start the line's work now although it may work, when it says (absent: it holds nothing back, or it
+   * is an older worker program): one of HOLDING_WHY's keys, since when, and the task it took, if it holds one.
+   */
+  holding?: WorkerHolding | null;
+  /**
+   * Its own log lines since the last beat the studio answered with a 2xx, oldest first, masked on the PC and again by the
+   * studio (src/server/computer/worker-events.ts). At most WORKER_LOG_LIMITS.perBeat lines of lineChars characters.
+   */
+  log?: WorkerLogLine[];
+  /** Local work on its PC, as the helper there last wrote it (absent: none written, or an older worker program). */
+  localWork?: LocalWork | null;
+}
+
+/** A worker's log line in its beat. */
+export interface WorkerLogLine {
+  at: number;
+  level: "info" | "warn" | "error";
+  line: string;
+}
+
+/** The caps on a beat's `log`: lines per beat, characters per line. */
+export const WORKER_LOG_LIMITS = { perBeat: 40, lineChars: 300 } as const;
+
+/** A worker's `holding` in its beat. */
+export interface WorkerHolding {
+  why: string;
+  since: number;
+  task?: string;
+}
+
+/** What a worker's `holding.why` says, in plain words. Another value reads as HOLDING_OTHER. */
+export const HOLDING_WHY: Record<string, string> = {
+  "starting-comfy": "Starting its ComfyUI",
+  "waiting-for-yield": "Waiting for local ComfyUI work to make room",
+  "local-work": "Waiting for local ComfyUI work to finish",
+  "gpu-check": "Checking what else uses its GPU",
+  updating: "Restarting on new worker code after its job",
+  "sending-kept": "Sending the results it kept first",
+};
+export const HOLDING_OTHER = "Not starting yet";
+
+/**
+ * The owner's mode as a beat answer gives it to a worker (`worker.queue`; docs/gpu-workers.md, "Who goes first"): the
+ * mode's name, what local work on its PC does in it (`localWork`: "yield" makes room for people's runs, "pause" starts
+ * nothing new, "run" keeps the GPU), and until when (null: until the owner switches it back). A worker with a turns
+ * folder writes it there as mode.json, for the helper on the PC's side.
+ */
+export interface WorkerQueueMode {
+  mode: "people-first" | "people-only" | "ours-first" | "balanced";
+  localWork: "yield" | "pause" | "run";
+  until: number | null;
+}
+
+/**
+ * Local work on a worker's PC, as the helper on the PC's side writes it to the turns folder (local.json) and the
+ * worker passes it on in its beat (`localWork`): its state, why in a short code, how many of its jobs wait, whether one
+ * runs, and when the helper wrote it. Counts and codes only: never a job's name, prompt or file.
+ */
+export interface LocalWork {
+  state: "running" | "idle" | "paused" | "yielding" | "stopped";
+  why: string | null;
+  waiting: number | null;
+  running: boolean;
+  at: number;
 }
 
 /** A worker's CPU slot: it takes light CPU work (catalog workflows marked cpu) and these finishing jobs. */
@@ -470,8 +552,10 @@ export const POOL_WORDS = {
   inLine: "In line",
   working: "Working",
   /** Working, with its model still loading (the GPU had another one loaded): no progress yet. */
-  gettingReady: "Working · getting ready",
-  failed: "Sorry, this one couldn't be made.",
+  gettingReady: "Warming up · starting in a moment",
+  /** The owner's own run, given back to the line so that a person's run could start first (pool.ts, people first). */
+  paused: "Paused for a moment · starts again automatically",
+  failed: "That one didn't come out right — try again, or try a similar model.",
 } as const;
 
 /**
@@ -479,8 +563,8 @@ export const POOL_WORDS = {
  * on this install's GPUs too, since they say what to change.
  */
 export const FILE_TROUBLE_WORDS = {
-  crashed: "This run couldn't finish with these files or settings.",
-  unreadable: "A clip or sound in this run couldn't be read.",
+  crashed: "That one didn't come out right with these files or settings — try another file or other settings.",
+  unreadable: "We couldn't read a clip or sound in this run — try another file (MP4, MOV or MP3 work best).",
 } as const;
 
 /** A script's open-source run (an API token) while the owner's ComfyUI is on the owner's computer. */

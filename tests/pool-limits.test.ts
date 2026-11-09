@@ -324,7 +324,8 @@ describe("runs at once on this install's GPUs", () => {
       const third = await post(IMAGE, a.cookie);
       expect(third.status).toBe(429);
       expect(third.body.code).toBe("limit");
-      expect(third.body.error).toBe(limits.POOL_LIMIT_WORDS.hourly);
+      expect(third.body.error).toMatch(/^Free runs refresh in about \d+ min\.$/);
+      expect(third.body).toMatchObject({ limit: "free-hour", refreshAt: expect.any(Number) });
     } finally {
       Object.assign(billing.OPEN_POLICY.limits, was);
     }
@@ -429,7 +430,7 @@ describe("runs waiting, runs an hour, runs from one address", () => {
     expect((await post({ ...IMAGE, ...SHOWN }, b.cookie, from)).status).toBe(201);
     const third = await post({ ...IMAGE, ...SHOWN }, b.cookie, from);
     expect(third.status).toBe(429);
-    expect(third.body.error).toBe(limits.POOL_LIMIT_WORDS.address);
+    expect(third.body.error).toMatch(/^Free runs on your network refresh in about \d+ min\.$/);
     expect((await post({ ...IMAGE, ...SHOWN }, b.cookie, { "x-forwarded-for": "198.51.100.4" })).status).toBe(201);
     const kept = db().prepare("SELECT addr FROM pool_admissions WHERE addr IS NOT NULL").all() as { addr: string }[];
     expect(kept.length).toBeGreaterThan(0);
@@ -681,7 +682,7 @@ describe("where a run goes", () => {
     const r = await post({ feature: "image-to-3d", modelId: "oss-pixal3d", op: "image-to-3d", inputs: { images: [url] }, ...SHOWN }, a.cookie);
     expect(r.status, JSON.stringify(r.body)).toBe(403);
     expect(r.body.code).toBe("connect-gpu");
-    expect(r.body.error).toMatch(/^Runs on your own GPU · \d+ GB$/);
+    expect(r.body.error).toMatch(/^Self-hosted$/);
     expect(r.headers.get(CONNECT_GPU_HEADER)).toBe("1");
     expect(poolRuns(a.id)).toBe(0);
     expect(fake.holds.size).toBe(holds);
@@ -764,8 +765,22 @@ describe("a run's price facts", () => {
     expect(run.megapixels).toBeGreaterThan(0.9);
     expect(run.megapixels).toBeLessThan(1.2);
     expect(run.steps).toEqual([expect.objectContaining({ model: "oss-z-image-turbo", jobs: 1 })]);
-    // A film of two shots: its two clips priced together with one hold; the join costs nothing.
-    const film = await post({ feature: "video", modelId: "oss-wan22-14b-fast", prompt: "x", params: { aspectRatio: "16:9", shots: [{ prompt: "wide shot", duration: 3 }, { prompt: "close-up", duration: 3 }] }, ...SHOWN }, a.cookie);
+    // A film of two shots: its two clips priced together with one hold; the join costs nothing. (The join reads the
+    // clips, so the workers must take clips: until they do, the film is said before Run as the visitor's own GPU.)
+    const filmReq = { feature: "video", modelId: "oss-wan22-14b-fast", prompt: "x", params: { aspectRatio: "16:9", shots: [{ prompt: "wide shot", duration: 3 }, { prompt: "close-up", duration: 3 }] }, ...SHOWN };
+    const prior = process.env.FUOBE_POOL_MEDIA_INPUTS;
+    let film: Awaited<ReturnType<typeof post>>;
+    try {
+      process.env.FUOBE_POOL_MEDIA_INPUTS = "image";
+      const off = await post(filmReq, a.cookie);
+      expect(off.status, JSON.stringify(off.body)).toBe(403);
+      expect(off.body).toMatchObject({ error: "This file runs self-hosted" });
+      process.env.FUOBE_POOL_MEDIA_INPUTS = "image,video";
+      film = await post(filmReq, a.cookie);
+    } finally {
+      if (prior === undefined) delete process.env.FUOBE_POOL_MEDIA_INPUTS;
+      else process.env.FUOBE_POOL_MEDIA_INPUTS = prior;
+    }
     expect(film.status, JSON.stringify(film.body)).toBe(201);
     const reserves = fake.calls_of("/v1/reserve");
     const filmRun = (reserves.at(-1)!.body as { run: { steps?: { model: string; jobs: number }[] } }).run;
@@ -948,7 +963,7 @@ describe("the price check before Run and the run itself", async () => {
         continue;
       }
       expect(run.kind, c.name).toBe("refuse");
-      const words = c.refused === "3d" ? expect.stringMatching(/^Runs on your own GPU · \d+ GB$/) : c.refused;
+      const words = c.refused === "3d" ? expect.stringMatching(/^Self-hosted$/) : c.refused;
       expect(run.kind === "refuse" && run.refusal.body.error, c.name).toEqual(words);
       expect(check?.quote, c.name).toMatchObject({ allowed: false, text: words, ownSetup: { need: "gpu" } });
     }
@@ -969,7 +984,7 @@ describe("the price check before Run and the run itself", async () => {
       const run = await hostedRun.decidePlace(acct, req, undefined);
       expect(run.kind).toBe("refuse");
       if (run.kind === "refuse") {
-        expect(run.refusal.body).toMatchObject({ code: "connect-gpu", error: "This size runs on your own GPU", ownSetup: { need: "gpu" } });
+        expect(run.refusal.body).toMatchObject({ code: "connect-gpu", error: "This size runs self-hosted", ownSetup: { need: "gpu" } });
         expect(run.refusal.headers[CONNECT_GPU_HEADER]).toBe("1");
       }
       // Pressed anyway: nothing is held or made.
@@ -999,7 +1014,7 @@ describe("the price check before Run and the run itself", async () => {
       const run = await hostedRun.decidePlace(acct, { ...r, account: a.id } as never, undefined);
       return run.kind === "refuse" ? run.refusal.body.error : run.kind;
     };
-    expect(await refused(THREE_D)).toMatch(/^Runs on your own GPU · \d+ GB$/);
+    expect(await refused(THREE_D)).toMatch(/^Self-hosted$/);
     // A worker whose CPU slot runs the 3D finish: the model's GLB is checked, made for the web and given its turntable there.
     db().prepare("UPDATE relay_workers SET cpu_slot_json = ? WHERE id = ?").run(JSON.stringify({ finishes: ["model3d"] }), worker.id);
     try {
@@ -1010,14 +1025,14 @@ describe("the price check before Run and the run itself", async () => {
       expect(await refused(THREE_D)).toBe(HOSTED_WORDS.notOffered);
       withBilling({ limits: NO_LIMITS });
       // A splat or a scene gets no finish there: it stays on a visitor's own setup.
-      expect(await refused({ ...THREE_D, modelId: "oss-triposplat", op: "splat" })).toMatch(/^Runs on your own GPU · \d+ GB$/);
-      expect(await refused({ ...THREE_D, modelId: "oss-scene-moge", op: "scene-3d" })).toMatch(/^Runs on your own GPU · \d+ GB$/);
+      expect(await refused({ ...THREE_D, modelId: "oss-triposplat", op: "splat" })).toMatch(/^Self-hosted$/);
+      expect(await refused({ ...THREE_D, modelId: "oss-scene-moge", op: "scene-3d" })).toMatch(/^Self-hosted$/);
     } finally {
       db().prepare("UPDATE relay_workers SET cpu_slot_json = NULL WHERE id = ?").run(worker.id);
     }
     // No CPU slot that finishes it any more: refused again, before Run and at the run alike.
-    expect(await refused(THREE_D)).toMatch(/^Runs on your own GPU · \d+ GB$/);
-    expect((await hostedRun.poolQuote(acct, req, undefined))?.quote).toMatchObject({ allowed: false, text: expect.stringMatching(/^Runs on your own GPU · \d+ GB$/), ownSetup: { need: "gpu" } });
+    expect(await refused(THREE_D)).toMatch(/^Self-hosted$/);
+    expect((await hostedRun.poolQuote(acct, req, undefined))?.quote).toMatchObject({ allowed: false, text: expect.stringMatching(/^Self-hosted$/), ownSetup: { need: "gpu" } });
   });
 
   it("while every worker that could run it is built from the catalog before the studio's update, the run is taken and waits in line until one is updated; Run stays on", async () => {
@@ -1113,7 +1128,7 @@ describe("the price check before Run and the run itself", async () => {
     expect(hostedRun.stepsProblem(billing.OPEN_POLICY, chain)).not.toBe(HOSTED_WORDS.rtxCard);
     // A guest reads the same label as an account (Run opens the sign-up for it), with no Settings named.
     expect(hostedRun.gateWords("rtxCard", true, placeOf(null))).toBe(HOSTED_GUEST_WORDS.rtxCard);
-    expect(hostedRun.gateWords("rtxCard", true, placeOf(null))).toBe("Runs on your own RTX GPU");
+    expect(hostedRun.gateWords("rtxCard", true, placeOf(null))).toBe("Self-hosted · RTX GPU");
     expect(hostedRun.gateWords("rtxCard", true, placeOf(null))).not.toMatch(/Settings/);
     expect(hostedRun.gateWords("rtxCard", false, placeOf(null))).toBe(HOSTED_WORDS.rtxCard);
   });
