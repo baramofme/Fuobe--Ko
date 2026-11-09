@@ -12,6 +12,7 @@ import type { MediaKind } from "@/lib/catalog/types";
 import { useModKey } from "@/lib/keys";
 import { ACCEPT, LibraryGrid, type SlotValue } from "./media-slot";
 import { ResponsivePanel } from "./responsive-panel";
+import { useQueryClient } from "@tanstack/react-query";
 
 const KIND_KEYS: Record<MediaKind, string> = { image: "studio.attach.kindImages", video: "studio.attach.kindVideos", audio: "studio.attach.kindAudio", text: "studio.attach.kindText", model3d: "studio.attach.kindModel3d" };
 
@@ -42,6 +43,7 @@ export function AttachMenu({ kinds, onFiles, onPick }: { kinds: MediaKind[]; onF
   const input = useRef<HTMLInputElement>(null);
   const mod = useModKey();
   const askFirst = useAskBeforeUpload();
+  const qc = useQueryClient();
   /** Someone whose upload would be refused gets its card instead of the file chooser: the panel makes way for it. */
   const refused = () => {
     if (!askFirst()) return false;
@@ -65,7 +67,10 @@ export function AttachMenu({ kinds, onFiles, onPick }: { kinds: MediaKind[]; onF
   return (
     <ResponsivePanel
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(v) => {
+        if (v) void qc.invalidateQueries({ queryKey: ["assets"] });
+        setOpen(v);
+      }}
       title={t("studio.attach.add")}
       description={t("studio.attach.describe", { kinds: kindsText })}
       className="w-[min(92vw,360px)] p-2.5"

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { signInHref, useAskBeforeUpload, useAssets, useIsGuest, type Asset } from "@/lib/api";
@@ -247,8 +248,15 @@ export function LibraryGrid({ kinds, onPick }: { kinds: MediaKind[]; onPick: (v:
 function LibraryPicker({ kind, onPick }: { kind: MediaKind; onPick: (v: SlotValue) => void }) {
   const [open, setOpen] = useState(false);
   const { t } = useI18n();
+  const qc = useQueryClient();
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(v) => {
+        if (v) void qc.invalidateQueries({ queryKey: ["assets"] });
+        setOpen(v);
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           className="absolute -right-1.5 -bottom-1.5 grid size-5 place-items-center rounded-full border bg-background text-muted-foreground opacity-0 shadow-soft transition-opacity group-hover/slot:opacity-100 hover:text-foreground focus-visible:opacity-100"
