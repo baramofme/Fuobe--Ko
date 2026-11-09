@@ -48,7 +48,7 @@ OWNER_STATIC = [
     "New board",
     "Your recent boards",
     "All your boards",
-    "Assist's skills, drawn as boards",
+    "Chat's skills, drawn as boards",  # main의 리브랜드(a266a804)로 Assist→Chat — 구 어시스트 키는 로케일에 잔존.
 ]
 
 def owner_lines():
@@ -62,6 +62,8 @@ KO_MAP: dict[str, str] = {
     "menu.line.the_film_set_behind_a_shot": "촬영 뒤의 영화 세트장",
     "menu.line.relight_any_photo": "어떤 사진이든 재조명",
     "menu.line.re_shoot_from_any_angle": "어떤 각도로 다시 촬영",
+    # main이 Fuobe Angles에 더한 라인(app-fuobe-angles, t_cda7f80d 하베스트):
+    "menu.line.turn_the_camera": "카메라를 돌리기",
     "menu.line.storyboard_from_one_photo": "사진 하나로 스토리보드",
     "menu.line.match_a_shot_s_lighting": "그 컷의 조명에 맞춤",
     "menu.line.match_a_reference_s_colors": "레퍼런스 색에 맞춤",
@@ -213,7 +215,8 @@ KO_MAP: dict[str, str] = {
     "menu.line.your_recent_boards": "최근 보드",
     "menu.line.all_your_boards": "모든 보드",
     # 스킬 행의 `what` — feature() 위치 인자라 `what:` 정규식이 놓친 것을 OWNER_STATIC로 수확(t_c373d4a4).
-    "menu.line.assist_s_skills_drawn_as_boards": "어시스트의 스킬을 보드로",
+    # main의 리브랜드(a266a804)로 카피가 Chat's로 바뀌었다 — 키·ko값도 새 브랜딩으로(교리②, t_cda7f80d).
+    "menu.line.chat_s_skills_drawn_as_boards": "채팅의 스킬을 보드로",
 
     # ── nav-model.ts의 모든 `what:` 리터럴(슈퍼셋 97 — 30을 포함) ──
     # ko는 en의 nav.*.what 중 값이 문자 단위 같은 키에서 수확했다. 아래 5개는 그런 키가 없어 새로 지었다:

@@ -3629,5 +3629,20 @@
   "area.section.start.title": "Start here",
   "area.section.effect-films.title": "Effect films",
   "nav.canvas.seeAllReadyBoards": "See all ready boards",
-  "nav.canvas.newBoardError": "Couldn't make a new board. Please try again."
+  "nav.canvas.newBoardError": "Couldn't make a new board. Please try again.",
+  "menu.line.chat_s_skills_drawn_as_boards": "Chat's skills, drawn as boards",
+  "menu.line.turn_the_camera": "Turn the camera",
+  "nav.audio-video.line": "Sound effects and room tone made to fit your clip.",
+  "nav.chat": "Chat",
+  "nav.chat-skills": "Skills",
+  "nav.chat-memory": "Memory",
+  "nav.chat-scheduled": "Scheduled",
+  "nav.body-double": "Body Double",
+  "nav.genjutsu-reshoot": "Fuobe Reshoot",
+  "nav.area-fx": "Fuobe FX",
+  "own.selfHosted": "Self-hosted",
+  "own.selfHostedKey": "Self-hosted · your {provider} key",
+  "own.selfHostedKeyShort": "Self-hosted · {provider} key",
+  "preset.body_double.name": "Body Double",
+  "preset.fix_faces.name": "Fix Faces"
 }
