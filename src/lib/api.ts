@@ -653,6 +653,9 @@ export function useGenerationActions() {
       void qc.invalidateQueries({ queryKey: ["library"] });
       void qc.invalidateQueries({ queryKey: ["library-facets"] });
       void qc.invalidateQueries({ queryKey: ["folders"] });
+      // Generations hold assets: a delete/trash drops the stored files they own, so every popup that
+      // lists "your library" (useAssets, useUploads) must stop serving cached items.
+      void qc.invalidateQueries({ queryKey: ["assets"] });
     };
     /** A patch for every one (or per one, from its freshest copy); null removes them from the caches. */
     type Patch = Partial<Generation> | ((cur: Generation) => Partial<Generation>) | null;

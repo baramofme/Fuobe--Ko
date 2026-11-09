@@ -236,24 +236,29 @@ export function getAsset(id: string): Asset | null {
   return row ? toAsset(row) : null;
 }
 
-/** Newest first; page with `before` (+ `beforeId`): the last asset of the previous page. Derived renders only when asked for. */
+/**
+ * Newest first; page with `before` (+ `beforeId`): the last asset of the previous page. Derived renders only when asked for.
+ * Files owned by a generation in the Trash are left out: the Library hides its runs, so the "add media" popups must not
+ * offer what it no longer shows (Restore brings the files back with the generation; uploads have no generation_id,
+ * so the join never filters them).
+ */
 export function listAssets(opts: { source?: Asset["source"]; kind?: MediaKind; limit?: number; before?: number; beforeId?: string; accountId?: string | null }): Asset[] {
   // The owner's files, or with `accountId` that account's own (public sign-up: its uploads and results are its own).
-  const where: string[] = [opts.accountId ? "account_id = ?" : "account_id IS NULL"];
+  const where: string[] = [opts.accountId ? "assets.account_id = ?" : "assets.account_id IS NULL", "t.generation_id IS NULL"];
   const args: unknown[] = opts.accountId ? [opts.accountId] : [];
   if (opts.source) {
-    where.push("source = ?");
+    where.push("assets.source = ?");
     args.push(opts.source);
-  } else where.push("source != 'derived'");
+  } else where.push("assets.source != 'derived'");
   if (opts.kind) {
-    where.push("kind = ?");
+    where.push("assets.kind = ?");
     args.push(opts.kind);
   }
   if (opts.before) {
-    where.push(opts.beforeId ? "(created_at < ? OR (created_at = ? AND id < ?))" : "created_at < ?");
+    where.push(opts.beforeId ? "(assets.created_at < ? OR (assets.created_at = ? AND assets.id < ?))" : "assets.created_at < ?");
     args.push(...(opts.beforeId ? [opts.before, opts.before, opts.beforeId] : [opts.before]));
   }
-  const sql = `SELECT * FROM assets ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY created_at DESC, id DESC LIMIT ?`;
+  const sql = `SELECT assets.* FROM assets LEFT JOIN generation_trash t ON t.generation_id = assets.generation_id ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY assets.created_at DESC, assets.id DESC LIMIT ?`;
   return (db().prepare(sql).all(...args, opts.limit ?? 100) as AssetRow[]).map(toAsset);
 }
 
