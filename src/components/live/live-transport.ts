@@ -148,8 +148,9 @@ export class ServerTransport implements LiveTransport {
     const j = (await res.json().catch(() => ({}))) as { sessionId?: string; mode?: "server" | "link"; seed?: number; nodes?: { version?: number; outdated?: boolean }; highvram?: boolean | null; missing?: string[]; error?: string; code?: string };
     if (!res.ok || !j.sessionId) return { ok: false, error: j.error ?? `Live edit didn't start (${res.status})`, code: j.code };
     if (this.closed) {
-      this.end(j.sessionId);
-      return { ok: false, error: "Closed", code: "closed" };
+      // StrictMode (or a remount) closed the transport during its cleanup. The fetch above minted a fresh
+      // session, so reopen and adopt it rather than refusing the second mount.
+      this.closed = false;
     }
     this.sessionId = j.sessionId;
     this.kind = j.mode === "link" ? "link" : "server";
