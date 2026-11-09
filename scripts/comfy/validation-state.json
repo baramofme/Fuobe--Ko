@@ -1068,10 +1068,10 @@
     "at": "2026-10-16T20:57:26.825Z"
   },
   "upscale-video-seedvr2-chunked": {
-    "sha256": "c24dd08377b79410406355b72b5b11945f0c1e419ab1bd49228ee31e6b4ac3af",
+    "sha256": "2d8c8aea50af72c8fdcbb5e5310933ea0a75aa43d267534f17f1eb9cd4f4f13c",
     "validated": true,
     "error": null,
-    "at": "2026-10-23T22:48:25.649Z"
+    "at": "2026-11-09T01:17:27.720Z"
   },
   "v2a-hunyuan-foley": {
     "sha256": "2b6f39b10c3d7bfdef30257682a207b7b89af5f246c38c5aa782de7b3b496359",

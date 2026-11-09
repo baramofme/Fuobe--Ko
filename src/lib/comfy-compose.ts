@@ -1262,6 +1262,10 @@ export async function composeWorkflow(endpointTemplate: string, input: GenInput,
     if (problem) throw new ComposeError(problem);
   }
 
+  // The SeedVR2 pack nodes validate their seed as a uint32 (max 4294967295) while Fuobe picks 48-bit ones:
+  // wrap into range so the graph accepts them. The image SeedVR2 graph binds its seed on a KSampler, which
+  // takes both, so wrapping it is harmless there.
+  if (/seedvr/i.test(manifest.id) && typeof values.seed === "number") values.seed = values.seed % 4294967296;
   const bound = applyBindings(graph, b, Object.fromEntries(Object.entries(values).filter(([k]) => !left.includes(k))));
   // maxDimension targets for removed reference branches are expected: their scale nodes go with the loader.
   const realMissing = bound.missing.filter((m) => !/^maxDimension\b/.test(m));

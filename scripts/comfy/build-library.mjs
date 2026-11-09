@@ -37,6 +37,9 @@ export const LOADER_FOLDERS = {
   UnifiedModelLoader: { model_name: 'diffusion_models' },
   CheckpointLoaderSimple: { ckpt_name: 'checkpoints' },
   VAELoader: { vae_name: 'vae' },
+  // SeedVR2 video (the numz pack, t44057a9a): its own loaders read models/SEEDVR2, not a core folder.
+  SeedVR2LoadVAEModel: { model: 'SEEDVR2' },
+  SeedVR2LoadDiTModel: { model: 'SEEDVR2' },
   CLIPLoader: { clip_name: 'text_encoders' },
   DualCLIPLoader: { clip_name1: 'text_encoders', clip_name2: 'text_encoders' },
   QuadrupleCLIPLoader: { clip_name1: 'text_encoders', clip_name2: 'text_encoders', clip_name3: 'text_encoders', clip_name4: 'text_encoders' },

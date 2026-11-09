@@ -24912,6 +24912,310 @@
     "essentials_category": null,
     "has_intermediate_output": false
   },
+  "SeedVR2LoadDiTModel": {
+    "input": {
+      "required": {
+        "model": [
+          "COMBO",
+          {
+            "tooltip": "DiT (Diffusion Transformer) model for video upscaling.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
+            "default": "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+            "multiselect": false,
+            "options": [
+              "seedvr2_ema_3b-Q4_K_M.gguf",
+              "seedvr2_ema_3b-Q8_0.gguf",
+              "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+              "seedvr2_ema_3b_fp16.safetensors",
+              "seedvr2_ema_7b-Q4_K_M.gguf",
+              "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+              "seedvr2_ema_7b_fp16.safetensors",
+              "seedvr2_ema_7b_sharp-Q4_K_M.gguf",
+              "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+              "seedvr2_ema_7b_sharp_fp16.safetensors"
+            ]
+          }
+        ],
+        "device": [
+          "COMBO",
+          {
+            "tooltip": "GPU device for DiT model inference (upscaling phase)",
+            "default": "cuda:0",
+            "multiselect": false,
+            "options": [
+              "cuda:0"
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "blocks_to_swap": [
+          "INT",
+          {
+            "tooltip": "Number of transformer blocks to swap between devices for VRAM optimization.\n• 0: Disabled (default)\n• 3B model: 0-32 blocks\n• 7B model: 0-36 blocks\n\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
+            "default": 0,
+            "min": 0,
+            "max": 36,
+            "step": 1
+          }
+        ],
+        "swap_io_components": [
+          "BOOLEAN",
+          {
+            "tooltip": "Offload input/output embeddings and normalization layers to reduce VRAM.\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
+            "default": false
+          }
+        ],
+        "offload_device": [
+          "COMBO",
+          {
+            "tooltip": "Device to offload DiT model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)\n\nRequired for BlockSwap (blocks_to_swap or swap_io_components).",
+            "default": "none",
+            "multiselect": false,
+            "options": [
+              "none",
+              "cpu",
+              "cuda:0"
+            ]
+          }
+        ],
+        "cache_model": [
+          "BOOLEAN",
+          {
+            "tooltip": "Keep DiT model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
+            "default": false
+          }
+        ],
+        "attention_mode": [
+          "COMBO",
+          {
+            "tooltip": "Attention computation backend:\n• sdpa: PyTorch scaled_dot_product_attention (default, stable, always available)\n• flash_attn_2: Flash Attention 2 (Ampere+, requires flash-attn package)\n• flash_attn_3: Flash Attention 3 (Hopper+, requires flash-attn with FA3 support)\n• sageattn_2: SageAttention 2 (requires sageattention package)\n• sageattn_3: SageAttention 3 (Blackwell/RTX 50xx only, requires sageattn3 package)\n\nSDPA is recommended - stable and works everywhere.\nFlash Attention and SageAttention provide speedup through optimized CUDA kernels on compatible GPUs.",
+            "default": "sdpa",
+            "multiselect": false,
+            "options": [
+              "sdpa",
+              "flash_attn_2",
+              "flash_attn_3",
+              "sageattn_2",
+              "sageattn_3"
+            ]
+          }
+        ],
+        "torch_compile_args": [
+          "TORCH_COMPILE_ARGS",
+          {
+            "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 20-40% speedup with compatible PyTorch 2.0+ and Triton installation."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "device"
+      ],
+      "optional": [
+        "blocks_to_swap",
+        "swap_io_components",
+        "offload_device",
+        "cache_model",
+        "attention_mode",
+        "torch_compile_args"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SEEDVR2_DIT"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SEEDVR2_DIT"
+    ],
+    "output_tooltips": [
+      "DiT model configuration containing model path, device settings, BlockSwap parameters, and compilation options. Connect to Video Upscaler node."
+    ],
+    "output_matchtypes": null,
+    "name": "SeedVR2LoadDiTModel",
+    "display_name": "SeedVR2 (Down)Load DiT Model",
+    "description": "Load and configure SeedVR2 DiT (Diffusion Transformer) model for video upscaling. Supports BlockSwap memory optimization for low VRAM systems, model caching for batch processing, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
+    "python_module": "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler",
+    "category": "SEEDVR2",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SeedVR2LoadVAEModel": {
+    "input": {
+      "required": {
+        "model": [
+          "COMBO",
+          {
+            "tooltip": "VAE (Variational Autoencoder) model for encoding/decoding.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
+            "default": "ema_vae_fp16.safetensors",
+            "multiselect": false,
+            "options": [
+              "ema_vae_fp16.safetensors"
+            ]
+          }
+        ],
+        "device": [
+          "COMBO",
+          {
+            "tooltip": "GPU device for VAE model inference (encoding/decoding phases)",
+            "default": "cuda:0",
+            "multiselect": false,
+            "options": [
+              "cuda:0"
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "encode_tiled": [
+          "BOOLEAN",
+          {
+            "tooltip": "Enable tiled encoding to reduce VRAM usage during the encoding phase",
+            "default": false
+          }
+        ],
+        "encode_tile_size": [
+          "INT",
+          {
+            "tooltip": "Encoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when encode_tiled is enabled.",
+            "default": 1024,
+            "min": 64,
+            "step": 32
+          }
+        ],
+        "encode_tile_overlap": [
+          "INT",
+          {
+            "tooltip": "Pixel overlap between encoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when encode_tiled is enabled.",
+            "default": 128,
+            "min": 0,
+            "step": 32
+          }
+        ],
+        "decode_tiled": [
+          "BOOLEAN",
+          {
+            "tooltip": "Enable tiled decoding to reduce VRAM usage during the decoding phase",
+            "default": false
+          }
+        ],
+        "decode_tile_size": [
+          "INT",
+          {
+            "tooltip": "Decoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when decode_tiled is enabled.",
+            "default": 1024,
+            "min": 64,
+            "step": 32
+          }
+        ],
+        "decode_tile_overlap": [
+          "INT",
+          {
+            "tooltip": "Pixel overlap between decoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when decode_tiled is enabled.",
+            "default": 128,
+            "min": 0,
+            "step": 32
+          }
+        ],
+        "tile_debug": [
+          "COMBO",
+          {
+            "tooltip": "Tile debug visualization mode:\n• 'false': No visualization overlay (default)\n• 'encode': Show encoding tile boundaries\n• 'decode': Show decoding tile boundaries\n\nOnly works when respective tiling is enabled.",
+            "default": "false",
+            "multiselect": false,
+            "options": [
+              "false",
+              "encode",
+              "decode"
+            ]
+          }
+        ],
+        "offload_device": [
+          "COMBO",
+          {
+            "tooltip": "Device to offload VAE model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)",
+            "default": "none",
+            "multiselect": false,
+            "options": [
+              "none",
+              "cpu",
+              "cuda:0"
+            ]
+          }
+        ],
+        "cache_model": [
+          "BOOLEAN",
+          {
+            "tooltip": "Keep VAE model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
+            "default": false
+          }
+        ],
+        "torch_compile_args": [
+          "TORCH_COMPILE_ARGS",
+          {
+            "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 15-25% speedup with compatible PyTorch 2.0+ and Triton installation."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "device"
+      ],
+      "optional": [
+        "encode_tiled",
+        "encode_tile_size",
+        "encode_tile_overlap",
+        "decode_tiled",
+        "decode_tile_size",
+        "decode_tile_overlap",
+        "tile_debug",
+        "offload_device",
+        "cache_model",
+        "torch_compile_args"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SEEDVR2_VAE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SEEDVR2_VAE"
+    ],
+    "output_tooltips": [
+      "VAE model configuration containing model path, device settings, tiling parameters, and compilation options. Connect to Video Upscaler node."
+    ],
+    "output_matchtypes": null,
+    "name": "SeedVR2LoadVAEModel",
+    "display_name": "SeedVR2 (Down)Load VAE Model",
+    "description": "Load and configure SeedVR2 VAE (Variational Autoencoder) for encoding/decoding video frames to/from latent space. Supports tiled processing to handle high resolutions on limited VRAM, model caching, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
+    "python_module": "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler",
+    "category": "SEEDVR2",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
   "SeedVR2PostProcessing": {
     "input": {
       "required": {
@@ -25033,6 +25337,204 @@
       "pad",
       "preprocess"
     ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SeedVR2VideoUpscaler": {
+    "input": {
+      "required": {
+        "image": [
+          "IMAGE",
+          {
+            "tooltip": "Input video frames as image batch.\nAccepts both RGB (3-channel) and RGBA (4-channel) formats.\nOutput format will match input format."
+          }
+        ],
+        "dit": [
+          "SEEDVR2_DIT",
+          {
+            "tooltip": "DiT model configuration from SeedVR2 (Down)Load DiT Model node"
+          }
+        ],
+        "vae": [
+          "SEEDVR2_VAE",
+          {
+            "tooltip": "VAE model configuration from SeedVR2 (Down)Load VAE Model node"
+          }
+        ],
+        "seed": [
+          "INT",
+          {
+            "tooltip": "Random seed for reproducible generation (default: 42).\nSame seed with same inputs produces identical output.",
+            "default": 42,
+            "min": 0,
+            "max": 4294967295,
+            "step": 1
+          }
+        ],
+        "resolution": [
+          "INT",
+          {
+            "tooltip": "Target resolution for the shortest edge in pixels (default: 1080).\nAutomatically maintains aspect ratio of input.\nEven values required for optimal processing.",
+            "default": 1080,
+            "min": 16,
+            "max": 16384,
+            "step": 2
+          }
+        ],
+        "max_resolution": [
+          "INT",
+          {
+            "tooltip": "Maximum resolution limit for any dimension (default: 0, no limit).\nIf any edge exceeds this after applying resolution,\nboth dimensions are scaled down proportionally.\nUseful to prevent excessive VRAM usage on extreme aspect ratios.",
+            "default": 0,
+            "min": 0,
+            "max": 16384,
+            "step": 2
+          }
+        ],
+        "batch_size": [
+          "INT",
+          {
+            "tooltip": "Number of frames processed together per batch (default: 5).\nMust follow pattern 4n+1: 1, 5, 9, 13, 17, 21, ...\n\n• Higher values: Better temporal consistency and faster processing\n• Lower values: Reduced VRAM usage\n\nIdeally match to shot length for best quality.",
+            "default": 5,
+            "min": 1,
+            "max": 16384,
+            "step": 4
+          }
+        ],
+        "uniform_batch_size": [
+          "BOOLEAN",
+          {
+            "tooltip": "Pad final batch to match batch_size (default: False).\nPrevents temporal artifacts caused by small final batch.\nAdd extra compute but recommended for optimal quality.",
+            "default": false
+          }
+        ],
+        "color_correction": [
+          "COMBO",
+          {
+            "tooltip": "Corrects color shifts in upscaled output to match original input (default: lab).\nThe upscaling process may alter colors; this applies color grading to restore them.\n\n• lab: Perceptual color matching with detail preservation (recommended)\n• wavelet: Frequency-based natural colors, preserves fine details\n• wavelet_adaptive: Wavelet base with targeted saturation correction\n• hsv: Hue-conditional saturation matching\n• adain: Statistical style transfer approach\n• none: No color correction applied",
+            "default": "lab",
+            "multiselect": false,
+            "options": [
+              "lab",
+              "wavelet",
+              "wavelet_adaptive",
+              "hsv",
+              "adain",
+              "none"
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "temporal_overlap": [
+          "INT",
+          {
+            "tooltip": "Overlapping frames between consecutive batches (default: 0, disabled).\nImproves temporal consistency across batch boundaries through blending.\nValues 1-4 work well for most content.",
+            "default": 0,
+            "min": 0,
+            "max": 16,
+            "step": 1
+          }
+        ],
+        "prepend_frames": [
+          "INT",
+          {
+            "tooltip": "Number of frames to prepend (reversed from start) before processing (default: 0).\nHelps reduce artifacts at video beginning.\nPrepended frames are automatically removed from final output.",
+            "default": 0,
+            "min": 0,
+            "max": 32,
+            "step": 1
+          }
+        ],
+        "input_noise_scale": [
+          "FLOAT",
+          {
+            "tooltip": "Input noise injection scale (default: 0.0, disabled).\nAdds controlled variation to input images before encoding.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan help with certain types of artifacts.",
+            "default": 0,
+            "min": 0,
+            "max": 1,
+            "step": 0.001
+          }
+        ],
+        "latent_noise_scale": [
+          "FLOAT",
+          {
+            "tooltip": "Latent space noise injection scale (default: 0.0, disabled).\nAdds controlled variation during the diffusion process.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan soften details if input_noise_scale doesn't help.",
+            "default": 0,
+            "min": 0,
+            "max": 1,
+            "step": 0.001
+          }
+        ],
+        "offload_device": [
+          "COMBO",
+          {
+            "tooltip": "Device for storing intermediate tensors between processing phases (default: cpu).\n• 'none': Keep all tensors on inference device (fastest but highest VRAM usage)\n• 'cpu': Offload to system RAM (recommended for long videos, slower transfers)\n• 'cuda:X': Offload to another GPU (good balance if available, faster than CPU)",
+            "default": "cpu",
+            "multiselect": false,
+            "options": [
+              "none",
+              "cpu",
+              "cuda:0"
+            ]
+          }
+        ],
+        "enable_debug": [
+          "BOOLEAN",
+          {
+            "tooltip": "Enable detailed debug logging (default: False).\nShows memory usage, timing information, and processing details.\nUseful for troubleshooting errors and performance issues.",
+            "default": false
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image",
+        "dit",
+        "vae",
+        "seed",
+        "resolution",
+        "max_resolution",
+        "batch_size",
+        "uniform_batch_size",
+        "color_correction"
+      ],
+      "optional": [
+        "temporal_overlap",
+        "prepend_frames",
+        "input_noise_scale",
+        "latent_noise_scale",
+        "offload_device",
+        "enable_debug"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "IMAGE"
+    ],
+    "output_tooltips": [
+      "Upscaled video frames with color correction applied. Format (RGB/RGBA) matches input. Range [0, 1] normalized for ComfyUI compatibility."
+    ],
+    "output_matchtypes": null,
+    "name": "SeedVR2VideoUpscaler",
+    "display_name": "SeedVR2 Video Upscaler (v2.5.24)",
+    "description": "SeedVR2 main upscaling node: processes video frames using DiT and VAE models with diffusion-based enhancement. Handles RGB/RGBA formats, maintains temporal consistency across frames, applies color correction, and manages VRAM through intelligent tensor offloading. \n\nRequires DiT and VAE model configurations.",
+    "python_module": "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler",
+    "category": "SEEDVR2",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
     "essentials_category": null,
     "has_intermediate_output": false
   },

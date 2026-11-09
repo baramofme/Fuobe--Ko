@@ -232,6 +232,9 @@ export const CUSTOM_NODE_REPOS = {
   // (OPEN_H3_REGEN=1); not on the validation server (video-regenerate-h3 lists both with `packs`).
   'ComfyUI-Open-H3-Regenerate': 'https://github.com/rdh9616/ComfyUI-Open-H3-Regenerate/tree/9b686c5ffd380e9d1351f9b8beef6d20d703ca3e',
   Comfyui_Minimax_h3_latent_Upscaler: 'https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler/tree/40316cf008b2fd8663263270669eb4da23f89d2c',
+  // SeedVR2 video (t44057a9a): numz's pack (Apache-2.0), whose own loaders and SeedVR2VideoUpscaler read models/SEEDVR2.
+  // A file that is missing there it fetches from numz/SeedVR2_comfyUI on first use; the same files are pinned below.
+  'ComfyUI-SeedVR2_VideoUpscaler': 'https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler',
   // Clean up voice (NVIDIA RE-USE): Fuobe's own pack, in this repository (comfy-nodes/ComfyUI-RE-USE), pinned at the commit
   // that last changed it (tests/reuse-pack-pin.test.ts checks it). install-comfyui.sh copies it from the checkout.
   'ComfyUI-RE-USE': 'https://github.com/workingprototype/Fuobe/tree/8cc0417b5cb8a603f06502d97d5c6d8c6035ea0d/comfy-nodes/ComfyUI-RE-USE',
@@ -309,6 +312,8 @@ export const PACK_CLASSES = {
   'Comfyui-Hi3d-T8': /^Hi3D(ModelLoader|LoadMesh|Refine)$/,
   'ComfyUI-Open-H3-Regenerate': /^OpenH3(Regen(Lora|Sigmas|PrepareDraft|Upscale|RefineLatent|FastVAEDecode|Finish)|SaveRefinedLatent|LoadRefinedLatent|VideoToPrompt)$/,
   Comfyui_Minimax_h3_latent_Upscaler: /^(MinimaxH3LatentUpscaler(3D|Node2D)|MMH3(TemporalSplitParamsV10|SpatialSplitParamsV10|SplitUpscale))$/,
+  // Only the pack's own classes: Preprocess / PostProcessing / Conditioning / TemporalChunk / TemporalMerge are core (comfy_extras.nodes_seedvr).
+  'ComfyUI-SeedVR2_VideoUpscaler': /^SeedVR2(Load(VAE|DiT)Model|VideoUpscaler|TorchCompileSettings)$/,
   'ComfyUI-RE-USE': /^REUSE(Loader|Enhance)$/,
   // Live edit's nodes (fuobe_live.py), which Fuobe writes into custom_nodes itself.
   'fuobe-live': /FuobeLive$/,
@@ -568,6 +573,10 @@ export const KNOWN_MODELS = {
   // round 4 (r4/video-finish): the chunked SeedVR2 graph is hand-built, so its files are named here (same files as the template).
   'seedvr2_3b_int8_convrot.safetensors': { folder: 'diffusion_models', url: 'https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_3b_int8_convrot.safetensors' },
   'seedvr2_ema_vae_fp16.safetensors': { folder: 'vae', url: 'https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/vae/seedvr2_ema_vae_fp16.safetensors' },
+  // t44057a9a: the files the numz pack's loaders read (models/SEEDVR2 — its own folder type, not a core one). The pack's
+  // model_registry.py carries both SHA-256s; install-comfyui.sh may place them so the pack never has to download.
+  'seedvr2_ema_3b_fp8_e4m3fn.safetensors': { folder: 'SEEDVR2', url: 'https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/seedvr2_ema_3b_fp8_e4m3fn.safetensors' },
+  'ema_vae_fp16.safetensors': { folder: 'SEEDVR2', url: 'https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/ema_vae_fp16.safetensors' },
   // N7-5 (Fly path, docs/research/new-models-7.md §3.4 / §3.6): Uni3C's ControlNet for core ModelPatchLoader and the Wan 2.1 I2V
   // 720P it was trained on, at the revisions the research read (1,997,314,376 B and 16,401,356,938 B); the 480P fp8 file
   // InfiniteTalk's native graph already uses is the drop-in to try on a smaller GPU (`checkpoint`), pinned at the commit
@@ -5929,21 +5938,27 @@ export const SPEC = [
   },
   {
     id: 'upscale-video-seedvr2-chunked',
-    title: 'Video Upscale / Restore (SeedVR2 3B int8) in passes of 4n+1 frames: memory stays flat (VHS meta-batch)',
+    title: 'Video Upscale / Restore (SeedVR2 3B fp8, the numz pack) in passes of 4n+1 frames: memory stays flat (VHS meta-batch)',
     capability: 'upscale-video',
     handBuilt: 'hand-built/upscale-video-seedvr2-chunked.json',
     bindings: {
-      video: [b('1', 'video')], framesPerBatch: [b('2', 'frames_per_batch')], shortSide: [b('3', 'resize_type.shorter_size')], seed: [b('9', 'seed')],
+      video: [b('1', 'video')], framesPerBatch: [b('2', 'frames_per_batch'), b('5', 'batch_size')], shortSide: [b('5', 'resolution')], seed: [b('5', 'seed')],
     },
-    outputs: [{ node: '13', kind: 'video' }],
+    outputs: [{ node: '7', kind: 'video' }],
     defaults: { shortSide: 1080 },
     limits: { maxWidth: 3840, maxHeight: 3840 },
-    vramGb: 16,
-    license: 'SeedVR2 (Apache-2.0); VideoHelperSuite GPL-3.0 code',
+    vramGb: 12,
+    license: 'SeedVR2 (Apache-2.0); the numz ComfyUI-SeedVR2_VideoUpscaler pack (Apache-2.0); VideoHelperSuite GPL-3.0 code',
     notes:
-      'The native SeedVR2 nodes of upscale-video-seedvr2 (same files, same settings) run on framesPerBatch frames per pass (33 by default; SeedVR2 pads a pass to 4n+1 frames and crops the padding back) and the ' +
-      'passes are piped into one H.264 encode with the source\'s sound, so a long clip no longer needs the whole film in memory (the template is capped at 20 s). The frames are first scaled so the shorter edge is ' +
-      'shortSide px. Each pass is restored on its own: there is no temporal context across a pass boundary, so a seam every framesPerBatch frames is possible.',
+      'Restores through the numz pack instead of the core SeedVR2 nodes: the pack reads its own VAE and DiT (SeedVR2LoadVAEModel / ' +
+      'SeedVR2LoadDiTModel, models/SEEDVR2, fetched from numz/SeedVR2_comfyUI if absent) and encodes, restores and decodes a pass inside ' +
+      'SeedVR2VideoUpscaler. Core VAEEncodeTiled does not work with this VAE — on ComfyUI 0.43.1 it asks the loaded object for handles_tiling / ' +
+      'format_encoded, which a SeedVR2 VAE does not have, and the run dies there (t44057a9a, measured). The graph is still chunked: ' +
+      'framesPerBatch frames per pass (33 by default; SeedVR2 pads a pass to 4n+1 frames and crops the padding back inside the node), ' +
+      'piped into one H.264 encode with the source\'s sound, so a long clip no longer needs the whole film in memory (the template is capped ' +
+      'at 20 s). shortSide is the target: the pack scales so the shorter edge is shortSide px and never passes max_resolution (3840). Measured ' +
+      'on this server: 124 frames at 1080x1080 in one pass, 125.8 s. Each pass is restored on its own — there is no temporal context across a ' +
+      'pass boundary, so a seam every framesPerBatch frames is possible.',
   },
   {
     id: 'video-export-pro-chunked',

@@ -229,6 +229,17 @@
       "insightface"
     ]
   },
+  "ComfyUI-SeedVR2_VideoUpscaler": {
+    "repo": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler",
+    "commit": "4490bd1f482e026674543386bb2a4d176da245b9",
+    "registry": null,
+    "requirementsTxt": true,
+    "isolated": false,
+    "subdir": null,
+    "folders": [
+      "SEEDVR2"
+    ]
+  },
   "ComfyUI-ThinkSound_Wrapper": {
     "repo": "https://github.com/ShmuelRonen/ComfyUI-ThinkSound_Wrapper",
     "commit": "9a2fb40ae30cabbdb55fb6f6fe02b01c23ab1a3b",

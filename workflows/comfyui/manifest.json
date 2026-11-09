@@ -26129,7 +26129,7 @@
     },
     {
       "id": "upscale-video-seedvr2-chunked",
-      "title": "Video Upscale / Restore (SeedVR2 3B int8) in passes of 4n+1 frames: memory stays flat (VHS meta-batch)",
+      "title": "Video Upscale / Restore (SeedVR2 3B fp8, the numz pack) in passes of 4n+1 frames: memory stays flat (VHS meta-batch)",
       "capability": "upscale-video",
       "file": "upscale-video-seedvr2-chunked.json",
       "source": "hand-built (scripts/comfy/hand-built/upscale-video-seedvr2-chunked.json)",
@@ -26144,30 +26144,34 @@
           {
             "node": "2",
             "input": "frames_per_batch"
+          },
+          {
+            "node": "5",
+            "input": "batch_size"
           }
         ],
         "shortSide": [
           {
-            "node": "3",
-            "input": "resize_type.shorter_size"
+            "node": "5",
+            "input": "resolution"
           }
         ],
         "seed": [
           {
-            "node": "9",
+            "node": "5",
             "input": "seed"
           }
         ],
         "filenamePrefix": [
           {
-            "node": "13",
+            "node": "7",
             "input": "filename_prefix"
           }
         ]
       },
       "outputs": [
         {
-          "node": "13",
+          "node": "7",
           "kind": "video"
         }
       ],
@@ -26181,28 +26185,32 @@
       },
       "models": [
         {
-          "file": "seedvr2_ema_vae_fp16.safetensors",
-          "folder": "vae",
-          "url": "https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/vae/seedvr2_ema_vae_fp16.safetensors",
+          "file": "ema_vae_fp16.safetensors",
+          "folder": "SEEDVR2",
+          "url": "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/ema_vae_fp16.safetensors",
           "sizeGb": 0.5
         },
         {
-          "file": "seedvr2_3b_int8_convrot.safetensors",
-          "folder": "diffusion_models",
-          "url": "https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_3b_int8_convrot.safetensors",
-          "sizeGb": 3.46
+          "file": "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+          "folder": "SEEDVR2",
+          "url": "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+          "sizeGb": 3.39
         }
       ],
       "customNodes": [
+        {
+          "name": "ComfyUI-SeedVR2_VideoUpscaler",
+          "repo": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler"
+        },
         {
           "name": "ComfyUI-VideoHelperSuite",
           "repo": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite"
         }
       ],
-      "vramGb": 16,
-      "license": "SeedVR2 (Apache-2.0); VideoHelperSuite GPL-3.0 code",
+      "vramGb": 12,
+      "license": "SeedVR2 (Apache-2.0); the numz ComfyUI-SeedVR2_VideoUpscaler pack (Apache-2.0); VideoHelperSuite GPL-3.0 code",
       "validated": true,
-      "notes": "The native SeedVR2 nodes of upscale-video-seedvr2 (same files, same settings) run on framesPerBatch frames per pass (33 by default; SeedVR2 pads a pass to 4n+1 frames and crops the padding back) and the passes are piped into one H.264 encode with the source's sound, so a long clip no longer needs the whole film in memory (the template is capped at 20 s). The frames are first scaled so the shorter edge is shortSide px. Each pass is restored on its own: there is no temporal context across a pass boundary, so a seam every framesPerBatch frames is possible."
+      "notes": "Restores through the numz pack instead of the core SeedVR2 nodes: the pack reads its own VAE and DiT (SeedVR2LoadVAEModel / SeedVR2LoadDiTModel, models/SEEDVR2, fetched from numz/SeedVR2_comfyUI if absent) and encodes, restores and decodes a pass inside SeedVR2VideoUpscaler. Core VAEEncodeTiled does not work with this VAE — on ComfyUI 0.43.1 it asks the loaded object for handles_tiling / format_encoded, which a SeedVR2 VAE does not have, and the run dies there (t44057a9a, measured). The graph is still chunked: framesPerBatch frames per pass (33 by default; SeedVR2 pads a pass to 4n+1 frames and crops the padding back inside the node), piped into one H.264 encode with the source's sound, so a long clip no longer needs the whole film in memory (the template is capped at 20 s). shortSide is the target: the pack scales so the shorter edge is shortSide px and never passes max_resolution (3840). Measured on this server: 124 frames at 1080x1080 in one pass, 125.8 s. Each pass is restored on its own — there is no temporal context across a pass boundary, so a seam every framesPerBatch frames is possible."
     },
     {
       "id": "video-export-pro-chunked",
