@@ -14,6 +14,8 @@ export async function register() {
   ensureAuthStore();
   const { ensureRunner } = await import("./server/generations");
   ensureRunner();
+  // What has been in the Trash for 30 days goes (then daily), and so do a run's files whose run row is gone and
+  // nothing else uses anymore (src/server/library.ts purgeDanglingAssets).
   const { ensureTrashPurge } = await import("./server/library");
   ensureTrashPurge();
   // Public sign-up: accounts' uploads leave after 14 days and their runs after 30 (then daily); a deleted account's files go.

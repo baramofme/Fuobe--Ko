@@ -14,7 +14,7 @@ process.env.COMFYUI_URL = "http://127.0.0.1:9";
 const { setSetting } = await import("@/server/settings");
 const gens = await import("@/server/generations");
 const lib = await import("@/server/library");
-const { saveFile, absolutePath, listAssets } = await import("@/server/storage");
+const { saveFile, absolutePath, listAssets, getAsset } = await import("@/server/storage");
 const { zipStream, zipSize } = await import("@/server/zip");
 const { TOOLS } = await import("@/server/assist/tools");
 const skills = await import("@/server/skills");
@@ -831,5 +831,76 @@ describe("ASSET_REFS", () => {
     // assetUses skips a table whose query fails (an older install), so a typo here would go unnoticed: prepare each one.
     for (const r of gens.ASSET_REFS) expect(() => db().prepare(gens.assetRefSql(r)).all({ id: "nothing-uses-this", g: "", max: 1 }), r.table).not.toThrow();
     expect(gens.ASSET_REFS.map((r) => r.table)).toEqual(expect.arrayContaining(["dub_sessions", "katana_jobs", "assist_project_sources", "layer_projects", "faceless_episodes"]));
+  });
+});
+
+describe("dangling files (purgeDanglingAssets)", () => {
+  // A run's row gone but its file kept: a delete that stopped before the files left, a database put back. The
+  // Trash join has nothing to hide it with, so the popups would keep offering a result with no run behind it.
+  // The sweep takes only what nothing names — judged again at every deletion — and never a file that is in use.
+  const lostRun = (prompt: string) => {
+    const f = made(prompt);
+    db().prepare("DELETE FROM generations WHERE id = ?").run(f.g.id);
+    return f;
+  };
+  const popupIds = () => listAssets({ limit: 500 }).map((x) => x.id);
+
+  it("takes the owner's dangling file nothing uses, out of the list and off the disk", () => {
+    const loose = lostRun("dangling nobody uses");
+    expect(popupIds()).toContain(loose.asset.id); // offered although its run is gone
+    const swept = lib.purgeDanglingAssets();
+    expect(swept.scanned).toBeGreaterThanOrEqual(1);
+    expect(swept.deleted).toBeGreaterThanOrEqual(1);
+    expect(getAsset(loose.asset.id)).toBeNull();
+    expect(fs.existsSync(fileOf(loose.asset.url))).toBe(false);
+    expect(popupIds()).not.toContain(loose.asset.id);
+  });
+
+  it("never takes a dangling file a canvas, a restorable run or a held check still names", () => {
+    const onBoard = lostRun("a canvas keeps this");
+    const keptByTrash = lostRun("a trashed run asked for this");
+    const held = lostRun("held for its check");
+    const now = Date.now();
+    db()
+      .prepare("INSERT INTO canvases (id, name, graph_json, created_at, updated_at) VALUES ('c-dangling', 'Board', ?, ?, ?)")
+      .run(JSON.stringify({ nodes: [{ id: "n1", data: { url: onBoard.asset.url } }], edges: [] }), now, now);
+    // A run in the Trash can still come back, and its request names the other file: Restore would need it.
+    const restorable = made("restorable run");
+    db()
+      .prepare("UPDATE generations SET request_json = ? WHERE id = ?")
+      .run(JSON.stringify({ feature: "grade", modelId: "local-color-grade", op: "grade", prompt: `reuse ${keptByTrash.asset.url}`, inputs: {} }), restorable.g.id);
+    lib.trashGenerations([restorable.g.id]);
+    db().prepare("UPDATE assets SET held = 1 WHERE id = ?").run(held.asset.id);
+    expect(gens.assetInUse(onBoard.asset.id)).toBe(true);
+    expect(gens.assetInUse(keptByTrash.asset.id)).toBe(true);
+    const swept = lib.purgeDanglingAssets();
+    expect(swept.kept).toBeGreaterThanOrEqual(2);
+    for (const f of [onBoard, keptByTrash, held]) {
+      expect(getAsset(f.asset.id), f.asset.id).not.toBeNull();
+      expect(fs.existsSync(fileOf(f.asset.url)), f.asset.id).toBe(true);
+    }
+    // The run in the Trash keeps its request, so Restore still has what it asked for.
+    lib.restoreGenerations([restorable.g.id]);
+    expect(gens.getGeneration(restorable.g.id)).not.toBeNull();
+  });
+
+  it("leaves uploads and an account's files to their own paths", () => {
+    const up = saveFile({ data: PNG, contentType: "image/png", source: "upload" });
+    const theirs = lostRun("another account's dangling result");
+    db().prepare("UPDATE assets SET account_id = 'acct-dangling' WHERE id = ?").run(theirs.asset.id);
+    lib.purgeDanglingAssets();
+    expect(getAsset(up.id)).not.toBeNull(); // an upload waits for the owner to delete it
+    expect(getAsset(theirs.asset.id)).not.toBeNull(); // an account's file goes by its own retention
+  });
+
+  it("leaves nothing the popups offer whose run is gone and that nothing uses", () => {
+    lib.purgeDanglingAssets();
+    for (const a of listAssets({ limit: 500 })) {
+      if (!a.generationId) continue; // an upload has no run to lose
+      const row = db().prepare("SELECT held FROM assets WHERE id = ?").get(a.id) as { held: number };
+      if (row.held) continue; // a file held for its check leaves by the check's own path (output-checks.ts), not this sweep
+      // What's offered either still has its run (a trashed one reads with includeDeleted) or something uses it.
+      expect(gens.getGeneration(a.generationId, { includeDeleted: true }) ?? (gens.assetInUse(a.id) ? "still used" : null), `${a.id}: offered, its run gone, nothing using it`).not.toBeNull();
+    }
   });
 });
