@@ -50,6 +50,7 @@ const { loadManifest, comfyProvider, onComputer, NO_WORKER_FOR_LANE } = await im
 const { loadIndex } = await import("@/server/gpu/index-file");
 const { allLanes } = await import("@/lib/lanes");
 const { POOL_WORDS } = await import("@/lib/relay");
+const { ENGINE_WORDS } = await import("@/lib/engine-error");
 const hosted = await import("@/server/hosted");
 const { withRunStamp } = await import("@/server/run-stamp");
 const { getModel } = await import("@/lib/catalog");
@@ -194,12 +195,26 @@ describe("classes", () => {
     standInWorker();
     const route = { provider: "comfyui", endpoint: loadManifest().workflows[0].id, op: "t2i" } as never;
     const submit = (gid: string) => onComputer("owner", () => comfyProvider.submit({ route, input: { prompt: "a lighthouse" } as never, generationId: gid } as never));
+    // The owner's runs as stored: a script's (a source) and a hands-on one (none).
+    const made = (gid: string, request: Record<string, unknown>) =>
+      db()
+        .prepare("INSERT INTO generations (id, feature, model_id, engine, provider, op, kind, status, request_json, outputs_json, created_at, updated_at) VALUES (?, 'image', 'm', 'open', 'comfyui', 't2i', 'image', 'queued', ?, '[]', ?, ?)")
+        .run(gid, JSON.stringify(request), Date.now(), Date.now());
+    made("owner-gen-1", { source: "batch" });
+    made("owner-gen-2", { source: "test" });
+    made("owner-gen-hands", {});
     const first = rowOf(String(((await submit("owner-gen-1")).meta as { relay: string }).relay));
     expect(first.class).toBe("owner");
     expect(first.account).toBeNull();
     expect(first.not_after).toBeNull();
+    // A hands-on run waits as a person's free run does (still the owner's: no account), with the owner's wait limit.
+    const hands = rowOf(String(((await submit("owner-gen-hands")).meta as { relay: string }).relay));
+    expect(hands.class).toBe("free");
+    expect(hands.account).toBeNull();
+    expect(hands.not_after).toBeNull();
     qs.saveQueueSettings({ ...qs.queueSettings(), ownerWaitLimitS: 3600 });
     const second = rowOf(String(((await submit("owner-gen-2")).meta as { relay: string }).relay));
+    expect(second.class).toBe("owner");
     expect(second.not_after! - second.created_at).toBeGreaterThanOrEqual(3600_000 - 1000);
     expect(second.not_after! - second.created_at).toBeLessThanOrEqual(3600_000 + 1000);
   });
@@ -459,7 +474,7 @@ describe("fair share", () => {
 });
 
 describe("the pick allowance", () => {
-  it("0 (the default): strict order whatever the worker has loaded; set, a loaded lane goes first while the best one is young", () => {
+  it("0 (the default): strict order whatever the worker has loaded; set, a loaded lane goes first among the owner's own jobs only", () => {
     const lanes = allLanes(loadIndex(), sha).map((l) => l.lane);
     const w = standInWorker();
     db().prepare("UPDATE relay_workers SET warm_lane = ?, switch_after_ms = ? WHERE id = ?").run(lanes[1], 60 * MIN, w.id);
@@ -472,12 +487,20 @@ describe("the pick allowance", () => {
     const old2 = lineTask({ account: accountId, agoMs: 5 * MIN, lane: lanes[0] });
     qs.saveQueueSettings({ ...qs.queueSettings(), pickAllowanceMs: 10 * MIN });
     db().prepare("UPDATE relay_workers SET warm_lane = ? WHERE id = ?").run(lanes[1], w.id);
+    // A warm lane never makes a person wait: people's runs keep their order, whatever lane is loaded.
+    expect(pool.workerClaim(workerRow(w), [])?.id).toBe(old2);
+    done(old2);
+    // Never across classes: the owner's job in the loaded lane waits behind a person's run in another.
+    const ownerWarm = lineTask({ agoMs: 1 * MIN, lane: lanes[1] });
+    db().prepare("UPDATE relay_workers SET warm_lane = ? WHERE id = ?").run(lanes[0], w.id);
     expect(pool.workerClaim(workerRow(w), [])?.id).toBe(warm);
     done(warm);
-    // Never across classes: the owner's job in the loaded lane waits behind a person's run in another.
-    lineTask({ agoMs: 1 * MIN, lane: lanes[1] });
+    // Among the owner's own jobs, the loaded lane goes first while the best one is young.
+    const ownerOld = lineTask({ agoMs: 5 * MIN, lane: lanes[0] });
     db().prepare("UPDATE relay_workers SET warm_lane = ? WHERE id = ?").run(lanes[1], w.id);
-    expect(pool.workerClaim(workerRow(w), [])?.id).toBe(old2);
+    expect(pool.workerClaim(workerRow(w), [])?.id).toBe(ownerWarm);
+    done(ownerWarm);
+    expect(pool.workerClaim(workerRow(w), [])?.id).toBe(ownerOld);
   });
 });
 
@@ -551,7 +574,7 @@ describe("the run ceiling", () => {
     beatAs(w);
     await tick();
     expect(getGeneration(id)?.status).toBe("failed");
-    expect(getGeneration(id)?.error).toBe(POOL_WORDS.failed);
+    expect(getGeneration(id)?.error).toBe(ENGINE_WORDS.timeout);
   });
 
   it("a job a worker gives back and takes again between two polls gets its whole time again", async () => {
@@ -580,7 +603,7 @@ describe("the run ceiling", () => {
     expect(g.progress).toBeNull();
   });
 
-  it("a worker with another model loaded: Working · getting ready until the first step reports; with its model loaded, Working at once", async () => {
+  it("a worker with another model loaded: Loading the model until the first step reports; with its model loaded, Working at once", async () => {
     const w = standInWorker();
     const { id, t } = await accountRun("getting ready");
     const lane = rowOf(t.id).lane!;
@@ -592,10 +615,10 @@ describe("the run ceiling", () => {
     tasks.report(rowOf(t.id), { event: "sent", promptId: first.promptId }, () => ({ error: "unused" }));
     await tick();
     expect(getGeneration(id)).toMatchObject({ status: "running", message: POOL_WORDS.gettingReady, progress: null });
-    // Its first step: the model is loaded.
+    // Its first step: the model is loaded, and its words say the step.
     tasks.report(rowOf(t.id), { event: "running", value: 1, max: 4 }, () => ({ error: "unused" }));
     await tick();
-    expect(getGeneration(id)?.message).toBe(POOL_WORDS.working);
+    expect(getGeneration(id)?.message).toBe("Working · Step 1 of 4");
     // Given back, and taken by a worker that has its model loaded: Working, with no getting ready.
     tasks.report(rowOf(t.id), { event: "give-back", why: "stalled" }, () => ({ error: "unused" }));
     beatWarm(lane);
@@ -603,6 +626,55 @@ describe("the run ceiling", () => {
     tasks.report(rowOf(t.id), { event: "sent", promptId: first.promptId }, () => ({ error: "unused" }));
     await tick();
     expect(getGeneration(id)).toMatchObject({ status: "running", message: POOL_WORDS.working });
+  });
+
+  it("taken cold, its share follows the stages: loading, the sampler's steps, then the last few percent; never backwards, never 100% before done", async () => {
+    const w = standInWorker();
+    const { id, t } = await accountRun("its share follows the stages");
+    pool.workerBeat(workerRow(w), pool.cleanBeat({ device: `wkr-${w.id}`, protocol: 3, version: "1", local: { paused: false, why: null, until: null }, gpu: {}, inventoryHash: null, running: [], stopped: [], catalogVersion: catalogVersion(), warmLane: "another-lane" }), Date.now());
+    const first = claimAs(w)!;
+    expect(first.id).toBe(t.id);
+    tasks.report(rowOf(t.id), { event: "sent", promptId: first.promptId }, () => ({ error: "unused" }));
+    // The run's plan: its graph's sampler, and the nodes after it.
+    const meta = JSON.parse((db().prepare("SELECT external_meta_json FROM generations WHERE id = ?").get(id) as { external_meta_json: string }).external_meta_json) as { plan: { nodes: number; samplers: string[]; after: number } };
+    expect(meta.plan.samplers.length).toBeGreaterThan(0);
+    const sampler = meta.plan.samplers[0];
+    const before = meta.plan.nodes - meta.plan.after;
+    const shares: number[] = [];
+    const look = async (r: Record<string, unknown>) => {
+      tasks.report(rowOf(t.id), { event: "running", ...r } as never, () => ({ error: "unused" }));
+      await tick();
+      const g = getGeneration(id)!;
+      expect(g.status).toBe("running");
+      shares.push(g.progress ?? 0);
+      return g;
+    };
+    // Its model loads while the nodes before the sampler start: a small share, under its words.
+    for (let n = 1; n < before; n++) {
+      const g = await look({ nodesDone: n, node: `load-${n}` });
+      expect(g.message).toBe(POOL_WORDS.gettingReady);
+      expect(g.progress ?? 0).toBeLessThanOrEqual(0.1);
+    }
+    // The sampler's steps: most of the bar, with the step in its words.
+    const at: number[] = [];
+    for (let v = 1; v <= 6; v++) {
+      const g = await look({ nodesDone: before, node: sampler, value: v, max: 6 });
+      expect(g.message).toBe(`Working · Step ${v} of 6`);
+      at.push(g.progress!);
+    }
+    expect(at[2]).toBeGreaterThan(0.45);
+    expect(at[2]).toBeLessThan(0.6);
+    // A late beat with the step before changes nothing.
+    await look({ nodesDone: before, value: 5, max: 6 });
+    // After the sampler: the decode and the file, the last few percent.
+    for (let k = 1; k <= meta.plan.after; k++) {
+      const g = await look({ nodesDone: before + k, node: `after-${k}` });
+      expect(g.message).toBe(POOL_WORDS.finishing);
+      expect(g.progress!).toBeGreaterThanOrEqual(0.9);
+      expect(g.progress!).toBeLessThanOrEqual(0.97);
+    }
+    for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeGreaterThanOrEqual(shares[i - 1]);
+    expect(Math.max(...shares)).toBeLessThan(1);
   });
 
   it("a poll that fails never ends a run in line by the runner's own wait, an account's or the owner's", async () => {
@@ -623,7 +695,9 @@ describe("the run ceiling", () => {
       await tick();
       await new Promise((res) => setTimeout(res, 20));
     }
-    expect(taskOf(ownerId)?.class).toBe("owner");
+    // Made in the browser, it is the owner's hands-on run: in line with people's runs.
+    expect(taskOf(ownerId)?.class).toBe("free");
+    expect(taskOf(ownerId)?.account).toBeNull();
     await tick();
     // By the runner's own count, both waited past every wait limit it knows (their tasks keep the real ones), and each
     // poll fails (the database is busy).
@@ -703,6 +777,15 @@ describe("GET and PATCH /api/admin/queue/settings", () => {
     db().prepare("INSERT INTO settings (key, value) VALUES ('queue.settings', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run("{not json");
     globalThis.__fuobeQueueSettings = undefined;
     expect(qs.queueSettings()).toEqual(qs.QUEUE_DEFAULTS);
+  });
+
+  it("a stored value with a setting this version doesn't know keeps the settings it knows", () => {
+    const stored = { runCeilingS: { default: 2700, lanes: { small: 7200 } }, ownerWaitLimitS: null, fairShare: false, pickAllowanceMs: 0, pausedBudgetS: 3600, retiredSetting: 5 };
+    db().prepare("INSERT INTO settings (key, value) VALUES ('queue.settings', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(JSON.stringify(stored));
+    globalThis.__fuobeQueueSettings = undefined;
+    const known: Record<string, unknown> = { ...stored };
+    delete known.retiredSetting;
+    expect(qs.queueSettings()).toEqual(known);
   });
 
   it("an admin token reads them with queue:read and changes them with queue:write", async () => {

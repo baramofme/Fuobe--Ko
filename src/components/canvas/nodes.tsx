@@ -64,8 +64,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { LanguageChip, SliderControls } from "@/components/studio/audio-controls";
 import { downloadName } from "@/components/studio/feed";
+import { RunAura, RunRing } from "@/components/studio/run-visuals";
+import { ModelTile } from "@/components/model3d/model-tile";
+import { preview3dOf } from "@/lib/preview3d";
 import { fileToSlot, type SlotValue } from "@/components/studio/media-slot";
 import { ControlsChip } from "@/components/studio/model-controls";
+import { FILM_LOOK_PARAM, takesFilmLooks } from "@/lib/film-looks";
 import { ModelPicker } from "@/components/studio/model-picker";
 import { ResponsivePanel } from "@/components/studio/responsive-panel";
 import { VoiceRecorder } from "@/components/studio/voice-recorder";
@@ -139,6 +143,7 @@ import { ExactOrbitControls } from "@/components/exact-orbit-controls";
 import { PATH_PRESETS } from "@/lib/camera-path";
 import { exactDefaults } from "@/lib/exact-orbit";
 import { EXAMPLE_FEATURE, NodeIcon, PORT_COLOR, useEditorActions, useEditorGlobals, useEditorSelector, useNodeResults, useNodeView, type EditorSnapshot, type NodeResults } from "./canvas-context";
+import { ElementThumb } from "@/components/element-thumb";
 
 /** A node on the board: a graph node, or a group, comment pin or drawing (./board.tsx). */
 export type FlowNode = Node<CanvasNodeData, CanvasNodeType | BoardType>;
@@ -516,6 +521,15 @@ function OutputThumb({ o, onOpen, className, large }: { o: OutputFile; onOpen: (
     );
   }
   if (o.kind === "model3d") {
+    // Its preview: the still, turning on hover (the viewer loads the model when it is opened).
+    const ready = preview3dOf(o);
+    if (ready) {
+      return (
+        <button onClick={onOpen} className={cn("block aspect-square w-full overflow-hidden rounded-lg", large ? "max-h-80" : "max-h-44", NO_DRAG, className)} aria-label="Open the 3D model">
+          <ModelTile preview={ready} fit />
+        </button>
+      );
+    }
     return (
       <button onClick={onOpen} className={cn("flex h-20 w-full items-center justify-center gap-2 rounded-lg bg-muted text-[12px] font-medium text-muted-foreground hover:text-foreground", NO_DRAG, className)}>
         <Box className="size-4" /> 3D model
@@ -558,11 +572,14 @@ function Results({ id, r, compact }: { id: string; r: NodeResults; compact?: boo
   if (r.state === "queued" || r.state === "running") {
     const pct = r.progress != null ? Math.round(r.progress * 100) : null;
     return (
-      <div className="relative overflow-hidden rounded-lg bg-muted" style={{ height: compact ? 56 : 96 }}>
-        <div className="skeleton-sweep absolute inset-0 animate-skeleton" />
+      <div className="relative overflow-hidden rounded-lg bg-muted" style={{ height: compact ? 56 : 96 }} data-stage={r.state === "queued" ? "in-line" : pct ? "creating" : "warming"}>
+        <RunAura />
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5">
-          <p className="shimmer-text animate-shimmer-text truncate text-[12px] font-medium">{r.message ?? (r.state === "queued" ? "Queued" : "Generating…")}</p>
-          {pct != null && <span className="font-mono text-[11px] text-muted-foreground">{pct}%</span>}
+          <p className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium">
+            <RunRing fraction={r.state === "running" && pct ? pct / 100 : null} stage={r.state === "queued" ? "in-line" : "creating"} />
+            <span className="truncate">{r.message ?? (r.state === "queued" ? "Queued" : "Generating…")}</span>
+          </p>
+          {pct != null && <span className="text-[11px] text-muted-foreground tabular-nums">{pct}%</span>}
         </div>
         {pct != null && <div className="absolute inset-x-0 top-0 h-0.5 bg-primary origin-left transition-transform duration-(--motion-slow) ease-standard" style={{ transform: `scaleX(${(pct) / 100})` }} />}
       </div>
@@ -705,6 +722,11 @@ function ModelOptions({ id, model, data, runOp, readOnly }: { id: string; model:
     );
   if (o.sliders?.length) items.push(<div key="sliders" className={NO_DRAG}><SlidersChip model={model} values={extra} onChange={setExtra} /></div>);
   if (o.controls?.length) items.push(<div key="controls" className={NO_DRAG}><ControlsChip controls={o.controls} values={extra} onChange={setExtra} op={op} /></div>);
+  // MOSS-Image's Film look, as in the Image studio (the server adds the look around the node's words).
+  if (takesFilmLooks(model) && (op ?? "t2i") === "t2i") {
+    const look = extra[FILM_LOOK_PARAM];
+    items.push(<div key="film" className={NO_DRAG}><FilmLookChip value={typeof look === "string" ? look : undefined} onChange={(v) => setExtra(FILM_LOOK_PARAM, v)} /></div>);
+  }
   // A value the node holds that its run makes differently (a model switch kept 2K; a template set 4K): said before the
   // run, with the value it is made at one tap away.
   const changes = op ? fittedSettings(model, op, { ...d, ...p }).changes : [];
@@ -1564,8 +1586,7 @@ function ElementList({ current, onPick }: { current?: string; onPick: (patch: Pa
           className={cn("flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-accent", e.id === current && "bg-brand-faint")}
         >
           <span className="size-8 shrink-0 overflow-hidden rounded-md bg-muted">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {e.references[0] && <img src={e.references[0]} alt="" className="size-full object-cover" />}
+            {e.references[0] && <ElementThumb src={e.references[0]} mark="small" className="size-full object-cover" />}
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-medium">{e.name}</span>
@@ -1589,8 +1610,7 @@ const ElementNode = memo(function ElementNode({ id, type, data, selected }: Node
         {data.handle ? (
           <div className="flex items-center gap-2.5">
             <span className="size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {data.preview && <img src={data.preview} alt="" className="size-full object-cover" />}
+              {data.preview && <ElementThumb src={data.preview} mark="small" className="size-full object-cover" />}
             </span>
             <span className="min-w-0">
               <span className="block truncate text-[13px] font-medium">{data.name ?? data.handle}</span>
@@ -1935,6 +1955,8 @@ const TableNode = memo(function TableNode({ id, data, selected }: NodeProps<Flow
 // Layout: boxes for a headline, a product, a price; the image model it feeds draws each in its place
 
 const LayoutEditor = dynamic(() => import("@/components/studio/layout-editor").then((m) => m.LayoutEditor));
+/** MOSS-Image's Film look picker: its own chunk, as in the Image studio. */
+const FilmLookChip = dynamic(() => import("@/components/studio/film-look-chip"));
 
 const LAYOUT_ASPECTS = ["1:1", "4:5", "3:4", "2:3", "9:16", "16:9", "3:2", "4:3"];
 const EMPTY_LAYOUT: LayoutDraft = { summary: { caption: "", meta: [], canvas: "single" }, items: [], aspect: "1:1" };

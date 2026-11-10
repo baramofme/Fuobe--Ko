@@ -4,6 +4,7 @@ import { Globe, Search } from "lucide-react";
 import { IntentLink } from "@/components/intent-link";
 import { PhoneNavButton } from "@/components/nav/phone-nav-button";
 import { useSearchPalette } from "@/components/nav/search-context";
+import { UpdateAvailable } from "@/components/update-available";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useI18n, type Lang } from "@/lib/i18n";
@@ -90,8 +91,11 @@ export function PhoneBar({ className }: { className?: string }) {
       >
         Fuobe
       </IntentLink>
-      <PhoneLangSelector className="ml-auto" />
-      <PhoneNavButton />
+      <div className="ml-auto flex items-center gap-1.5">
+        <PhoneLangSelector />
+        <UpdateAvailable />
+        <PhoneNavButton />
+      </div>
     </div>
   );
 }

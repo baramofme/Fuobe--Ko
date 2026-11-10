@@ -5,6 +5,7 @@
  * viewer's to give. Client-safe: the catalog (catalog.ts) checks every row with these same rules when it is built.
  */
 import { CHARACTER_SWAP } from "@/lib/catalog/character-swap";
+import { RESHOOT } from "@/lib/catalog/reshoot";
 import {
   ALL_FEATURES,
   decodeSetup,
@@ -51,6 +52,7 @@ export function partLimits(mode: GenjutsuMode, model?: string): { min: number; m
   if (mode === "character") return { min: CHARACTER_SWAP.minSeconds, max: CHARACTER_SWAP.maxSeconds };
   if (mode === "picture") return { min: OPENJUTSU_LIMITS.minSeconds, max: OPENJUTSU_LIMITS.maxSeconds };
   if (mode === "finish") return { min: 1, max: OPENJUTSU_LIMITS.coloursMaxSeconds };
+  if (mode === "reshoot") return { min: RESHOOT.minSeconds, max: RESHOOT.maxSeconds };
   return { min: GENJUTSU.minSeconds, max: GENJUTSU.maxSeconds };
 }
 
@@ -142,6 +144,11 @@ export function exampleSettings(r: GenjutsuRecipe, opts: { owner?: boolean } = {
 
 /** The example a viewer sees for a mode: the best one whose mode and features are open to them (none: no card). */
 export function exampleFor(examples: ModeExamples | undefined, mode: GenjutsuMode, open: FeatureCheck): GenjutsuExampleCard | undefined {
-  if (!modeOpen(mode, open)) return undefined;
-  return examples?.[mode]?.find((c) => c.load.needs.every(open));
+  return examplesOf(examples, mode, open)[0];
+}
+
+/** Every example of a mode this viewer may see, best first. */
+export function examplesOf(examples: ModeExamples | undefined, mode: GenjutsuMode, open: FeatureCheck): GenjutsuExampleCard[] {
+  if (!modeOpen(mode, open)) return [];
+  return examples?.[mode]?.filter((c) => c.load.needs.every(open)) ?? [];
 }

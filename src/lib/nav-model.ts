@@ -119,7 +119,20 @@ const newFor30Days = (added: string) => new Date(Date.parse(added) + 30 * 86_400
 const PAGES: NavEntry[] = [
   { id: "home", href: "/", label: "Home", what: "Start from words or a picture", kind: "home", goals: [], keywords: "start new creation home", icon: "Home", eager: true },
   { id: "new", href: NEW_CREATION_HREF, label: "New creation", what: "A fresh composer on Home", kind: "action", goals: [], keywords: "new creation start fresh blank compose", icon: "Plus" },
-  { id: "assist", href: "/assist", label: "Assist", what: "Plan it with an agent", kind: "create", goals: [], keywords: "agent chat plan assistant ai helper", icon: "MessageCircle", eager: true },
+  // Chat is Assist and Fuobe Chat in one: Assist's words find it, and Assist's pages count as it (activeEntry).
+  {
+    id: "chat",
+    href: "/chat",
+    label: "Chat",
+    short: "Chat",
+    what: "Talk, plan and write with AI",
+    kind: "create",
+    goals: [],
+    keywords: "chat talk advice ideas roleplay characters write ask brainstorm assist assistant agent plan planner helper ai skills memory scheduled",
+    icon: "MessagesSquare",
+    eager: true,
+    newUntil: newFor30Days("2026-11-07"),
+  },
   { id: "image", href: "/image", label: "Image", what: "Text to image", kind: "create", goals: [], keywords: "text to image picture photo generate", cover: "app-poster", icon: "ImageIcon", eager: true, popular: true },
   { id: "video", href: "/video", label: "Video", what: "Text or image to video", kind: "create", goals: ["film"], keywords: "text to video image to video animate clip", cover: "motion-fpv-drone", icon: "Video", eager: true, popular: true },
   { id: "edit", href: "/edit", label: "Edit", what: "Change a picture with words", kind: "create", goals: ["edit"], keywords: "edit image change photo retouch", cover: "app-relight", icon: "Wand2" },
@@ -127,7 +140,7 @@ const PAGES: NavEntry[] = [
   { id: "inpaint", href: "/inpaint", label: "Inpaint", what: "Paint over a part", kind: "create", goals: ["edit", "people"], keywords: "mask fill remove brush fix", cover: "app-change-background", icon: "Brush" },
   { id: "layers", href: "/layers", label: "Layers", what: "Split a picture into layers", kind: "create", goals: ["edit"], keywords: "layered psd split cutout", cover: "app-packshot", icon: "Layers2" },
   { id: "color-grade", href: "/color-grade", label: "Color grading", what: "Grade and match colors", kind: "create", goals: ["edit", "film"], keywords: "grade lut colour color", cover: "app-color-grading", icon: "SlidersHorizontal" },
-  { id: "canvas", href: "/canvas", label: "Canvas", what: "Wire models together", kind: "create", goals: [], keywords: "nodes flow workflow graph", icon: "Network" },
+  { id: "canvas", href: "/canvas", label: "Canvas", what: "Wire models together", kind: "create", goals: [], keywords: "nodes flow workflow graph", cover: "effect-pearl-earring", icon: "Network" },
   { id: "motions", href: "/motions", label: "Camera motions", what: "Crane and drone moves for any shot", kind: "presets", goals: ["film"], keywords: "camera moves presets dolly crane drone orbit", cover: "motion-crane-up", icon: "Film" },
   { id: "effects", href: "/effects", label: "Effects", what: "Cinematic effects from one photo", kind: "presets", goals: ["film", "social"], keywords: "vfx presets visual effects", cover: "effect-nature-bloom", icon: "Sparkles" },
   { id: "library", href: "/library", label: "All creations", what: "Everything you have made", kind: "library", goals: [], keywords: "library history results creations", icon: "Library", eager: true },
@@ -157,14 +170,18 @@ const PAGES: NavEntry[] = [
   },
 ];
 
-/** The launcher's studios (and Apps), column by column; each column's lead first. */
+/**
+ * The launcher's studios (and Apps), column by column; each column's lead first. The studios with no group (Motion
+ * control, Extend video, Reframe, Video tools, Character Swap, Genjutsu) live in Fuobe FX instead (FX_HOME,
+ * src/lib/fx-tools.ts): its menu, page and sidebar group list them.
+ */
 const STUDIOS: NavEntry[] = [
   // Film & video
   { id: "cinema", href: "/cinema", label: "Cinema Studio", short: "Cinema", what: "Direct shots like a film set", kind: "studio", group: "film", lead: true, goals: ["film"], keywords: "film director shots movie cinematic scene", cover: "motion-arc-left", icon: "Clapperboard", popular: true },
   { id: "storyboard", href: "/storyboard", label: "Storyboard", short: "Storyboard", what: "Plan a film frame by frame", kind: "studio", group: "film", goals: ["film"], keywords: "frames story plan shots", cover: "app-shots", icon: "GalleryHorizontal" },
-  { id: "motion-control", href: "/motion-control", label: "Motion control", short: "Motion", what: "Copy any dance or pose", kind: "studio", group: "film", goals: ["film", "people"], keywords: "pose dance transfer choreography", cover: "motion-static", icon: "PersonStanding" },
-  { id: "extend", href: "/extend", label: "Extend video", short: "Extend", what: "Make a clip longer", kind: "studio", group: "film", goals: ["film", "edit"], keywords: "longer continue lengthen", cover: "motion-aerial-pullback", icon: "FastForward" },
-  { id: "reframe", href: "/reframe", label: "Reframe", short: "Reframe", what: "Any shape, vertical first", kind: "studio", group: "film", goals: ["film", "social", "edit"], keywords: "aspect ratio outpaint vertical crop resize", cover: "app-expand-image", icon: "Crop" },
+  { id: "motion-control", href: "/motion-control", label: "Motion control", short: "Motion", what: "Copy any dance or pose", kind: "studio", goals: ["film", "people"], keywords: "pose dance transfer choreography", cover: "motion-static", icon: "PersonStanding" },
+  { id: "extend", href: "/extend", label: "Extend video", short: "Extend", what: "Make a clip longer", kind: "studio", goals: ["film", "edit"], keywords: "longer continue lengthen", cover: "motion-aerial-pullback", icon: "FastForward" },
+  { id: "reframe", href: "/reframe", label: "Reframe", short: "Reframe", what: "Any shape, vertical first", kind: "studio", goals: ["film", "social", "edit"], keywords: "aspect ratio outpaint vertical crop resize", cover: "app-expand-image", icon: "Crop" },
   { id: "video-edit", href: "/video-edit", label: "Edit video", short: "Edit video", what: "Restyle a clip with words", kind: "studio", group: "film", goals: ["film", "edit"], keywords: "video edit restyle change clip", cover: "effect-outfit-switch", icon: "Scissors" },
   { id: "katana", href: "/katana", label: "Katana", short: "Katana", what: "Cut clips into a story", kind: "studio", group: "film", goals: ["film"], keywords: "cut edit clips timeline montage", cover: "app-clipcut", icon: "Swords" },
   {
@@ -174,7 +191,6 @@ const STUDIOS: NavEntry[] = [
     short: "Video tools",
     what: "Trim, matte, depth, captions",
     kind: "studio",
-    group: "film",
     goals: ["film", "edit"],
     keywords: "join trim matte depth captions evolution remove object restore colourise colorize archive old footage black and white",
     cover: "app-video-background-remover",
@@ -205,14 +221,13 @@ const STUDIOS: NavEntry[] = [
     short: "Character swap",
     what: "Swap the star of a clip",
     kind: "studio",
-    group: "people",
     goals: ["people", "edit", "film"],
     keywords: "h3 akatz swap character whole clip shots segments takes",
     cover: "app-character-swap",
     icon: "Drama",
     newUntil: newFor30Days("2026-10-27"),
   },
-  { id: "genjutsu", href: "/genjutsu", label: "Genjutsu", short: "Genjutsu", what: "Insert or swap anyone", kind: "studio", group: "people", goals: ["people", "edit"], keywords: "swap insert character motion transfer", cover: "genjutsu-group-swap", icon: "WandSparkles", newUntil: newFor30Days("2026-10-23") },
+  { id: "genjutsu", href: "/genjutsu", label: "Genjutsu", short: "Genjutsu", what: "Insert or swap anyone", kind: "studio", goals: ["people", "edit"], keywords: "swap insert character motion transfer", cover: "genjutsu-group-swap", icon: "WandSparkles", newUntil: newFor30Days("2026-10-23") },
   { id: "elements", href: "/elements", label: "Elements", short: "Elements", what: "Your people, places, props", kind: "studio", group: "people", goals: ["people", "film"], keywords: "characters places props", cover: "app-figurine", icon: "AtSign" },
   // Sound (the Audio studio leads; its main modes follow it, from HUB_TOOLS)
   {
@@ -317,8 +332,9 @@ const SUB_TOOLS: NavEntry[] = [
   { id: "marketing-click-to-ad", href: "/marketing/click-to-ad", label: "Click to Ad", what: "From a product link to an ad", kind: "tool", goals: [], keywords: "product link url to ad shop page amazon", icon: "Megaphone", parent: "marketing" },
   // A tab of Marketing Studio's suite (Marketing Studio · Click to Ad · Ads Studio · Ad Multiplier), so its studio is that one.
   { id: "ads-multiplier", href: "/ads/multiplier", label: "Ad Multiplier", what: "One ad in many versions", kind: "tool", goals: [], keywords: "variations versions sizes multiply ads studio", icon: "Target", parent: "marketing" },
-  { id: "assist-skills", href: "/assist/skills", label: "Skills", what: "Reusable recipes", kind: "tool", goals: [], keywords: "skill recipe playbook automation", icon: "MessageCircle", parent: "assist" },
+  { id: "chat-skills", href: "/chat/skills", label: "Skills", what: "Reusable recipes", kind: "tool", goals: [], keywords: "skill recipe playbook automation assist", icon: "MessagesSquare", parent: "chat" },
   // An app with a page of its own that Create lists: a tool of Apps, so the bar marks Apps on its page.
+  { id: "body-double", href: "/apps/app-body-double", label: "Body Double", what: "A 3D body for every person", kind: "tool", goals: ["people", "film"], keywords: "body pose 3d mocap motion capture skeleton mesh webcam live camera dance", cover: "app-body-double", icon: "PersonStanding", parent: "apps" },
   { id: "any-angle", href: "/apps/app-any-angle", label: "Any Angle", what: "See it from any angle", kind: "tool", goals: [], keywords: "angle rotate turn view camera viewpoint orbit 3d", cover: "app-any-angle", icon: "Rotate3d", parent: "apps" },
 ];
 
@@ -339,7 +355,7 @@ const feature = (parent: string, icon: NavIconName, id: string, href: string, la
 /**
  * The modes and tabs inside the studios that have no page of their own, each opened by its link (?mode=, ?tab=):
  * Genjutsu (src/lib/catalog/genjutsu.ts), Character Sheet, Image to 3D (src/lib/av/model3d.ts), Photodump, Cinema
- * Studio, Canvas and Assist. Labels are the studio's own (a test holds them to it).
+ * Studio, Canvas and Chat (Assist's pages). Labels are the studio's own (a test holds them to it).
  */
 const STUDIO_FEATURES: NavEntry[] = [
   ...(
@@ -353,6 +369,7 @@ const STUDIO_FEATURES: NavEntry[] = [
   ).map(([id, label, what, kw]) => feature("genjutsu", "WandSparkles", id, `/genjutsu?mode=${id}`, label, what, kw)),
   feature("genjutsu", "WandSparkles", "picture", "/genjutsu?mode=picture", "From picture", "Your picture's setting, moving", "from picture photo setting animate motion"),
   feature("genjutsu", "WandSparkles", "finish", "/genjutsu?mode=finish", "Finish", "Fix faces and colours", "finish fix faces colours colors", FINISH_OPEN ? undefined : OWNER),
+  feature("genjutsu", "WandSparkles", "reshoot", "/genjutsu?mode=reshoot", "Fuobe Reshoot", "Same shot, anything you change", "reshoot remake recast swap edit outfit weather same shot change"),
   ...(
     [
       ["reference", "From Reference", "A sheet from your photos", "reference photo upload face sheet"],
@@ -371,9 +388,9 @@ const STUDIO_FEATURES: NavEntry[] = [
   ).map(([id, label, what, kw]) => feature("image-to-3d", "Box", id, `/image-to-3d?mode=${id}`, label, what, kw)),
   feature("photodump", "Camera", "instadump", "/photodump?tab=instadump", "From a selfie", "A photo pack from one selfie", "instadump selfie one photo pack instagram"),
   feature("cinema", "Clapperboard", "blockout", "/cinema?blockout=1", "Blockout", "Block a scene out in 3D", "blockout block out 3d layout previs scene"),
-  feature("canvas", "Network", "skills", "/canvas?tab=skills", "Skills as canvases", "Assist's skills, drawn as boards", "skills recipes boards assist canvas", OWNER),
-  feature("assist", "MessageCircle", "memory", "/assist/memory", "Memory", "What Assist remembers", "memory remember facts notes", OWNER),
-  feature("assist", "MessageCircle", "scheduled", "/assist/scheduled", "Scheduled", "Tasks that run on a schedule", "scheduled schedule recurring tasks", OWNER),
+  feature("canvas", "Network", "skills", "/canvas?tab=skills", "Skills as canvases", "Chat's skills, drawn as boards", "skills recipes boards assist chat canvas", OWNER),
+  feature("chat", "MessagesSquare", "memory", "/chat/memory", "Memory", "What Chat remembers", "memory remember facts notes assist", OWNER),
+  feature("chat", "MessagesSquare", "scheduled", "/chat/scheduled", "Scheduled", "Tasks that run on a schedule", "scheduled schedule recurring tasks assist", OWNER),
 ];
 
 /** The pages that show everything one of the bar's menus holds (src/lib/nav-areas.ts lays them out). */
@@ -381,6 +398,17 @@ const AREA_PAGES: NavEntry[] = [
   { id: "area-create", href: "/create", label: "All of Create", what: "Every way to make or edit", kind: "area", goals: [], keywords: "create make edit tools all overview", icon: "Sparkles" },
   { id: "area-studios", href: "/studios", label: "All studios", what: "Every studio, with previews", kind: "area", goals: [], keywords: "studios all overview every studio", icon: "LayoutGrid" },
   { id: "area-motions", href: "/motions-and-effects", label: "Motions & effects", what: "Camera moves and effects", kind: "area", goals: [], keywords: "motions effects camera moves vfx presets overview", icon: "Film" },
+  {
+    id: "area-fx",
+    href: "/fx",
+    label: "Fuobe FX",
+    what: "Tools for FX artists and teams",
+    kind: "area",
+    goals: [],
+    keywords:
+      "fx vfx visual effects compositing comp compositor roto rotoscope rotoscoping matte mattes alpha key keying green screen clean plate plate cleanup paint out removal depth pass passes exr hdr relight retime frame interpolation upscale recast replace pipeline post production artist team",
+    icon: "Aperture",
+  },
 ];
 
 /**
@@ -421,6 +449,7 @@ const CARD_LINES: Record<string, string> = {
   "audio-sfx": "Any sound effect from a few words.",
   "audio-translate": "Your video, dubbed into another language.",
   "audio-clean": "Remove noise and echo from any voice.",
+  "audio-video": "Sound effects and room tone made to fit your clip.",
 };
 
 /**
@@ -485,7 +514,7 @@ export const NAV_ENTRIES: readonly NavEntry[] = [...PAGES, ...STUDIOS, ...HUB_TO
  * starts from them). Storyboard plans a film, so it sits with Make (its card is in the launcher's Film column).
  */
 export const CREATE_COLUMNS = [
-  { label: "Make", ids: ["image", "video", "assist", "canvas", "storyboard"] },
+  { label: "Make", ids: ["image", "video", "chat", "canvas", "storyboard"] },
   { label: "Edit a picture", ids: ["edit", "live-edit", "inpaint", "layers", "color-grade"] },
 ] as const;
 
@@ -714,7 +743,7 @@ const hubTools = (hub: HubKind, skip: readonly string[] = []) => HUB_MODES[hub].
 export const STUDIO_SUBS: Readonly<Record<string, StudioSubs>> = {
   marketing: { ids: ["marketing-click-to-ad", "ads", "ads-multiplier"] },
   // Its mode ids built here: one of them written out whole is also a retired model id (catalog/replaced.ts).
-  genjutsu: { ids: ["motion", "character", "swap", "restyle", "insert", "picture", "finish"].map((m) => `genjutsu-${m}`), tall: 800, short: "line", ownerTall: 880 },
+  genjutsu: { ids: ["motion", "character", "swap", "restyle", "insert", "picture", "finish", "reshoot"].map((m) => `genjutsu-${m}`), tall: 800, short: "line", ownerTall: 880 },
   // The modes that aren't rows of the Sound column already.
   audio: { ids: hubTools("audio", SOUND_COLUMN), menu: 3 },
   upscale: { ids: hubTools("upscale") },
@@ -724,7 +753,7 @@ export const STUDIO_SUBS: Readonly<Record<string, StudioSubs>> = {
   "character-sheet": { ids: ["character-sheet-reference", "character-sheet-cast", "character-sheet-describe"], menu: 0 },
   cinema: { ids: ["cinema-blockout"], menu: 0 },
   canvas: { ids: ["canvas-skills"] },
-  assist: { ids: ["assist-skills", "assist-memory", "assist-scheduled"] },
+  chat: { ids: ["chat-skills", "chat-memory", "chat-scheduled"] },
 };
 
 /**
@@ -810,6 +839,8 @@ export function goalBand(id: GoalId, kind: ViewerKind | undefined): { goal: Goal
 /** Entries that are pages of their own (no actions, no settings sections, nothing off the site). */
 const ROUTES = NAV_ENTRIES.filter((e) => e.kind !== "tool" && e.kind !== "action" && e.href.startsWith("/") && !e.href.includes("#"));
 const ROUTE_HREFS = ROUTES.map((e) => e.href);
+/** /assist and every page under it. */
+const ASSIST_PATH = /^\/assist(?:\/|$)/;
 
 /**
  * The page the path is on: the entry whose link matches best (navActive, with every other page as a sibling, so
@@ -817,6 +848,8 @@ const ROUTE_HREFS = ROUTES.map((e) => e.href);
  * pages count as the studio (/audio/clean is Audio, /marketing/click-to-ad is Marketing Studio).
  */
 export function activeEntry(pathname: string, search: URLSearchParams): NavEntry | undefined {
+  // Assist's pages, while they still answer, are Chat's (Assist became Chat): the bar and the tabs mark Chat there.
+  if (ASSIST_PATH.test(pathname)) return byId.get("chat");
   let best: NavEntry | undefined;
   for (const e of ROUTES) {
     if (!navActive(e.href, pathname, search, ROUTE_HREFS)) continue;

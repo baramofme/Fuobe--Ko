@@ -1,10 +1,12 @@
 import "server-only";
 import { getModel } from "@/lib/catalog";
 import { computeDimensions, fitCanvas } from "@/lib/comfy";
+import { requestWorkflowId } from "@/lib/comfy-variants";
 import { h3Canvas, isH3Graph } from "@/lib/h3-prompt";
 import { imageSize } from "@/lib/image-size";
 import type { GenerationRequest } from "@/lib/catalog/types";
 import type { Place } from "@/lib/place-name";
+import { runtimeNeeds } from "@/lib/runtime-files";
 import { billingConfigured, type Policy, type QueueFacts, type RunFacts } from "./billing";
 import { lineFacts, poolLane, queueOfGeneration, workersAway, workersCanRun, workersMost, type LinePlace } from "./computer/pool";
 import { db } from "./db";
@@ -14,7 +16,8 @@ import { holdOf, NOT_HELD, type HoldReason } from "./pool-holds";
 import { poolRunCounts } from "./pool-limits";
 import { getWorkflow, installComfyLocal, onInstallComfy, workerFor, workersTake } from "./providers/comfyui";
 import { getSetting, withCandidates } from "./settings";
-import { localHead, storedMedia } from "./storage";
+import { modelFormat, modelTaken } from "./model-input";
+import { contentTypeFor, localHead, storedMedia } from "./storage";
 import { runAsTenant } from "./tenant";
 
 /**
@@ -84,6 +87,25 @@ export function poolTakes(endpoint: string | undefined): boolean {
   if (!endpoint.includes("{")) return workersCanRun(endpoint);
   const picks = workflowPicks(endpoint);
   return picks.length > 0 && picks.every((id) => workersCanRun(id));
+}
+
+/**
+ * Has a worker that may run this workflow verified every run-time file a run of it loads (`names`: the LoRA files it adds
+ * beyond its workflow's own, src/lib/runtime-files.ts)? A file with no pin (a person's own LoRA) no worker can verify. A
+ * workflow that picks its graph at run time: every graph it may pick. No such files, or not on the workers (this install's
+ * own ComfyUI downloads into its own LoRA folder, or says what it lacks): yes.
+ */
+export function poolHasFiles(endpoint: string | undefined, names: readonly string[]): boolean {
+  if (!endpoint || !names.length || !poolOnWorkers()) return true;
+  const index = loadIndex();
+  const picks = endpoint.includes("{") ? workflowPicks(endpoint) : [endpoint];
+  return (
+    picks.length > 0 &&
+    picks.every((id) => {
+      const r = runtimeNeeds(names, index, id);
+      return !r.unknown.length && (!r.files.length || workersCanRun(id, { files: r.files }));
+    })
+  );
 }
 
 /** The size of one job, as a PC's ceiling reads it: its pictures' or frames' megapixels, a clip's seconds, its results. */
@@ -176,17 +198,18 @@ export function runOnPool<T>(accountId: string | null, fn: () => T): T {
  * Words for runs on this install's GPUs, with the name visitors read for them (`place`, src/server/place-name.ts). Every
  * sentence fits any name: no verb agrees with it.
  *
- * What these GPUs don't run is a label, never a refusal: the price slot says where it runs ("Runs on your own GPU"), its
+ * What these GPUs don't run is a label, never a refusal: the price slot says where it runs ("Self-hosted"), its
  * tooltip says what to do (hostedDetails), and Run opens the way there (Connect your GPU, or a guest's sign-up). The
  * same labels for a guest and an account.
  */
 export function hostedWords(place: Place) {
   return {
-    notOffered: "Runs on your own GPU",
-    loras: "LoRAs run on your own GPU",
-    inputs: "This file runs on your own GPU",
-    rtxCard: "Runs on your own RTX GPU",
-    size: "This size runs on your own GPU",
+    notOffered: "Self-hosted",
+    loras: "LoRAs run self-hosted",
+    files: "This style runs self-hosted",
+    inputs: "This file runs self-hosted",
+    rtxCard: "Self-hosted · RTX GPU",
+    size: "This size runs self-hosted",
     notHosted: `Your account can't run on ${place.text} right now. Your own GPU or key still works.`,
   };
 }
@@ -199,6 +222,7 @@ export function hostedDetails(place: Place, most?: string | null) {
   return {
     notOffered: "Connect your GPU to run this one, or pick another model.",
     loras: "Connect your GPU to use them, or run without them.",
+    files: "Connect your GPU to use this style, or pick another one.",
     inputs: "Connect your GPU to use it, or use a picture.",
     rtxCard: "This one needs an NVIDIA RTX card.",
     size: `${most ? `Up to ${most} on ${place.text}. ` : ""}Pick a smaller size, or run it on your own GPU.`,
@@ -207,8 +231,8 @@ export function hostedDetails(place: Place, most?: string | null) {
 
 /** The labels for a guest: the same as an account's (Run opens the sign-up for that label). */
 export function hostedGuestWords() {
-  const { notOffered, rtxCard, loras, inputs, size } = hostedWords({ label: "", text: "" });
-  return { notOffered, rtxCard, loras, inputs, size };
+  const { notOffered, rtxCard, loras, files, inputs, size } = hostedWords({ label: "", text: "" });
+  return { notOffered, rtxCard, loras, files, inputs, size };
 }
 
 /**
@@ -253,6 +277,42 @@ export function inputCounts(req: GenerationRequest): { image: number; video: num
   return { image, video, audio };
 }
 
+/** A kind of file a run sends to this install's GPUs. */
+export type FileKind = "image" | "video" | "audio" | "model3d" | "file";
+
+/** The kind of a stored file, data: URI or example a run names: a 3D file an account may send them, or another file. */
+export function refKind(ref: string): FileKind {
+  const type = ref.startsWith("data:") ? (/^data:([^;,]*)/.exec(ref)?.[1] ?? "") : contentTypeFor(ref.split(/[?#]/)[0], "");
+  const t = type.toLowerCase();
+  const model = modelFormat(t, ref.split(/[?#]/)[0]);
+  if (model) return modelTaken(model, true) ? "model3d" : "file";
+  if (t === "image/x-exr" || t === "image/aces") return "file";
+  return t.startsWith("image/") ? "image" : t.startsWith("video/") ? "video" : t.startsWith("audio/") ? "audio" : "file";
+}
+
+/** Every kind of file a request reads: its inputs and the files its params.extra names. */
+export function requestFileKinds(req: Pick<GenerationRequest, "inputs" | "params">): FileKind[] {
+  const out = new Set<FileKind>();
+  const c = inputCounts(req as GenerationRequest);
+  for (const k of ["image", "video", "audio"] as const) if (c[k]) out.add(k);
+  if (typeof req.inputs?.model3d === "string" && req.inputs.model3d) out.add(refKind(req.inputs.model3d));
+  for (const v of Object.values(req.params?.extra ?? {})) {
+    for (const x of typeof v === "string" ? [v] : Array.isArray(v) ? v : []) if (typeof x === "string" && /^(data:|\/api\/files\/)/.test(x)) out.add(refKind(x));
+  }
+  return [...out];
+}
+
+/**
+ * Do this install's GPUs take a kind of file: a picture, clip or sound as the policy's uploads and the workers allow (a
+ * file an earlier step made: as the workers allow, `p` left out), a 3D file always (checked by its bytes), and no other
+ * kind on the workers.
+ */
+export function poolTakesKind(kind: FileKind, p?: Pick<Policy, "uploads"> | null): boolean {
+  if (kind === "model3d") return true;
+  if (kind === "file") return !poolOnWorkers();
+  return p ? poolUploads(p)[kind] : poolTakesFiles(kind);
+}
+
 /** The pool's one lane while this install's GPUs are its own ComfyUI server. */
 export const POOL_LANE = "comfyui";
 
@@ -261,13 +321,13 @@ const POOL_ROWS = "json_extract(g.request_json, '$.place') = 'pool' AND g.status
 
 /**
  * How long a run on this install's GPUs may wait in line: the limit stamped on it (the policy's or the billing service's;
- * 0: as long as it takes), else FUOBE_POOL_WAIT_MIN (30).
+ * 0: as long as it takes), else FUOBE_POOL_WAIT_MIN, else as long as it takes (it stays in line and starts by itself).
  */
 export function poolWaitMs(stamped?: number): number {
   if (stamped === 0) return Infinity;
   if (stamped && stamped > 0) return stamped;
   const m = Number(process.env.FUOBE_POOL_WAIT_MIN);
-  return (Number.isFinite(m) && m > 0 ? m : 30) * 60_000;
+  return Number.isFinite(m) && m > 0 ? m * 60_000 : Infinity;
 }
 
 /** A typical run's time on this install's GPUs (the median of the last 20 that finished), or null before any. */
@@ -322,9 +382,20 @@ export function queueFacts(accountId: string | null, workflowId?: string | null)
  * starts when a GPU is free). Behind the account's runs going: about when it would be ready, when known (when the first
  * of them is due done, plus a new run's wait now). Until a time: that time. Null when the row isn't held.
  */
-export function heldLine(generationId: string, now = Date.now()): (LinePlace & { held: HoldReason; startAt?: number; paused?: true }) | null {
+export function heldLine(generationId: string, now = Date.now()): (LinePlace & { held: HoldReason; startAt?: number; paused?: true; waitsFor?: string }) | null {
   const h = holdOf(generationId);
   if (!h) return null;
+  // Held until the service says ready: its card's title on the tile ("<title> · starts by itself").
+  if (h.ready_json) {
+    let title = "One more step";
+    try {
+      const c = JSON.parse(h.ready_json) as { title?: unknown };
+      if (typeof c.title === "string" && c.title) title = c.title;
+    } catch {
+      // the plain words
+    }
+    return { place: 1, etaSeconds: null, held: h.reason, waitsFor: title };
+  }
   const startAt = h.start_at !== null && h.start_at > now ? h.start_at : undefined;
   const base = { held: h.reason, ...(startAt !== undefined && { startAt }) };
   if (startAt !== undefined) return { place: 1, etaSeconds: null, ...base };
@@ -533,12 +604,27 @@ function stepsBeside(own: NonNullable<RunFacts["steps"]>[number], others: { mode
 /** The facts the billing service prices a run by (from a planned request: previewGeneration's answer). */
 export function runFacts(
   req: GenerationRequest,
-  p: { model: { id: string; kind: string; engine: "open" | "cloud" }; op: string; jobs: number; outputs: number; providerId: string; costUsd: number | null; loras: { applied: unknown[] }; route?: { endpoint?: string }; steps?: { model: string; op: string }[] },
+  p: {
+    model: { id: string; kind: string; engine: "open" | "cloud" };
+    op: string;
+    jobs: number;
+    outputs: number;
+    providerId: string;
+    costUsd: number | null;
+    loras: { applied: unknown[] };
+    route?: { endpoint?: string };
+    steps?: { model: string; op: string }[];
+    gpu?: string | null;
+    h3?: { gpuTier: string; unet?: string } | null;
+  },
   kind: RunFacts["kind"],
 ): RunFacts {
   const model = getModel(p.model.id);
   const endpoint = p.route?.endpoint;
   const lane = poolOnWorkers() && endpoint && !endpoint.includes("{") ? poolLane(endpoint) : POOL_LANE;
+  // The graph an open-engine run resolves to, its options' variant picked as the pre-flight and the provider pick it.
+  const graphs = p.model.engine === "open" && p.providerId === "comfyui" && endpoint ? loadIndex().workflows : null;
+  const workflow = graphs && endpoint ? requestWorkflowId(endpoint, req, { op: p.op, gpu: p.gpu ?? undefined, h3: p.h3 ?? undefined, has: (id) => !!graphs[id] }).id : null;
   return {
     place: "pool",
     model: p.model.id,
@@ -558,6 +644,7 @@ export function runFacts(
     inputs: inputCounts(req),
     lane,
     providerUsd: p.costUsd,
+    ...(workflow && { workflow }),
     // The run's other steps (a 2K take's finish), priced beside its own step as one run. A plan of every row the run
     // makes (hosted-run.ts pricedSteps) takes the place of this where there is one.
     ...(p.steps?.length && { steps: stepsBeside({ model: p.model.id, op: p.op || null, kind, jobs: p.jobs, lane }, p.steps) }),

@@ -536,6 +536,14 @@ export const NODE_PACKS: NodePack[] = [
     ...GPL,
     note: "H3 Relay 2.0 (Sendy Software LLC and contributors); GPL-3.0 code, vendored Context Loop and Spectrum GPL-3.0. Opt-in: it registers HTTP routes when it loads",
   }),
+  // Fuobe Reshoot: the node pack in Viggle's model repository (two Python files), pinned in packs.json and
+  // install-comfyui.sh (RESHOOT=1).
+  pack("ComfyUI-Viggle-Remake", "https://huggingface.co/Viggle/Viggle-Remake/tree/21665fa7a1e038e0a5312fb15f37b18d0f06f117/comfyui/ComfyUI-Viggle-Remake", {
+    name: "Apache-2.0",
+    class: "commercial",
+    url: SPDX("Apache-2.0"),
+    note: "Viggle Remake's nodes (Viggle AI): the clip, the painted frames and the soundtrack as MiniMax H3 conditioning, keyframes pinned at real frames; Apache-2.0 code. Powered by Viggle Remake (https://huggingface.co/Viggle/Viggle-Remake). The weights it runs are under the MiniMax H3 Community License",
+  }),
   // Genjutsu's Openjutsu modes (Group swap, Scene edit, From picture, Fix faces, Fix colours): pinned in packs.json and
   // install-comfyui.sh (OPENJUTSU_MODES=1). LICENSE files read at the pinned commits.
   pack("ComfyUI-MiniMaxH3-Context-Loop", "https://github.com/ethanfel/ComfyUI-MiniMaxH3-Context-Loop/tree/43afeffcc570beb5f7382593e79e4b211c7e02f6", {
@@ -664,6 +672,31 @@ export const NODE_PACKS: NodePack[] = [
     url: SPDX("MIT"),
     note: "Fuobe's own pack. The network code is adapted from NVIDIA's RE-USE repository (OpenMDW-1.1, notices kept), and the Mamba layer is a plain-PyTorch rewrite (no mamba-ssm). It matches the reference maths numerically, but it is not NVIDIA's code path",
   }),
+  // Body Double: InstantHMR for ComfyUI (loader and predictor; the SAM 3D Body nodes it feeds are ComfyUI's own).
+  pack("ComfyUI-InstantHMR", "https://github.com/workingprototype/Fuobe/tree/e4b74735062298af07bb931aed280a440d1b2958/comfy-nodes/ComfyUI-InstantHMR", {
+    name: "Apache-2.0",
+    class: "commercial",
+    url: SPDX("Apache-2.0"),
+    note: "Fuobe's pinned form of jtydhr88's InstantHMR nodes (only the loader and the predictor); Apache-2.0 code. The InstantHMR weights are under the SAM License: the nano to medium files are non-commercial (some training images are research-only), and instanthmr_medium_commercial allows commercial use under its terms. The MHR body model is Apache-2.0",
+  }),
+  // Body Double's own pack, in this repository at its pinned commit (comfy-nodes/ComfyUI-BodyDouble).
+  pack("ComfyUI-BodyDouble", "https://github.com/workingprototype/Fuobe/tree/26d386bdacb371d06aa2325ac1b90373a11ff6b7/comfy-nodes/ComfyUI-BodyDouble", {
+    name: "MIT",
+    class: "commercial",
+    url: SPDX("MIT"),
+    note: "Fuobe's own pack: lines each 3D body up with its person and draws the double over the whole outline from the picture's own geometry",
+  }),
+  // HyperFlow H3 Flash (MiniMax H3's GPU tier → Flash): Video Rebirth's GGUF loader and step schedule, on city96's GGUF ops.
+  pack("ComfyUI-HyperFlow-Flash", "https://github.com/Video-Rebirth/ComfyUI-HyperFlow-Flash/tree/20a22ab2b075f3c948eb5dba62637ff89fc0f363", {
+    ...GPL,
+    note: "Video Rebirth's HyperFlow H3 Flash nodes (GGUF loader and step schedule); GPL-3.0 code. The HyperFlow H3 Flash weights are a MiniMax H3 derivative under the MiniMax H3 Community License",
+  }),
+  pack("ComfyUI-GGUF", "https://github.com/city96/ComfyUI-GGUF/tree/6ea2651e7df66d7585f6ffee804b20e92fb38b8a", {
+    name: "Apache-2.0",
+    class: "commercial",
+    url: SPDX("Apache-2.0"),
+    note: "city96's GGUF loaders and dequantizing ops; Apache-2.0 code",
+  }),
   // NVIDIA RTX Video (Quick · RTX, RTX Frame Generation, RTX Video HDR): an NVIDIA RTX card only; installed on RTX hosts.
   pack("ComfyUI_Nvidia_VFX_Nodes", "https://github.com/Comfy-Org/ComfyUI_Nvidia_VFX_Nodes/tree/38d790ded00650681fa3645362efe28c8560cf40", {
     name: "Apache-2.0",
@@ -698,6 +731,19 @@ export interface Attribution {
 }
 
 export const ATTRIBUTIONS: Attribution[] = [
+  {
+    for: "Body Double Live",
+    text: "InstantHMR nano, by Mohamed Adjel, Kahina Chalabi and Vincent Bonnet (Naturalpad), run in the browser with ONNX Runtime Web",
+    licence: "SAM License",
+    url: "https://huggingface.co/momolesang/InstantHMR",
+    note: "The nano weights are for non-commercial use (some training images are research-only); the medium_commercial weights allow commercial use. The MHR body model is Apache-2.0.",
+  },
+  {
+    for: "Body Double Live",
+    text: "MediaPipe Tasks and the selfie multiclass segmentation model, copyright Google LLC: each frame's full outline, clothes and hair included",
+    licence: "Apache-2.0",
+    url: "https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter",
+  },
   {
     for: "Dialogue, music and effects separation",
     text: "Trained on the Divide and Remaster (DnR) v2 dataset by Darius Petermann, Gordon Wichern, Zhong-Qiu Wang and Jonathan Le Roux",

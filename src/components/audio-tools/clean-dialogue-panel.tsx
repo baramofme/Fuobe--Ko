@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Segmented } from "@/components/faceless/controls";
 import { Panel } from "@/components/av/tool-shell";
 import { useGeneration } from "@/components/av/use-generation";
+import { SoundAloneButton } from "@/components/av/sound-alone";
 import {
   BED_LEVELS,
   CLEANERS,
@@ -18,6 +19,8 @@ import {
   DEFAULT_CLEANER,
   OPEN_NOTE,
   RELATION_NOTE,
+  soundAloneHelps,
+  VEED_MAX_SECONDS,
   type BedLevel,
   type Cleaner,
 } from "@/lib/av/clean-dialogue";
@@ -53,6 +56,8 @@ export function CleanDialoguePanel({
   engine,
   blocker,
   onMixer,
+  onSoundAlone,
+  trim,
 }: {
   /** The soundtrack, once it's uploaded. */
   source: CleanSource | null;
@@ -62,6 +67,10 @@ export function CleanDialoguePanel({
   blocker: string | null;
   /** Switch to Split into stems (the mixer opens on the Clean dialogue preset). */
   onMixer: () => void;
+  /** Clean the video's sound alone instead (an MP3 made in the browser), when the video is too big for the cloud. */
+  onSoundAlone?: (file: { url: string; name: string }) => void;
+  /** The part of a longer source to clean, offered with the picker: the longest the cleaner takes (none: nothing to fit). */
+  trim?: (maxSeconds: number | undefined) => React.ReactNode;
 }) {
   // Words for this render: subscribing here re-renders the open engine's price line when the language switches.
   const { t: tr } = useI18n();
@@ -173,6 +182,8 @@ export function CleanDialoguePanel({
         </div>
       </Panel>
 
+      {/* VEED cleans up to 30 minutes: a longer source gets the part to clean offered (kept while the part uploads). */}
+      {engine === "cloud" && trim?.(cleaner === "veed" ? VEED_MAX_SECONDS : undefined)}
       <div className="space-y-2">
         {!blocker && !error && p && (
           <div className="space-y-1 text-[13px] text-muted-foreground" aria-live="polite">
@@ -200,6 +211,9 @@ export function CleanDialoguePanel({
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Clean it
           </Button>
         </div>
+        {source?.kind === "video" && engine === "cloud" && !blocker && soundAloneHelps(error) && onSoundAlone && (
+          <SoundAloneButton src={source.ref} name={source.name} label="Clean the sound alone (MP3)" onDone={onSoundAlone} />
+        )}
       </div>
 
       {g && (g.status === "queued" || g.status === "running") && (

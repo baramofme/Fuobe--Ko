@@ -2917,19 +2917,20 @@ export const CLOUD_MODELS: ModelDef[] = [
   },
   {
     "id": "wan-2-2-a14b-image-cloud",
-    "name": "Wan 2.2 A14B Image (hosted)",
+    "name": "Wan 2.2 A14B Image (hosted \u00b7 Wan 2.7)",
     "vendor": "Alibaba Wan",
     "family": "wan",
     "engine": "cloud",
     "kind": "image",
-    "tagline": "Open-weights Wan 2.2 stills that take Wan LoRAs",
+    "tagline": "Wan stills in the cloud, made by Wan 2.7 on fal; it takes no LoRAs",
     "routes": [
       {
         "op": "t2i",
         "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-a14b/text-to-image/lora",
+        "endpoint": "fal-ai/wan/v2.7/text-to-image",
         "map": {
           "negativePrompt": "negative_prompt",
+          "numOutputs": "num_images",
           "seed": "seed",
           "aspectRatio": {
             "key": "image_size",
@@ -2946,17 +2947,9 @@ export const CLOUD_MODELS: ModelDef[] = [
               "4:5": "portrait_4_3"
             }
           },
-          "loras": {
-            "shape": "items",
-            "key": "loras",
-            "range": {
-              "min": 0,
-              "max": 4
-            },
-            "transformer": "high",
-            "weightName": true
-          }
-        }
+          "promptMax": 2000
+        },
+        "note": "Wan 2.7 on fal \u00b7 no LoRAs"
       }
     ],
     "options": {
@@ -2973,20 +2966,16 @@ export const CLOUD_MODELS: ModelDef[] = [
         "21:9",
         "5:4",
         "4:5"
-      ]
-    },
-    "licence": {
-      "licence": "Apache-2.0",
-      "commercial": true,
-      "note": "Wan 2.1 / 2.2 weights are Apache-2.0",
-      "checked": "2026-10-23"
+      ],
+      "maxOutputs": 4
     },
     "defaults": {
       "aspectRatio": "16:9"
     },
     "pricing": {
       "unit": "image",
-      "usd": 0.05
+      "usd": 0.03,
+      "note": "per image (Wan 2.7 on fal)"
     }
   },
   {
@@ -8300,7 +8289,8 @@ export const CLOUD_MODELS: ModelDef[] = [
             "type": "number"
           },
           "promptMax": 50000
-        }
+        },
+        "endAlone": true
       },
       {
         "op": "flf2v",
@@ -8316,7 +8306,8 @@ export const CLOUD_MODELS: ModelDef[] = [
             "type": "number"
           },
           "promptMax": 50000
-        }
+        },
+        "endAlone": true
       },
       {
         "op": "ref2v",
@@ -8457,7 +8448,8 @@ export const CLOUD_MODELS: ModelDef[] = [
             "prompt_expansion_mode": "balanced"
           },
           "promptMax": 50000
-        }
+        },
+        "endAlone": true
       },
       {
         "op": "flf2v",
@@ -8483,7 +8475,8 @@ export const CLOUD_MODELS: ModelDef[] = [
             "prompt_expansion_mode": "balanced"
           },
           "promptMax": 50000
-        }
+        },
+        "endAlone": true
       },
       {
         "op": "ref2v",
@@ -9565,7 +9558,8 @@ export const CLOUD_MODELS: ModelDef[] = [
             "prompt_expansion_mode": "balanced"
           },
           "promptMax": 50000
-        }
+        },
+        "endAlone": true
       },
       {
         "op": "flf2v",
@@ -9591,7 +9585,8 @@ export const CLOUD_MODELS: ModelDef[] = [
             "prompt_expansion_mode": "balanced"
           },
           "promptMax": 50000
-        }
+        },
+        "endAlone": true
       }
     ],
     "options": {
@@ -10663,101 +10658,6 @@ export const CLOUD_MODELS: ModelDef[] = [
     "routes": [
       {
         "op": "t2v",
-        "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-a14b/text-to-video",
-        "map": {
-          "negativePrompt": "negative_prompt",
-          "seed": "seed",
-          "numFrames": {
-            "key": "num_frames",
-            "fps": 16,
-            "min": 17,
-            "max": 161,
-            "step": 4
-          },
-          "aspectRatio": {
-            "key": "aspect_ratio",
-            "accepts": [
-              "16:9",
-              "9:16",
-              "1:1"
-            ]
-          },
-          "resolution": {
-            "key": "resolution",
-            "accepts": [
-              "480p",
-              "580p",
-              "720p"
-            ]
-          },
-          "defaults": {
-            "interpolator_model": "none"
-          },
-          "loras": {
-            "shape": "items",
-            "key": "loras",
-            "range": {
-              "min": 0,
-              "max": 4
-            },
-            "transformer": "high",
-            "weightName": true
-          }
-        },
-        "loraEndpoint": "fal-ai/wan/v2.2-a14b/text-to-video/lora"
-      },
-      {
-        "op": "i2v",
-        "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-a14b/image-to-video",
-        "map": {
-          "negativePrompt": "negative_prompt",
-          "image": "image_url",
-          "endImage": "end_image_url",
-          "seed": "seed",
-          "numFrames": {
-            "key": "num_frames",
-            "fps": 16,
-            "min": 17,
-            "max": 161,
-            "step": 4
-          },
-          "aspectRatio": {
-            "key": "aspect_ratio",
-            "accepts": [
-              "auto",
-              "16:9",
-              "9:16",
-              "1:1"
-            ]
-          },
-          "resolution": {
-            "key": "resolution",
-            "accepts": [
-              "480p",
-              "580p",
-              "720p"
-            ]
-          },
-          "defaults": {
-            "interpolator_model": "none"
-          },
-          "loras": {
-            "shape": "items",
-            "key": "loras",
-            "range": {
-              "min": 0,
-              "max": 4
-            },
-            "transformer": "high",
-            "weightName": true
-          }
-        },
-        "loraEndpoint": "fal-ai/wan/v2.2-a14b/image-to-video/lora"
-      },
-      {
-        "op": "t2v",
         "provider": "replicate",
         "endpoint": "wan-video/wan-2.2-t2v-fast",
         "map": {
@@ -10836,28 +10736,57 @@ export const CLOUD_MODELS: ModelDef[] = [
             }
           }
         }
+      },
+      {
+        "op": "flf2v",
+        "provider": "replicate",
+        "endpoint": "wan-video/wan-2.2-i2v-fast",
+        "map": {
+          "image": "image",
+          "endImage": "last_image",
+          "seed": "seed",
+          "numFrames": {
+            "key": "num_frames",
+            "fps": 16,
+            "min": 81,
+            "max": 121,
+            "step": 4
+          },
+          "resolution": {
+            "key": "resolution",
+            "accepts": [
+              "480p",
+              "720p"
+            ]
+          },
+          "defaults": {
+            "interpolate_output": false
+          },
+          "loras": {
+            "shape": "experts",
+            "high": {
+              "weights": "lora_weights_transformer",
+              "scale": "lora_scale_transformer"
+            },
+            "low": {
+              "weights": "lora_weights_transformer_2",
+              "scale": "lora_scale_transformer_2"
+            }
+          }
+        }
       }
     ],
     "options": {
       "durations": [
-        3,
-        4,
-        5,
-        6,
-        8,
-        10
+        6
       ],
-      "negativePrompt": true,
       "seed": true,
       "aspectRatios": [
         "16:9",
-        "9:16",
-        "1:1",
-        "auto"
+        "9:16"
       ],
       "resolutions": [
         "480p",
-        "580p",
         "720p"
       ],
       "endFrame": true,
@@ -10871,19 +10800,17 @@ export const CLOUD_MODELS: ModelDef[] = [
     },
     "defaults": {
       "aspectRatio": "16:9",
-      "duration": 5,
+      "duration": 6,
       "resolution": "720p"
     },
     "pricing": {
-      "unit": "second",
-      "usd": 0.08,
-      "note": "720p on fal; 580p $0.06/s, 480p $0.04/s; with LoRAs $0.10/s",
+      "unit": "video",
+      "usd": 0.11,
+      "note": "per clip of 81 frames at 720p on Replicate ($0.10 from words); 480p $0.05",
       "byResolution": {
-        "720p": 0.08,
-        "580p": 0.06,
-        "480p": 0.04
-      },
-      "withLoras": 0.1
+        "720p": 0.11,
+        "480p": 0.05
+      }
     }
   },
   {
@@ -11870,58 +11797,6 @@ export const CLOUD_MODELS: ModelDef[] = [
     "pricing": {
       "unit": "second",
       "usd": 0.1
-    }
-  },
-  {
-    "id": "wan-vace-reframe",
-    "name": "Wan VACE Reframe (hosted)",
-    "vendor": "Alibaba Wan",
-    "family": "wan",
-    "engine": "cloud",
-    "kind": "video",
-    "tagline": "Open-weights reframe: outpaints the new edges with a prompt",
-    "routes": [
-      {
-        "op": "reframe",
-        "provider": "fal",
-        "endpoint": "fal-ai/wan-vace-14b/reframe",
-        "map": {
-          "negativePrompt": "negative_prompt",
-          "image": "first_frame_url",
-          "endImage": "last_frame_url",
-          "video": "video_url",
-          "seed": "seed",
-          "aspectRatio": "aspect_ratio",
-          "resolution": "resolution"
-        }
-      }
-    ],
-    "options": {
-      "negativePrompt": true,
-      "seed": true,
-      "endFrame": true,
-      "aspectRatios": [
-        "auto",
-        "16:9",
-        "1:1",
-        "9:16"
-      ],
-      "resolutions": [
-        "auto",
-        "240p",
-        "360p",
-        "480p",
-        "580p",
-        "720p"
-      ],
-      "maxImages": 1
-    },
-    "defaults": {
-      "aspectRatio": "9:16"
-    },
-    "pricing": {
-      "unit": "video",
-      "usd": 0.08
     }
   },
   {
@@ -19423,7 +19298,7 @@ export const CLOUD_MODELS: ModelDef[] = [
     "family": "wan",
     "engine": "cloud",
     "kind": "video",
-    "tagline": "Paint an area on the first frame: erase it, or swap or add something from a reference image",
+    "tagline": "Paint an area on the first frame: erase it, or swap or add something from a reference image \u00b7 Wan VACE runs on fal until 4 January 2027",
     "routes": [
       {
         "op": "remove-object",
@@ -19450,7 +19325,8 @@ export const CLOUD_MODELS: ModelDef[] = [
             "match_input_frames_per_second": true,
             "prompt": "The same shot with nothing there: the background continues naturally, matching the light, texture and motion around it"
           }
-        }
+        },
+        "note": "Wan VACE runs on fal until 4 January 2027"
       },
       {
         "op": "video-swap",
@@ -19476,7 +19352,8 @@ export const CLOUD_MODELS: ModelDef[] = [
             "match_input_num_frames": true,
             "match_input_frames_per_second": true
           }
-        }
+        },
+        "note": "Wan VACE runs on fal until 4 January 2027"
       },
       {
         "op": "video-insert",
@@ -19502,7 +19379,8 @@ export const CLOUD_MODELS: ModelDef[] = [
             "match_input_num_frames": true,
             "match_input_frames_per_second": true
           }
-        }
+        },
+        "note": "Wan VACE runs on fal until 4 January 2027"
       }
     ],
     "options": {
@@ -19621,59 +19499,6 @@ export const CLOUD_MODELS: ModelDef[] = [
       "byResolution": {
         "720p": 0.03,
         "1080p": 0.06
-      }
-    }
-  },
-  {
-    "id": "wan-22-animate-replace",
-    "name": "Wan 2.2 Animate Replace (hosted)",
-    "vendor": "Alibaba Wan",
-    "family": "wan",
-    "engine": "cloud",
-    "kind": "video",
-    "tagline": "Swaps the person on camera for your character, lighting matched to the scene",
-    "routes": [
-      {
-        "op": "video-swap",
-        "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-14b/animate/replace",
-        "map": {
-          "prompt": false,
-          "image": "image_url",
-          "video": "video_url",
-          "seed": "seed",
-          "resolution": {
-            "key": "resolution",
-            "accepts": [
-              "480p",
-              "580p",
-              "720p"
-            ]
-          }
-        }
-      }
-    ],
-    "options": {
-      "seed": true,
-      "resolutions": [
-        "480p",
-        "580p",
-        "720p"
-      ],
-      "maxImages": 1,
-      "promptless": true
-    },
-    "defaults": {
-      "resolution": "720p"
-    },
-    "pricing": {
-      "unit": "second",
-      "usd": 0.08,
-      "note": "720p; 580p $0.06, 480p $0.04 \u00b7 fal bills frames \u00f7 16 as video seconds: a 30 fps clip costs about 1.9\u00d7 its length",
-      "byResolution": {
-        "720p": 0.08,
-        "580p": 0.06,
-        "480p": 0.04
       }
     }
   },
@@ -23991,108 +23816,44 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
     "routes": [
       {
         "op": "i2v",
-        "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-a14b/image-to-video",
+        "provider": "replicate",
+        "endpoint": "wan-video/wan-2.2-i2v-fast",
         "map": {
-          "negativePrompt": "negative_prompt",
-          "image": "image_url",
-          "endImage": "end_image_url",
+          "image": "image",
+          "endImage": "last_image",
           "seed": "seed",
           "numFrames": {
             "key": "num_frames",
             "fps": 16,
-            "min": 17,
-            "max": 161,
+            "min": 81,
+            "max": 121,
             "step": 4
-          },
-          "aspectRatio": {
-            "key": "aspect_ratio",
-            "accepts": [
-              "auto",
-              "16:9",
-              "9:16",
-              "1:1"
-            ]
           },
           "resolution": {
             "key": "resolution",
             "accepts": [
               "480p",
-              "580p",
               "720p"
             ]
           },
           "fixed": {
-            "interpolator_model": "none",
-            "frames_per_second": 16,
-            "num_inference_steps": 20
+            "interpolate_output": false
           },
           "loras": {
-            "shape": "items",
-            "key": "loras",
-            "range": {
-              "min": 0,
-              "max": 4
+            "shape": "experts",
+            "high": {
+              "weights": "lora_weights_transformer",
+              "scale": "lora_scale_transformer"
             },
-            "transformer": "high",
-            "weightName": true
+            "low": {
+              "weights": "lora_weights_transformer_2",
+              "scale": "lora_scale_transformer_2"
+            }
           }
-        },
-        "loraEndpoint": "fal-ai/wan/v2.2-a14b/image-to-video/lora"
+        }
       },
       {
         "op": "flf2v",
-        "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-a14b/image-to-video",
-        "map": {
-          "negativePrompt": "negative_prompt",
-          "image": "image_url",
-          "endImage": "end_image_url",
-          "seed": "seed",
-          "numFrames": {
-            "key": "num_frames",
-            "fps": 16,
-            "min": 17,
-            "max": 161,
-            "step": 4
-          },
-          "aspectRatio": {
-            "key": "aspect_ratio",
-            "accepts": [
-              "auto",
-              "16:9",
-              "9:16",
-              "1:1"
-            ]
-          },
-          "resolution": {
-            "key": "resolution",
-            "accepts": [
-              "480p",
-              "580p",
-              "720p"
-            ]
-          },
-          "fixed": {
-            "interpolator_model": "none",
-            "frames_per_second": 16,
-            "num_inference_steps": 20
-          },
-          "loras": {
-            "shape": "items",
-            "key": "loras",
-            "range": {
-              "min": 0,
-              "max": 4
-            },
-            "transformer": "high",
-            "weightName": true
-          }
-        },
-        "loraEndpoint": "fal-ai/wan/v2.2-a14b/image-to-video/lora"
-      },
-      {
-        "op": "i2v",
         "provider": "replicate",
         "endpoint": "wan-video/wan-2.2-i2v-fast",
         "map": {
@@ -24135,18 +23896,10 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
         3,
         5
       ],
-      "negativePrompt": true,
       "seed": true,
       "endFrame": true,
-      "aspectRatios": [
-        "auto",
-        "16:9",
-        "9:16",
-        "1:1"
-      ],
       "resolutions": [
         "480p",
-        "580p",
         "720p"
       ],
       "maxImages": 1
@@ -24163,15 +23916,13 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
       "resolution": "720p"
     },
     "pricing": {
-      "unit": "second",
-      "usd": 0.08,
-      "note": "720p on fal; 580p $0.06/s, 480p $0.04/s; with LoRAs $0.10/s",
+      "unit": "video",
+      "usd": 0.11,
+      "note": "per clip of 81 frames at 720p on Replicate ($0.10 from words); 480p $0.05",
       "byResolution": {
-        "720p": 0.08,
-        "580p": 0.06,
-        "480p": 0.04
-      },
-      "withLoras": 0.1
+        "720p": 0.11,
+        "480p": 0.05
+      }
     }
   },
   {
@@ -24337,126 +24088,91 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
     "routes": [
       {
         "op": "i2v",
-        "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-a14b/image-to-video",
+        "provider": "replicate",
+        "endpoint": "wan-video/wan-2.2-i2v-fast",
         "map": {
-          "negativePrompt": "negative_prompt",
-          "image": "image_url",
-          "endImage": "end_image_url",
+          "image": "image",
+          "endImage": "last_image",
           "seed": "seed",
           "numFrames": {
             "key": "num_frames",
             "fps": 16,
-            "min": 17,
-            "max": 161,
+            "min": 81,
+            "max": 121,
             "step": 4
-          },
-          "aspectRatio": {
-            "key": "aspect_ratio",
-            "accepts": [
-              "auto",
-              "16:9",
-              "9:16",
-              "1:1"
-            ]
           },
           "resolution": {
             "key": "resolution",
             "accepts": [
               "480p",
-              "580p",
               "720p"
             ]
           },
           "fixed": {
-            "interpolator_model": "none",
+            "interpolate_output": false,
             "frames_per_second": 16
           },
           "loras": {
-            "shape": "items",
-            "key": "loras",
-            "range": {
-              "min": 0,
-              "max": 4
+            "shape": "experts",
+            "high": {
+              "weights": "lora_weights_transformer",
+              "scale": "lora_scale_transformer"
             },
-            "transformer": "high",
-            "weightName": true
+            "low": {
+              "weights": "lora_weights_transformer_2",
+              "scale": "lora_scale_transformer_2"
+            }
           }
-        },
-        "loraEndpoint": "fal-ai/wan/v2.2-a14b/image-to-video/lora"
+        }
       },
       {
         "op": "flf2v",
-        "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-a14b/image-to-video",
+        "provider": "replicate",
+        "endpoint": "wan-video/wan-2.2-i2v-fast",
         "map": {
-          "negativePrompt": "negative_prompt",
-          "image": "image_url",
-          "endImage": "end_image_url",
+          "image": "image",
+          "endImage": "last_image",
           "seed": "seed",
           "numFrames": {
             "key": "num_frames",
             "fps": 16,
-            "min": 17,
-            "max": 161,
+            "min": 81,
+            "max": 121,
             "step": 4
-          },
-          "aspectRatio": {
-            "key": "aspect_ratio",
-            "accepts": [
-              "auto",
-              "16:9",
-              "9:16",
-              "1:1"
-            ]
           },
           "resolution": {
             "key": "resolution",
             "accepts": [
               "480p",
-              "580p",
               "720p"
             ]
           },
           "fixed": {
-            "interpolator_model": "none",
+            "interpolate_output": false,
             "frames_per_second": 16
           },
           "loras": {
-            "shape": "items",
-            "key": "loras",
-            "range": {
-              "min": 0,
-              "max": 4
+            "shape": "experts",
+            "high": {
+              "weights": "lora_weights_transformer",
+              "scale": "lora_scale_transformer"
             },
-            "transformer": "high",
-            "weightName": true
+            "low": {
+              "weights": "lora_weights_transformer_2",
+              "scale": "lora_scale_transformer_2"
+            }
           }
-        },
-        "loraEndpoint": "fal-ai/wan/v2.2-a14b/image-to-video/lora"
+        }
       }
     ],
     "options": {
       "durations": [
-        3,
-        4,
-        5,
-        6,
-        8,
-        10
+        6
       ],
-      "negativePrompt": true,
       "seed": true,
       "endFrame": true,
-      "aspectRatios": [
-        "auto",
-        "16:9",
-        "9:16",
-        "1:1"
-      ],
       "resolutions": [
         "480p",
-        "580p",
         "720p"
       ],
       "maxImages": 1
@@ -24469,19 +24185,17 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
     },
     "defaults": {
       "aspectRatio": "auto",
-      "duration": 5,
+      "duration": 6,
       "resolution": "720p"
     },
     "pricing": {
-      "unit": "second",
-      "usd": 0.08,
-      "note": "720p on fal; 580p $0.06/s, 480p $0.04/s; with LoRAs $0.10/s, per gap's clip",
+      "unit": "video",
+      "usd": 0.11,
+      "note": "per gap's clip at 720p (81 frames on Replicate); 480p $0.05",
       "byResolution": {
-        "720p": 0.08,
-        "580p": 0.06,
-        "480p": 0.04
-      },
-      "withLoras": 0.1
+        "720p": 0.11,
+        "480p": 0.05
+      }
     }
   },
   {
@@ -24988,49 +24702,47 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
     "family": "fuobe-genjutsu",
     "engine": "cloud",
     "kind": "video",
-    "tagline": "Your character performs the clip's moves with its camera and framing: Wan 2.2 Animate",
+    "tagline": "Your character takes over the clip's performance, in the clip's own setting with its sound: MiniMax H3 Max Recast",
     "routes": [
       {
         "op": "motion-transfer",
         "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-14b/animate/move",
+        "endpoint": "minimax/h3-max/recast",
         "map": {
-          "prompt": false,
-          "image": "image_url",
+          "omitEmptyPrompt": true,
+          "images": "reference_image_urls",
           "video": "video_url",
           "seed": "seed",
           "resolution": {
             "key": "resolution",
             "accepts": [
-              "480p",
-              "580p",
-              "720p"
+              "768P",
+              "1080P"
             ]
-          }
+          },
+          "promptMax": 2000
         }
       }
     ],
     "options": {
       "seed": true,
       "resolutions": [
-        "480p",
-        "580p",
-        "720p"
+        "768P",
+        "1080P"
       ],
-      "maxImages": 1,
-      "promptless": true
+      "maxImages": 4,
+      "promptOptional": true
     },
     "defaults": {
-      "resolution": "720p"
+      "resolution": "1080P"
     },
     "pricing": {
       "unit": "second",
-      "usd": 0.08,
-      "note": "720p; 580p $0.06, 480p $0.04 \u00b7 fal bills frames \u00f7 16 as video seconds: a 30 fps clip costs about 1.9\u00d7 its length",
+      "usd": 0.45,
+      "note": "1080p; 768p $0.30/s \u00b7 5\u201330 s, no shot over 15 s",
       "byResolution": {
-        "720p": 0.08,
-        "580p": 0.06,
-        "480p": 0.04
+        "768p": 0.3,
+        "1080p": 0.45
       }
     }
   },
@@ -25041,40 +24753,40 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
     "family": "fuobe-genjutsu",
     "engine": "cloud",
     "kind": "video",
-    "tagline": "The quick tier: Wan 2.2 Animate at 480p with fal's turbo pass",
+    "tagline": "The quick tier: MiniMax H3 Max Recast at 768p",
     "routes": [
       {
         "op": "motion-transfer",
         "provider": "fal",
-        "endpoint": "fal-ai/wan/v2.2-14b/animate/move",
+        "endpoint": "minimax/h3-max/recast",
         "map": {
-          "prompt": false,
-          "image": "image_url",
+          "omitEmptyPrompt": true,
+          "images": "reference_image_urls",
           "video": "video_url",
           "seed": "seed",
           "resolution": "resolution",
           "fixed": {
-            "use_turbo": true,
-            "resolution": "480p"
-          }
+            "resolution": "768P"
+          },
+          "promptMax": 2000
         }
       }
     ],
     "options": {
       "seed": true,
       "resolutions": [
-        "480p"
+        "768p"
       ],
-      "maxImages": 1,
-      "promptless": true
+      "maxImages": 4,
+      "promptOptional": true
     },
     "defaults": {
-      "resolution": "480p"
+      "resolution": "768p"
     },
     "pricing": {
       "unit": "second",
-      "usd": 0.04,
-      "note": "480p \u00b7 fal bills frames \u00f7 16 as video seconds: a 30 fps clip costs about 1.9\u00d7 its length"
+      "usd": 0.3,
+      "note": "768p \u00b7 5\u201330 s, no shot over 15 s"
     }
   },
   {
@@ -25128,7 +24840,8 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
             "match_input_num_frames": true,
             "match_input_frames_per_second": true
           }
-        }
+        },
+        "note": "Wan VACE runs on fal until 4 January 2027"
       }
     ],
     "options": {
@@ -25201,7 +24914,8 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
             "match_input_num_frames": true,
             "match_input_frames_per_second": true
           }
-        }
+        },
+        "note": "Wan VACE runs on fal until 4 January 2027"
       }
     ],
     "options": {
@@ -25274,7 +24988,8 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
             "match_input_num_frames": true,
             "match_input_frames_per_second": true
           }
-        }
+        },
+        "note": "Wan VACE runs on fal until 4 January 2027"
       }
     ],
     "options": {
@@ -25494,7 +25209,8 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
             "match_input_num_frames": true,
             "match_input_frames_per_second": true
           }
-        }
+        },
+        "note": "Wan VACE runs on fal until 4 January 2027"
       }
     ],
     "options": {
@@ -25566,7 +25282,8 @@ export const ORIGINAL_CLOUD: ModelDef[] = [
             "match_input_num_frames": true,
             "match_input_frames_per_second": true
           }
-        }
+        },
+        "note": "Wan VACE runs on fal until 4 January 2027"
       }
     ],
     "options": {

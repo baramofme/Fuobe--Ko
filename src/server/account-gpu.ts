@@ -1,6 +1,7 @@
 import "server-only";
 import dns from "node:dns/promises";
 import net from "node:net";
+import { cleanCopy, type ServiceCopy } from "@/lib/service-copy";
 import { isCloudProvider, type CloudProvider } from "@/lib/your-keys";
 import { accountEngineMode, accountKeyInfo, accountProviders, paidAllowed, usableProviders } from "./account-keys";
 import { accountGpu, type Account, type AccountGpu } from "./auth";
@@ -8,6 +9,7 @@ import type { OwnerGpuView } from "@/lib/connections";
 import { runnerFacts, type Principal } from "./computer/tasks";
 import { offeredSummary } from "./model-access";
 import { getModel, PRESETS } from "@/lib/catalog";
+import { presetRoutes } from "@/lib/catalog/preset-recipe-routes";
 import { operationOutput } from "@/lib/catalog/types";
 import { PROVIDERS } from "./providers";
 import { blockedForAccounts, fetchPublic, isLoopbackGpu, peekText } from "./remote-fetch";
@@ -15,9 +17,10 @@ import { redactKey } from "./provider-keys";
 import { networkCode, recordRunEvent } from "./run-events";
 import { isInstallHost, REFUSED_ADDRESS } from "./gpu/hosts";
 import { balance as billingBalance, policy as billingPolicy, type Action, type Balance } from "./billing";
-import { poolReady } from "./hosted";
+import { poolHasFiles, poolReady, poolTakes } from "./hosted";
 import { placeName } from "./place-name";
-import { poolOwnModels } from "./pool-own-setup";
+import { helperKnown } from "./text-helper";
+import { poolOwnModels, poolOwnPresets, type PresetPress } from "./pool-own-setup";
 import { ranOwnFirst, runOnOf, type RunOn } from "./run-on";
 import { poolRulesOf, type PoolRules, type PresetModel } from "@/lib/pool-rules";
 import { diagnoseAddress, diagnoseGpu, gpuHostOf, type Diagnosis, type GpuFailure, type GpuPlace, type GpuStage } from "@/lib/diagnose";
@@ -344,6 +347,8 @@ export interface VisitorView {
   prefer?: "pool";
   /** The name visitors read for this install's GPUs ("Runs on Our GPUs"; src/server/place-name.ts). Only with `hosted`. */
   placeName?: string;
+  /** The free text helper writes for this visitor ("Write the lyrics", "Rewrite my prompt now"). Only with `hosted`. */
+  helper?: true;
   /**
    * Where the account's runs go, as it picked (run-on.ts; only with `hosted`, only to that account). Absent: the
    * install's default. `runKey`: with "key", the provider whose key runs them.
@@ -371,17 +376,42 @@ export interface VisitorView {
   links?: Action[];
   /** A notice to show once per id (the billing service's policy). */
   notice?: { id: string; text: string; url?: string };
+  /** The billing service's display copy (src/lib/service-copy.ts), cleaned. Only with `hosted`. */
+  copy?: ServiceCopy;
 }
 
 declare global {
   var __fuobePresetModels: PresetModel[] | undefined;
+  var __fuobePresetPresses: PresetPress[] | undefined;
 }
 
-/** Every preset with the open model it runs on and the kind it makes (for the pickers' rules): made once. */
+/** A preset's open route as its run plans it: its recipe's (with the end frame it edits first), else its own. */
+const openRoute = (p: (typeof PRESETS)[number]) => presetRoutes(p, "open", (id) => !!getModel(id))[0] ?? p.open ?? undefined;
+
+/**
+ * Every preset with the open model it runs on and the kind it makes, and the open models of its run's other steps (the
+ * edit that makes its end frame first), for the pickers' rules: made once.
+ */
 const presetModels = (): PresetModel[] =>
   (globalThis.__fuobePresetModels ??= PRESETS.map((p) => {
     const m = p.open ? getModel(p.open.modelId) : undefined;
-    return m && p.open ? { id: p.id, model: { id: m.id, kind: operationOutput(p.open.op, m.kind) } } : { id: p.id };
+    if (!m || !p.open) return { id: p.id };
+    const step = openRoute(p)?.end;
+    const end = step && getModel(step.modelId);
+    return { id: p.id, model: { id: m.id, kind: operationOutput(p.open.op, m.kind) }, ...(step && end && { steps: [{ id: end.id, kind: operationOutput(step.op, end.kind) }] }) };
+  }));
+
+/**
+ * Every preset's press on its open route, step by step (its end frame's edit first, then its clip to that frame, with the
+ * LoRA files it adds): made once.
+ */
+const presetPresses = (): PresetPress[] =>
+  (globalThis.__fuobePresetPresses ??= PRESETS.flatMap((p) => {
+    const route = openRoute(p);
+    if (!route) return [];
+    const end = route.end;
+    const loras = (route.loras ?? []).map((l) => l.file).filter(Boolean);
+    return [{ id: p.id, steps: [...(end ? [{ modelId: end.modelId, op: end.op }] : []), { modelId: route.modelId, op: end ? "flf2v" : route.op, ...(loras.length && { loras }) }] }];
   }));
 
 /** Keys whose balance ran out on a run, as the status says them. */
@@ -431,6 +461,8 @@ export async function visitorStatus(account: Account | null) {
     if (p?.hosted && p.prefer === "pool") viewer.prefer = "pool";
     // What the visitor reads for this install's GPUs ("Runs on {name}"): the policy's name, else the install's.
     if (p?.hosted) viewer.placeName = placeName(p);
+    // The free text helper (lyrics, a prompt rewrite) on this install's workers.
+    if (p?.hosted && helperKnown()) viewer.helper = true;
     const card = p?.hosted && typeof p.cardText === "string" ? p.cardText.trim().slice(0, 40) : "";
     if (card) viewer.cardText = card;
     // The account's own pick of where its runs go, and whether the one-time note is for it (it had runs on its own GPU
@@ -445,10 +477,13 @@ export async function visitorStatus(account: Account | null) {
     // What this studio's GPUs keep off, the open models they can't run right now among it: shown in the pickers with
     // what the visitor needs to run them on its own setup. For every viewer, a GPU of its own or not: its runs go
     // there first too, and the label says what runs on its own GPU instead.
-    const rules = p?.hosted ? poolRulesOf(p, presetModels(), poolOwnModels()) : undefined;
+    const rules = p?.hosted ? poolRulesOf(p, presetModels(), poolOwnModels(), poolOwnPresets(presetPresses(), poolTakes, poolHasFiles)) : undefined;
     if (rules) viewer.pool = rules;
     if (account && p?.links?.length) viewer.links = p.links;
     if (account && p?.notice) viewer.notice = p.notice;
+    // The service's display copy (wait and limit lines), for guests and accounts alike.
+    const copy = p?.hosted ? cleanCopy(p.copy) : null;
+    if (copy) viewer.copy = copy;
     const b = account ? await billingBalance(account.id) : null;
     if (b) viewer.balance = b;
   }

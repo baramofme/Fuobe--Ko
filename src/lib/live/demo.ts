@@ -5,6 +5,7 @@
  * session is one prompt that keeps growing: every frame renders all the words so far on the start picture. The player
  * itself is src/components/live/live-demo.tsx.
  */
+import { t, type Params } from "../i18n/store";
 
 export const LIVE_DEMO = "/previews/live-edit/demo.json";
 /**
@@ -38,6 +39,24 @@ export const ZOOM_PAD = 0.12;
 /** The width of a frame's `mid` and `small` files. */
 export const MID_W = 768;
 export const SMALL_W = 512;
+
+/**
+ * The session's first picture (frame s0 of demo.json), always in the page under the player: the card shows it before
+ * the session file, the AVIF check and the observer have run, and keeps showing it where they never do (no script, a
+ * slow connection, a card scrolled past before it played). A test keeps it in step with demo.json.
+ */
+export const LIVE_DEMO_POSTER = {
+  avif: [
+    { src: "/previews/live-edit/512/step-00.avif?v=526c3183", w: SMALL_W },
+    { src: "/previews/live-edit/768/step-00.avif?v=df6f15aa", w: MID_W },
+    { src: "/previews/live-edit/1280/step-00.avif?v=c328e26e", w: 1280 },
+  ],
+  webp: [
+    { src: "/previews/live-edit/512/step-00.webp?v=1523fa79", w: SMALL_W },
+    { src: "/previews/live-edit/768/step-00.webp?v=60795779", w: MID_W },
+    { src: "/previews/live-edit/1280/step-00.webp?v=791c2996", w: 1280 },
+  ],
+} as const;
 
 /**
  * One picture of the session, in up to three sizes. Every file may end in ?v= and the first 8 hex digits of its
@@ -228,8 +247,12 @@ const isBox = (b: unknown): b is Box =>
   Array.isArray(b) && b.length === 4 && b.every((n) => typeof n === "number" && n >= 0 && n <= 1) && b[0] < b[2] && b[1] < b[3];
 
 /** The pill's words: compact cards add the change count once there are two. */
-export function pillText(v: Pick<DemoView, "changes">, compact = false) {
-  return { main: "Live", count: compact && v.changes > 1 ? String(v.changes) : null };
+export function pillText(
+  v: Pick<DemoView, "changes">,
+  compact = false,
+  translate: (key: string, params?: Params) => string = t,
+) {
+  return { main: translate("live.pill"), count: compact && v.changes > 1 ? String(v.changes) : null };
 }
 
 /** Every file of a frame. */
@@ -238,7 +261,8 @@ export const frameFiles = (f: DemoFrame) => [f.src, f.mid, f.small, f.webp, f.we
 /** A frame's file, without the ?v= content version. */
 export const framePath = (src: string) => src.split("?")[0];
 
-export const changesWord = (n: number) => `${n} ${n === 1 ? "change" : "changes"}`;
+export const changesWord = (n: number, translate: (key: string, params?: Params) => string = t) =>
+  translate(n === 1 ? "live.changeOne" : "live.changeMany", { n });
 
 /** How many changes a session makes. */
 export const countChanges = (d: Pick<Demo, "script">) => d.script.filter((s) => s.type === "change").length;

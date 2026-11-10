@@ -13,7 +13,7 @@ import { formatCost, timeAgo } from "@/lib/format";
 import { PRESETS as GRADE_PRESETS } from "@/lib/grade";
 import { trashDaysLeft, userTitle } from "@/lib/library";
 import { editOnlyFormat, isLayered, layerInfo, outputActions, type OutputAction } from "@/lib/output-actions";
-import { useEngineMode, useIsAccount, useLikelyVisitor, usePlaceName, useStatus } from "@/lib/api";
+import { useEngineMode, useIsAccount, useIsOwner, useLikelyVisitor, usePlaceName, useStatus } from "@/lib/api";
 import { knownPlace } from "@/lib/place-name";
 import { placeholdersOn } from "@/lib/demo-mode";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,7 @@ import { CompareSlider } from "./compare-slider";
 import { MadeNote } from "./made-note";
 import { shownSettings } from "@/lib/catalog/made";
 import { ACTION_ICONS, downloadUrl, SaveElementForm, useActionRunner } from "./result-actions";
-import { OwnSetupChip } from "@/components/own-setup";
+import { OwnSetupChip, OwnSetupMark } from "@/components/own-setup";
 import { LayersStack, ModelViewer, TextReader, VideoFileCard } from "./result-media";
 import { ReviewSelect } from "@/components/library/review";
 import { PlaceholderChip } from "@/components/demo-mode";
@@ -154,6 +154,14 @@ function LayerList({ g, index, all, onPick, onAll }: { g: Generation; index: num
   );
 }
 
+/** The two-column action grid: a long label wraps to a second line, and the buttons of a row share its height. */
+/**
+ * Two columns of actions, each icon then its name from the left edge, so the icons line up down each column whether a
+ * name takes one line or (rarely, in a narrow panel) two. Move to Trash, across both columns, stays centred.
+ */
+const ACTION_GRID =
+  "@container/actions grid grid-cols-2 gap-2 [&>*]:h-auto [&>*]:min-h-8 [&>*]:py-1 [&>*]:justify-start [&>*]:whitespace-normal [&>.col-span-2]:justify-center [&_[data-label]]:line-clamp-2 [&_[data-label]]:whitespace-normal [&_[data-label]]:text-left [&_[data-label]]:leading-tight";
+
 export function Viewer({
   generation: g,
   index,
@@ -204,6 +212,7 @@ export function Viewer({
   const { t } = useI18n();
   const placeholders = placeholdersOn(useStatus().data?.demoMode);
   const account = useIsAccount();
+  const owner = useIsOwner();
   const list = useMemo(() => outputActions(g, index, { reuse: !!onReuse, compare: !!source, inViewer: true, engineMode, visitor, placeholders, account }), [g, index, onReuse, source, engineMode, visitor, placeholders, account]);
 
   // Read the latest values from the key handler without re-subscribing on every render.
@@ -264,15 +273,27 @@ export function Viewer({
     const Icon = ACTION_ICONS[a.id];
     const label = a.id === "favorite" ? (g.favorite ? t("studio.viewer.favorited") : t("studio.actions.favorite")) : a.id === "save-character" ? t("studio.result.saveAsElement") : a.label;
     const icon = <Icon className={cn(a.id === "favorite" && g.favorite && "fill-current text-highlight")} />;
-    const cls = cn(a.destructive && "text-destructive hover:text-destructive", opts.className);
+    // The label stays inside its own button (one line here, up to two in the action grid), never in the next column.
+    const text = (
+      <span data-label className="min-w-0 truncate" title={label}>
+        {label}
+      </span>
+    );
+    const cls = cn("min-w-0", a.destructive && "text-destructive hover:text-destructive", opts.className);
     const variant = a.destructive ? "ghost" : (opts.variant ?? "secondary");
-    // An action that runs on the visitor's own setup (src/lib/own-setup.ts) says what it needs beside its name.
-    const setup = <OwnSetupChip setup={a.ownSetup} />;
+    // An action that runs on the visitor's own setup (src/lib/own-setup.ts) says what it needs beside its name: its icon
+    // in a narrow cell, the short words where the cell has room. The owner runs it as any other, so no mark.
+    const setup = a.ownSetup && !owner && (
+      <>
+        <OwnSetupMark setup={a.ownSetup} className="@min-[34rem]/actions:hidden" />
+        <OwnSetupChip setup={a.ownSetup} short="always" className="min-w-0 shrink @max-[34rem]/actions:hidden" />
+      </>
+    );
     if (a.href && a.download !== undefined) {
       return (
         <Button key={a.id} asChild variant={variant} size="sm" className={cls}>
           <a href={a.href} download={a.download} onClick={opts.onDone}>
-            {icon} {label}
+            {icon} {text}
           </a>
         </Button>
       );
@@ -281,7 +302,7 @@ export function Viewer({
       return (
         <Button key={a.id} asChild variant={variant} size="sm" className={cls}>
           <Link href={a.href} prefetch={false}>
-            {icon} {label}
+            {icon} {text}
             {setup}
           </Link>
         </Button>
@@ -292,7 +313,7 @@ export function Viewer({
         <Popover key={a.id} open={saving} onOpenChange={setSaving}>
           <PopoverTrigger asChild>
             <Button variant={variant} size="sm" className={cls}>
-              {icon} {label}
+              {icon} {text}
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" collisionPadding={12} className="w-72">
@@ -313,7 +334,7 @@ export function Viewer({
           opts.onDone?.();
         }}
       >
-        {icon} {label}
+        {icon} {text}
         {setup}
       </Button>
     );
@@ -425,7 +446,8 @@ export function Viewer({
           </div>
         </div>
 
-        <aside className="hidden w-80 shrink-0 flex-col border-l bg-card md:flex">
+        {/* Wider from xl, where the picture can spare it, so every action's name fits on one line. */}
+        <aside className="hidden w-80 shrink-0 flex-col border-l bg-card md:flex xl:w-[22rem]">
           <div className="flex items-center justify-between px-4 pt-3">
             <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground">
               <Info className="size-3.5" /> {t("studio.viewer.detailsTitle")}
@@ -434,7 +456,8 @@ export function Viewer({
               <X className="size-4" />
             </button>
           </div>
-          <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+          {/* The details keep at least a third of the panel; the actions under them scroll where a short screen can't show them all. */}
+          <div className="min-h-[33%] flex-1 space-y-4 overflow-y-auto px-4 pb-4">
             <Details g={g} index={index} />
             {/* Where this result can go next, with it attached (a layer is a part: it goes on from the Layers editor). */}
             {!layered && <NextSteps g={g} index={index} variant="list" max={5} onNavigate={onClose} />}
@@ -451,7 +474,7 @@ export function Viewer({
               />
             )}
           </div>
-          <div className="grid grid-cols-2 gap-2 border-t p-3">
+          <div className={cn(ACTION_GRID, "min-h-0 shrink overflow-y-auto overscroll-contain border-t p-3")}>
             {primary && actionButton(primary, { variant: "default" })}
             {bar.map((a) => actionButton(a))}
             {menu.filter((a) => !a.destructive && a.id !== "compare").map((a) => actionButton(a))}
@@ -502,7 +525,7 @@ export function Viewer({
             <div className="space-y-4 overflow-y-auto px-4">
               {/* The next steps first: on a phone this sheet is where they are. */}
               {!layered && <NextSteps g={g} index={index} variant="list" max={5} onNavigate={onClose} />}
-              <div className="grid grid-cols-2 gap-2">
+              <div className={ACTION_GRID}>
                 {source && (
                   <Button variant="secondary" size="sm" aria-pressed={comparing} onClick={() => (setComparing((v) => !v), setDrawer(false))}>
                     <Columns2 /> {comparing ? t("studio.viewer.hideOriginal") : t("studio.actions.compare")}

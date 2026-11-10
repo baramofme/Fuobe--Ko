@@ -16,7 +16,7 @@ the top bar and the account menu, a refusal's text, a link, an offer) comes from
 | `FUOBE_BILLING_TOKEN` | Sent as `Authorization: Bearer <token>` with every call | none |
 | `FUOBE_HOSTED_RUNS` | `1` lets accounts run on this install's GPUs (the only runs the service prices) | off |
 | `FUOBE_HOSTED_FREE` | `1` opens those runs with no service set: free for every account, within the install's own limits | off |
-| `FUOBE_POOL_WAIT_MIN` | How long a run may wait in line on this install's GPUs when the service doesn't say | 30 |
+| `FUOBE_POOL_WAIT_MIN` | How long a run may wait in line on this install's GPUs when the service doesn't say | none (as long as it takes) |
 
 ## When Fuobe calls the service
 
@@ -49,6 +49,7 @@ type RunFacts = {
   kind: "image" | "video" | "audio" | "text" | "model3d"; engine: "open" | "cloud"; provider: string;
   jobs: number; outputsPerJob: number; megapixels: number | null; seconds: number | null; fps: number | null;
   loras: number; inputs: { image: number; video: number; audio: number }; lane: string | null; providerUsd: number | null;
+  workflow?: string | null;
   steps?: { model: string; op: string | null; kind: RunFacts["kind"]; jobs: number; lane: string | null }[];
 };
 type QueueFacts = { lane: string; ahead: number; etaS: number | null; workersOnline: number; nextOpenAt: number | null; mine: { waiting: number; running: number } };
@@ -72,6 +73,7 @@ type Policy = {
   kinds?: { image?: boolean; video?: boolean; audio?: boolean; text?: boolean; model3d?: boolean };  // absent: all
   cardText?: string;                                               // preset cards' words for a run there (absent: none)
   placeName?: string;                                              // what visitors call these GPUs (absent: the install's name)
+  copy?: Record<string, string>;                                   // display copy by key (absent, or a key left out: Fuobe's own words)
   links?: Action[]; notice?: { id: string; text: string; url?: string }; ttlS: number;
 };
 ```
@@ -94,8 +96,8 @@ runs may wait like that behind the account's runs at once (`0`: no cap); a press
 "You have 10 runs on the way. Add more when one is done." Absent (an older service), every limit refuses as before.
 
 `startAt` (epoch ms, only with `allowed: true` or `ok: true`) says the run may be made now and waits until then before
-it enters the line: the day's GPU time is used up (a `startAt` at a UTC midnight: the line before Run says "Lots of
-runs today · starts in about 7 h", and at that time the runs enter at their press-time places, in press order), or an
+it enters the line: the day's GPU time is used up (a `startAt` at a UTC midnight: the line before Run says "Free runs
+refresh at 05:30." on the viewer's clock, and at that time the runs enter at their press-time places, in press order), or an
 hourly limit (at the back of the line). With credits on, a reserve refused with `top-up` whose quote is allowed with a
 `startAt` (free generations that renew then) waits too, and reserves at that time. `timing.heldMs` is about how long
 the run is expected to wait before it enters the line at all (behind the account's runs, or until a time it was
@@ -114,10 +116,33 @@ pause on its PC that has one), when every such GPU is away and one says; otherwi
 GPUs"), at most 40 characters. Absent: the install's own name for them (Settings → Workers → Name for your GPUs, else
 `FUOBE_PLACE_NAME`), else "Our GPUs". Fuobe writes every sentence so that no verb has to agree with the name.
 
+`copy` is optional display copy: the service's own sentences for a few wait and limit lines, by key, each at most 300
+characters. Fuobe fills the placeholders `{when}` ("at 14:20", "in about 40 min", "in a moment"), `{n}` (a count) and
+`{line}` (a run's place and wait, "6 ahead of you · about 9 min"). A key left out, an unknown key, or a sentence that
+names a placeholder the key doesn't get shows Fuobe's own words instead. The latest policy answer's copy is used for
+every visitor (`src/lib/service-copy.ts`).
+
+| Key | Shown | Placeholders | Fuobe's own words |
+| --- | --- | --- | --- |
+| `limitDaily` | a daily limit on free runs here | `{when}` | Free runs refresh {when}. |
+| `limitHour` | an hourly limit on free runs here | `{when}` | Free runs refresh {when}. |
+| `limitNetwork` | a limit on free runs from one network | `{when}` | Free runs on your network refresh {when}. |
+| `limitReplies` | a limit on free text helper replies | `{when}` | More free replies {when}. |
+| `queueBusy` | a run's tile with 5 or more runs ahead | `{line}`, `{n}` | {line} |
+| `queueLong` | a run's tile after 10 min in line | none | Your run is saved and starts automatically; it'll appear here when it's ready. |
+| `chatNext` | Chat, the next reply to be written | none | You're next |
+| `chatAhead` | Chat, replies ahead of this one | `{n}` | {n} ahead of you |
+| `lyricsBusy` | the lyrics helper can't take a request now | none | Try again in a moment, or type your own lyrics. |
+| `writeBusy` | the text helper can't take a run's text step now | none | Press Retry in a moment. |
+
 `megapixels` is the size of each picture or frame the run makes, about, as its workflow makes it: the canvas the
 workflow binds (a canvas the request names counts only there; else the aspect ratio and resolution, the model's
 defaults where the request names none), or for a workflow sized by its input (an edit, an upscale, a face swap) the
 input's size, an upscale's times its factor, within the workflow's limits. It is null for sound, text and 3D.
+
+`workflow` is the graph a ComfyUI run resolves to after its options pick a variant (a speed, a quality, a GPU tier),
+so a service can treat graph variants differently: Qwen-Image-Edit 2511 on Fast is `qwen-image-edit-2511-multi-fast`, on
+Best `qwen-image-edit-2511-multi`. It is absent (or null) for every other run, and a service should accept a run without it.
 
 `steps` lists every step of the run that uses this install's GPUs, the run's own step first: a chain (a film of
 several shots, a picture and then a step on it) is priced once, with one quote and one hold, for one press of Run.
@@ -301,6 +326,23 @@ run for free on one's own GPU.
 | `limit` | 429 |
 | `busy`, `paused` | 503 |
 | `blocked`, `not-offered`, `closed` | 403 |
+
+A reserve refusal may also say how the card looks. Every field is optional; an answer without them gets the card
+above, unchanged.
+
+| Field | What the card does |
+|---|---|
+| `title` | Its heading, in place of "This run didn't start" (one line, up to 80 characters). |
+| `tone: "info"` | A friendly look: an info icon in the brand colour, never a warning colour, and no other place offered (the way to one's own GPU is left out). |
+| `links` | Up to two more links, `[{ label, url }]` (labels up to 40 characters; `url` a same-site path or https), shown before `action`. |
+| `waitFor: { url, everyMs }` | A same-site path (an address on another site is left out) that the page asks with a GET, never cached, every `everyMs` (2 to 60 seconds; 4 by default) while the card is open, for 10 minutes at most. Once it answers `{ "ready": true }`, the card says "All set", sends the same run once more by itself as a new press (a fresh request id), and closes when it has started. While it waits, the card's links open in a new tab, so the card stays. |
+
+| `hold: true` | Only where runs wait instead of being refused (the policy has `limits.held`): the run is made at once and held until the service says ready. Its tile says "<title> · starts by itself", and the card opens once with the same look (and its `waitFor`, which here only closes the card: nothing is sent again). The release loop asks the reserve again under the press's own request id every few seconds; once it is taken, the run enters the line by itself, with no page open, after restarts too. A run the service hasn't taken within 48 hours is cancelled quietly. Without `limits.held`, the answer stays the refusal it is. |
+
+```json
+{ "ok": false, "code": "blocked", "text": "One more step and your run starts.", "title": "One quick step",
+  "tone": "info", "action": { "label": "Details", "url": "/your-page" }, "waitFor": { "url": "/your-page/ready", "everyMs": 4000 } }
+```
 
 ## Holds and the outbox
 

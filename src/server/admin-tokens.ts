@@ -23,6 +23,7 @@ export const SCOPES = [
   "accounts:write",
   "accounts:delete",
   "runs:read",
+  "runs:write",
   "runs:delete",
   "outputs:view",
   "outputs:hide",
@@ -30,9 +31,13 @@ export const SCOPES = [
   "reports:read",
   "workers:read",
   "workers:write",
+  "workers:update",
   "workers:tokens",
   "queue:read",
   "queue:write",
+  "queue:control",
+  "site:read",
+  "site:write",
   "audit:read",
 ] as const;
 
@@ -41,9 +46,10 @@ export type Scope = (typeof SCOPES)[number];
 /** What each scope lets a token do, in the words Settings shows. */
 export const SCOPE_LABELS: Record<Scope, string> = {
   "accounts:read": "See accounts",
-  "accounts:write": "Switch accounts off and on, sign them out",
+  "accounts:write": "Switch accounts off and on, sign them out, set their password or email",
   "accounts:delete": "Delete accounts",
   "runs:read": "See accounts' runs: when, which model and how they ended (their prompts and results need Open accounts' files; emails need See accounts)",
+  "runs:write": "Re-run an account's run that failed or was cancelled, in its own account (it meets the same checks as the account's Run)",
   "runs:delete": "Delete accounts' runs",
   "outputs:view": "Open accounts' files, and read their runs' prompts and results",
   "outputs:hide": "Hide results",
@@ -51,9 +57,13 @@ export const SCOPE_LABELS: Record<Scope, string> = {
   "reports:read": "See reports (reporters' emails need See accounts)",
   "workers:read": "See workers",
   "workers:write": "Pause, resume, change and revoke workers",
+  "workers:update": "Ask a worker to update its program now",
   "workers:tokens": "Add workers and give them new tokens (a worker runs accounts' queued jobs, with their files)",
   "queue:read": "See the queue and its settings",
   "queue:write": "Change the queue's settings: the run ceiling, the owner's wait limit, fair share, the pick allowance and the paused budget",
+  "queue:control": "Choose who the GPUs serve first: the mode (people first, people only, our work first, balanced), a run next, pinned or held, a person's runs first or held, and cancel a waiting run",
+  "site:read": "See the site's switches: the upload fitting steps",
+  "site:write": "Switch the upload fitting steps off and on: convert, offer a part, offer a crop",
   "audit:read": "See the admin log",
 };
 

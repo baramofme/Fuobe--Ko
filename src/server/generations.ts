@@ -2,12 +2,17 @@ import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { nanoid } from "nanoid";
 import { getModel, getPreset } from "@/lib/catalog";
 import { ANY_ANGLE } from "@/lib/catalog/any-angle";
 import { NO_SUBJECT_MESSAGE, withFrontView } from "./any-angle";
 import { applyMentions } from "@/lib/catalog/elements";
+import { madeOfRun } from "@/lib/catalog/fitted";
+import { routeDrops } from "@/lib/catalog/route-takes";
+import { pickRoute, routeShortfalls, shortfallNote } from "@/lib/catalog/route-notice";
+import { listWords } from "@/lib/unavailable";
 import { migrateRequest, replacedBy } from "@/lib/catalog/replaced";
 import { directorFieldWords } from "@/lib/catalog/cinema";
 import { withSignatureWords } from "@/lib/catalog/palettes";
@@ -17,7 +22,7 @@ import { HELPER_FEATURES, HELPER_SUFFIX, isReviewStatus, type AssetUse, type Rev
 import { checkWatermarkBoxes, COPY as WATERMARK_COPY, parseScanReport, rejectedRepair, type WatermarkQuality } from "@/lib/watermark";
 import { sideMultipleProblem, upscaleTier } from "@/lib/av/upscale";
 import { chainedWaitMessage, framesWait, keyframeChain } from "@/lib/catalog/keyframes";
-import { clipFpsProblem, clipSizeProblem, clipTotalProblem, clipWindowProblem, elementClipProblem, insertRangeProblem, portraitShapeProblem, sourceFrames, voiceWindowProblem } from "@/lib/catalog/clip-windows";
+import { clipBytesProblem, clipFileProblem, clipFpsProblem, clipSizeProblem, clipTotalProblem, clipWindowProblem, elementClipProblem, hasReferenceVoiceWindow, insertRangeProblem, portraitShapeProblem, referenceClipsProblem, referenceSeconds, referenceVoiceProblem, sourceFrames, voiceWindowProblem } from "@/lib/catalog/clip-windows";
 import { avatarSeconds, clipEditSeconds, estimateCost, inferOperation, movedAppRequest, planGeneration, presetRoute, routeLoras, routesFor, sourceLengthProblem, withoutTriggers } from "@/lib/catalog/plan";
 import { formatCost } from "@/lib/format";
 import { framedLength, keepMatte, sizeValue } from "@/lib/catalog/payload";
@@ -32,7 +37,7 @@ import { finishSteps, mosaicPixels, unionMasks } from "@/lib/soul-post";
 import { ANGLES_ORIGINAL, MOSAIC_SCALE } from "@/lib/catalog/open-tools";
 import { computeDimensions } from "@/lib/comfy";
 import { captionFromWords, captionWords, parseCaption } from "@/lib/ideogram-caption";
-import { AUTO_IMAGE, AUTO_MODELS, autoCandidates, autoPatterns, nextAutoFallback } from "@/lib/auto-image";
+import { AUTO_IMAGE, autoCandidates, autoModelsFor, autoNext, autoPatterns, nextDeclinedFallback } from "@/lib/auto-image";
 import { h3Frames, h3Prompt, inH3Layout } from "@/lib/h3-prompt";
 import { h3ReferenceTags, h3TalkPrompt } from "@/lib/h3-references";
 import {
@@ -55,7 +60,7 @@ import {
   type Preset,
   type ProviderId,
 } from "@/lib/catalog/types";
-import { db } from "./db";
+import { DATA_DIR, db } from "./db";
 import { keepVoiceEmbedding, savedVoiceFor } from "./voices";
 import { listElements } from "./elements";
 import { markStale } from "./gpu/snapshots";
@@ -64,20 +69,23 @@ import { qwen21Gpu } from "./qwen21-gpu";
 import { h3Gpu } from "./h3-gpu";
 import { H3_TIER_PARAM, H3_UNET_PARAM } from "@/lib/gpu/h3-tier";
 import { DETAILS_MAX_IMAGES, GPU_PARAM, QWEN21_SPEED, speedLora } from "@/lib/qwen21-speed";
-import { BLOCKED_CARD_MESSAGE, blockedMeasures, DECLINED_FALLBACK_MODEL, DECLINED_NOTICE, DECLINED_WORDS } from "./safety-card";
+import { BLOCKED_CARD_MESSAGE, blockedMeasures, declinedNotice, LEGACY_DECLINED } from "./safety-card";
 import { pollTrainings } from "./training";
 import { createEndFrameClip, createExtendChain, createKeyframeFilm, createMosaicRun, createRefinedModel, createRelitClip, createShotFilm, createStillTo3d, createVoiceFirst, joinClips } from "./chains";
 import { chainedRefine } from "@/lib/av/hi3d";
 import { wantsVoiceFirst } from "@/lib/av/voice-first";
+import { FIX_FACES, FIX_FACES_AFTER_PARAM, fixFacesAfterStep, wantsFixFacesAfter } from "@/lib/catalog/fix-faces";
 import { createH3TwoKRun, createRegenerateRun, keepsH3Latent, regenHeld, regenSwitchedOff } from "./regenerate";
 import { H3_2K_STEPS_NOTE, h3TwoKRequests, REGEN_COPY, REGEN_MODEL, regenerateGraphLoras, wantsH3TwoK } from "@/lib/catalog/regenerate";
 import { enhancePrompt, enhanceSoulWords, ideogramCaption } from "./enhance";
 import { kandinskyPrompt } from "@/lib/kandinsky-prompt";
+import { filmLookRun } from "./film-look";
+import { takesFilmLooks } from "@/lib/film-looks";
 import { carriesLayout } from "@/lib/layout-prompt";
 import { setResolver, watchGenerations, type LiveEvent } from "./live";
 import { provider, PROVIDERS, RETIRED_PROVIDER_ERROR } from "./providers";
 import { comfyLoraFiles, comfyPlace, computerScope, onOwnGpu, onPoolWorkers, outputFetch, outsideOwnGpu, OWN_OUTPUT_LIMITS, ownGpu, ownLink, probeComfy, relayFile, troubleError, type OwnGpu } from "./providers/comfyui";
-import { accountById, accountGpu, gpuLink, type AccountGpu } from "./auth";
+import { accountById, accountGpu, gpuLink, validToken, type AccountGpu } from "./auth";
 import { accountEngineMode, accountKey, markKeyGood, paidAllowed, usableProviders } from "./account-keys";
 import { addKeyMessage, CLOUD_KEY, CLOUD_PROVIDERS, isCloudProvider, keyRemovedMessage, type CloudProvider } from "@/lib/your-keys";
 import { cachedGpuState, GpuError, noteGpuState, testGpu } from "./account-gpu";
@@ -105,10 +113,12 @@ import {
   type TroubleCause,
 } from "@/lib/diagnose";
 import { draining } from "./shutdown";
-import { keptText, networkCode, recordOwnRun, type HostKind } from "./run-events";
+import { keptText, networkCode, recordOwnRun, recordRunEvent, type HostKind } from "./run-events";
+import { cleanEngineText, ENGINE_WORDS, isEngineWords, storedErrorText, withoutFolders } from "@/lib/engine-error";
 import { CONNECT_GPU_MESSAGE, GUEST_RUN_MESSAGE, OWN_GPU_TOOL_MESSAGE } from "@/lib/guest-access";
 import { MODEL3D_SETUP, ownSetupLabel } from "@/lib/own-setup";
 import { outsideTenant, runAsTenant, tenant, tenantAccount } from "./tenant";
+import { apiCaller, requestAuthorization } from "./api-caller";
 import { generationAccount } from "./account-library";
 import { ACCOUNT_LIMITS, ACCOUNT_MESSAGES, accountTotalBytes, accountUsage, diskHasRoom, filesFullMessage } from "./account-files";
 import { prunePoolAdmissions } from "./pool-limits";
@@ -125,24 +135,29 @@ import { offeredLoras, offeredRoutes, requireOffered } from "./model-access";
 import { llmBackends, llmLabel, llmMissing, llmUsesClaude, probeLocal } from "./providers/llm";
 import type { PollContext, PollResult, ProviderAdapter, RemoteOutput } from "./providers/types";
 import { mediaFacts } from "./media-facts";
+import { fitStill } from "./fit-still";
 import { renderPathVideo } from "./path-render";
 import { songFormat, songToolProblem } from "@/lib/lyrics";
 import { hostedUntested } from "@/lib/catalog/hosted-untested";
+import { appliesOwnStyle } from "@/lib/catalog/applied-style";
 import { modelToFinish, startModelFinish, startTurntable, stopModelFinish, type OutputStore } from "./model3d-finish";
+import { stopPreviews, tickPreviews } from "./model3d-preview";
 import { finishTask, pathOnWorker, poolFinishes3d, startWorkerModelFinish, stopWorkerFinish } from "./computer/finish";
 import { PATH_FPS, PATH_FRAMES } from "@/lib/camera-path";
 import { cropPicture, isCropWindow } from "./crop-picture";
 import { convertMask, decodePng, encodePng } from "./png";
-import { engineMode, getSetting, withCandidates, withoutCandidates } from "./settings";
+import { engineMode, getSetting, runFailureDetail, withCandidates, withoutCandidates } from "./settings";
 import { blockedForAccounts, discardBody, fetchRemoteToFile, RemoteFetchError } from "./remote-fetch";
 import { accountSend } from "./account-send";
 import { stamped, stampOf, withoutStamp, withRunStamp, type RunStamp } from "./run-stamp";
 import { anyHeld, dropGone, dropHold, HELD, NOT_HELD } from "./pool-holds";
 import { FILE_TROUBLE_WORDS, POOL_WORDS, RELAY_WORDS } from "@/lib/relay";
-import { heldLine, placeInLine, poolOnWorkers, poolRunsProvider, poolWaitMs, runOnPool } from "./hosted";
+import { isPoolRunWords } from "@/lib/run-progress";
+import { heldLine, placeInLine, poolOnWorkers, poolRunsProvider, poolWaitMs, requestFileKinds, runOnPool, type FileKind } from "./hosted";
 import { hostedRunsOn } from "./hosted-switch";
 import { catalogVersion } from "./computer/catalog-version";
 import { gettingReady, poolLane, queueOfGeneration, type LinePlace } from "./computer/pool";
+import { ownerGpuMiss } from "./runs-here";
 import { noteCatalogProcess, processStart } from "./computer/ticket-refresh";
 import { hasJobFor, runPreviewAt, stopJobsOf } from "./computer/tasks";
 import { runCeilingMs } from "./queue-settings";
@@ -188,6 +203,12 @@ interface Row {
   fix_json?: string | null;
   /** NULL, or "checking": its outputs wait for the moderation service (output-checks.ts). */
   stage?: string | null;
+  /**
+   * A failed run's technical detail, for the owner only (the engine's own words, cleaned: src/lib/engine-error.ts), when
+   * the person read a plain sentence in `error` instead. Part of a Generation only as `errorDetail`, while the install
+   * shows failure details to people (settings.ts runFailureDetail).
+   */
+  detail?: string | null;
 }
 
 /** Trash and folder columns, joined onto every library read. */
@@ -207,11 +228,14 @@ export function toGeneration(r: Row): Generation {
   // sentence when it can't finish: never the technical reason, which the owner reads in the accounts' runs.
   const pool = stored.place === "pool";
   const checking = r.stage === "checking";
-  // Working on the workers with its model still loading (taken by a worker that had another model loaded): "getting
-  // ready", with no progress yet.
+  // Working on the workers with its model still loading (taken by a worker that had another model loaded): "Loading the
+  // model", with the small share that grows while it loads.
   const ready = pool && r.status === "running" && !checking && gettingReady(r.id);
   const model = getModel(r.model_id);
-  const ar = request.params?.aspectRatio ?? model?.defaults?.aspectRatio;
+  // What it is made at where that differs from what it asked (a 2K run on a model that makes up to 1080P), worked out from
+  // its model, mode and request, so older runs carry it too (src/lib/catalog/fitted.ts).
+  const made = madeOfRun(model, { op: r.op, provider: r.provider, request });
+  const ar = (made ? made.aspectRatio : request.params?.aspectRatio) ?? model?.defaults?.aspectRatio;
   // Rows read without the library join (the runner's own SELECTs) look the trash and folder up.
   const lib =
     r.deleted_at !== undefined && r.folder_id !== undefined
@@ -221,8 +245,8 @@ export function toGeneration(r: Row): Generation {
             "SELECT (SELECT deleted_at FROM generation_trash WHERE generation_id = ?) AS deleted_at, (SELECT folder_id FROM folder_items WHERE generation_id = ?) AS folder_id",
           )
           .get(r.id, r.id) as { deleted_at: number | null; folder_id: string | null });
-  // An Ideogram 4 run that returned its "blocked" card (declinedAgain), made again in its place: Working, saying which try
-  // it is on (never In line: nobody pressed Run again). One that waits for the account's own GPU to come back shows that.
+  // An Ideogram 4 run that returned its "blocked" card (declinedAgain), made again in its place: Working, saying which model
+  // makes it (never In line: nobody pressed Run again). One that waits for the account's own GPU to come back shows that.
   const meta = r.external_meta_json?.includes('"declined"') ? readMeta(r.external_meta_json) : undefined;
   const again = (r.status === "queued" || r.status === "running") && !(r.status === "queued" && !r.external_id && meta?.heal) ? declinedWords(meta ?? {}) : undefined;
   return {
@@ -237,7 +261,7 @@ export function toGeneration(r: Row): Generation {
     kind: r.kind,
     status: again ? "running" : r.status,
     // In line on this install's GPUs (again, after an attempt): no progress.
-    progress: (pool && r.status === "queued") || ready ? null : r.progress,
+    progress: pool && r.status === "queued" ? null : r.progress,
     message: again ?? (pool ? poolMessage(r, ready) : r.message),
     prompt: r.prompt,
     request,
@@ -258,6 +282,9 @@ export function toGeneration(r: Row): Generation {
     folderId: lib.folder_id ?? null,
     pinnedAt: r.pinned_at ?? null,
     review: isReviewStatus(r.review) ? r.review : null,
+    ...(made && { made }),
+    // On this install's GPUs, the cleaned technical reason under the plain sentence, while the install shows it.
+    ...(pool && (r.status === "failed" || r.status === "canceled") && failureDetailOf(r)),
     ...(r.status === "failed" && r.fix_json && !pool && { fix: parseFix(r.fix_json) }),
     ...(r.status === "failed" && r.fix_json && !pool && parseTrouble(r.fix_json)),
     // Waiting for its own GPU or key to come back: why, the buttons that help, and until when (never the owner's note).
@@ -282,6 +309,14 @@ export function toGeneration(r: Row): Generation {
     // The owner's own run: what Ideogram 4 returned in place of a picture (an account's run shows it in Accounts' runs).
     ...(!stored.account && declinedCardsOf(meta)),
   };
+}
+
+/**
+ * A failed run's technical reason for its own person (Generation.errorDetail): the stored detail, already cleaned
+ * (storedFields), while Settings → Failed runs is "full". Nothing when the install shows the plain sentence only.
+ */
+function failureDetailOf(r: Pick<Row, "detail">): { errorDetail: string } | Record<string, never> {
+  return r.detail && runFailureDetail() === "full" ? { errorDetail: r.detail } : {};
 }
 
 /** What Ideogram 4 returned in place of a picture, kept with the run for the owner (Generation.declinedCards). */
@@ -336,10 +371,13 @@ export function shownError(id: string, raw: string | null): string | null {
   return stored.place === "pool" ? poolError(id, raw, !!stored.hold && !!stored.charged) : raw;
 }
 
-/** A pool row's words while it goes: in line, or working on it (`ready`: still getting ready, its model loading). */
+/**
+ * A pool row's words while it goes: in line, or working on it (`ready`: still getting ready, its model loading), with
+ * its stage and the sampler's step when its poll said them ("Working · Step 3 of 6", "Finishing").
+ */
 function poolMessage(r: Pick<Row, "status" | "message">, ready = false): string | null {
   if (r.status === "queued") return POOL_WORDS.inLine;
-  if (r.status === "running") return ready ? POOL_WORDS.gettingReady : POOL_WORDS.working;
+  if (r.status === "running") return ready ? POOL_WORDS.gettingReady : isPoolRunWords(r.message) && r.message !== POOL_WORDS.gettingReady ? r.message : POOL_WORDS.working;
   return null;
 }
 
@@ -351,7 +389,7 @@ function poolMessage(r: Pick<Row, "status" | "message">, ready = false): string 
  */
 function poolError(id: string, error: string | null, charged: boolean): string | null {
   if (!error) return error;
-  if (PLAIN_POOL_ERRORS().has(error) || /^Your files have reached \d+ GB\b/.test(error)) return error;
+  if (PLAIN_POOL_ERRORS().has(error) || isEngineWords(error) || /^Your files have reached \d+ GB\b/.test(error)) return error;
   const checked = db().prepare("SELECT 1 FROM output_checks WHERE generation_id = ? AND state IN ('hidden', 'unchecked') LIMIT 1").get(id);
   if (!checked) return POOL_WORDS.failed;
   return charged ? error : error.replace(/\s*Not charged\.$/, "");
@@ -508,23 +546,31 @@ interface PendingMeta {
   /** Who holds the run as the release before this one marked it (OLD_LEASE), and until when. */
   lease?: { by?: unknown; until?: unknown };
   /**
-   * An Ideogram 4 run that returned only its "blocked" card (declinedAgain): which try it is on now (`stage`: made again
-   * with a new seed, then with Qwen-Image 2.1), and the cards it returned (kept for the owner). Kept through every hand-over.
+   * An Ideogram 4 run that returned only its "blocked" card, or a run of Auto whose model failed (declinedAgain): the
+   * fallback that makes it now, and the cards it returned (kept for the owner). Kept through every hand-over.
    */
   declined?: DeclinedMeta;
 }
 
-/** What an Ideogram 4 run that returned its "blocked" card keeps (PendingMeta.declined). */
+/** What an Ideogram 4 run that returned its "blocked" card, or a run of Auto whose model failed, keeps (PendingMeta.declined). */
 interface DeclinedMeta {
-  stage?: keyof typeof DECLINED_WORDS;
-  /** A run of Auto: the fallback model that makes it now (src/lib/auto-image.ts AUTO_FALLBACKS). */
+  /** "fallback": a fallback makes it now. "retry": only on runs declined before (LEGACY_DECLINED). */
+  stage?: "retry" | "fallback";
+  /** "failed": a run of Auto whose model failed (autoFails), made by Auto's next model; none: Ideogram 4 declined it. */
+  cause?: "failed";
+  /**
+   * The fallback model that makes it now (src/lib/auto-image.ts: Auto's next model, or DECLINED_FALLBACKS for Ideogram 4
+   * picked by name); none on a legacy Qwen-Image 2.1 run.
+   */
   model?: string;
+  /** A run of Auto: the models that tried it before this one (each makes it at most once). */
+  tried?: string[];
   cards?: DeclinedCard[];
-  /** Made with Qwen-Image 2.1 now: the run as Ideogram 4's, put back when that fails too (declinedFails). */
+  /** The run as first planned, put back when every fallback after Ideogram 4 declined fails (declinedFails). */
   was?: DeclinedRun;
 }
 
-/** The columns of a run that Qwen-Image 2.1 changes when it makes a run Ideogram 4 declined. */
+/** The columns of a run that a fallback changes when it makes a run Ideogram 4 declined. */
 type DeclinedRun = Pick<Row, "request_json" | "model_id" | "engine" | "op" | "kind" | "prompt" | "cost_usd">;
 const declinedRun = (r: Row): DeclinedRun => ({ request_json: r.request_json, model_id: r.model_id, engine: r.engine, op: r.op, kind: r.kind, prompt: r.prompt, cost_usd: r.cost_usd });
 
@@ -618,7 +664,21 @@ function turnTaken(id: string): boolean {
 /** A row still waiting for its hand-over (queued or running, no job yet): only then is it changed. */
 const PENDING = "status IN ('queued', 'running') AND external_id IS NULL";
 
-function update(id: string, fields: Partial<Row>): void {
+/**
+ * Fields as they are written: a run's error never keeps a machine's path, a tool's banner or a stack trace, and its
+ * owner-only detail is cleaned the same way (src/lib/engine-error.ts).
+ */
+function storedFields(fields: Partial<Row>): Partial<Row> {
+  if (typeof fields.error !== "string" && typeof fields.detail !== "string") return fields;
+  return {
+    ...fields,
+    ...(typeof fields.error === "string" && { error: storedErrorText(fields.error) }),
+    ...(typeof fields.detail === "string" && { detail: cleanEngineText(fields.detail) || null }),
+  };
+}
+
+function update(id: string, given: Partial<Row>): void {
+  const fields = storedFields(given);
   const keys = Object.keys(fields);
   if (!keys.length) return;
   db()
@@ -694,6 +754,19 @@ export interface ListOptions {
   account?: string;
   /** Every account's runs, never the owner's: the owner's view of what accounts make (src/server/account-admin.ts). */
   accounts?: boolean;
+  /** Everyone's runs, the owner's and every account's (the owner's admin view); `account` and `accounts` win over it. */
+  everyone?: boolean;
+  /**
+   * Where it ran: "pool" (this install's GPUs: hosted runs, and the owner's runs on the install's ComfyUI), "provider" (a
+   * cloud provider: fal, Replicate…), "own" (an account's own GPU).
+   */
+  where?: "pool" | "provider" | "own";
+  /** A model id that holds these letters. */
+  modelLike?: string;
+  /** Only these runs (by id), helper steps too. */
+  ids?: string[];
+  /** The owner's runs only, by `request.source`: "hands-on" (none set, or "hands-on") or "batch" (any other source). */
+  source?: "hands-on" | "batch";
   /** Date range on createdAt: since ≤ t < until. */
   since?: number;
   until?: number;
@@ -713,7 +786,20 @@ export function listGenerations(o: ListOptions = {}): Generation[] {
   if (o.account) add("json_extract(g.request_json, '$.account') = ?", o.account);
   // A range rather than IS NOT NULL: SQLite can search the generations_account index for a range (it scans it whole for IS NOT NULL).
   else if (o.accounts) add("json_extract(g.request_json, '$.account') > ''");
-  else add("json_extract(g.request_json, '$.account') IS NULL");
+  else if (!o.everyone) add("json_extract(g.request_json, '$.account') IS NULL");
+  if (o.source) {
+    add("json_extract(g.request_json, '$.account') IS NULL");
+    add(`COALESCE(json_extract(g.request_json, '$.source'), 'hands-on') ${o.source === "hands-on" ? "=" : "<>"} 'hands-on'`);
+  }
+  const place = "COALESCE(json_extract(g.request_json, '$.place'), '')";
+  if (o.where === "pool") add(`(${place} = 'pool' OR (json_extract(g.request_json, '$.account') IS NULL AND g.provider = 'comfyui'))`);
+  else if (o.where === "provider") add(`${place} <> 'pool' AND g.provider NOT IN ('comfyui', 'mock')`);
+  else if (o.where === "own") add(`${place} <> 'pool' AND g.provider = 'comfyui' AND json_extract(g.request_json, '$.account') > ''`);
+  if (o.modelLike) add("g.model_id LIKE ? ESCAPE '!'", `%${o.modelLike.replace(/[!%_]/g, (c) => `!${c}`)}%`);
+  if (o.ids) {
+    if (!o.ids.length) add("0");
+    else oneOf("g.id", o.ids);
+  }
   if (o.batchId) add("g.batch_id = ?", o.batchId);
   if (o.feature) add("g.feature = ?", o.feature);
   if (o.features?.length) add(`(${o.features.map(() => "g.feature LIKE ?").join(" OR ")})`, ...o.features.map(featureLike));
@@ -732,7 +818,7 @@ export function listGenerations(o: ListOptions = {}): Generation[] {
     const any = [set.length ? `g.review IN (${set.map(() => "?").join(", ")})` : "", o.reviews.includes("none") ? "g.review IS NULL" : ""].filter(Boolean);
     add(`(${any.join(" OR ")})`, ...set);
   }
-  if (!o.steps && !o.feature && !o.features?.length && !o.batchId) {
+  if (!o.steps && !o.feature && !o.features?.length && !o.batchId && !o.ids) {
     add(`g.feature NOT LIKE ? AND g.feature NOT IN (${HELPER_FEATURES.map(() => "?").join(", ")})`, `%${HELPER_SUFFIX}`, ...HELPER_FEATURES);
   }
   // The cursor's order: the Trash by deletion, a pinned list by pin, the rest by creation (then id, all descending).
@@ -745,7 +831,8 @@ export function listGenerations(o: ListOptions = {}): Generation[] {
   if (o.until) add("g.created_at < ?", o.until);
   const q = o.q?.trim();
   // The user's own words (request.prompt) and what the model got (prompt, with suffixes and templates).
-  if (q) add("(g.prompt LIKE ? OR json_extract(g.request_json, '$.prompt') LIKE ?)", `%${q}%`, `%${q}%`);
+  // A run's own id finds it too.
+  if (q) add("(g.id = ? OR g.prompt LIKE ? OR json_extract(g.request_json, '$.prompt') LIKE ?)", q, `%${q}%`, `%${q}%`);
   // Every account's runs: from the accounts' entries in generations_account, then sorted (they go after 30 days, so they
   // stay few). Left to its own plan, SQLite walks every run newest first (or every run of a status), the owner's too,
   // until the page is full: the whole table when accounts' runs are few or none match. Without the index (db.ts goes
@@ -833,6 +920,10 @@ export const ASSET_REFS: AssetRef[] = [
   // (skill-runs.ts STUDIO_TABLES). `account` lets a row keep only its own account's files.
   { table: "account_canvases", cols: ["pages_json"], what: "account canvas", key: "id", name: "name", account: "account_id" },
   { table: "account_projects", cols: ["data_json", "summary_json"], what: "account project", key: "id", name: "name", account: "account_id" },
+  // Fuobe Chat: a picture sent in a chat, a character's portrait, and a shared chat's portrait.
+  { table: "account_chat_messages", cols: ["image_url", "data_json"], what: "chat", key: "thread_id", name: "(SELECT title FROM account_chat_threads WHERE id = thread_id)", account: "account_id" },
+  { table: "account_chat_characters", cols: ["portrait_url"], what: "chat character", key: "id", name: "name", account: "account_id" },
+  { table: "account_chat_shares", cols: ["portrait_url"], what: "shared chat", key: "token", name: "json_extract(snapshot_json, '$.title')", account: "account_id" },
 ];
 
 /**
@@ -902,8 +993,10 @@ export const ASSET_FREE: Record<string, string> = {
   "relay_workers.seen_json": "the countries and network hashes a worker's token was used from",
   "relay_workers.ceiling_json": "the most a worker's PC may run: lanes, workflow ids and sizes",
   "relay_workers.cpu_slot_json": "the kinds of finishing job a worker's CPU slot runs",
+  "relay_workers.holding_json": "why a worker doesn't start the line's work now: a short reason, since when and a task id",
   "relay_pairings.facts_json": "what a paired ComfyUI said about itself: its name, GPU and version",
   "account_canvases.summary_json": "an account board's list line: node and page counts, and its outline (node types, places and short labels)",
+  "account_chat_shares.snapshot_json": "a shared chat's words and its character's name and colours; its portrait is the row's portrait_url",
 };
 
 /** The query that finds the rows of one ASSET_REFS table naming a file (@id), except the purged generation's own (@g). */
@@ -949,9 +1042,10 @@ export function assetInUse(assetId: string, exceptGeneration = ""): boolean {
  * src/server/library.ts (they cancel running jobs first); moving to the Trash is trashGenerations.
  */
 export function deleteGeneration(id: string): void {
-  // A 3D job's finish or turntable render stops with it.
+  // A 3D job's finish, turntable render or preview stops with it.
   stopModelFinish(id);
   stopWorkerFinish(id);
+  stopPreviews(id);
   const assets = db().prepare("SELECT id FROM assets WHERE generation_id = ?").all(id) as { id: string }[];
   db().transaction(() => {
     db().prepare("DELETE FROM generations WHERE id = ?").run(id);
@@ -971,6 +1065,7 @@ export function deleteGeneration(id: string): void {
  * Imagine Image takes 5 on fal) gives way to one that takes them all, or says so.
  * `loras` and `seconds` (the clip length asked for) prefer a route that carries every LoRA and makes that
  * length (Replicate's Wan 2.2 fast renders only 81–121 frames, fal's 17–161).
+ * `prefer` (GenerationRequest.prefer) is the provider the request names: its route runs while it is ready.
  */
 export function chooseRoute(candidates: ModelRoute[], images = 0, loras: LoraRef[] = [], seconds?: number, forceDemo = false, prefer?: CloudProvider): { route: ModelRoute; demo: boolean } {
   // Honour the preferred cloud aggregator (Settings → API configuration) when a model is on several.
@@ -990,9 +1085,7 @@ export function chooseRoute(candidates: ModelRoute[], images = 0, loras: LoraRef
   // A route that carries every LoRA wins (Replicate's Wan 2.2 takes one per expert, fal's takes a Mix), then one
   // that makes the length asked; otherwise the first ready one runs and the plan's notes say what it changes.
   const ok = (r: ModelRoute) => routeReady(r) && takes(r);
-  const long = (r: ModelRoute) => framedLength(r.map?.numFrames, seconds) === undefined;
-  const real =
-    routes.find((r) => ok(r) && lorasFit(r, loras) && long(r)) ?? routes.find((r) => ok(r) && lorasFit(r, loras)) ?? routes.find((r) => ok(r) && long(r)) ?? routes.find(ok);
+  const real = pickRoute(routes, { ok, fits: (r) => lorasFit(r, loras), seconds, prefer });
   if (real) return { route: real, demo: false };
   const short = routes.find(routeReady);
   if (short) {
@@ -1214,8 +1307,12 @@ function prepare(original: GenerationRequest) {
   if (access.dropped.length) plan = { ...plan, loras: access.loras, prompt: withoutTriggers(plan.prompt, plan.loras.filter((l) => !access.loras.some((k) => k.file === l.file)), access.loras) };
   else if (access.loras.some((l, i) => l !== plan.loras[i])) plan = { ...plan, loras: access.loras };
   // A preset can route to another model than the one asked for: its routes that are on (or the switch that's off).
-  const prefer = tenantAccount() && isCloudProvider(worded.prefer) ? worded.prefer : undefined;
+  const prefer = isCloudProvider(worded.prefer) ? worded.prefer : undefined;
   const { route, demo } = chooseRoute(triedRoutes(plan.model, offeredRoutes(plan.model, routesFor(plan.model, plan.op, plan.params))), req.inputs?.images?.length ?? 0, plan.loras, seconds, !!worded.demo, prefer);
+  // The owner's run on their own GPUs (the workers): one that none of them can take is refused when it is planned and
+  // priced (runs-here.ts), as a visitor's is, never after an earlier step of its chain ran.
+  const notOnGpus = demo ? null : ownerGpuMiss(route, plan.model, plan.op);
+  if (notOnGpus) throw notOnGpus;
   // Qwen-Image 2.1's Options → Speed loads its speed's LoRA in the graph: that LoRA switched off holds the speed.
   const tier = route.provider === "comfyui" ? speedLora(route.endpoint, plan.params.extra) : undefined;
   if (tier && offeredLoras([{ file: tier.file }]).dropped.length) {
@@ -1298,6 +1395,17 @@ function prepare(original: GenerationRequest) {
   if (!demo && !route.map?.numOutputs && plan.perJobOutputs > 1) {
     plan = { ...plan, jobs: plan.jobs * plan.perJobOutputs, perJobOutputs: 1, params: { ...plan.params, numOutputs: 1 } };
   }
+  // A setting the composer offers because another route of the model reads it (Nano Banana Pro's seed on fal), dropped by the
+  // route this run goes to (Replicate's): said in the run's notes, never dropped without a word. (A count it can't take was
+  // split into one job per result just above, so it isn't one.)
+  const drops = demo ? [] : routeDrops(route, plan.model.id, { negativePrompt: req.negativePrompt, params: plan.params });
+  if (drops.length) notes.push(`${plan.model.name} on ${provider(route.provider).label} doesn't take ${listWords(drops)}: this run goes without`);
+  // Settings another route of the model would honour: fitted shape/size noted here, all kept as the run's notice.
+  const shortfalls = demo ? [] : routeShortfalls(plan.model, plan.op, route.provider, { params: req.params, negativePrompt: req.negativePrompt });
+  for (const s of shortfalls)
+    if ((s.setting === "aspectRatio" || s.setting === "resolution") && s.did.includes(" in place of "))
+      notes.push(`${plan.model.name} on ${provider(route.provider).label} doesn't make ${s.asked}: this run is made at ${s.made}`);
+  const notice = shortfalls.length ? shortfallNote(plan.model, route.provider, shortfalls) : undefined;
   const providerId: ProviderId = demo ? "mock" : route.provider;
   // A text step that runs on a local model is free; only Claude costs money.
   const free = demo || (route.provider === "llm" && !llmUsesClaude(route));
@@ -1318,6 +1426,7 @@ function prepare(original: GenerationRequest) {
     gpu: gpu?.gpu,
     h3: h3 && { gpuTier: h3.gpuTier, ...(h3.unet && { unet: h3.unet }) },
     cost: free ? 0 : estimateCost(plan.model, priced, 1, plan.op, withLoras),
+    notice,
     // Auto's pick, which the stored request keeps.
     ...(routed.auto && { auto: routed.auto }),
   };
@@ -1333,19 +1442,20 @@ function autoPatternsNow(): ReturnType<typeof autoPatterns> {
 
 /**
  * A run of Auto (src/lib/auto-image.ts) as the model it picks runs it: the pick it carries (a run planned again: a resend,
- * a run that waited to enter the line, a fallback after Ideogram 4 declined), else the first of its picks for these words
+ * a run that waited to enter the line, Auto's next model after the one before failed) while it is one of Auto's models
+ * for the operation (an older run's Ideogram 4 or FIBO 2 Dev picture is planned again), else the first of its picks for these words
  * and pictures that is switched on and runs the operation (Settings → Models & licences). A picture to work from makes it
  * an edit. Any other request as it is.
  */
 function autoRouted(req: GenerationRequest): GenerationRequest {
   if (req.modelId !== AUTO_IMAGE) return req;
   const images = req.inputs?.images?.length ?? 0;
-  if (req.auto && AUTO_MODELS.has(req.auto.model)) {
+  if (req.auto) {
     const m = getModel(req.auto.model);
-    const op = req.op && m?.routes.some((r) => r.op === req.op) ? req.op : undefined;
-    return { ...req, modelId: req.auto.model, op: op ?? (images ? "edit" : "t2i") };
+    const op = (req.op && m?.routes.some((r) => r.op === req.op) ? req.op : undefined) ?? (images ? "edit" : "t2i");
+    if (autoModelsFor(op).includes(req.auto.model)) return { ...req, modelId: req.auto.model, op };
   }
-  const c = autoCandidates({ prompt: req.prompt, op: req.op, images, account: !!req.account }, autoPatternsNow());
+  const c = autoCandidates({ prompt: req.prompt, op: req.op, images }, autoPatternsNow());
   const op: Operation = c.why === "edit" ? (req.op && req.op !== "t2i" ? req.op : "edit") : "t2i";
   const runs = (id: string) => {
     const m = getModel(id);
@@ -1368,6 +1478,16 @@ const graphLoras = (endpoint: string, extra: Record<string, unknown> | undefined
   ...regenerateGraphLoras(endpoint, extra),
   ...pikaFlexGraphLoras(endpoint, extra),
 ];
+
+/**
+ * The LoRA files a planned ComfyUI run loads (by name, once each): the ones its plan adds (a look's, a motion's, a
+ * recipe's, the person's own) and the ones its graph picks by option. Whatever of them is a workflow's own file its lane
+ * covers; the rest are its run-time files (src/lib/runtime-files.ts). None off ComfyUI.
+ */
+export function runLoraFiles(p: { route: { provider: string; endpoint: string }; loras: { applied: LoraRef[] } }, extra: Record<string, unknown> | undefined): string[] {
+  if (p.route.provider !== "comfyui") return [];
+  return [...new Set([...p.loras.applied, ...graphLoras(p.route.endpoint, extra)].map((l) => l.file).filter(Boolean))];
+}
 
 /** Operations whose clip length is the duration picked (made, or added by extend), not an input video's. */
 const MADE_LENGTH_OPS = new Set<Operation>(["t2v", "i2v", "flf2v", "ref2v", "extend", "keyframes"]);
@@ -1395,8 +1515,15 @@ export function previewGeneration(asked: GenerationRequest) {
     if (twoK.costUsd !== null) post += twoK.costUsd;
     notes.push(...twoK.notes);
   }
+  // Fix faces after the take (the switch beside Run): one more step per take, planned and priced beside it.
+  const faces = twoK ? null : fixFacesExtra(moved.request, plan.jobs);
+  if (faces) {
+    if (faces.costUsd !== null) post += faces.costUsd;
+    notes.push(faces.note);
+  }
+  const extraSteps: { model: string; op: string }[] = [...(twoK?.steps ?? []), ...(faces?.steps ?? [])];
   // A finish whose price isn't known leaves the run's price unknown too, never the main step's alone.
-  const priceUnknown = cost === null || twoK?.costUsd === null;
+  const priceUnknown = cost === null || twoK?.costUsd === null || faces?.costUsd === null;
   return {
     model: plan.model,
     op: plan.op,
@@ -1406,7 +1533,7 @@ export function previewGeneration(asked: GenerationRequest) {
     providerId,
     costUsd: priceUnknown || cost === null ? null : post ? Math.round((cost * plan.jobs + post) * 1000) / 1000 : cost * plan.jobs,
     // The other steps the run makes beside its own model (a 2K take's finish), so a policy and a price see them all.
-    ...(twoK?.steps.length && { steps: twoK.steps }),
+    ...(extraSteps.length && { steps: extraSteps }),
     // The engine it runs on (a Fuobe Original picks one per request).
     engine: plan.model.engine,
     // What the route runs (the evaluation harness records it): the provider endpoint, the final prompt and the LoRAs it loads.
@@ -1440,6 +1567,17 @@ function h3TwoKExtra(req: GenerationRequest, model: ModelDef, op: Operation): { 
   };
 }
 
+/** Fix faces after an H3 take from a start picture (the switch beside Run): one Fix faces step per take, checked and priced. */
+function fixFacesExtra(req: GenerationRequest, takes: number): { costUsd: number | null; note: string; steps: { model: string; op: string }[] } | null {
+  if (!wantsFixFacesAfter(req)) return null;
+  const p = previewChained(fixFacesAfterStep(req), 1);
+  return {
+    costUsd: p.costUsd === null ? null : Math.round(p.costUsd * takes * 10000) / 10000,
+    note: "Then its faces are fixed from the start picture: a few more minutes",
+    steps: Array.from({ length: takes }, () => ({ model: FIX_FACES.model, op: "face-fix-video" })),
+  };
+}
+
 /** Preview a step that will wait for `deps` earlier steps: validated with placeholders in its chain slots, as createGenerations does. */
 export function previewChained(req: GenerationRequest, deps: number) {
   if (!deps) return previewGeneration(req);
@@ -1464,6 +1602,13 @@ export interface CreateOptions {
 
 const depIds = (v: string | null): string[] => (!v ? [] : v.startsWith("[") ? (JSON.parse(v) as string[]) : [v]);
 
+/** Is the work in hand part of a request sent with the owner's API token (api-caller.ts)? */
+function viaApiToken(): boolean {
+  if (apiCaller()) return true;
+  const header = requestAuthorization();
+  return !!header && validToken(header);
+}
+
 /**
  * Public sign-up: inside an account's run (accountRun) every request it makes, and every step its chains queue, is
  * stamped as the account's own: on the open engine, or the engine it asked for while it may use paid models on its own
@@ -1475,8 +1620,11 @@ function stampTenant(asked: GenerationRequest, opts: CreateOptions): GenerationR
   const who = tenantAccount();
   if (!who) {
     if (ownGpu()) throw new Error("We can't find that run.");
-    // The owner's runs carry no place, hold or check of an account's run (run-stamp.ts).
-    return withRunStamp({}, () => stamped(asked));
+    // The owner's runs carry no place, hold or check of an account's run (run-stamp.ts). One asked for with an API token
+    // (any route: the studios, apps, Canvas, Chat's tools…) that says no source of its own is an "api" run: only a run
+    // from the signed-in browser is hands-on (api-caller.ts).
+    const sourced = !asked.source && viaApiToken() ? { ...asked, source: "api" as const } : asked;
+    return withRunStamp({}, () => stamped(sourced));
   }
   if (asked.account && asked.account !== who) throw new Error("We can't find that run.");
   const deps = opts.dependsOn === undefined ? [] : Array.isArray(opts.dependsOn) ? opts.dependsOn : [opts.dependsOn];
@@ -1548,6 +1696,22 @@ export function createGenerations(sent: GenerationRequest, opts: CreateOptions =
     const run = createRegenerateRun(original, shotModel, opts, createGenerations, joinClips, (id) => void cancelGeneration(id));
     if (run) return run;
   }
+  // Fix faces after a MiniMax H3 video from a start picture (the switch beside Run): each take, then its faces fixed from that
+  // picture. Both are kept: the take as it came, and the fixed one. 2K keeps its own two steps instead.
+  if (!opts.dependsOn && shotModel && wantsFixFacesAfter(original) && !wantsH3TwoK(shotModel.id, original.params?.resolution)) {
+    const batchId = opts.batchId ?? nanoid(10);
+    const extra = { ...original.params?.extra };
+    delete extra[FIX_FACES_AFTER_PARAM];
+    const takes = createGenerations({ ...original, params: { ...original.params, extra } }, { batchId });
+    const fixed: Generation[] = [];
+    try {
+      for (const t of takes) fixed.push(...createGenerations(fixFacesAfterStep(original), { batchId, dependsOn: t.id }));
+    } catch (e) {
+      for (const g of [...fixed, ...takes]) void cancelGeneration(g.id);
+      throw e;
+    }
+    return [...fixed, ...takes];
+  }
   // MiniMax H3 at 2K on your GPU (n7-10): a 768p draft, then Open-H3 Regenerate at 2K from it (from its latent for text to video).
   if (shotModel && wantsH3TwoK(shotModel.id, original.params?.resolution)) {
     return createH3TwoKRun(original, inferOperation(shotModel, original), opts, createGenerations, (id) => void cancelGeneration(id));
@@ -1558,7 +1722,8 @@ export function createGenerations(sent: GenerationRequest, opts: CreateOptions =
   const p = waits ? prepare(withChainInputs(original, slotsFor(original, deps.length).map(placeholderFor))) : prepare(original);
   const { req, plan, route, demo, providerId, cost } = p;
   // Auto keeps its pick with the run: planned again, the run goes to the same model, and its tile names it.
-  const kept = p.auto ? { ...original, auto: p.auto } : original;
+  const picked = p.auto ? { ...original, auto: p.auto } : original;
+  const kept = p.notice && !picked.notice?.includes(p.notice) ? { ...picked, notice: [picked.notice, p.notice].filter(Boolean).join(" · ") } : picked;
   // A preset whose recipe edited the start frame into an end frame first: two steps (the edit, then the clip).
   if (!opts.dependsOn && plan.end) return createEndFrameClip(original, plan.end);
   const notes = moved.note ? [moved.note, ...p.notes] : p.notes;
@@ -1683,7 +1848,10 @@ function isParked(id: string, now = Date.now()): boolean {
   return false;
 }
 
-/** One row a run would make: its model, operation, provider, kind and app, and the earlier steps it waits for. */
+/**
+ * One row a run would make: its model, operation, provider, kind and app, and the earlier steps it waits for. `loras`:
+ * the LoRA files a planned ComfyUI row loads (runLoraFiles), when plannedSteps could plan it.
+ */
 export interface PlannedStep {
   id: string;
   modelId: string;
@@ -1692,13 +1860,18 @@ export interface PlannedStep {
   kind: string;
   presetId: string | null;
   waits: boolean;
+  loras?: string[];
+  /** The kinds of file a ComfyUI row reads: its own (`files`), and those its earlier steps hand it (`made`). */
+  files?: FileKind[];
+  made?: FileKind[];
 }
 
 const ROLLED_BACK = Symbol("rolled back");
 
 /**
  * Every row `fn` (createGenerations) would make, made and thrown away inside one transaction: nothing is kept and
- * nothing is sent. A chain's later steps are planned exactly as the real run plans them.
+ * nothing is sent. A chain's later steps are planned exactly as the real run plans them, each ComfyUI row with the LoRA
+ * files it loads (a look's, a motion's, a relit start frame's), so a gate checks them all.
  */
 export function plannedSteps(fn: () => unknown): PlannedStep[] {
   const d = db();
@@ -1707,13 +1880,43 @@ export function plannedSteps(fn: () => unknown): PlannedStep[] {
     d.transaction(() => {
       const run = captureRun(fn);
       run.settle();
-      steps = stepsOf(run.ids);
+      steps = stepsOf(run.ids).map(withRowLoras);
       throw ROLLED_BACK;
     })();
   } catch (e) {
     if (e !== ROLLED_BACK) throw e;
   }
   return steps;
+}
+
+/**
+ * A ComfyUI row with the LoRA files it loads, planned from its request as createGenerations planned it (else as it was),
+ * and the kinds of file it reads.
+ */
+function withRowLoras(s: PlannedStep): PlannedStep {
+  if (s.provider !== "comfyui") return s;
+  const r = db().prepare("SELECT request_json, depends_on FROM generations WHERE id = ?").get(s.id) as { request_json: string; depends_on: string | null } | undefined;
+  if (!r) return s;
+  try {
+    const req = JSON.parse(r.request_json) as GenerationRequest;
+    const deps = !r.depends_on ? 0 : r.depends_on.startsWith("[") ? (JSON.parse(r.depends_on) as unknown[]).length : 1;
+    const made = chainFileKinds(req, deps);
+    const facts = { ...s, files: requestFileKinds(req), ...(made.length && { made }) };
+    const loras = runLoraFiles(previewChained(req, deps), req.params?.extra);
+    return loras.length ? { ...facts, loras } : facts;
+  } catch {
+    return s;
+  }
+}
+
+/** The kinds of file a step's earlier steps hand it, by the slots they go to (words for its prompt are no file). */
+export function chainFileKinds(req: GenerationRequest, deps: number): FileKind[] {
+  const kinds = new Set<FileKind>();
+  for (const c of slotsFor(req, deps)) {
+    const k = SLOT_KIND[c.slot];
+    if (k !== "text") kinds.add(k);
+  }
+  return [...kinds];
 }
 
 /** The rows of a run (by id) as steps. */
@@ -2011,6 +2214,15 @@ const comfyWaits = (): Map<string, number> => (globalThis.__fuobeComfyWaits ??= 
 /** How long such a step waits for ComfyUI to answer again before chainMode fails it. */
 export const COMFY_WAIT = { ms: 60_000 };
 
+/**
+ * A chain's last step made before it kept its run's stamp (chains.ts withAsked wrote it back without one): the stamp it
+ * was asked with, so a step of a run on this install's GPUs runs there too, never on the account's own GPU.
+ */
+function withAskedStamp(req: GenerationRequest): GenerationRequest {
+  if (!req.account || req.place || req.asked?.place !== "pool") return req;
+  return { ...req, ...stampOf(req.asked), asked: withoutStamp(req.asked) };
+}
+
 /** Launch dependent jobs whose inputs finished; fail the ones whose inputs failed. Never waits for an upload. */
 async function advanceDependents(): Promise<void> {
   // A server that is stopping launches no step (the app process that goes on does), and leaves the steps it looked at.
@@ -2025,7 +2237,7 @@ async function advanceDependents(): Promise<void> {
     if (submitting().has(r.id) || isParked(r.id)) continue;
     // A step queued before its model was retired runs on what replaced it (and its row says so).
     const moved = currentRequest(JSON.parse(r.request_json) as GenerationRequest);
-    const stored = moved.request;
+    const stored = withAskedStamp(moved.request);
     const allIds = depIds(r.depends_on);
     const allSlots = slotsFor(stored, allIds.length);
     const allDeps = allIds.map(
@@ -2264,7 +2476,8 @@ export const OWN_GPU_ONLY = "Pick an open-source model to run it on your GPU.";
 export const OPEN_ONLY_RUN = "Pick an open-source model to run this on your GPU.";
 export const SWITCHED_OFF_RUN = "This account is closed, so its runs stopped.";
 /** A run on this install's GPUs that waited past its limit (hosted runs). */
-export const POOL_WAITED = "The GPUs were busy, so it didn't run. Not charged.";
+/** A run on this install's GPUs that waited past the limit set for it (a billing service's; none by default). */
+export const POOL_WAITED = ENGINE_WORDS["long-wait"];
 
 /**
  * Everything an account's work runs inside: as the account (tenant.ts: only its own files and runs), on its own ComfyUI
@@ -2655,6 +2868,19 @@ export const OWN_QUEUE = { scale: 1 };
 const OWN_QUEUE_CAP_MS = 2 * 60 * 60_000;
 
 /**
+ * Whether another of the account's runs on this provider has started there. fal.ai starts a key's jobs a few at a time
+ * (its concurrency limit: 2 on a new account, more as it buys credit) and keeps the others IN_QUEUE until one of those
+ * ends (fal.ai docs: Concurrency Limits): their place doesn't move meanwhile, but their queue does.
+ */
+function ownRunStarted(id: string, account: string, provider: string): boolean {
+  return !!db()
+    .prepare(
+      "SELECT 1 FROM generations g JOIN generation_runs t ON t.id = g.id WHERE g.id != ? AND g.provider = ? AND g.status = 'running' AND t.started_at IS NOT NULL AND json_extract(g.request_json, '$.account') = ? LIMIT 1",
+    )
+    .get(id, provider, account);
+}
+
+/**
  * The words a waiting run's tile shows, its wait kept with it (external_meta_json `heal`). False: it isn't waiting any more,
  * or this process no longer holds its turn (it stalled, and another took the wait over: that one's wait, and its mark of
  * a send, stay as they are).
@@ -2698,8 +2924,8 @@ async function pause(id: string, ms: number): Promise<boolean> {
  * account's own run, logged and noted for the owner (run-events.ts).
  */
 function failRun(id: string, e: unknown, trouble: Diagnosis | undefined, account: string | undefined, facts?: RunFacts, own = !!facts): boolean {
-  // Qwen-Image 2.1 making a run Ideogram 4 declined: it fails as the declined run.
-  const declined = declinedFails(id, trouble?.words ?? String((e as Error | null)?.message ?? e));
+  // A fallback making a run Ideogram 4 declined, or a run of Auto: the next model, or it fails as the declined run.
+  const declined = declinedFails(id, trouble?.words ?? String((e as Error | null)?.message ?? e), undefined, trouble);
   if (declined !== null) return declined;
   const fix = (e as { fix?: GenerationFix } | null)?.fix;
   const kept = keptFix(fix, trouble);
@@ -2739,9 +2965,17 @@ function ownFailed(id: string, account: string | undefined, f: RunFacts, cause: 
   }
 }
 
-/** generations.fix_json: what the GPU was missing (GenerationFix) and, for an account, what its GPU or key ran into. */
+/** This server's own folders: never named in a run's details line (src/lib/engine-error.ts withoutFolders). */
+const serverFolders = () => [DATA_DIR, process.cwd(), os.tmpdir(), os.homedir()];
+
+/**
+ * generations.fix_json: what the GPU was missing (GenerationFix) and, for an account, what its GPU or key ran into. Its
+ * details line keeps the person's own GPU's words, without this server's folders.
+ */
 const keptFix = (fix: GenerationFix | undefined, trouble: Diagnosis | undefined): string | undefined =>
-  fix || trouble ? JSON.stringify({ ...(fix ?? {}), ...(trouble && { trouble: troubleOf(trouble) }) }) : undefined;
+  fix || trouble
+    ? JSON.stringify({ ...(fix ?? {}), ...(trouble && { trouble: troubleOf(trouble.details ? { ...trouble, details: withoutFolders(trouble.details, serverFolders()) } : trouble) }) })
+    : undefined;
 
 /** Where an account's GPU is, as the log says it: a RunPod pod, a tunnel, a web address, or the person's own computer. */
 function hostKindOf(gpu: AccountGpu | null | undefined): HostKind | undefined {
@@ -2855,7 +3089,9 @@ function accountTrouble(e: unknown, account: string, providerId: string, stage: 
   // The provider's own words (provider-keys.ts accountKeyError keeps them, without the key) tell a refused key from a
   // model the key may not run.
   const said = (e as { said?: unknown } | null)?.said;
-  if (typeof status === "number" && status > 0) return diagnoseKey({ stage, status, text: typeof said === "string" ? said : message }, ctx);
+  // How long the provider asked to wait (a 429's Retry-After, kept by the adapter): the next try waits that long.
+  const retryAfterS = (e as { retryAfterS?: unknown } | null)?.retryAfterS;
+  if (typeof status === "number" && status > 0) return diagnoseKey({ stage, status, text: typeof said === "string" ? said : message, ...(typeof retryAfterS === "number" && retryAfterS > 0 && { retryAfterS }) }, ctx);
   const net = networkReason(e);
   if (net) return diagnoseKey({ stage, error: net }, ctx);
   // A step at the provider that failed in words of its own (a voice it couldn't clone): plain words already, its own in details.
@@ -2950,7 +3186,7 @@ const RESENT_WORDS = "Your GPU restarted, so we sent this run again";
 const resentRuns = () => (globalThis.__fuobeResent ??= new Set());
 
 /** What a poll can't wait out: a key refused, credit gone, no access; a GPU that wants a password or a sign-in. */
-const FINAL_AT_POLL: ReadonlySet<string> = new Set(["key-rejected", "key-balance", "key-permission", "gpu-password", "gpu-password-wrong", "gpu-sign-in", "address-local"]);
+const FINAL_AT_POLL: ReadonlySet<string> = new Set(["key-rejected", "key-balance", "key-permission", "provider-stopped", "gpu-password", "gpu-password-wrong", "gpu-sign-in", "address-local"]);
 
 /** How long an account's run's polls on its own GPU may keep failing before it stops (its key's provider: the run's own clock). */
 const POLL_HEAL_MS = { comfyui: 15 * 60_000 };
@@ -3008,9 +3244,10 @@ function resend(r: Row, account: string, words: string): boolean {
 /** The words an Ideogram 4 run made again after it declined shows while it works; undefined for any other run. */
 function declinedWords(meta: PendingMeta | Record<string, unknown>): string | undefined {
   const d = (meta as PendingMeta).declined;
-  if (!d?.stage || !Object.hasOwn(DECLINED_WORDS, d.stage)) return undefined;
-  // Auto's fallbacks name the model that makes it now.
-  return d.stage === "fallback" && d.model ? `Making it with ${getModel(d.model)?.name ?? d.model}` : DECLINED_WORDS[d.stage];
+  if (d?.stage === "retry") return LEGACY_DECLINED.retryWords;
+  if (d?.stage !== "fallback") return undefined;
+  const m = d.model ?? LEGACY_DECLINED.model;
+  return `Making it with ${getModel(m)?.name ?? m}`;
 }
 
 /**
@@ -3024,11 +3261,10 @@ function keepForOwner(assetIds: readonly string[]): void {
 }
 
 /**
- * What another model is asked when it makes a run Ideogram 4 declined (Qwen-Image 2.1, or one of Auto's fallbacks): the
- * same words in plain text (a caption given as the prompt becomes its words), the same pictures, aspect ratio, size and
- * count, and the model's own settings.
+ * What a fallback is asked when it makes a run Ideogram 4 declined or Auto's model failed: the same words in plain text (a caption
+ * given as the prompt becomes its words), the same pictures, aspect ratio, size and count, and the model's own settings.
  */
-function declinedFallback(stored: GenerationRequest, modelId: string = DECLINED_FALLBACK_MODEL): GenerationRequest {
+function declinedFallback(stored: GenerationRequest, modelId: string): GenerationRequest {
   const p = stored.params ?? {};
   return {
     ...stored,
@@ -3045,15 +3281,16 @@ function declinedFallback(stored: GenerationRequest, modelId: string = DECLINED_
 }
 
 /**
- * An Ideogram 4 run whose every picture was its "blocked" card is made again in its place: the same run (its id, its
- * place, its turn in the line, its billing hold), as the same job of its batch, through the same submit as every run
- * (this install's workers, the owner's ComfyUI, an account's own GPU). Ideogram 4 picked by name: first Ideogram 4 once
- * more, with the same caption and a new seed (its refusals are often random); then Qwen-Image 2.1 (declinedFallback), and
- * the run names the model that made it (its model and its request's notice). A run of Auto (src/lib/auto-image.ts):
- * never Ideogram 4 again, but its fallbacks in order (Krea 2 Realism, FIBO 2 Dev, MOSS-Image), each only when the one
- * before fails (declinedFails), its pick saying why (`why: "declined"`). None is a new press of Run: no limit counts it
- * again, and no new row or hold is made. The run's tile says which try it is on. False when every try was made already,
- * or none can go where the run went: the run fails as before. `later`: sent once the caller (a submit that failed) has
+ * An Ideogram 4 run whose every picture was its "blocked" card, or a run of Auto whose model failed (autoFails), is made
+ * again in its place: the same run (its id, its place, its turn in the line, its billing hold), as the same job of its
+ * batch, through the same submit as every run (this install's workers, the owner's ComfyUI, an account's own GPU), never
+ * by a model that tried it before. A run of Auto goes to Auto's models left in its order (src/lib/auto-image.ts: Krea 2
+ * Realism and MOSS-Image, never Ideogram 4), each at most once, and keeps Auto, its pick saying why (`why: "fallback"`,
+ * or "declined" after Ideogram 4 declined an older run); Ideogram 4 picked by name goes to DECLINED_FALLBACKS in order and
+ * names the model that made it (its model and its request's notice). Each next model is the first switched on that goes
+ * where the run went, and only when the one before fails (declinedFails).
+ * None is a new press of Run: no limit counts it again, and no new row or hold is made. The run's tile says which model
+ * makes it. False when none is left: the run fails as before. `later`: sent once the caller (a submit that failed) has
  * let go of the run.
  */
 function declinedAgain(r: Row, declined: DeclinedMeta, later = false): boolean {
@@ -3068,49 +3305,42 @@ function declinedAgain(r: Row, declined: DeclinedMeta, later = false): boolean {
         : account
           ? asAccount(account, () => prepare(req))
           : prepare(req);
-    let next: "retry" | "fallback";
     let asked = stored;
     let model: string | undefined;
     let p: ReturnType<typeof prepare> | undefined;
-    if (auto) {
-      // The next of Auto's fallbacks that is switched on and goes where the run went.
-      for (let m = nextAutoFallback(declined.model); m && !p; m = nextAutoFallback(m)) {
-        const ask: GenerationRequest = { ...declinedFallback(stored, m), modelId: AUTO_IMAGE, auto: { model: m, why: "declined" } };
-        try {
-          const q = planned(ask);
-          if (q.providerId === r.provider) [p, asked, model] = [q, ask, m];
-        } catch {
-          // Switched off, or it can't make this run: the next one.
+    // Auto: its models left after the ones that tried the run, this one included. Ideogram 4 picked by name: its
+    // fallbacks after the one that made it now (a legacy "retry" stage has no model: it starts at the first).
+    const tried = auto ? [...new Set([...(declined.tried ?? []), r.model_id])] : undefined;
+    const order: string[] = [];
+    if (tried) order.push(...autoNext(autoCandidates({ prompt: stored.prompt, op: "t2i" }, autoPatternsNow()).models, tried));
+    else for (let m = nextDeclinedFallback(declined.model); m; m = nextDeclinedFallback(m)) order.push(m);
+    const why = declined.cause === "failed" ? "fallback" : "declined";
+    for (const m of order) {
+      if (p) break;
+      let ask: GenerationRequest = auto ? { ...declinedFallback(stored, m), modelId: AUTO_IMAGE, auto: { model: m, why } } : declinedFallback(stored, m);
+      let q: ReturnType<typeof prepare> | undefined;
+      try {
+        q = planned(ask);
+      } catch {
+        // A preset with no version for this model: its words as they were planned, without the preset.
+        if (stored.presetId) {
+          try {
+            ask = { ...ask, presetId: undefined, presetOptions: undefined, signature: undefined, prompt: captionWords(planned(stored).plan.prompt) };
+            q = planned(ask);
+          } catch {
+            // Switched off, or it can't make this run: the next one.
+          }
         }
       }
-      if (!p) return false;
-      next = "fallback";
-    } else {
-      const n = !declined.stage ? "retry" : declined.stage === "retry" ? "fallback" : null;
-      if (!n) return false;
-      next = n;
-      if (next === "retry") {
-        p = planned(stored);
-        // The caption it ran with (never written again), and a new seed.
-        const caption = r.prompt ? parseCaption(r.prompt) : null;
-        p = { ...p, plan: { ...p.plan, ...(caption && { prompt: caption }), params: { ...p.plan.params, seed: crypto.randomInt(0, 2 ** 31) } } };
-      } else {
-        asked = declinedFallback(stored);
-        try {
-          p = planned(asked);
-        } catch {
-          // A preset with no Qwen-Image 2.1 version: its words as they were planned, without the preset.
-          const words = captionWords(planned(stored).plan.prompt);
-          asked = { ...asked, presetId: undefined, presetOptions: undefined, signature: undefined, prompt: words };
-          p = planned(asked);
-        }
-      }
-      if (p.providerId !== r.provider) return false;
+      if (q && q.providerId === r.provider) [p, asked, model] = [q, ask, m];
     }
+    if (!p || !model) return false;
     const go = p;
     const index = jobIndexOf(r, readMeta(r.external_meta_json));
-    // The run as Ideogram 4's stays kept from the first fallback on (declinedFails puts it back).
-    const now: DeclinedMeta = { ...declined, stage: next, ...(model && { model }), ...(next === "fallback" && { was: declined.was ?? declinedRun(r) }) };
+    // The run as first planned stays kept from the first fallback on (declinedFails puts it back after a decline).
+    const was = declined.was ?? declinedRun(r);
+    const now: DeclinedMeta = { ...declined, stage: "fallback", model, was, ...(tried && { tried }) };
+    const notice = (JSON.parse(was.request_json) as GenerationRequest).notice;
     const fields: Partial<Row> = {
       external_id: null,
       external_meta_json: JSON.stringify({ jobIndex: index, declined: now }),
@@ -3118,16 +3348,14 @@ function declinedAgain(r: Row, declined: DeclinedMeta, later = false): boolean {
       status: "running",
       progress: null,
       message: declinedWords({ declined: now }) ?? null,
-      ...(next === "fallback" && {
-        model_id: go.plan.model.id,
-        engine: go.plan.model.engine,
-        op: go.plan.op,
-        kind: outputKind(go.plan.op, go.plan.model),
-        prompt: go.plan.prompt,
-        cost_usd: go.cost,
-        // Auto's own line says what made it (autoLine); Ideogram 4 picked by name carries the notice.
-        request_json: JSON.stringify(auto ? asked : { ...asked, notice: [stored.notice, DECLINED_NOTICE].filter(Boolean).join(" · ") }),
-      }),
+      model_id: go.plan.model.id,
+      engine: go.plan.model.engine,
+      op: go.plan.op,
+      kind: outputKind(go.plan.op, go.plan.model),
+      prompt: go.plan.prompt,
+      cost_usd: go.cost,
+      // Auto's own line says what made it (autoLine); Ideogram 4 picked by name carries the notice.
+      request_json: JSON.stringify(auto ? asked : { ...asked, notice: [notice, declinedNotice(go.plan.model.name)].filter(Boolean).join(" · ") }),
     };
     // (Only while the run still goes and is still the job that declined or failed: one another app process saved, ended or
     // sent again meanwhile is left as it is.) It takes its turn to be sent in the same step, and its finish turn goes.
@@ -3151,21 +3379,66 @@ function declinedAgain(r: Row, declined: DeclinedMeta, later = false): boolean {
 }
 
 /**
- * The model that made a run Ideogram 4 declined couldn't make it either. A run of Auto goes on to its next fallback
- * (declinedAgain) while there is one. Otherwise the run fails as Ideogram 4's (its model, request and words put back, so
- * Retry runs what was asked), saying what to try, whether its job failed or couldn't be sent. What the model said goes
- * to the log. Null: not such a run; else whether the run was failed here (false: it still went, or goes on).
+ * A run's model couldn't make it (its job failed, or it couldn't be sent). A fallback making a run Ideogram 4 declined,
+ * or Auto's next model, goes on to the next one (declinedAgain) while there is one; a run of Auto whose first model
+ * failed goes to Auto's next (autoFails). Otherwise a run Ideogram 4 declined fails as Ideogram 4's (its model, request
+ * and words put back, so Retry runs what was asked), saying what to try; a run of Auto fails as its last model did (null:
+ * the caller fails it, in its own words). What the model said goes to the log. Null: not such a run, or none left for a
+ * run of Auto; else whether the run was failed here (false: it still went, or goes on). `trouble`: the failure as read,
+ * where the caller has it.
  */
-function declinedFails(id: string, said: string, metaJson?: string | null): boolean | null {
+function declinedFails(id: string, said: string, metaJson?: string | null, trouble?: Diagnosis): boolean | null {
   const json = metaJson !== undefined ? metaJson : (db().prepare("SELECT external_meta_json FROM generations WHERE id = ?").pluck().get(id) as string | null | undefined);
   const was = readMeta(json).declined;
-  if (was?.stage !== "fallback") return null;
-  console.warn(`[generations] ${id}: ${getModel(was.model ?? DECLINED_FALLBACK_MODEL)?.name ?? was.model} after Ideogram 4 declined: ${said.slice(0, 500)}`);
-  if (was.model && nextAutoFallback(was.model)) {
+  if (was?.stage !== "fallback") return autoFails(id, said, trouble);
+  const tried = was.model ?? LEGACY_DECLINED.model;
+  console.warn(`[generations] ${id}: ${getModel(tried)?.name ?? tried} ${was.cause === "failed" ? "as Auto's next model" : "after Ideogram 4 declined"}: ${said.slice(0, 500)}`);
+  if (was.model && !(was.cause === "failed" && trouble && !AUTO_NEXT_CAUSES.has(trouble.cause))) {
     const r = db().prepare("SELECT * FROM generations WHERE id = ?").get(id) as Row | undefined;
     if (r && (r.status === "queued" || r.status === "running") && declinedAgain(r, was, true)) return false;
   }
+  if (was.cause === "failed") return null;
   return updateLive(id, { ...(was.was ?? {}), status: "failed", error: BLOCKED_CARD_MESSAGE, completed_at: Date.now(), message: null });
+}
+
+/**
+ * Failures of a model's own job that another of Auto's models may not share (the job stopped, ran out of memory, a file
+ * or model was missing, the provider refused the words). One about reaching the GPU or the key, or a run that took too
+ * long (its job may still go), fails the run as it is.
+ */
+const AUTO_NEXT_CAUSES: ReadonlySet<TroubleCause> = new Set<TroubleCause>([
+  "gpu-error",
+  "gpu-job-error",
+  "gpu-out-of-memory",
+  "gpu-model-file",
+  "gpu-refused",
+  "content-flag",
+  "model-unavailable",
+  "provider-failed",
+  "no-result",
+  "bad-input",
+  "unknown",
+]);
+
+/**
+ * A text-to-image run of Auto whose model failed: the same run is made by Auto's next model (Krea 2 Realism, then
+ * MOSS-Image; lettering the other way round), as a run Ideogram 4 declined is (declinedAgain): the same row, hold and
+ * place in line, nothing charged again. False: it goes on; null: not such a run, or no model left, so it fails as any run.
+ */
+function autoFails(id: string, said: string, trouble?: Diagnosis): false | null {
+  if (trouble && !AUTO_NEXT_CAUSES.has(trouble.cause)) return null;
+  const r = db().prepare("SELECT * FROM generations WHERE id = ?").get(id) as Row | undefined;
+  if (!r || (r.status !== "queued" && r.status !== "running") || r.op !== "t2i") return null;
+  let stored: GenerationRequest;
+  try {
+    stored = JSON.parse(r.request_json) as GenerationRequest;
+  } catch {
+    return null;
+  }
+  if (stored.modelId !== AUTO_IMAGE || !stored.auto) return null;
+  if (!declinedAgain(r, { ...readMeta(r.external_meta_json).declined, cause: "failed" }, true)) return null;
+  console.warn(`[generations] ${id}: ${getModel(r.model_id)?.name ?? r.model_id} couldn't make this run of Auto, so Auto's next model makes it: ${said.slice(0, 500)}`);
+  return false;
 }
 
 /**
@@ -3305,7 +3578,11 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
       if (was) return was;
       return gate(async () => {
         const f = await readRef(ref);
-        return upload(`file:${ref}`, f.data, f.contentType, f.name);
+        // A picture outside the limits its endpoint documents (Qwen Image 3 edit: 384-2048 px, 10 MB, PNG without alpha;
+        // Recraft Crisp: PNG only) goes as a fitted copy, or is refused here before it is queued and paid for. Anything that
+        // isn't a picture, and endpoints with no stated limits, pass through unchanged.
+        const g = providerId === "mock" || plan.model.engine === "open" ? f : await fitStill(route.endpoint, f);
+        return upload(`file:${ref}`, g.data, g.contentType, g.name);
       });
     };
     // An end-frame step crops the start frame before the edit (the recipe's crop of the subject).
@@ -3322,11 +3599,21 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
     };
     // The input clip's header (size, frame rate, length): upscalers that take a factor and frame-count routes read it.
     let source: Pick<GenInput, "sourceSize" | "sourceFps" | "sourceDuration"> = {};
+    /** The input clip's file size (fal's H3 Max Turbo extend takes up to 50 MB: clipBytesProblem). */
+    let sourceBytes: number | undefined;
+    // A clip or voice in a container or of a size the endpoint documents it refuses (Kling O3 edit: .mp4/.mov up to 200 MB;
+    // FLUX.3 edit: MP4 under 50 MB; OmniHuman 2: a WAV or MP3 voice up to 15 MB) is refused here, in Fuobe's words, before
+    // it is uploaded and sent.
+    const fileProblem = (kind: "video" | "audio", f: { contentType: string; data: Buffer }) =>
+      providerId === "mock" || plan.model.engine === "open" ? null : clipFileProblem(plan.model, plan.op, kind, f.contentType, f.data.length);
     const prepVideo = async (ref?: string) => {
       if (!ref) return undefined;
       return gate(async () => {
         const f = await readRef(ref);
+        const kind = fileProblem("video", f);
+        if (kind) throw new Error(kind);
         const facts = mediaFacts(f.data);
+        sourceBytes = f.data.length;
         source = {
           ...(facts.width && facts.height ? { sourceSize: { width: facts.width, height: facts.height } } : {}),
           ...(facts.fps ? { sourceFps: facts.fps } : {}),
@@ -3340,20 +3627,24 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
       if (!ref) return undefined;
       return gate(async () => {
         const f = await readRef(ref);
+        const kind = fileProblem("audio", f);
+        if (kind) throw new Error(kind);
         const facts = mediaFacts(f.data);
         if (facts.duration && !source.sourceDuration) source = { ...source, sourceDuration: facts.duration };
         return upload(`file:${ref}`, f.data, f.contentType, f.name);
       });
     };
     // A song tool's song (Mureka): its length read as a voice's is, and one Mureka refuses (Stems: MP3 or M4A, 10 MB; Remix:
-    // 10 to 350 seconds) refused here, before it's sent to Mureka or paid for.
+    // 10 to 350 seconds; Extend and Remix of a song Mureka didn't make, which goes through its files/upload first: MP3 or M4A,
+    // and 10 MB for Extend) refused here, before it's sent to Mureka or paid for. One of Mureka's own goes by its id.
+    const songById = typeof plan.params.extra?.songId === "string" && plan.params.extra.songId.trim() !== "";
     const prepSong = async (ref?: string) => {
       if (!ref) return undefined;
       return gate(async () => {
         const f = await readRef(ref);
         const facts = mediaFacts(f.data);
         if (facts.duration && !source.sourceDuration) source = { ...source, sourceDuration: facts.duration };
-        const problem = providerId === "mock" ? null : songToolProblem(plan.op, { format: songFormat(f.contentType, f.name), bytes: f.data.length, seconds: facts.duration });
+        const problem = providerId === "mock" ? null : songToolProblem(plan.op, { format: songFormat(f.contentType, f.name), bytes: f.data.length, seconds: facts.duration }, songById);
         if (problem) throw new Error(problem);
         return upload(`file:${ref}`, f.data, f.contentType, f.name);
       });
@@ -3362,8 +3653,28 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
     // By the clip's place in inputs.videos, so a clip element (params.elements' video) finds its own length.
     const clipLengths: (number | undefined)[] = [];
     const billsClips = !!plan.model.pricing?.clipInput;
+    // Reference voices a model holds to a length (fal's Vidu Q4: 3 to 12 s each): one outside it is refused here, from its
+    // header, before it's sent or paid for. A header that says no length goes as it is.
+    const checksVoices = plan.op === "ref2v" && hasReferenceVoiceWindow(plan.model) && providerId !== "mock" && plan.model.engine !== "open";
+    // Reference clips and sound a hosted route holds to a window (fal's MiniMax H3 and H3 Max Turbo: 2–15 s each, 15 s of each
+    // kind together): their headers' lengths too, by their place in inputs.videos and inputs.audios.
+    const refWindow = providerId !== "mock" && plan.model.engine !== "open" ? referenceSeconds(plan.model.id) : undefined;
+    const audioLengths: (number | undefined)[] = [];
+    const prepRefVoice = async (ref: string | undefined, i: number) => {
+      if (!ref || !(checksVoices || refWindow?.kinds.includes("audios"))) return prep(ref);
+      const was = sent?.get(`file:${ref}`);
+      if (was) return was;
+      return gate(async () => {
+        const f = await readRef(ref);
+        const seconds = mediaFacts(f.data).duration;
+        if (seconds) audioLengths[i] = seconds;
+        const problem = seconds && checksVoices ? referenceVoiceProblem(plan.model, seconds, i + 1) : null;
+        if (problem) throw new Error(problem);
+        return upload(`file:${ref}`, f.data, f.contentType, f.name);
+      });
+    };
     const prepClip = async (ref: string | undefined, i: number) => {
-      if (!ref || !billsClips) return prep(ref);
+      if (!ref || !(billsClips || refWindow?.kinds.includes("videos"))) return prep(ref);
       return gate(async () => {
         const f = await readRef(ref);
         const facts = mediaFacts(f.data);
@@ -3394,7 +3705,11 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
         // Soul: only the user's words are expanded (60–120 words of subject, wardrobe, place, light); the look stays as it is.
         const longer = await enhanceSoulWords(words).catch(() => words);
         prompt = prompt.slice(0, at) + longer + prompt.slice(at + words.length);
-      } else prompt = await enhancePrompt(prompt, plan.model.kind, plan.op).catch(() => prompt);
+      } else {
+        // MOSS-Image's own prompt rules; a picked film look goes around the words after, so the rewrite names none.
+        const moss = takesFilmLooks(plan.model) ? { filmLook: !!plan.film, mono: !!plan.film?.mono } : undefined;
+        prompt = await enhancePrompt(prompt, plan.model.kind, plan.op, { ownStyle: appliesOwnStyle(route), ...(moss && { moss }) }).catch(() => prompt);
+      }
       update(id, { prompt });
     }
     // Ideogram 4 reads a JSON caption (src/lib/ideogram-caption.ts): one given as the prompt (a reused run) is kept, plain
@@ -3437,13 +3752,25 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
     // Kandinsky 6.0 (both engines) reads spoken lines and the sound in tags of its own (src/lib/kandinsky-prompt.ts): quoted
     // words and a "Sound:" line become them for this run; the run keeps the words as typed, so Reuse shows them.
     if (plan.model.options.promptFormat === "kandinsky6" && prompt) prompt = kandinskyPrompt(prompt);
+    // A MOSS-Image film look (src/server/film-look.ts): the look, the words (after any Enhance), the look again, and the
+    // look's negative beside the run's. A monochrome look takes the colour words out of the scene first. Only this send
+    // reads it: the run keeps the person's words as typed, and Reuse applies the look again.
+    let negativePrompt = req.negativePrompt;
+    if (plan.film && prompt) {
+      if (plan.film.mono) update(id, { message: "Getting the words ready for the film look" });
+      const look = await filmLookRun(plan.film.look, prompt, negativePrompt);
+      if (look) {
+        prompt = look.prompt;
+        negativePrompt = look.negative;
+      }
+    }
     const input: GenInput = {
       ...plan.params,
       // The clip's size is only ever its header's (below): a size the request states (params.sourceSize) prices the run
       // before it starts, never what an upscaler's factor is made from.
       sourceSize: undefined,
       prompt,
-      negativePrompt: req.negativePrompt,
+      negativePrompt,
       images: (await Promise.all((req.inputs?.images ?? []).map((ref, i) => (i === 0 ? prepCropped(ref) : prep(ref))))).filter(Boolean) as string[],
       endImage: await prep(req.inputs?.endImage),
       mask: await prepMask(req.inputs?.mask),
@@ -3453,7 +3780,7 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
       voiceAudio: await prep(req.inputs?.voiceAudio),
       voiceAudio2: await prep(req.inputs?.voiceAudio2),
       videos: (await Promise.all((req.inputs?.videos ?? []).map((ref, i) => prepClip(ref, i)))).filter(Boolean) as string[],
-      audios: (await Promise.all((req.inputs?.audios ?? []).map(prep))).filter(Boolean) as string[],
+      audios: (await Promise.all((req.inputs?.audios ?? []).map((ref, i) => prepRefVoice(ref, i)))).filter(Boolean) as string[],
       model3d: await prep(req.inputs?.model3d),
       loras: plan.loras,
       // Vary seeds across a batch so N jobs don't return N identical results.
@@ -3471,7 +3798,7 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
     // Extending a song (Mureka): the new part starts at its end (or, before its start, at 0) unless the run says where.
     if (plan.op === "song-extend" && input.startTime === undefined) {
       const head = input.extra?.extend_type === "head";
-      if (!head && !(input.sourceDuration && input.sourceDuration > 0)) throw new Error("The song's length couldn't be read: add it again as an MP3, WAV or M4A file");
+      if (!head && !(input.sourceDuration && input.sourceDuration > 0)) throw new Error("The song's length couldn't be read: add it again as an MP3 or M4A file");
       input.startTime = head ? 0 : input.sourceDuration;
     }
     // A talking avatar renders as long as its voice: priced for it once its header is read (an API call that didn't say).
@@ -3495,15 +3822,25 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
     if (input.sourceDuration && !req.chain?.length && providerId !== "mock" && plan.model.engine !== "open") {
       const problem =
         plan.op === "avatar"
-          ? voiceWindowProblem(plan.model, input.sourceDuration)
-          : plan.op === "relight-video" || plan.op === "extend"
-            ? clipWindowProblem(plan.model, input.sourceDuration, input.sourceFps)
+          ? voiceWindowProblem(plan.model, input.sourceDuration, input.resolution)
+          : plan.op === "relight-video" || plan.op === "extend" || plan.op === "reframe" || plan.op === "remove-object" || plan.op === "motion-transfer"
+            ? (clipWindowProblem(plan.model, input.sourceDuration, input.sourceFps) ??
+              (input.sourceSize ? clipSizeProblem(plan.model, input.sourceSize.width, input.sourceSize.height) : null) ??
+              clipBytesProblem(plan.model, sourceBytes))
             : plan.op === "insert-moment"
               ? (clipWindowProblem(plan.model, input.sourceDuration, input.sourceFps) ?? insertRangeProblem(input.startTime, input.endTime, input.sourceDuration))
               : null;
       if (problem) throw new Error(problem);
       // A relight is billed on the clip's length: priced for it once the header is read (an API call that didn't say).
       if (plan.op === "relight-video" && plan.params.sourceDuration === undefined) update(id, { cost_usd: estimateCost(plan.model, { ...plan.params, sourceDuration: input.sourceDuration }, 1, plan.op) });
+    }
+    // Reference clips and sound outside the hosted route's window (fal's H3 and H3 Max Turbo: 2–15 s each, 15 s of each kind
+    // together) are refused once their headers are read, before the run is paid for.
+    if (refWindow) {
+      const problem =
+        referenceClipsProblem(plan.model, "videos", clipLengths.slice(0, req.inputs?.videos?.length ?? 0)) ??
+        referenceClipsProblem(plan.model, "audios", audioLengths.slice(0, req.inputs?.audios?.length ?? 0));
+      if (problem) throw new Error(problem);
     }
     const edits = plan.op === "v2v" || plan.op === "video-swap" || plan.op === "video-insert";
     // An edit whose route sends no length keeps the clip's own (Kling 4.0's edit, swap and insert), whatever the request
@@ -3575,6 +3912,8 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
     // a task of this database, made by this send: the mark says so.)
     markSending(id, !!req.account, providerId === "comfyui" && onPoolWorkers());
     const res = await adapter.submit({ generationId: id, model: plan.model, route, input });
+    // A talking video as long as its voice: the time its render may take (runningLimitMs).
+    const runLimitMs = plan.op === "avatar" && isCloudProvider(providerId) && input.sourceDuration ? Math.round(input.sourceDuration * LONG_RENDER_MS_PER_SECOND) : 0;
     // A saved voice the cloud just cloned keeps the embedding (the owner's runs only), so its next line skips the clone.
     if (typeof res.meta?.voiceEmbedding === "string" && !req.account) void keepVoiceEmbedding(req.inputs?.voiceAudio, res.meta.voiceEmbedding).catch(() => {});
     const now = Date.now();
@@ -3599,6 +3938,7 @@ async function handOver(id: string, route: ModelRoute, providerId: ProviderId, p
             jobIndex: index,
             ...(before.resent && { resent: true }),
             ...(before.declined && { declined: before.declined }),
+            ...(runLimitMs > 0 && { runLimitMs }),
           }),
           payload: res.payload ? JSON.stringify(res.payload).slice(0, 200_000) : null,
           // A run sent again after its GPU lost it says so until its GPU reports on it; an Ideogram 4 run made again after
@@ -3640,6 +3980,13 @@ const TIMEOUT_MS = 45 * 60 * 1000;
 const WORLDCAST_TIMEOUT_MS = 3 * 60 * 60 * 1000;
 /** …and how long it may wait in the provider's queue first (a busy local GPU works through jobs one by one). */
 const QUEUE_TIMEOUT_MS = 4 * 60 * 60 * 1000;
+/**
+ * A cloud talking video renders as long as its voice (fal's H3 Max lip sync: 5 s to 15 min, made in windows), and a cancel of a
+ * job in progress only signals fal's runner ("the request can still complete", and is billed): such a job may run this long
+ * for each second of its voice (meta.runLimitMs), never less than TIMEOUT_MS. A starting value, to be set from a live run's
+ * timings.
+ */
+const LONG_RENDER_MS_PER_SECOND = 10_000;
 /**
  * A row this old with no external id whose turn no app process that still runs holds (takeSubmitTurn) was cut off by a
  * restart: a wait goes on, a hand-over fails. Tests make it shorter.
@@ -3991,6 +4338,8 @@ async function tick(): Promise<void> {
     // service. Neither does anything while no service is set.
     if (moderationConfigured()) await sweepOutputChecks();
     void sweepBilling();
+    // Finished 3D results without a preview yet (and the ones on their way): model3d-preview.ts, every few seconds.
+    if (!draining()) tickPreviews();
     // The hourly run counts forget a run (and the client address it came from) two hours on, whether more runs come.
     try {
       prunePoolAdmissions();
@@ -4035,7 +4384,8 @@ async function fastTick(): Promise<void> {
  */
 function runningLimitMs(r: Pick<Row, "provider">, meta: Record<string, unknown>, account: string | undefined, onPool: boolean): number {
   if (r.provider === "worldcast") return WORLDCAST_TIMEOUT_MS;
-  if (r.provider !== "comfyui" || (account && !onPool)) return TIMEOUT_MS;
+  // (A cloud talking video as long as its voice may take longer: meta.runLimitMs, set when it was sent.)
+  if (r.provider !== "comfyui" || (account && !onPool)) return Math.max(TIMEOUT_MS, typeof meta.runLimitMs === "number" ? meta.runLimitMs : 0);
   const wf = typeof meta.workflowId === "string" && !meta.workflowId.includes("{") ? meta.workflowId : null;
   return runCeilingMs(wf ? poolLane(wf) : null);
 }
@@ -4102,7 +4452,9 @@ async function pollOne(r: Row): Promise<void> {
   // whose copy broke off (it is copied again at the next poll).
   const healing = own ? pollHeals().get(r.id) : undefined;
   if (healing && Date.now() < healing.next) return;
-  if (own && typeof ctx.meta.saveNext === "number" && Date.now() < ctx.meta.saveNext) return;
+  // (The owner's Replicate run too: Replicate deletes the file an hour after it is made, so its copy is tried again.)
+  const copyHeals = !!own || (!account && r.provider === "replicate");
+  if (copyHeals && typeof ctx.meta.saveNext === "number" && Date.now() < ctx.meta.saveNext) return;
   try {
     res = await adapterFor(r.provider, account).poll(ctx);
   } catch (e) {
@@ -4161,8 +4513,11 @@ async function pollOne(r: Row): Promise<void> {
         )
         .run({ id: r.id, place, movedAt, busyWith: busyWith ?? null });
     }
+    // A job on the account's fal.ai key behind its own started jobs there waits for one of them to end, its place
+    // unmoved (ownRunStarted).
+    const ownAhead = ownQueue && !busyWith && r.provider === "fal" && res?.state === "queued" && ownRunStarted(r.id, own!, r.provider);
     // While a job runs ahead of it, that one job may take its own time (45 minutes) before the queue counts as stuck.
-    const stillMs = ownQueue && busyWith ? Math.max(queueMs, TIMEOUT_MS) : queueMs;
+    const stillMs = ownQueue && (busyWith || ownAhead) ? Math.max(queueMs, TIMEOUT_MS) : queueMs;
     const queueOver = ownQueue
       ? now - Math.max(run.submitted_at, movedAt) > stillMs * OWN_QUEUE.scale || now - run.submitted_at > OWN_QUEUE_CAP_MS * OWN_QUEUE.scale
       : now - run.submitted_at > queueMs;
@@ -4178,7 +4533,9 @@ async function pollOne(r: Row): Promise<void> {
           .catch(() => {});
       const words =
         run.started_at || deadline
-          ? `Timed out after ${Math.round(limitMs / 60_000)} minutes`
+          ? onPool
+            ? ENGINE_WORDS.timeout
+            : `Timed out after ${Math.round(limitMs / 60_000)} minutes`
           : res?.state === "queued" && res.timeoutError
             ? res.timeoutError
             : onPool
@@ -4213,16 +4570,18 @@ async function pollOne(r: Row): Promise<void> {
       throw pollError;
     }
     if (startsNow) db().prepare("UPDATE generation_runs SET started_at = ? WHERE id = ?").run(Date.now(), r.id);
-    // Back in line (a worker paused, went quiet or gave it back): no progress of the attempt before is kept.
+    // Back in line (a worker paused, went quiet or gave it back): no progress of the attempt before is kept. On this
+    // install's GPUs each poll of a running try says its share; one that says none (its files still going to the GPU, a
+    // new try not started yet) shows none, never the share of the try before.
     // (An Ideogram 4 run made again after it declined says so while it works.)
-    updateLive(r.id, { status: res.state, progress: ownClocks && res.state === "queued" ? null : (res.progress ?? r.progress), message: declinedWords(ctx.meta) ?? res.message ?? null });
+    updateLive(r.id, { status: res.state, progress: ownClocks ? (res.state === "queued" ? null : (res.progress ?? null)) : (res.progress ?? r.progress), message: declinedWords(ctx.meta) ?? res.message ?? null });
     return;
   }
   if (res.state === "failed") {
     // Its GPU restarted and lost the job: an account's run is sent again once, as a computer's tab does.
     if (own && res.lost && resend(r, own, RESENT_WORDS)) return;
-    // Qwen-Image 2.1 making a run Ideogram 4 declined: it fails as the declined run.
-    if (declinedFails(r.id, res.error, r.external_meta_json) !== null) return;
+    // A fallback making a run Ideogram 4 declined, or a run of Auto: the next model, or it fails as the declined run.
+    if (declinedFails(r.id, res.error, r.external_meta_json, res.trouble) !== null) return;
     // An account's run: its own GPU's words (comfyui.ts), or its key's provider's read plainly; the provider's own words
     // go in the details line. The owner's runs keep the provider's words.
     const trouble =
@@ -4239,7 +4598,9 @@ async function pollOne(r: Row): Promise<void> {
       return;
     }
     const kept = keptFix(res.fix, undefined);
-    updateLive(r.id, { status: "failed", error: res.error, completed_at: Date.now(), message: null, ...(kept && { fix_json: kept }) });
+    // On this install's GPUs the person reads a plain sentence; the engine's own words are the owner's (the column and the log).
+    const saved = updateLive(r.id, { status: "failed", error: res.error, completed_at: Date.now(), message: null, ...(kept && { fix_json: kept }), ...(res.detail && { detail: res.detail }) });
+    if (saved && res.detail) recordRunEvent("gpu-run-failed", { run: r.id, ...(account && { account }), provider: r.provider, model: r.model_id, op: r.op ?? undefined, words: res.error, detail: cleanEngineText(res.detail) }, "warn");
     // (A run on this install's GPUs says nothing about the account's own GPU.)
     if (res.fix && !onPool) markStale(account ? `acct:${account}` : "install");
     return;
@@ -4292,8 +4653,8 @@ async function pollOne(r: Row): Promise<void> {
       try {
         // An account's own GPU or key: a copy that breaks off is tried again (the result is made, and paid). The files a
         // result links to are kept once, before (never fetched again with each try of the main file).
-        const linked = own ? await persistArtifacts(o.meta, r.id, o.url) : undefined;
-        outputs.push(await (own ? persistWithRetry(o, r.id, linked) : persistOutput(o, r.id)));
+        const linked = copyHeals ? await persistArtifacts(o.meta, r.id, o.url) : undefined;
+        outputs.push(await (copyHeals ? persistWithRetry(o, r.id, linked) : persistOutput(o, r.id)));
         // Still saving: the turn is still this process's.
         claimFinish(r.id);
       } catch (e) {
@@ -4334,6 +4695,30 @@ async function pollOne(r: Row): Promise<void> {
           }
           return;
         }
+        // The owner's Replicate run: a link to Replicate's file is no result to keep (Replicate deletes it an hour after it
+        // is made). A copy that broke off for a passing reason is tried again at a later poll, with a growing wait, for 15
+        // minutes; one that can't be saved fails the run in words.
+        // https://replicate.com/docs/topics/predictions/data-retention
+        if (copyHeals && /^https?:\/\//.test(o.url ?? "")) {
+          for (const kept of outputs) if (kept.assetId) deleteAsset(kept.assetId);
+          const at = Date.now();
+          const since = typeof ctx.meta.saveSince === "number" ? ctx.meta.saveSince : at;
+          const tries = (typeof ctx.meta.saveTries === "number" ? ctx.meta.saveTries : 0) + 1;
+          if (passingSave(e) && at - since < SAVE_HEAL_MS * SELF_HEAL.scale) {
+            const next = at + backoffMs(tries, { budgetMs: 0, firstMs: 5_000, maxMs: 60_000 }) * SELF_HEAL.scale;
+            db()
+              .prepare(
+                `UPDATE generations SET message = @words, updated_at = @at,
+                   external_meta_json = json_set(CASE WHEN json_valid(external_meta_json) THEN external_meta_json ELSE '{}' END, '$.saveSince', @since, '$.saveTries', @tries, '$.saveNext', @next)
+                 WHERE id = @id AND status = 'running'`,
+              )
+              .run({ id: r.id, words: "Your result is made. Copying it from Replicate", at, since, tries, next });
+            return;
+          }
+          const expired = /^download (403|404|410)$/.test((e as Error).message ?? "");
+          updateLive(r.id, { status: "failed", error: expired ? resultExpired().words : "We couldn't save this result. Press Retry.", completed_at: Date.now(), message: null });
+          return;
+        }
         outputs.push({ url: o.url, kind: o.kind ?? r.kind, ...inlineText(o.text, o.meta), ...(o.draftId ? { draftId: o.draftId } : {}) });
         console.warn(`[fuobe] could not save output for ${r.id}: ${(e as Error).message}`);
       }
@@ -4341,7 +4726,7 @@ async function pollOne(r: Row): Promise<void> {
   }
   // Ideogram 4's grey "blocked by safety filter" card is no picture (src/server/safety-card.ts): it is left out of the
   // results and kept for the owner only (keepForOwner), with its measures. A run that got some real pictures keeps them.
-  // A run whose every picture was the card is made again in its place (declinedAgain: a new seed, then Qwen-Image 2.1);
+  // A run whose every picture was the card is made again in its place (declinedAgain: Auto's fallbacks in order);
   // only when it can't be does it fail, saying what to try.
   if (model.options.promptFormat === "ideogram4") {
     const cards = new Map<OutputFile, DeclinedCard>();
@@ -4421,7 +4806,8 @@ async function pollOne(r: Row): Promise<void> {
  * person canceled) meanwhile back to an earlier state, and never fails a run another process is saving. `extra`: more of
  * the WHERE clause (it may read @__me, @__quiet and @__now, and its own `params`). Returns whether the change was made.
  */
-export function updateLive(id: string, fields: Partial<Row>, extra = "", params: Record<string, unknown> = {}): boolean {
+export function updateLive(id: string, given: Partial<Row>, extra = "", params: Record<string, unknown> = {}): boolean {
+  const fields = storedFields(given);
   const keys = Object.keys(fields);
   if (!keys.length) return false;
   const now = Date.now();
@@ -4961,6 +5347,11 @@ async function persistOutput(o: RichOutput, generationId: string, pre?: { linked
 
 export async function cancelGeneration(id: string): Promise<void> {
   const r = db().prepare("SELECT * FROM generations WHERE id = ?").get(id) as Row | undefined;
+  if (r && stoppedJustAfterItsInput(r)) {
+    const now = Date.now();
+    db().prepare("UPDATE generations SET status = 'canceled', error = NULL, message = NULL, updated_at = ? WHERE id = ? AND status = 'failed' AND external_id IS NULL").run(now, id);
+    return;
+  }
   if (!r || (r.status !== "queued" && r.status !== "running")) return;
   // Its outputs are in and the 3D finish runs: the provider's job is over. Stop the finish before anything
   // awaits, so it can't mark the job done in between.
@@ -4995,6 +5386,19 @@ export async function cancelGeneration(id: string): Promise<void> {
   dropHold(id);
   // Steps waiting only to feed this one are dropped too (nothing was spent on them).
   dropUnused(depIds(r.depends_on));
+}
+
+/**
+ * A waiting step that was marked failed a moment ago only because the step it waited for was stopped: a person's Stop
+ * on a whole run reaches its steps one by one, and the sweep can fail the later step in between. Stopping it then makes
+ * it stopped, as the person asked, instead of failed. A step that ran, or failed on its own, stays as it is.
+ */
+function stoppedJustAfterItsInput(r: Row): boolean {
+  if (r.status !== "failed" || r.external_id || !r.depends_on || !WAITED_ON_FAILURE.has(r.error ?? "")) return false;
+  if (Date.now() - (r.completed_at ?? 0) > 10 * 60_000) return false;
+  const ids = depIds(r.depends_on);
+  const status = db().prepare("SELECT status FROM generations WHERE id = ?");
+  return ids.length > 0 && ids.every((d) => (status.get(d) as { status: string } | undefined)?.status === "canceled");
 }
 
 /**
@@ -5066,6 +5470,9 @@ export function finishOutput(id: string, index: number, png: Buffer): Generation
 // ---------------------------------------------------------------------------
 // Results made in the browser (colour grading): stored as finished generations.
 
+/** An owner's result recorded through an API token: an "api" run (createGenerations does the same for runs). */
+const ownerApiSource = (): Pick<GenerationRequest, "source"> => (!tenantAccount() && viaApiToken() ? { source: "api" } : {});
+
 /**
  * A live edit saved to the Library (the owner's): the kept master as the result, the steps that made it in
  * params.liveSteps, the joined step texts as the prompt. It ran on the owner's GPU already, so nothing is queued.
@@ -5077,6 +5484,7 @@ export function recordLiveEdit(input: { master: string; original?: string; steps
   const prompt = input.steps.map((s) => s.text).filter(Boolean).join(" · ").slice(0, 2000) || "Live edit";
   const op: Generation["op"] = input.original ? "edit" : "t2i";
   const req: GenerationRequest = {
+    ...ownerApiSource(),
     feature: "live-edit",
     modelId: model.id,
     op,
@@ -5134,7 +5542,7 @@ export function recordLocalGeneration(input: {
   const now = Date.now();
   // Inside an account's work (the route's runAsTenant) the result is the account's own, as its runs are (stampTenant).
   const account = tenantAccount();
-  const req: GenerationRequest = { feature: input.feature, modelId: input.modelId, op: input.op, prompt: input.prompt, ...(input.title && { title: input.title }), inputs: input.inputs, params: input.params, ...(account && { account }) };
+  const req: GenerationRequest = { feature: input.feature, modelId: input.modelId, op: input.op, prompt: input.prompt, ...(input.title && { title: input.title }), inputs: input.inputs, params: input.params, ...(account ? { account } : ownerApiSource()) };
   const row: Row = {
     id: nanoid(12),
     batch_id: null,

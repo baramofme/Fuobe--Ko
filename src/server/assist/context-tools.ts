@@ -6,8 +6,14 @@ import { getSkill, skillFile, skillRecipe } from "../skills";
 import { rankSkills } from "../skill-usage";
 import { canUseSkill, skillsFor } from "./context";
 import { defineTool } from "./define";
-import { addMemory, deleteMemory } from "./memory";
+import { addMemory, deleteMemory, memoriesFor } from "./memory";
 import { getProject, listProjects, sourceText } from "./projects";
+
+/** A memory this chat may replace: one of those its context shows (the personal ones, unless its project leaves them out, and its project's own). */
+function replaceable(id: string, projectId: string | null) {
+  const project = projectId ? getProject(projectId) : null;
+  return memoriesFor(project?.id ?? null, project?.usePersonalMemory ?? true).find((m) => m.id === id) ?? null;
+}
 
 /** Tools for Skills, Memory and Projects (Supercomputer's "load skill", "use and update memory", "project assets"). */
 
@@ -63,7 +69,7 @@ const loadSkill = defineTool({
       if (text === null) return { content: `/${n} has no file “${file}”. Its files: ${s.files.map((f) => f.path).join(", ") || "none"}.`, isError: true };
       return { content: text.length > 40_000 ? `${text.slice(0, 40_000)}\n… (cut at 40,000 characters)` : text, items: [{ id: "", role: "tool", text: `Read ${file} from ${s.title}` }] };
     }
-    const item = { id: "", role: "tool" as const, text: `Using the ${s.title} skill`, href: `/assist/skills?skill=${s.name}` };
+    const item = { id: "", role: "tool" as const, text: `Using the ${s.title} skill`, href: `/chat/skills?skill=${s.name}` };
     // A skill with a recipe also runs by itself: its "Run it" section follows the instructions.
     const recipe = skillRecipe(n);
     const runs = recipe ? `\n\n${recipeMarkdown(recipe, { name: n })}` : "";
@@ -89,20 +95,41 @@ const remember = defineTool({
   }),
   gated: true,
   title: () => "Remember this?",
-  plan: ({ text, category, scope }, ctx) => {
+  plan: ({ text, category, scope, replaces }, ctx) => {
     const cat: MemoryCategory = toCategory(category) ?? guessCategory(text);
     const where = (scope ?? (ctx.thread?.projectId ? "project" : "personal")) === "project" ? "This project" : "All chats";
-    return [{ tool: "remember", modelId: "memory", modelName: `Memory · ${cat}`, kind: "text", op: "memory", prompt: text.trim(), count: 0, costUsd: 0, demo: false, note: where, ...(text.trim().length > MEMORY_MAX_CHARS && { error: `Too long — keep it under ${MEMORY_MAX_CHARS} characters` }) }];
+    // The memory it replaces is shown on the card: approving a new memory must never remove another one unseen.
+    const old = replaces ? replaceable(replaces, ctx.thread?.projectId ?? null) : null;
+    const error =
+      text.trim().length > MEMORY_MAX_CHARS ? `Too long — keep it under ${MEMORY_MAX_CHARS} characters` : replaces && !old ? "The memory it replaces isn't one this chat can change" : undefined;
+    return [
+      {
+        tool: "remember",
+        modelId: "memory",
+        modelName: `Memory · ${cat}`,
+        kind: "text",
+        op: "memory",
+        prompt: text.trim(),
+        count: 0,
+        costUsd: 0,
+        demo: false,
+        note: where,
+        ...(old && { changes: [`Replaces: “${old.text}”`] }),
+        ...(error && { error }),
+      },
+    ];
   },
   async run({ text, category, scope, replaces }, ctx) {
     const projectId = ctx.thread?.projectId ?? null;
+    // Checked before anything is saved: only a memory this chat sees (and the card showed) can be replaced.
+    if (replaces && !replaceable(replaces, projectId)) throw new Error("The memory it replaces isn't one this chat can change. Leave out replaces, or use an id from this chat's memory.");
     const sc = scope ?? (projectId ? "project" : "personal");
     const cat: MemoryCategory = toCategory(category) ?? guessCategory(text);
     const m = addMemory({ text, category: cat, scope: sc, projectId: sc === "project" ? projectId : null, source: "agent" });
     if (replaces && replaces !== m.id) deleteMemory(replaces);
     return {
       content: JSON.stringify({ saved: m.id, category: m.category, scope: m.scope }),
-      items: [{ id: "", role: "tool", text: `Remembered: ${m.text}`, href: "/assist/memory" }],
+      items: [{ id: "", role: "tool", text: `Remembered: ${m.text}`, href: "/chat/memory" }],
     };
   },
 });

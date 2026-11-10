@@ -348,6 +348,8 @@ describe("the runner on the demo provider", () => {
     type Plan = { jobs: { case: string; variant: string; model: string; skip?: string; costUsd?: number | null }[] };
     const dry = async (args: string[]) => JSON.parse((await cli(["run", ...args, "--dry-run", "--json"])).stdout) as Plan;
     setSetting("falKey", "fal-test-key");
+    // Fuobe DoP's cloud half runs on Replicate's fast Wan 2.2.
+    setSetting("replicateToken", "rep-test-token");
     // Group swap, Scene edit, From picture and Finish run on your GPU only: on the cloud their jobs say so and skip.
     const cloud = (p: Plan) => {
       const gpu = p.jobs.filter((j) => j.skip === "runs on open only");
@@ -370,7 +372,8 @@ describe("the runner on the demo provider", () => {
       expect(cloud(g).map((j) => [j.case, j.model, j.skip ?? null])).toEqual([
         ["genjutsu/move", "kling-motion-control", null],
         // A case with no partner of its own runs its own models (the -lite tiers, the Original without its first frame).
-        ["genjutsu/move-lite", "fuobe-genjutsu-motion-lite", null],
+        // The fixture dance clip is under 5 s: MiniMax H3 Max Recast (the Original's cloud motion) takes 5 s or more.
+        ["genjutsu/move-lite", "fuobe-genjutsu-motion-lite", expect.stringMatching(/needs at least 5 s/)],
         // Character swap's partner: MiniMax's own Recast on fal.
         ["genjutsu/character", "h3-max-recast", null],
         ["genjutsu/character-plain", "fuobe-character-swap", null],
@@ -382,8 +385,8 @@ describe("the runner on the demo provider", () => {
       // The Originals on the cloud: their hosted open halves on fal.
       const o = await dry(["--suite", "genjutsu", "--engine", "cloud", "--variants", "original", "--allow-fixtures"]);
       expect(cloud(o).map((j) => [j.case, j.model, j.skip ?? null])).toEqual([
-        ["genjutsu/move", "fuobe-genjutsu-motion", null],
-        ["genjutsu/move-lite", "fuobe-genjutsu-motion-lite", null],
+        ["genjutsu/move", "fuobe-genjutsu-motion", expect.stringMatching(/needs at least 5 s/)],
+        ["genjutsu/move-lite", "fuobe-genjutsu-motion-lite", expect.stringMatching(/needs at least 5 s/)],
         ["genjutsu/character", "fuobe-character-swap", null],
         ["genjutsu/character-plain", "fuobe-character-swap", null],
         ["genjutsu/swap", "fuobe-genjutsu-swap", null],
@@ -445,6 +448,7 @@ describe("the runner on the demo provider", () => {
       expect(open.jobs.every((j) => j.skip === "the partner variant runs on cloud only")).toBe(true);
     } finally {
       setSetting("falKey", "");
+      setSetting("replicateToken", "");
     }
   });
 
@@ -547,6 +551,8 @@ describe("the runner on the demo provider", () => {
     expect(rows.every((x) => (x.request as { modelId: string }).modelId === "fuobe-cinema")).toBe(true);
     type Plan = { jobs: { case: string; variant: string; model: string; skip?: string }[] };
     setSetting("falKey", "fal-test-key");
+    // The wan variant's Wan 2.2 A14B runs on Replicate.
+    setSetting("replicateToken", "rep-test-token");
     try {
       const plan = JSON.parse((await cli(["run", "--suite", "cinema", "--engine", "cloud", "--cases", "cinema/move-dolly-in", "--variants", "original,words,expansion,wan", "--dry-run", "--json"])).stdout) as Plan;
       const by = Object.fromEntries(plan.jobs.map((j) => [j.variant, j]));
@@ -558,6 +564,7 @@ describe("the runner on the demo provider", () => {
       expect(open.jobs.every((j) => !!j.skip)).toBe(true);
     } finally {
       setSetting("falKey", "");
+      setSetting("replicateToken", "");
     }
   });
 

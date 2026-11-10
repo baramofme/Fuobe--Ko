@@ -115,7 +115,7 @@ export const SETTINGS = {
    */
   demoMode: { key: "demo.mode", env: "FUOBE_DEMO_MODE", default: "off", options: ["off", "on", "auto"] },
   /** Settings → AI helper: Claude, a local model, or offline. "ollama" is the old name of "local" and still means it. */
-  enhanceProvider: { key: "enhance.provider", env: "FUOBE_ENHANCE_PROVIDER", default: "auto", options: ["auto", "anthropic", "local", "ollama", "none"] },
+  enhanceProvider: { key: "enhance.provider", env: "FUOBE_ENHANCE_PROVIDER", default: "auto", options: ["auto", "anthropic", "local", "ollama", "free", "none"] },
   /** Which local model server: "auto" uses the first that answers (Ollama, LM Studio, Unsloth Studio, then the custom URL). */
   llmProvider: { key: "llm.provider", env: "FUOBE_LLM_PROVIDER", default: "auto", options: ["auto", "ollama", "lmstudio", "unsloth", "custom"] },
   ollamaUrl: { key: "ollama.url", env: "OLLAMA_URL", default: "http://127.0.0.1:11434" },
@@ -137,10 +137,18 @@ export const SETTINGS = {
   /** Tokens of context the local model gets (Ollama's num_ctx; LM Studio loads models with it). 0 = the server's own setting. */
   llmContext: { key: "llm.context", env: "FUOBE_LLM_CONTEXT", default: "16384" },
   /**
-   * Settings → Auto image model: prompts Ideogram 4's safety filter often declines, one pattern per line, which Auto sends
-   * to Krea 2 Realism straight away (src/lib/auto-image.ts). Empty: the built-in list.
+   * Settings → Auto image model: prompts Auto starts on Krea 2 Realism (as it does every plain prompt), one pattern per
+   * line, whose run details name the line they matched (src/lib/auto-image.ts). Empty: the built-in list.
    */
   autoImagePatterns: { key: "auto.imagePatterns", default: DEFAULT_AUTO_PATTERNS.join("\n") },
+  /**
+   * Settings → Failed runs: what a person reads when a run of theirs on this install's GPUs fails. "full": the plain
+   * sentence, and under it the cleaned technical reason (ComfyUI's own, src/lib/comfy-reason.ts: no folders, addresses,
+   * keys or prompt text), for people who run their own install and want to see what went wrong. "friendly": the plain
+   * sentence only. A new install starts with "full"; an install that already had runs or settings when this build first
+   * opened its data keeps "friendly", as before (db.ts keepFriendlyFailures).
+   */
+  runFailureDetail: { key: "runs.failureDetail", env: "FUOBE_RUN_FAILURE_DETAIL", default: "full", options: ["full", "friendly"] },
   /** "1" once the first-run guide was put away, or /api/status first saw something the engine mode generates with connected: Home stops offering it. */
   onboarded: { key: "onboarding.done", default: "0", options: ["0", "1"] },
 } satisfies Record<string, SettingDef>;
@@ -247,18 +255,28 @@ export function validateSetting(name: SettingName, value: string, from: "api" | 
   }
 }
 
-export function setSetting(name: SettingName, value: string): void {
+/**
+ * Settings whose every change is in the admin log, with the value before and after: where ComfyUI runs (it decides whose
+ * GPUs run every job), and what people read when a run fails.
+ */
+const AUDITED: Partial<Record<SettingName, string>> = { comfyWhere: "settings.comfy_where", runFailureDetail: "settings.run_failure_detail" };
+
+/** Save a setting. `o.audited`: the caller writes its own admin log row (the admin API, with its actor). */
+export function setSetting(name: SettingName, value: string, o: { audited?: boolean } = {}): void {
   validateSetting(name, value);
   const def = SETTINGS[name];
-  // Where ComfyUI runs decides whose GPUs run every job: each change is in the admin log, with the value before and after.
-  const before = name === "comfyWhere" ? getSetting("comfyWhere") : null;
+  const action = o.audited ? undefined : AUDITED[name];
+  const before = action ? getSetting(name) : null;
   if (value === "") db().prepare("DELETE FROM settings WHERE key = ?").run(def.key);
   else db().prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(def.key, value);
-  if (name === "comfyWhere") {
-    const after = getSetting("comfyWhere");
-    if (after !== before) auditSettingChange("settings.comfy_where", { before, after });
+  if (action) {
+    const after = getSetting(name);
+    if (after !== before) auditSettingChange(action, { before, after });
   }
 }
+
+/** What a person reads when a run of theirs on this install's GPUs fails: the cleaned reason too ("full"), or not. */
+export const runFailureDetail = (): "full" | "friendly" => (getSetting("runFailureDetail") === "friendly" ? "friendly" : "full");
 
 /** A row in the admin log (admin_audit) for a setting the owner changed. Never fails the change. */
 function auditSettingChange(action: string, detail: Record<string, unknown>): void {

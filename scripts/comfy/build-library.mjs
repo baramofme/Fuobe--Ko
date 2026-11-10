@@ -35,8 +35,16 @@ export const LOADER_FOLDERS = {
   // Krea 2 Turbo unified router (the owner's entry): its single model_name reads models/diffusion_models (it also
   // accepts the unet / unet_gguf keys, but the folder the files live in is diffusion_models).
   UnifiedModelLoader: { model_name: 'diffusion_models' },
+  // Body Double: InstantHMR and the SAM 3D Body rig its skinned GLB is built on (models/detection).
+  InstantHMRLoader: { model_file: 'detection' },
+  SAM3DBody_Loader: { model_file: 'detection' },
+  // HyperFlow H3 Flash's GGUF loader (ComfyUI-HyperFlow-Flash): diffusion_models, like UNETLoader.
+  HyperFlowGGUFLoader: { unet_name: 'diffusion_models' },
   CheckpointLoaderSimple: { ckpt_name: 'checkpoints' },
   VAELoader: { vae_name: 'vae' },
+  // SeedVR2 video (the numz pack, t44057a9a): its own loaders read models/SEEDVR2, not a core folder.
+  SeedVR2LoadVAEModel: { model: 'SEEDVR2' },
+  SeedVR2LoadDiTModel: { model: 'SEEDVR2' },
   CLIPLoader: { clip_name: 'text_encoders' },
   DualCLIPLoader: { clip_name1: 'text_encoders', clip_name2: 'text_encoders' },
   QuadrupleCLIPLoader: { clip_name1: 'text_encoders', clip_name2: 'text_encoders', clip_name3: 'text_encoders', clip_name4: 'text_encoders' },
@@ -135,6 +143,8 @@ export const BINDING_KEYS = new Set([
   'image5', 'image6', 'image7', 'image8', 'image9', 'image10',
   'width', 'height', 'frames', 'fps', 'seed', 'steps', 'cfg', 'guidance', 'denoise', 'shift',
   'loraHigh', 'loraLow', 'lora', 'loraStrength', 'upscaleModel', 'scale', 'duration', 'lyrics', 'tags',
+  // Body Double: the look the double is drawn in, and how many people a photo may hold
+  'look', 'maxPeople',
   // library extensions
   'padLeft', 'padTop', 'padRight', 'padBottom', 'cameraMotion', 'multiplier', 'bpm', 'filenamePrefix',
   // comfyui-oss-2 additions (see library.spec.mjs header)
@@ -332,7 +342,19 @@ async function main() {
       graph = readJson(path.join(HERE, spec.handBuilt));
       meta = { models: [] };
       source = `hand-built (scripts/comfy/${spec.handBuilt})`;
-    } else throw new Error(`${spec.id}: needs export or handBuilt`);
+    } else if (spec.derive) {
+      // A variant of another entry (Qwen-Image-Edit 2511's Fast graph): that entry's built graph, then this entry's
+      // transforms. Its models keep the base entry's download URLs, so both name the same pinned files.
+      const baseFile = path.join(OUT_DIR, `${spec.derive}.json`);
+      const base = prevManifest.workflows.find((w) => w.id === spec.derive);
+      if (!fs.existsSync(baseFile) || !base) {
+        errors.push(`${spec.id}: ${spec.derive} isn't built yet; build it first`);
+        continue;
+      }
+      graph = readJson(baseFile);
+      meta = { models: (base.models || []).filter((m) => m.url).map((m) => ({ name: m.file, url: m.url, directory: m.folder })) };
+      source = `derived from ${spec.derive} (see notes)`;
+    } else throw new Error(`${spec.id}: needs export, handBuilt or derive`);
 
     // ---- transform
     try {

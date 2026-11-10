@@ -15,6 +15,7 @@
     "fal-ai/vidu/q4/reference-to-video",
     "fal-ai/wan/v2.2-a14b/image-to-video",
     "fal-ai/wan/v2.2-a14b/image-to-video/lora",
+    "fal-ai/wan/v2.7/text-to-image",
     "fal-ai/workflow-utilities/extract-audio",
     "google/lyria-3.5",
     "meshy/v6/retexture",
@@ -23,6 +24,7 @@
     "minimax/h3-max-turbo/image-to-video",
     "minimax/h3-max-turbo/reference-to-video",
     "minimax/h3-max-turbo/text-to-video",
+    "minimax/h3-max/image-to-video",
     "minimax/h3-max/insert-video",
     "minimax/h3-max/lip-sync/image-to-video",
     "minimax/h3-max/relight",
@@ -31,6 +33,7 @@
     "minimax/h3-max/styles/low-poly",
     "minimax/h3-max/styles/retro-toon-70s",
     "minimax/h3-max/styles/vhs",
+    "minimax/h3/image-to-video",
     "minimax/music-3",
     "mureka/api/files/upload",
     "mureka/api/song/stem",
@@ -46,6 +49,7 @@
   ],
   "replicate": [
     "minimax/h3-highspeed",
-    "minimax/h3-lite"
+    "minimax/h3-lite",
+    "wan-video/wan-2.2-i2v-fast"
   ]
 }

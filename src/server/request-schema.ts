@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { FORMAT_INFO } from "@/lib/av/formats";
-import type { VideoFormat } from "@/lib/catalog/types";
+import { RUN_SOURCES, type VideoFormat } from "@/lib/catalog/types";
 import { LATENT_EXTRA } from "@/lib/catalog/regenerate";
 import { SignatureSchema } from "./palettes";
 
@@ -129,7 +129,7 @@ export const GenerationRequestSchema = z.object({
   engine: z.enum(["open", "cloud"]).optional(),
   // "Run without LoRAs": an @element with a trained LoRA goes in as its photos instead.
   lorasOff: z.literal(true).optional(),
-  // The provider whose key a cloud run goes on when the model is on several ("Run with your Replicate key").
+  // The provider a cloud run goes on when the model is on several; its route runs while ready.
   prefer: z.enum(["fal", "replicate"]).optional(),
   // A recipe's LoRAs (the evaluation harness, scripts/eval): added after the preset's own. On ComfyUI `file` must
   // already be in models/loras (ComfyUI checks the name against its list); a cloud LoRA endpoint takes `url`.
@@ -162,4 +162,7 @@ export const GenerationRequestSchema = z.object({
   // What a tool calls its result (Trim · 0:01.0–0:02.5, Captions · Karaoke), shown instead of the prompt.
   title: z.string().max(200).optional(),
   batchTitle: z.string().max(200).optional(),
+  // An owner's script or runner says what made the run (a batch, a drill…); an account's run drops it.
+  source: z.enum(RUN_SOURCES).optional(),
+  sourceName: z.string().trim().min(1).max(80).optional(),
 });

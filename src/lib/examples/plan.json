@@ -4784,5 +4784,478 @@
    "at": 4.717,
    "from": 0
   }
+ },
+ {
+  "id": "genjutsu-reshoot.1",
+  "surface": "tool:genjutsu/reshoot",
+  "rank": 1,
+  "caption": "The same walk in fresh snow",
+  "words": "A blue-hour walk through Paris, reshot in fresh snow. Her steps, the camera move and the sound stay as filmed.",
+  "load": "genjutsu",
+  "genjutsu": {
+   "layout": "wipe",
+   "went": "A 5 s clip and a few words",
+   "recipe": {
+    "mode": "reshoot",
+    "engine": "open",
+    "model": "oss-h3-reshoot",
+    "quality": "720p",
+    "seed": 7,
+    "length": 5.166,
+    "originalSound": "everything",
+    "reshoot": {
+     "choice": "edit",
+     "words": "fresh snow is falling, and the street, the awnings and the cobblestones are dusted white with it"
+    }
+   }
+  },
+  "inputs": {
+   "clip": "/examples/genjutsu-reshoot/1/in-clip.jpg"
+  },
+  "output": "/examples/genjutsu-reshoot/1/show.mp4",
+  "rest": {
+   "src": "/examples/genjutsu-reshoot/1/show.peak.webp",
+   "at": 4.008,
+   "from": 0
+  }
+ },
+ {
+  "id": "genjutsu-reshoot.2",
+  "surface": "tool:genjutsu/reshoot",
+  "rank": 2,
+  "caption": "A new lead for the same walk",
+  "words": "One photo, and someone new takes the blue-hour walk through Paris. Her steps, the camera move, the street and the sound stay as filmed.",
+  "load": "genjutsu",
+  "genjutsu": {
+   "layout": "inset",
+   "went": "A 5 s clip and a photo",
+   "recipe": {
+    "mode": "reshoot",
+    "engine": "open",
+    "model": "oss-h3-reshoot",
+    "quality": "720p",
+    "seed": 7,
+    "length": 5.166,
+    "originalSound": "everything",
+    "reshoot": {
+     "choice": "swap"
+    }
+   }
+  },
+  "inputs": {
+   "clip": "/examples/genjutsu-reshoot/2/in-clip.jpg",
+   "photo1": "/examples/genjutsu-reshoot/2/in-photo1.jpg"
+  },
+  "output": "/examples/genjutsu-reshoot/2/show.mp4",
+  "rest": {
+   "src": "/examples/genjutsu-reshoot/2/show.peak.webp",
+   "at": 4.008,
+   "from": 0
+  }
+ },
+ {
+  "id": "genjutsu-motion.1",
+  "surface": "tool:genjutsu/motion",
+  "rank": 1,
+  "caption": "Every smile, copied by a new face",
+  "words": "A talk to camera, performed by a new character at a Paris café: every smile, glance and tilt of the head comes from the clip.",
+  "load": "genjutsu",
+  "genjutsu": {
+   "layout": "inset",
+   "went": "A 5 s clip and a photo",
+   "recipe": {
+    "mode": "motion",
+    "engine": "open",
+    "model": "fuobe-genjutsu-motion",
+    "tier": "high",
+    "quality": "720p",
+    "seed": 1002,
+    "length": 5.166,
+    "originalSound": "everything"
+   }
+  },
+  "inputs": {
+   "clip": "/examples/genjutsu-motion/1/in-clip.jpg",
+   "photo1": "/examples/genjutsu-motion/1/in-photo1.jpg"
+  },
+  "output": "/examples/genjutsu-motion/1/show.mp4",
+  "rest": {
+   "src": "/examples/genjutsu-motion/1/show.peak.webp",
+   "at": 1.5,
+   "from": 0
+  }
+ },
+ {
+  "id": "character-swap.1",
+  "surface": "tool:character-swap",
+  "rank": 1,
+  "caption": "Two people swapped in one take",
+  "words": "A couple on sunny stone steps becomes two new people. The kiss on the cheek, the laugh and the light stay as filmed.",
+  "load": "look",
+  "href": "/genjutsu?mode=character&example=genjutsu-character.1",
+  "inputs": {},
+  "output": "/examples/genjutsu-character/1/show.mp4",
+  "rest": {
+   "src": "/examples/character-swap/1/rest.webp",
+   "at": 0.6,
+   "from": 0
+  }
+ },
+ {
+  "id": "video-tools-depth.1",
+  "surface": "hub:video-tools/depth",
+  "rank": 1,
+  "caption": "A depth pass of a grand library",
+  "modelId": "oss-video-depth-da3",
+  "inputs": {
+   "video": "/examples/video-tools-depth/1/in-video.mp4"
+  },
+  "output": "/examples/video-tools-depth/1/show.mp4",
+  "rest": {
+   "src": "/examples/video-tools-depth/1/show.peak.webp",
+   "at": 4.717,
+   "from": 0
+  }
+ },
+ {
+  "id": "video-tools-depth.2",
+  "surface": "hub:video-tools/depth",
+  "rank": 2,
+  "caption": "A rooftop and a fort, mapped in depth",
+  "modelId": "oss-video-depth-da3",
+  "inputs": {
+   "video": "/examples/video-tools-depth/2/in-video.mp4"
+  },
+  "output": "/examples/video-tools-depth/2/show.mp4",
+  "rest": {
+   "src": "/examples/video-tools-depth/2/show.peak.webp",
+   "at": 4.717,
+   "from": 0
+  }
+ },
+ {
+  "id": "video-tools.2",
+  "surface": "hub:video-tools",
+  "rank": 1,
+  "caption": "Windswept hair, cut out strand by strand",
+  "modelId": "oss-video-matte-birefnet",
+  "inputs": {
+   "video": "/examples/video-tools/2/in-video.mp4"
+  },
+  "output": "/examples/video-tools/2/show.mp4",
+  "rest": {
+   "src": "/examples/video-tools/2/show.peak.webp",
+   "at": 2.5,
+   "from": 0
+  }
+ },
+ {
+  "id": "video-tools-colors.1",
+  "surface": "hub:video-tools/colors",
+  "rank": 1,
+  "caption": "A cool corridor, warmed to sunset tones",
+  "modelId": "oss-palette-video",
+  "params": {
+   "strength": 0.5
+  },
+  "inputs": {
+   "video": "/examples/video-tools-colors/1/in-video.mp4",
+   "image": "/examples/video-tools-colors/1/in-image.jpg"
+  },
+  "output": "/examples/video-tools-colors/1/show.mp4",
+  "rest": {
+   "src": "/examples/video-tools-colors/1/show.peak.webp",
+   "at": 4.717,
+   "from": 0
+  }
+ },
+ {
+  "id": "video-tools-colors.2",
+  "surface": "hub:video-tools/colors",
+  "rank": 2,
+  "caption": "Glacier shore in warm Riviera tones",
+  "modelId": "oss-palette-video",
+  "params": {
+   "strength": 0.5
+  },
+  "inputs": {
+   "video": "/examples/video-tools-colors/2/in-video.mp4",
+   "image": "/examples/video-tools-colors/2/in-image.jpg"
+  },
+  "output": "/examples/video-tools-colors/2/show.mp4",
+  "rest": {
+   "src": "/examples/video-tools-colors/2/show.peak.webp",
+   "at": 4.717,
+   "from": 0
+  }
+ },
+ {
+  "id": "upscale-video.1",
+  "surface": "hub:upscale/video",
+  "rank": 1,
+  "caption": "Gold sequins, sharp at 1080p",
+  "modelId": "oss-upscale-video-esrgan",
+  "params": {
+   "resolution": "1080p"
+  },
+  "inputs": {
+   "video": "/examples/upscale-video/1/in-video.mp4"
+  },
+  "output": "/examples/upscale-video/1/show.mp4",
+  "rest": {
+   "src": "/examples/upscale-video/1/show.peak.webp",
+   "at": 4.717,
+   "from": 0
+  }
+ },
+ {
+  "id": "upscale-fps.1",
+  "surface": "hub:upscale/fps",
+  "rank": 1,
+  "caption": "A carousel spin, four times slower",
+  "modelId": "oss-rife",
+  "params": {
+   "slowdown": 4
+  },
+  "inputs": {
+   "video": "/examples/upscale-fps/1/in-video.mp4"
+  },
+  "output": "/examples/upscale-fps/1/show.mp4",
+  "rest": {
+   "src": "/examples/upscale-fps/1/show.peak.webp",
+   "at": 5,
+   "from": 0
+  }
+ },
+ {
+  "id": "upscale-fps.2",
+  "surface": "hub:upscale/fps",
+  "rank": 2,
+  "caption": "Silk in the wind, twice as slow",
+  "modelId": "oss-rife",
+  "params": {
+   "slowdown": 2
+  },
+  "inputs": {
+   "video": "/examples/upscale-fps/2/in-video.mp4"
+  },
+  "output": "/examples/upscale-fps/2/show.mp4",
+  "rest": {
+   "src": "/examples/upscale-fps/2/show.peak.webp",
+   "at": 5,
+   "from": 0
+  }
+ },
+ {
+  "id": "genjutsu-character.2",
+  "surface": "tool:genjutsu/character",
+  "rank": 2,
+  "caption": "A new model takes the runway",
+  "words": "The runway walk in the palm house, now worn by a new model in an emerald satin gown. Every step, turn and the crowd stay as filmed.",
+  "load": "genjutsu",
+  "genjutsu": {
+   "layout": "inset",
+   "went": "A 5 s clip and a photo",
+   "recipe": {
+    "mode": "character",
+    "engine": "open",
+    "model": "oss-h3-group-swap",
+    "quality": "720p",
+    "target": "type",
+    "seed": 7,
+    "length": 5.166,
+    "originalSound": "everything"
+   },
+   "own": {
+    "character": {
+     "people": [
+      {
+       "role": "the model walking the runway"
+      }
+     ]
+    }
+   }
+  },
+  "inputs": {
+   "clip": "/examples/genjutsu-character/2/in-clip.jpg",
+   "photo1": "/examples/genjutsu-character/2/in-photo1.jpg"
+  },
+  "output": "/examples/genjutsu-character/2/show.mp4",
+  "rest": {
+   "src": "/examples/genjutsu-character/2/show.peak.webp",
+   "at": 3,
+   "from": 0
+  }
+ },
+ {
+  "id": "character-swap.2",
+  "surface": "tool:character-swap",
+  "rank": 2,
+  "caption": "A new model takes the runway",
+  "words": "The runway walk in the palm house, now worn by a new model in an emerald satin gown. Every step, turn and the crowd stay as filmed.",
+  "load": "look",
+  "href": "/genjutsu?mode=character&example=genjutsu-character.2",
+  "inputs": {},
+  "output": "/examples/genjutsu-character/2/show.mp4",
+  "rest": {
+   "src": "/examples/genjutsu-character/2/show.peak.webp",
+   "at": 3,
+   "from": 0
+  }
+ },
+ {
+  "id": "motion-control.1",
+  "surface": "studio:motion-control",
+  "rank": 1,
+  "caption": "Her street dance, now on a baobab road",
+  "modelId": "oss-wan22-animate",
+  "params": {
+   "seed": 7
+  },
+  "inputs": {
+   "image": "/examples/motion-control/1/in-image.jpg",
+   "video": "/examples/motion-control/1/in-video.mp4"
+  },
+  "output": "/examples/motion-control/1/show.mp4",
+  "rest": {
+   "src": "/examples/motion-control/1/show.peak.webp",
+   "at": 0.85,
+   "from": 0
+  }
+ },
+ {
+  "id": "genjutsu-swap.1",
+  "surface": "tool:genjutsu/swap",
+  "rank": 1,
+  "caption": "The runway dress, now gold satin",
+  "words": "The fuchsia dress on the runway becomes a gold satin dress of the same knee-length cut. The walk, the light and the crowd stay as filmed.",
+  "load": "genjutsu",
+  "genjutsu": {
+   "layout": "wipe",
+   "went": "A 5 s clip and a photo",
+   "recipe": {
+    "mode": "swap",
+    "engine": "open",
+    "model": "fuobe-genjutsu-swap",
+    "tier": "high",
+    "quality": "720p",
+    "target": "type",
+    "subject": "the dress",
+    "seed": 7,
+    "length": 5.166,
+    "originalSound": "everything"
+   }
+  },
+  "inputs": {
+   "clip": "/examples/genjutsu-swap/1/in-clip.jpg",
+   "photo1": "/examples/genjutsu-swap/1/in-photo1.jpg"
+  },
+  "output": "/examples/genjutsu-swap/1/show.mp4",
+  "rest": {
+   "src": "/examples/genjutsu-swap/1/show.peak.webp",
+   "at": 2,
+   "from": 0
+  }
+ },
+ {
+  "id": "image-to-3d.3",
+  "surface": "tool:image-to-3d",
+  "rank": 3,
+  "caption": "One photo, a model you can walk around",
+  "words": "A full-length studio photo becomes a 3D splat of the model, ready to turn and view from any side.",
+  "load": "look",
+  "href": "/image-to-3d?model=oss-idol&quality=best&photo=1&image=/examples/image-to-3d/3/in-image.jpg",
+  "inputs": {},
+  "output": "/examples/image-to-3d/3/show.mp4",
+  "rest": {
+   "src": "/examples/image-to-3d/3/show.peak.webp",
+   "at": 0.6,
+   "from": 0
+  }
+ },
+ {
+  "id": "image-to-3d.4",
+  "surface": "tool:image-to-3d",
+  "rank": 4,
+  "caption": "Studio headphones, as a 3D splat",
+  "words": "A product photo of studio headphones becomes a 3D splat you can turn and view from every side.",
+  "load": "look",
+  "href": "/image-to-3d?model=oss-triposplat&image=/examples/image-to-3d/4/in-image.jpg",
+  "inputs": {},
+  "output": "/examples/image-to-3d/4/show.mp4",
+  "rest": {
+   "src": "/examples/image-to-3d/4/show.peak.webp",
+   "at": 0.3,
+   "from": 0
+  }
+ },
+ {
+  "id": "genjutsu-insert.1",
+  "surface": "tool:genjutsu/insert",
+  "rank": 1,
+  "caption": "A parfum flacon on the terrace table",
+  "words": "A crystal parfum flacon with an emerald cap, placed on the marble table of a Riviera terrace. Her smile and the light stay as filmed.",
+  "load": "genjutsu",
+  "genjutsu": {
+   "layout": "wipe",
+   "went": "A 5 s clip and a product photo",
+   "recipe": {
+    "mode": "insert",
+    "engine": "open",
+    "model": "oss-vace-insert",
+    "quality": "720p",
+    "target": "paint",
+    "prompt": "a faceted crystal parfum flacon with a forest-green lacquer cap standing on the marble table",
+    "seed": 7,
+    "length": 5.166,
+    "originalSound": "everything"
+   }
+  },
+  "inputs": {
+   "clip": "/examples/genjutsu-insert/1/in-clip.jpg",
+   "product1": "/examples/genjutsu-insert/1/in-product1.jpg"
+  },
+  "output": "/examples/genjutsu-insert/1/show.mp4",
+  "rest": {
+   "src": "/examples/genjutsu-insert/1/show.peak.webp",
+   "at": 3.6,
+   "from": 0
+  }
+ },
+ {
+  "id": "motion-control.2",
+  "surface": "studio:motion-control",
+  "rank": 2,
+  "caption": "A runway walk, worn in a ruffled gown",
+  "modelId": "oss-wan22-animate",
+  "params": {
+   "seed": 7
+  },
+  "inputs": {
+   "image": "/examples/motion-control/2/in-image.jpg",
+   "video": "/examples/motion-control/2/in-video.mp4"
+  },
+  "output": "/examples/motion-control/2/show.mp4",
+  "rest": {
+   "src": "/examples/motion-control/2/show.peak.webp",
+   "at": 2,
+   "from": 0
+  }
+ },
+ {
+  "id": "image-to-3d.1",
+  "surface": "tool:image-to-3d",
+  "rank": 1,
+  "caption": "A red stiletto, as a 3D model",
+  "words": "A product photo of a red patent stiletto becomes a textured 3D model, ready to spin, download or rig.",
+  "load": "look",
+  "href": "/image-to-3d?model=oss-pixal3d&image=/examples/image-to-3d/2/in-image.jpg",
+  "inputs": {},
+  "output": "/examples/image-to-3d/1/show.mp4",
+  "rest": {
+   "src": "/examples/image-to-3d/1/show.peak.webp",
+   "at": 1.9,
+   "from": 0
+  }
  }
 ]

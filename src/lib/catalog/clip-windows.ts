@@ -111,6 +111,9 @@ const REFERENCE_VOICE_SECONDS: Record<string, { min: number; max: number }> = { 
 /** Whether the model holds each reference voice to a length (REFERENCE_VOICE_SECONDS): its headers are read before the run. */
 export const hasReferenceVoiceWindow = (model: { id: string }): boolean => model.id in REFERENCE_VOICE_SECONDS;
 
+/** The length each reference voice may be on the model (REFERENCE_VOICE_SECONDS), or undefined. */
+export const referenceVoiceSeconds = (modelId: string): { min: number; max: number } | undefined => REFERENCE_VOICE_SECONDS[modelId];
+
 /** Why reference voice `n` (1-based), `seconds` long, is outside what the model takes, in Generate's words, or null. */
 export function referenceVoiceProblem(model: { id: string; name: string }, seconds: number, n = 1): string | null {
   const w = REFERENCE_VOICE_SECONDS[model.id];
@@ -259,6 +262,9 @@ export function referenceClipsProblem(model: { id: string; name: string }, kind:
 /** How long a clip given as one of the model's elements may be (Kling 4.0's video elements: 3–8 s). */
 const ELEMENT_CLIP_SECONDS: Record<string, { min: number; max: number }> = { "kling-4": { min: 3, max: 8 } };
 
+/** The length a clip element may be on the model (ELEMENT_CLIP_SECONDS), or undefined. */
+export const elementClipSeconds = (modelId: string): { min: number; max: number } | undefined => ELEMENT_CLIP_SECONDS[modelId];
+
 /** Why a clip element `seconds` long is outside what the model takes ("Kling 4.0 takes 3–8 s clips as elements…"), or null. */
 export function elementClipProblem(model: { id: string; name: string }, seconds: number, name?: string): string | null {
   const w = ELEMENT_CLIP_SECONDS[model.id];
@@ -281,6 +287,9 @@ export function editClipsProblem(model: { id: string; name: string }, count: num
  * videos must total at most 30s").
  */
 const CLIP_TOTAL_SECONDS: Record<string, number> = { "kling-4": 30 };
+
+/** The most seconds of clips a run takes in all on the model (CLIP_TOTAL_SECONDS), or undefined. */
+export const clipTotalSeconds = (modelId: string): number | undefined => CLIP_TOTAL_SECONDS[modelId];
 
 /** Why clips `seconds` long in all are too long for the model ("Kling 4.0 takes 30 s of clips in all…"), or null. */
 export function clipTotalProblem(model: { id: string; name: string }, seconds: number): string | null {
@@ -340,4 +349,41 @@ export function clipWindowProblem(model: { id: string; name: string; engine?: st
   if (!long && !short) return null;
   const takes = min !== undefined && max !== undefined ? `${min}–${max} s` : max !== undefined ? `up to ${max} s` : `${min} s or longer`;
   return `${model.name} takes ${takes} clips, and this one is ${secs(seconds)}: ${long ? "trim it first" : "use a longer one"}`;
+}
+
+// ---------------------------------------------------------------------------
+// The same windows, for the browser's fitting step (src/components/av): what a sound, clip or picture is fitted to.
+
+/** The voice length a model takes (the longest any size takes), or undefined. */
+export function voiceWindow(modelId: string): { min: number; max: number } | undefined {
+  const w = VOICE_SECONDS[modelId];
+  return w && { min: w.min, max: Math.max(w.max, ...Object.values(w.byResolution ?? {})) };
+}
+
+/** The voice files a model documents ("mp3", "wav" and a size), or undefined when it takes any. */
+export function voiceFile(modelId: string): { formats: string[]; bytes: number } | undefined {
+  const a = CLIP_FILE[modelId]?.audio;
+  if (!a) return undefined;
+  const formats = [...new Set(a.types.map((t) => (t === "audio/mpeg" ? "mp3" : t.includes("wav") ? "wav" : t.split("/")[1])))];
+  return { formats, bytes: a.bytes };
+}
+
+/** The picture shape a model takes (width ÷ height), or undefined. */
+export const portraitRatio = (modelId: string): [number, number] | undefined => PORTRAIT_RATIO[modelId];
+
+/** The voice-clip length a model's references take, or undefined. */
+export const referenceVoiceWindow = (modelId: string): { min: number; max: number } | undefined => REFERENCE_VOICE_SECONDS[modelId];
+
+/**
+ * The clip length a model takes for an edit (its window, or its frames at `fps`, 30 when not known, for a frame-billed
+ * route), or undefined.
+ */
+export function clipWindow(model: { id: string; engine?: string }, fps?: number): { min?: number; max?: number } | undefined {
+  const f = sourceFrames(model.id, model.engine);
+  if (f) {
+    const rate = fps && fps > 0 ? fps : f.assumeFps;
+    return { min: f.minFrames / rate, max: f.maxFrames / rate };
+  }
+  const w = sourceSeconds(model.id);
+  return w.min !== undefined || w.max !== undefined ? w : undefined;
 }

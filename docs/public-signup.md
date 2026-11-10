@@ -184,12 +184,37 @@ it ran. The owner can delete a run with its files, which gives the account its s
 switch the account off from there. The owner's own runs are never listed there, and accounts' runs
 never appear in the owner's Library, its counts or the live feed.
 
+**Run details** (`/settings/runs/<run id>`: a run's name or **Run details** in its menu) shows everything about
+one account's run. It shows what the account saw: its studio tile and its Library card, made by the same components
+the account's pages use, with the same words, details line and buttons (nothing on it can be pressed). It shows what
+went wrong: the stored error, the cause, the buttons the account was given, the files missing on its GPU, and the
+note kept when it failed (stage, code, the GPU's or provider's own words). It shows where the run went: its own GPU
+(a RunPod pod, a tunnel, a LAN or web address, its own computer), its own key, or this site's GPUs, and the graph.
+It shows the model, the app, preset or studio, the prompt and negative prompt, and each setting beside the default
+the composer would have started with (marked Default, Changed or Unknown default; a default that isn't known is
+never guessed). It shows the input files (an upload that was cleared after 14 days says Removed), the other runs of
+its batch, and the account's runs from 2 hours before to 6 hours after it. A Retry is the same request sent again,
+so it shows as **Same request again**; a change of model shows as the same words and files on another model. A
+collapsed section shows what was sent to the GPU or provider. Links show by their kind only, and keys, tokens,
+cookies and passwords are left out.
+
+It also shows how long the run waited and ran: a timeline from the press to the end, with each worker that took
+its job, gave it back or finished it (and its GPU), and the GPU time the worker measured. On this site's GPUs each
+job shows its worker, GPU, lane, tries and times. It shows how the run was made: the model Auto picked and why, a run
+Ideogram 4 declined (the asked model, the model that made it, and the picture it returned), the notices said on the
+result, and each setting the model makes differently, asked and made side by side (the account's own pages show
+the made value only). It shows where the run was made (the studio or tool, and whether a tool made it for one of the
+account's projects), the job's id at its GPU or provider, its cost and whether it was charged, and each result's
+check before it shows.
+
 The API, for the owner only (guests get 401, accounts 403): `GET /api/admin/accounts` (each account
 with `runs`, `runsDay`, `runsWeek`, `running`, `failedWeek`, `lastRunAt`, `bytes` and `capBytes`,
 and `totals`; `?format=csv` for the file), `PATCH /api/admin/accounts/<id>` with
 `{ "disabled": true | false }`, `DELETE /api/admin/accounts/<id>`, `GET /api/admin/generations`
 (`?account=<id>`, `status=finished|running|failed`, `kind=image|video|audio|model3d|text`,
-`before=<createdAt>:<id>` from the last page's `next`, `limit` up to 100) and
+`before=<createdAt>:<id>` from the last page's `next`, `limit` up to 100),
+`GET /api/admin/generations/<id>` (Run details for an account's run; 404 for the owner's own run; an admin token
+needs `runs:read` and `outputs:view`, and `accounts:read` for the email) and
 `DELETE /api/admin/generations/<id>` (an account's run only).
 
 An account can delete itself: `DELETE /api/auth/me` with `{ "password" }`. When an account is
@@ -895,7 +920,7 @@ With it on:
   known; 0 turns this offer off) an account with its own GPU, or a key that runs the item's cloud version, is offered it for that one run
   ("Run it now on your GPU", "Run it now with your fal.ai key · ≈ $0.04"), and its pick of where runs go stays.
 - How long a run may wait before a GPU first takes it: the billing service's `limits.giveUpS` when its policy says
-  (0: as long as it takes), else what its reserve answer says, else `FUOBE_POOL_WAIT_MIN` minutes (30 by default).
+  (0: as long as it takes), else what its reserve answer says, else `FUOBE_POOL_WAIT_MIN` minutes (none by default: as long as it takes).
   Past that it fails with one plain sentence, not charged. A later step of a run (a chain's next step) keeps the run's
   place in line and has no wait limit.
 - When the billing service's policy says runs wait instead of being refused (`limits.held`: how many may wait behind
@@ -905,9 +930,9 @@ With it on:
   - past the account's runs at once (`limits.activeRuns`): "Starts after your other runs" before Run, "In line · after
     your other runs" on the tile; it enters at the back of the line when one of them ends, so ten fast presses never
     pass another account, and its presses enter in the order they were made;
-  - the day's GPU time used up (the service's `startAt` at the next UTC day): "Lots of runs today · starts in about
-    7 h" before Run, "In line · starts in about 7 h" on the tile; at the renewal the runs enter at their press-time
-    places, in press order;
+  - the day's GPU time used up (the service's `startAt` at the next UTC day): "Free runs refresh at 14:20." (or the
+    service's display copy, `limitDaily`) before Run, "Free runs refresh at 14:20 · this one starts then" on the
+    tile; at the renewal the runs enter at their press-time places, in press order;
   - the billing service doesn't answer within 5 s of the press (or the moderation service doesn't, at a studio's
     press): its tile shows its place as if in line, it reserves (and is checked) under its press's own request id once
     the service answers, and enters at its press-time place. While the service says runs here are paused, the line

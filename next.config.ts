@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   /* config options here */
   // Allow cross-origin requests in dev so 127.0.0.1 and localhost both hydrate (Next 16 dev-origin blocking).
   allowedDevOrigins: ["127.0.0.1", "localhost"],
+  // Which build this is (the deploy's commit; a local build gets its time): a page loaded from an older build sees the
+  // server's newer one at /api/version and offers Update (src/components/update-available.tsx).
+  env: { NEXT_PUBLIC_FUOBE_BUILD: process.env.GITHUB_SHA?.slice(0, 12) || `local-${Date.now().toString(36)}` },
   cacheComponents: true,
   poweredByHeader: false,
   partialPrefetching: true,
@@ -67,6 +70,19 @@ const nextConfig: NextConfig = {
       { source: "/settings/about", destination: "/settings", permanent: true },
       // The product-link ad apps open the Click to Ad flow (src/lib/catalog/apps.ts).
       { source: "/apps/:id(app-click-to-ad|app-link-to-video-ad)", destination: "/marketing/click-to-ad", permanent: false },
+      // Assist is Chat's making side now. A bare /assist opens Chat; a link to one of its chats (?c=), a skill (?skill=),
+      // a ready-made starter (?starter=) or a request to plan (?prompt=) opens the same thing under /chat/make (the query
+      // goes along); its pages keep their names under /chat.
+      {
+        source: "/assist",
+        missing: ["c", "skill", "starter", "prompt"].map((key) => ({ type: "query" as const, key })),
+        destination: "/chat",
+        permanent: false,
+      },
+      { source: "/assist", destination: "/chat/make", permanent: false },
+      { source: "/assist/start/:id", destination: "/chat/make/start/:id", permanent: false },
+      { source: "/assist/:page(skills|memory|scheduled)", destination: "/chat/:page", permanent: false },
+      { source: "/assist/projects/:id", destination: "/chat/projects/:id", permanent: false },
       // The Virality Predictor app became the /virality page (its frame step is the Hook Frame app).
       { source: "/apps/app-virality-predictor", destination: "/virality", permanent: true },
       // Studio hubs have one path per mode (src/lib/hubs.ts). Old `?mode=` links go to it in src/proxy.ts (hubModeLink),

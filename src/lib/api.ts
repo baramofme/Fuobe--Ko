@@ -15,8 +15,10 @@ import {
   backoff,
   needsCatchUp,
   parseSse,
+  pollDelay,
   shareById,
   sharePagesById,
+  STREAM_IDLE_MS,
   streamResponse,
   toChannelMessage,
   toStreamEvent,
@@ -27,8 +29,9 @@ import {
 } from "./generation-stream";
 import { fetchWithin, READ_LIMIT_MS } from "./fetch-within";
 import { cursorAfter, filterToSearch, type AssetUse, type FeedFilter, type Folder } from "./library";
-import { markRefusalShown, refusalShown, responseError } from "./refusals";
-import { OWN_SETUP_HEADER, PLACE_ASK_HEADER, RUN_PLACE_HEADER, RUN_SHOWN_HEADER, RUNS_CHANGED_EVENT, shownHeader } from "./guest-access";
+import { isLimitKind, limitNext, limitWordsAt } from "./limit-words";
+import { markRefusalShown, refusalShown, responseError, type NextStep } from "./refusals";
+import { OWN_SETUP_HEADER, PLACE_ASK_HEADER, RUN_PLACE_HEADER, RUN_SHOWN_HEADER, RUNS_CHANGED_EVENT, shownHeader, SIGN_IN_CODE } from "./guest-access";
 import type { PoolRules } from "./pool-rules";
 import { HoldFilesCtx } from "./held-files";
 import { postFile } from "./upload";
@@ -37,8 +40,9 @@ import type { AccessSummary } from "./model-access";
 import { ADD_KEY_HEADER, isCloudProvider, type CloudProvider } from "./your-keys";
 import type { Diagnosis } from "./diagnose";
 import type { OwnSetup } from "./own-setup";
-import { BILLING_EVENT, BILLING_HEADER, refreshPriceChecks, type BillingAction, type BillingRefusalDetail, type HostedBalance } from "./hosted";
+import { BILLING_EVENT, BILLING_HEADER, freshBody, refreshPriceChecks, type BillingAction, type BillingRefusalDetail, type HostedBalance } from "./hosted";
 import { knownPlace, notePlaceName, placeOf, type Place } from "./place-name";
+import { noteServiceCopy, type ServiceCopy } from "./service-copy";
 import { ENGINE_KEY, ENGINE_SLOT_KEY, engineSlot, SHARED_SLOT, slotToCache, storedEngine, type EngineSlot, type SlotFacts } from "./engine-pref";
 
 /** What the status strip says of a GPU that didn't answer (src/server/account-gpu.ts VisitorTrouble). */
@@ -61,7 +65,19 @@ async function json<T>(res: Response): Promise<T> {
   // Its code too, when the refusal has one (a run that waits for a place: ACTIVE_RUNS_CODE).
   const given = (body as { code?: unknown }).code;
   const code = typeof given === "string" ? given : undefined;
-  if (!res.ok) throw responseError(res, Object.assign(new Error(body.error ?? "Something went wrong. Please try again."), { status: res.status }, code && { code }));
+  if (!res.ok) {
+    // A limit says when it refreshes on the viewer's own clock, with the next step a press away (src/lib/limit-words.ts).
+    const { limit, refreshAt, guest } = body as { limit?: unknown; refreshAt?: unknown; guest?: unknown };
+    if (isLimitKind(limit) && typeof refreshAt === "number") {
+      const n = limitNext(limit, guest === true);
+      const next: NextStep | undefined = n && {
+        label: n.label,
+        run: n.to === "sign-up" ? () => askToSignUp("run") : () => window.dispatchEvent(new CustomEvent<ConnectGpuDetail>(CONNECT_GPU_EVENT, { detail: { action: "run" } })),
+      };
+      throw responseError(res, Object.assign(new Error(limitWordsAt(limit, refreshAt)), { status: res.status }, code && { code }, next && { next }));
+    }
+    throw responseError(res, Object.assign(new Error(body.error ?? "Something went wrong. Please try again."), { status: res.status }, code && { code }));
+  }
   return body;
 }
 
@@ -75,8 +91,8 @@ async function json<T>(res: Response): Promise<T> {
 export type { FeedFilter } from "./library";
 
 const isActive = (g: Generation) => g.status === "queued" || g.status === "running";
-/** Poll while something renders: fast without the live stream, a slow safety net with it. */
-const pollEvery = (items: Generation[] | undefined, live: boolean) => (items?.some(isActive) ? (live ? 10_000 : 1500) : false);
+/** Poll while something renders: fast without the live stream, a safety net with it (pollDelay). */
+const pollEvery = (items: Generation[] | undefined, live: boolean) => pollDelay(items, live) ?? false;
 
 /** Apply one change to every cached list and thread, skipping caches it doesn't change. */
 function applyEvent(qc: QueryClient, ev: StreamEvent): void {
@@ -234,6 +250,17 @@ async function connect() {
   const ctrl = new AbortController();
   s.abort = ctrl;
   let retryIn = 0;
+  // A stream that goes quiet past the server's pings is gone (a laptop that slept, a proxy holding a stream whose
+  // server stopped): drop it and open another at once, which catches up on what changed meanwhile.
+  let stale = false;
+  let idle: ReturnType<typeof setTimeout> | null = null;
+  const awake = () => {
+    if (idle) clearTimeout(idle);
+    idle = setTimeout(() => {
+      stale = true;
+      ctrl.abort();
+    }, STREAM_IDLE_MS);
+  };
   try {
     const res = await fetch("/api/generations/stream", { headers: { Accept: "text/event-stream" }, signal: ctrl.signal, cache: "no-store" });
     const next = streamResponse({ ok: res.ok, status: res.status, contentType: res.headers.get("content-type"), hasBody: !!res.body }, s.attempt++);
@@ -245,9 +272,11 @@ async function connect() {
       setLive(true);
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
       let buf = "";
+      awake();
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
+        awake();
         const parsed = parseSse(buf + value);
         buf = parsed.rest;
         for (const m of parsed.events) {
@@ -260,8 +289,10 @@ async function connect() {
       retryIn = backoff(s.attempt++);
     }
   } catch {
-    if (ctrl.signal.aborted) return;
-    retryIn = backoff(s.attempt++);
+    if (ctrl.signal.aborted && !stale) return;
+    retryIn = stale ? 0 : backoff(s.attempt++);
+  } finally {
+    if (idle) clearTimeout(idle);
   }
   if (s.abort !== ctrl) return;
   s.abort = null;
@@ -362,6 +393,23 @@ function onVisibility() {
   if (s.hiddenTimer) clearTimeout(s.hiddenTimer);
   s.hiddenTimer = null;
   if (s.subscribers) start();
+  catchUpActive();
+}
+
+/**
+ * Back on screen, or back online: lists with a run on its way read again at once, so a run that finished meanwhile
+ * shows done straight away (a hidden tab stops polling, and its stream may have been let go).
+ */
+function catchUpActive() {
+  const qc = live().client;
+  if (!qc) return;
+  const waiting = (data: unknown): boolean =>
+    Array.isArray(data) ? data.some((g) => isActive(g as Generation)) : !!(data as Pages | undefined)?.pages?.some((p) => p.some(isActive));
+  for (const key of [["generations"], ["library"]]) {
+    for (const q of qc.getQueryCache().findAll({ queryKey: key })) {
+      if (waiting(q.state.data)) void qc.invalidateQueries({ queryKey: q.queryKey, exact: true });
+    }
+  }
 }
 
 /** Share one stream between every list on the page (and every tab, and canvas boards); returns whether it's connected. */
@@ -376,6 +424,7 @@ export function useGenerationStream(): boolean {
     if (!s.hooked) {
       s.hooked = true;
       document.addEventListener("visibilitychange", onVisibility);
+      window.addEventListener("online", catchUpActive);
     }
     // A tab opened in the background waits until it's shown.
     if (document.visibilityState !== "hidden") start();
@@ -536,15 +585,16 @@ export function goesToPool(req: GenerationRequest | undefined): boolean {
 }
 
 /**
- * The runs on this studio's GPUs being made now (Run pressed, no answer yet), with when Run was pressed. The feed shows
- * each one as "In line" until the run is made, so a short wait before it starts never looks like nothing happened.
+ * The runs being made now (Run pressed, no answer yet), with when Run was pressed. The feed shows each one's card at
+ * once ("In line" on this studio's GPUs, else "Starting") until the run is made, so a press never looks like nothing
+ * happened.
  */
-export function useMakingPoolRuns(): { at: number; request: GenerationRequest }[] {
+export function useMakingRuns(): { at: number; request: GenerationRequest }[] {
   const pending = useMutationState({
     filters: { mutationKey: CREATE_GENERATION_KEY, status: "pending" },
     select: (m) => ({ at: m.state.submittedAt, request: m.state.variables as GenerationRequest | undefined }),
   });
-  return pending.filter((p): p is { at: number; request: GenerationRequest } => goesToPool(p.request));
+  return pending.filter((p): p is { at: number; request: GenerationRequest } => !!p.request && typeof p.request === "object");
 }
 
 /**
@@ -948,7 +998,9 @@ export interface StatusInfo {
   cloudProvider: string;
   /** The text LLM: Settings → AI helper, whether Claude takes text steps, and the local model server in use. */
   llm?: {
-    helper: "auto" | "anthropic" | "local" | "none";
+    helper: "auto" | "anthropic" | "local" | "free" | "none";
+    /** The free helper on the workers' text slots: answering now, seen today, and the name for it. */
+    free?: { live: boolean; known: boolean; label: string };
     claude: boolean;
     /** Settings' local server: "auto" or the one pinned. */
     provider: string;
@@ -993,6 +1045,8 @@ export interface StatusInfo {
     prefer?: "pool";
     /** The name visitors read for this install's GPUs ("Runs on Our GPUs", src/lib/place-name.ts). Only with `hosted`. */
     placeName?: string;
+    /** The free text helper writes for this visitor ("Write the lyrics", "Rewrite my prompt now"). Only with `hosted`. */
+    helper?: true;
     /**
      * Where the account's runs go, as it picked (only with `hosted`, only to that account; none: the install's GPUs).
      * "key" starts its engine switch on Cloud (src/lib/engine-pref.ts).
@@ -1013,12 +1067,19 @@ export interface StatusInfo {
     balance?: HostedBalance;
     links?: BillingAction[];
     notice?: { id: string; text: string; url?: string };
+    /** The billing service's display copy (src/lib/service-copy.ts): kept by useStatus for the wait and limit lines. */
+    copy?: ServiceCopy;
   };
   /**
    * The owner's ComfyUI runs on the owner's computer (Settings): what the owner's Fuobe tab there last said. Never
    * `viewer` (that is a visitor's view of the studio).
    */
   ownerGpu?: OwnerGpuView;
+  /**
+   * The owner's ComfyUI runs on the workers: the open models none of them can run now (`own`), so his pickers order, tag
+   * and default as his runs go (src/lib/runnable-here.ts). Never with `viewer`.
+   */
+  pool?: PoolRules;
 }
 
 /** The viewer's own GPU for the status strip and the header pill: an account's, or the owner's computer. */
@@ -1059,6 +1120,7 @@ export function useStatus() {
       const s = await json<StatusInfo>(await fetchWithin("/api/status", READ_LIMIT_MS.status));
       // Kept for words made outside React (the toast that offers a run on this install's GPUs).
       notePlaceName(s.viewer?.hosted ? s.viewer.placeName : null);
+      noteServiceCopy(s.viewer?.hosted ? s.viewer.copy : null);
       return s;
     },
     staleTime: 15_000,
@@ -1069,11 +1131,28 @@ export function useStatus() {
 /**
  * The name this viewer reads for this install's GPUs (src/lib/place-name.ts): `label` as set ("Our GPUs"), `text` inside
  * a sentence ("our GPUs"). Null while hosted runs are off for this viewer (the owner; any viewer of an install with them
- * off): its pages keep their own words.
+ * off): its pages keep their own words. Null until the page has hydrated too, as the server rendered it: a status that
+ * answers before part of the page hydrates would otherwise change its words mid-hydration.
  */
 export function usePlaceName(): Place | null {
   const v = useStatus().data?.viewer;
+  const hydrated = useHydrated();
+  return hydrated ? placeNameFor(v) : null;
+}
+
+/** The place name a viewer reads (usePlaceName once hydrated): none unless hosted runs are on for them. */
+export function placeNameFor(v: { hosted?: boolean; placeName?: string } | undefined): Place | null {
   return v?.hosted ? placeOf(v.placeName) : null;
+}
+
+/**
+ * May this viewer use the text helper's buttons ("Write the lyrics", "Rewrite my prompt now"): the owner always (the
+ * server says what to set up when nothing answers), a visitor when the studio's free helper writes for it.
+ */
+export function useTextHelper(): boolean {
+  const s = useStatus().data;
+  const visitor = useLikelyVisitor();
+  return visitor ? !!s?.viewer?.helper : true;
 }
 
 /** What an uploaded clip's header says: length, size, frame rate and sound (empty for formats the server can't read). */
@@ -1097,13 +1176,14 @@ export function useClipFacts(url: string | undefined) {
   });
 }
 
-export async function enhance(prompt: string, kind: MediaKind, op: string): Promise<string> {
+/** `filmLook`: MOSS-Image's picked film look, which Fuobe adds after the rewrite (so the rewrite names no look of its own). */
+export async function enhance(prompt: string, kind: MediaKind, op: string, modelId?: string, filmLook?: string): Promise<string> {
   return (
     await json<{ prompt: string }>(
       await fetch("/api/enhance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, kind, op }),
+        body: JSON.stringify({ prompt, kind, op, modelId, ...(filmLook && { filmLook }) }),
       }),
     )
   ).prompt;
@@ -1606,6 +1686,16 @@ export function askToSignUp(action: RefusalAction = "upload", more: Pick<Refusal
 }
 
 /**
+ * A guest's free-helper call refused with SIGN_IN_CODE ("Write the lyrics"): "Create a free account" opens (unless the
+ * fetch watcher opened it already), never an error. True when the error was that refusal.
+ */
+export function helperSignIn(e: unknown): boolean {
+  if ((e as { code?: unknown } | null)?.code !== SIGN_IN_CODE) return false;
+  if (!refusalShown(e)) askToSignUp("run");
+  return true;
+}
+
+/**
  * For a file chooser, a drop or a paste: asks first whoever the upload would refuse, instead of letting them pick a file
  * for nothing. A guest gets "Create a free account", an account with neither its own GPU nor its own key "Connect your
  * GPU or add a key". The function returns true when it asked (the chooser stays shut, the file stays out), and false
@@ -1737,6 +1827,17 @@ export function watchGuestRefusals(): void {
     // A run started here, on the ComfyUI on this computer: the tab that runs it asks for it at once.
     if (res.status === 201 && method === "POST" && requestPath(input) === "/api/generations") {
       window.dispatchEvent(new Event(COMPUTER_KICK_EVENT));
+      // A run held until the billing service says ready: its card opens once (the run starts by itself).
+      res
+        .clone()
+        .json()
+        .then((b: { held?: { card?: { text?: string } & Omit<BillingRefusalDetail, "code" | "error"> } }) => {
+          const c = b.held?.card;
+          if (!c?.text || !refusalCard("gpu", window.location)) return;
+          const { text, ...look } = c;
+          window.dispatchEvent(new CustomEvent<BillingRefusalDetail>(BILLING_EVENT, { detail: { ...look, code: "held", error: text, heldRun: true } }));
+        })
+        .catch(() => {});
     }
     // An account's paid run without its own key for that provider (x-fuobe-add-key: fal | replicate): "Add your key".
     const addKey = res.status === 403 ? res.headers.get(ADD_KEY_HEADER) : null;
@@ -1758,7 +1859,14 @@ export function watchGuestRefusals(): void {
             billing === "price-changed" && method === "POST" && q && resendable(input, init) ? () => sendRunAgain(input, init, { [RUN_SHOWN_HEADER]: shownHeader(q) }) : undefined;
           // Hosted runs: the same run on the account's own GPU, for the card's "Run on your GPU".
           const own = method === "POST" && resendable(input, init) ? againAt(input, init, "own") : undefined;
-          window.dispatchEvent(new CustomEvent<BillingRefusalDetail>(BILLING_EVENT, { detail: { ...b, code: billing, ...(again && { runAgain: again }), ...(own && { runOwn: own }) } }));
+          // A run the service lets start once something clears (waitFor): the same run as a new press, sent by the card.
+          const fresh =
+            b.waitFor && method === "POST" && resendable(input, init)
+              ? () => sendRunAgain(input, { ...init, ...(typeof init?.body === "string" && { body: freshBody(init.body, newPressId) }) }, {})
+              : undefined;
+          window.dispatchEvent(
+            new CustomEvent<BillingRefusalDetail>(BILLING_EVENT, { detail: { ...b, code: billing, ...(again && { runAgain: again }), ...(own && { runOwn: own }), ...(fresh && { runFresh: fresh }) } }),
+          );
         })
         .catch(() => {});
     }

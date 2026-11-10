@@ -14,7 +14,7 @@ import { canvasIntro, templateCards } from "@/lib/canvas-template-cards";
 import { templateSections, type Viewing } from "@/lib/canvas-sections";
 import { coverFraming } from "@/lib/cover-framing";
 import { HOME_EFFECTS, HOME_MOTIONS, presetHref } from "@/lib/home-showcase";
-import { ROW_CAPS, TILE_COLS, TILE_ROWS, type MegaColumn, type MegaCover, type MegaItem, type MegaModel } from "@/lib/mega-menus";
+import type { MegaColumn, MegaCover, MegaItem, MegaModel } from "@/lib/mega-menus";
 import { hasMini, miniOf } from "@/lib/preset-cards";
 import { presetCover } from "@/lib/preset-covers";
 import { presetStillSources } from "@/lib/preset-hd";
@@ -23,6 +23,10 @@ import { featuredAll } from "@/lib/preset-featured";
 import { templateCover } from "@/lib/template-covers";
 import { templateStillSources } from "@/lib/template-hd";
 import { MENU_LINES } from "@/lib/menu-lines";
+import { fxSections } from "@/lib/area-showcase";
+import { FX_SECTIONS, fxCover, isFxApp } from "@/lib/fx-tools";
+import { fxView } from "@/lib/fx-compare";
+import { entry } from "@/lib/nav-model";
 
 /** A column of a preset menu: its name, its phone chip, and the catalog categories it holds. */
 export interface PresetGroup {
@@ -120,11 +124,18 @@ export function presetMegaCover(id: string): MegaCover | undefined {
 /** Whether a preset has a cover of its own (presetCover gives another shot's to a few: SAME_SHOT). */
 export const hasOwnCover = (id: string) => !!presetCover(id)?.poster.startsWith(`/previews/presets/${id}.jpg`);
 
-const presetItem = (p: Preset): MegaItem => ({ id: p.id, href: presetHref(p.id), label: p.name, line: presetLine(p), cover: presetMegaCover(p.id) });
+/** An item with its cover's clip, which plays over the still while its tile is on screen or pointed at. */
+function withClip(e: MegaItem): MegaItem {
+  const clip = e.cover && presetCover(e.id)?.video;
+  return clip ? { ...e, cover: { ...e.cover!, clip } } : e;
+}
+
+const presetItem = (p: Preset): MegaItem => withClip({ id: p.id, href: presetHref(p.id), label: p.name, line: presetLine(p), cover: presetMegaCover(p.id) });
 
 /**
- * One column per group: its presets premium first (featuredAll), one of each idea (sameIdea), the first with its own
- * cover as the lead, then up to ROW_CAPS.tall rows (each with its cover). Columns in the order of their strongest preset.
+ * One column per group: every one of its presets, premium first (featuredAll), the first with a cover of its own as the
+ * lead. Columns in the order of their strongest preset. The menu shows all of them (it scrolls inside), so a visitor
+ * finds every app, motion and effect from the bar.
  */
 export function presetColumns(items: readonly Preset[], groups: readonly PresetGroup[], family?: string): MegaColumn[] {
   const ranked = featuredAll(items);
@@ -133,22 +144,16 @@ export function presetColumns(items: readonly Preset[], groups: readonly PresetG
   return [...groups]
     .sort((a, b) => firstAt(a) - firstAt(b))
     .map((g) => {
-      const seen = new Set<string>();
-      const mine = ranked.filter((p) => {
-        if (!inGroup(g)(p) || !hasOwnCover(p.id)) return false;
-        const k = sameIdea(p.name);
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
-      const [lead, ...rest] = mine;
+      const mine = ranked.filter(inGroup(g));
+      const lead = mine.find((p) => hasOwnCover(p.id)) ?? mine[0];
+      const rest = mine.filter((p) => p !== lead);
       return {
         id: g.id,
         label: g.label,
         chip: g.chip,
         ...(family && { family }),
         ...(lead && { lead: presetItem(lead) }),
-        rows: rest.slice(0, ROW_CAPS.tall).map(presetItem),
+        rows: rest.map(presetItem),
       };
     });
 }
@@ -185,20 +190,20 @@ export function motionsMenu(): MegaModel {
 const VISITOR: Viewing = { visitor: true, hasCover: (id) => !!templateCover("canvas", id) };
 
 /**
- * A template cover as a menu tile shows it: its peak frame (the finished scene), never a clip, with its larger copies
- * (the preset's peak frame's, or the tile's own poster's), so a 2x or 3x screen gets one at least as wide as the box.
+ * A template cover as a menu tile shows it: its peak frame (the finished scene), with its larger copies (the preset's
+ * peak frame's, or the tile's own poster's), so a 2x or 3x screen gets one at least as wide as the box, and its clip
+ * from that frame on (clipAt), which plays while the tile is pointed at.
  */
 function templateMegaCover(id: string): MegaCover | undefined {
   const c = templateCover("canvas", id);
   if (!c) return undefined;
   const framing = coverFraming(c.poster);
   const hd = presetStillSources(c.poster, c.thumb) ?? templateStillSources(c.poster, c.thumb);
-  return { poster: c.poster, thumb: c.thumb, ...(hd && { hd }), ...(framing && { framing }) };
+  return { poster: c.poster, thumb: c.thumb, ...(hd && { hd }), ...(framing && { framing }), ...(c.video && { clip: c.video, ...(c.at !== undefined && { clipAt: c.at }) }) };
 }
 
 /**
- * The ready boards a visitor can open, by section: only those with a real cover, at most TILE_ROWS rows of TILE_COLS
- * each (the panel never scrolls; the rest are a click away on /canvas). "What's a canvas?" leads, with the board the
+ * The ready boards a visitor can open, by section: every one with a real cover (the menu scrolls inside). "What's a canvas?" leads, with the board the
  * /canvas explainer shows, which the tiles then leave out. The owner's first column (New board, their recent boards)
  * replaces it in the browser (`owner`).
  */
@@ -239,9 +244,7 @@ export function canvasMenu(): MegaModel {
           chip: s.title,
           variant: "tiles",
           span: 4,
-          rows: s.items
-            .slice(0, TILE_ROWS * TILE_COLS)
-            .map((t) => ({ id: t.id, href: `/canvas/start/${t.id}`, label: t.name, line: MENU_LINES[t.id] ?? shortLine(t.description), icon: "Network", cover: templateMegaCover(t.id) })),
+          rows: s.items.map((t) => ({ id: t.id, href: `/canvas/start/${t.id}`, label: t.name, line: MENU_LINES[t.id] ?? shortLine(t.description), icon: "Network", cover: templateMegaCover(t.id) })),
           // The last section's label row ends on "See all": every ready board on /canvas.
           ...(i === shown.length - 1 && { more: { href: "/canvas?tab=templates", label: "See all ready boards" } }),
         }),
@@ -250,4 +253,67 @@ export function canvasMenu(): MegaModel {
   };
 }
 
-export const SERVER_MENUS = { apps: appsMenu, motions: motionsMenu, canvas: canvasMenu } as const;
+/** A Fuobe FX item as a menu row: a navigation entry with its nav cover, or an app with its own cover. */
+function fxMenuItem(id: string): MegaItem | undefined {
+  if (isFxApp(id)) {
+    const p = APPS.find((a) => a.id === id);
+    return p && presetItem(p);
+  }
+  const e = entry(id);
+  if (!e) return undefined;
+  // A mode shows the preset whose picture shows its job (inline: the nav's own covers don't carry it); else the entry's.
+  const mine = fxCover(id);
+  const own = mine ? presetMegaCover(mine) : undefined;
+  const nav = own ? undefined : (mine ?? e.cover);
+  const fx = fxView(id);
+  return {
+    id,
+    href: e.href,
+    label: e.label,
+    // Its line as the Studios menu gives it (34 characters at most; CSS fits it to the row).
+    line: e.what,
+    icon: e.icon,
+    ...(own && { cover: presetCover(mine!)?.video ? { ...own, clip: presetCover(mine!)!.video! } : own }),
+    ...(nav && { navCover: nav }),
+    ...(fx && { fx }),
+    ...(e.short && { short: e.short }),
+    ...(e.newUntil && { newUntil: e.newUntil }),
+  };
+}
+
+/**
+ * Fuobe FX as a menu: a column per section (src/lib/fx-tools.ts), its first card as the lead and then its other cards
+ * and its pills, every one (the menu scrolls inside). What a visitor sees: the owner's own modes are left
+ * to the page.
+ */
+export function fxMenu(): MegaModel {
+  const sections = fxSections(undefined);
+  // A mode whose name another tool here has too ("Character swap", Genjutsu's and the studio) is named with its studio.
+  const names = sections.flatMap((s) => [...s.cards, ...s.pills]).map((id) => fxMenuItem(id)?.label.toLowerCase());
+  const named = (e: MegaItem): MegaItem => {
+    const parent = entry(e.id)?.parent;
+    return parent && names.filter((n) => n === e.label.toLowerCase()).length > 1 ? { ...e, label: `${entry(parent)!.label} · ${e.label}` } : e;
+  };
+  const n = new Set(sections.flatMap((s) => [...s.cards, ...s.pills].map((id) => fxMenuItem(id)?.href))).size;
+  return {
+    id: "fx",
+    count: n,
+    countLine: `${n} tools for FX artists and teams, by stage of the shot`,
+    countLineKey: "menu.countLine.fx",
+    countLineParams: { n },
+    seeAll: { href: "/fx", name: "See all of Fuobe FX" },
+    columns: sections.map((s): MegaColumn => {
+      const items = [...s.cards, ...s.pills]
+        .map(fxMenuItem)
+        .filter((x): x is MegaItem => !!x)
+        .map(named);
+      // The lead card is the first with a picture (a section of pills only leads with its first tool that has one).
+      const lead = items.find((x) => x.cover || x.navCover) ?? items[0];
+      // Rows show their small cover: only the lead card shows a before and after, so only it carries one.
+      const rest = items.filter((x) => x !== lead).map((x) => (x.fx ? { ...x, fx: undefined } : x));
+      return { id: s.id, label: s.title, chip: FX_SECTIONS.find((x) => x.id === s.id)!.chip, ...(lead && { lead }), rows: rest };
+    }),
+  };
+}
+
+export const SERVER_MENUS = { apps: appsMenu, motions: motionsMenu, canvas: canvasMenu, fx: fxMenu } as const;

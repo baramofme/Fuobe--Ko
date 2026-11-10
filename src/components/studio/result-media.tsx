@@ -3,15 +3,17 @@
 import { AudioLines, Box, Download, FileText, Film, Layers, Rotate3d } from "lucide-react";
 import { createElement, useEffect, useState } from "react";
 import { loadModelViewer, useViewerSrc, viewerLook } from "@/components/model3d/model-viewer";
+import { ModelStandIn, ModelTile } from "@/components/model3d/model-tile";
 import { hasWebgl2, SplatViewer, useReducedMotion } from "@/components/model3d/splat-viewer";
 import { useHydrated } from "@/lib/api";
-import { FALLBACK_TEXT, hazeCutoffFor, splatFallback } from "@/lib/av/splat-view";
+import { FALLBACK_TEXT, hazeCutoffFor, splatFallback, splatPose } from "@/lib/av/splat-view";
 import { TurnChips } from "@/components/model3d/turn-chips";
 import { FORMAT_INFO } from "@/lib/av/formats";
 import { firstFrameSrc, FRONT_YAW, splatFormatOf, turnOrbit, viewerGlb } from "@/lib/av/model3d";
 import type { Generation, OutputFile, VideoFormat } from "@/lib/catalog/types";
 import { extensionOf } from "@/lib/library";
 import { cuesOf, cueTime, editOnlyFormat, isLayered, layerInfo, modelPreview, textOf, videoPoster } from "@/lib/output-actions";
+import { preview3dOf } from "@/lib/preview3d";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
@@ -58,21 +60,21 @@ export function MediaThumb({
   }
   if (output.kind === "text") return <TextPreview output={output} className={className} tag={tag} inset={inset} />;
   if (output.kind === "model3d") {
+    // Its preview (a still on the theme's studio, turning on hover), else what the run brought (an orbit clip, a
+    // still), else the photo it was made from; the 3D file loads only when the result is opened.
+    const ready = preview3dOf(output);
+    if (ready) return <ModelTile preview={ready} fit={fit} autoPlay={autoPlay} className={className} />;
     const { poster, video } = modelPreview(g ?? { outputs: [output] }, output);
-    if (video) return <MediaThumb output={{ url: video, kind: "video" }} autoPlay={autoPlay} fit={fit} className={className} />;
-    return (
-      <div className={cn("relative flex size-full flex-col items-center justify-center gap-2 bg-muted text-muted-foreground", className)}>
-        {poster ? (
-          // eslint-disable-next-line @next/next/no-img-element
+    if (video) return <MediaThumb output={{ url: video, kind: "video", ...(poster && { meta: { poster } }) }} autoPlay={autoPlay} fit={fit} className={className} />;
+    if (poster) {
+      return (
+        <div className={cn("relative size-full bg-muted", className)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={poster} alt="" loading="lazy" decoding="async" className={cn("absolute inset-0 size-full", object)} />
-        ) : (
-          <>
-            <Box className="size-8" />
-            <span className="text-[12px] font-medium">{t("studio.result.model3dLabel")}</span>
-          </>
-        )}
-      </div>
-    );
+        </div>
+      );
+    }
+    return <ModelStandIn output={output} photo={g?.request?.inputs?.images?.[0]} fit={fit} className={className} />;
   }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={output.url} alt="" loading="lazy" decoding="async" className={cn("size-full", object, className)} />;
@@ -291,7 +293,7 @@ function SplatPanel({ output, format, poster, video, g }: { output: OutputFile; 
     return (
       <div className="flex size-full flex-col">
         <div className="relative min-h-0 flex-1 overflow-hidden md:rounded-lg">
-          <SplatViewer url={output.url} format={format} poster={picture} name={name} defaultCutoff={hazeCutoffFor(g.modelId)} tone="panel" label={g.request.prompt || t("studio.result.splatLabel")} autoFocus={asked} onUnavailable={setNote} />
+          <SplatViewer url={output.url} format={format} poster={picture} name={name} defaultCutoff={hazeCutoffFor(g.modelId)} pose={splatPose(g, output)} tone="panel" label={g.request.prompt || t("studio.result.splatLabel")} autoFocus={asked} onUnavailable={setNote} />
         </div>
         <div className="flex shrink-0 justify-center pt-2">{download}</div>
       </div>

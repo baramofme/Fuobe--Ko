@@ -19,13 +19,14 @@ import { billedClipSeconds, editClipsProblem, insertRangeProblem, sourceSeconds 
 import { chainGapProblem, chainTiming, frameTimes, keyframeChain, MAX_KEYFRAMES, spread } from "./keyframes";
 import { requestTiming } from "@/lib/inbetween";
 import { t as tr } from "@/lib/i18n/store";
-import { cloudPath, fitLoras, gated, localOnly, loraCapacity, needsToken, routeLoraField, triggerOf } from "./loras";
+import { cloudPath, fitLoras, gated, localOnly, loraCapacity, lorasFit, needsToken, routeLoraField, triggerOf } from "./loras";
 import { anglesPrompt, anglesWords, ANGLES_ORIGINAL } from "./open-tools";
 import { qmaRunPrompt } from "@/lib/qma";
 import { askedSize, clipWords, fitLength, fitValue, numFramesValue, sizeValue } from "./payload";
 import { oneEachCall } from "./route-takes";
 import { characterScale, CINEMA_CROP, soulKind, soulMegapixels, soulRecipe, soulSize, type SoulOverlay } from "./soul";
-import { computeDimensions, fitCanvas } from "@/lib/comfy";
+import { computeDimensions, fitCanvas, PROMPT_HELPER_PARAM } from "@/lib/comfy";
+import { FILM_LOOK_PARAM, filmLook, takesFilmLooks } from "@/lib/film-looks";
 import { carriesLayout, flux3Boxes, flux3Caption, layoutCompilerFor, LAYOUT_MAX_SIDE, LAYOUT_MULTIPLE, LAYOUT_PARAM, readLayout, validateLayout, type LayoutDraft, type LayoutFormat } from "@/lib/layout-prompt";
 import { pricingOn, type PriceClock } from "./promo";
 import { isInstrumental, lyricsOf, lyricsProblem, LYRICS_PARAM, promptLyricsProblem } from "@/lib/lyrics";
@@ -56,6 +57,8 @@ export function inferOperation(model: ModelDef, req: Pick<GenerationRequest, "op
     if (req.inputs?.video && imgs && has("video-swap")) return "video-swap";
     if (req.inputs?.video && has("remove-object")) return "remove-object";
     if (imgs && req.inputs?.endImage && has("flf2v")) return "flf2v";
+    // An end frame alone goes to the start-and-end route that takes it alone (fal's H3 image to video), not to text to video.
+    if (!imgs && req.inputs?.endImage && takesEndAlone(model)) return "flf2v";
     // Several stills are keyframes when they have times, or when the model takes no references. The open
     // chain (a film of several clips) only with times: stills left over from references stay a start frame.
     if (imgs > 1 && has("keyframes") && (req.params?.keyframeTimes?.length || (!has("ref2v") && !keyframeChain(model)))) return "keyframes";
@@ -79,6 +82,22 @@ export function inferOperation(model: ModelDef, req: Pick<GenerationRequest, "op
     if (!imgs && has("text-to-3d")) return "text-to-3d";
   }
   return model.routes[0].op;
+}
+
+/** Every start-and-end route of the model takes the end frame without a start frame (ModelRoute.endAlone: fal's H3 family). */
+export function takesEndAlone(model: Pick<ModelDef, "routes">): boolean {
+  const routes = model.routes.filter((r) => r.op === "flf2v");
+  return routes.length > 0 && routes.every((r) => !!r.endAlone);
+}
+
+/**
+ * An end frame with no start frame, on a model that uses an end frame only after a start frame (Kling, Veo, H3 Lite, H3 on
+ * your GPU): the words the composer says before the run (with "Use it as the start frame") and the run's note. Null when
+ * there is no such end frame, or the model takes it alone.
+ */
+export function endFrameAloneProblem(model: Pick<ModelDef, "name" | "kind" | "options" | "routes">, inputs: GenerationRequest["inputs"]): string | null {
+  if (model.kind !== "video" || !model.options.endFrame || !inputs?.endImage || inputs.images?.length) return null;
+  return takesEndAlone(model) ? null : `${model.name} uses an end frame only after a start frame`;
 }
 
 /**
@@ -324,6 +343,22 @@ export function mixLoras(second: Preset, modelId: string, engine: Engine, streng
   return { loras: loras.map((l) => ({ ...l, strength: round2((l.strength ?? 1) * k) })), trigger: triggerOf(loras) };
 }
 
+/**
+ * Why a Mix's second preset can't join the first on this model in the cloud, or undefined when it can: a route that takes
+ * one LoRA per expert (Replicate's fast Wan 2.2, where Fuobe DoP and Wan 2.2 A14B run in the cloud) has no slot left for
+ * the second preset's LoRA when the first's already holds that expert. On the GPU every LoRA loads.
+ */
+export function mixLimit(model: ModelDef, engine: Engine, op: Operation, primary: Preset, second: Preset): string | undefined {
+  if (engine !== "cloud") return undefined;
+  const route = (model.routes ?? []).find((r) => r.op === op && r.provider !== "comfyui" && r.provider !== "mock");
+  if (!route || routeLoraField(route)?.shape !== "experts") return undefined;
+  const own = presetRoute(primary, "cloud");
+  const first = own?.modelId === model.id ? (own.loras ?? []) : [];
+  const extra = mixLoras(second, model.id, "cloud", 1).loras;
+  if (!extra.length || lorasFit(route, [...first, ...extra])) return undefined;
+  return `${model.name} in the cloud takes one LoRA per expert (high and low noise), so ${second.name} can't join ${primary.name} there`;
+}
+
 export interface Plan {
   model: ModelDef;
   op: Operation;
@@ -348,6 +383,12 @@ export interface Plan {
   layout?: { format: LayoutFormat | "words"; boxes: number; width?: number; height?: number };
   /** MiniMax H3's sound lines from the preset's route (its preview's), which its layout's sound fields take. */
   sound?: { soundscape: string; music: string };
+  /**
+   * A MOSS-Image film look (params.extra.filmLook, src/lib/film-looks.ts): the server wraps the run's words in it just
+   * before the run (the look, the scene, the look again; its negative beside the run's), so the person's prompt stays as
+   * typed. `mono`: a monochrome look, whose scene loses its colour words first.
+   */
+  film?: { look: string; mono: boolean };
   /** An end-frame step: an image edit of the start frame that becomes the clip's end frame (H3 flf2v). */
   end?: PresetEndStep;
 }
@@ -360,6 +401,8 @@ const PROMPTLESS = new Set<Operation>([
   "trim", "transcribe", "mux", "separate-audio", "enhance-voice", "speech-edit", "layers", "image-to-3d", "captions", "text-layers", "vectorize", "level",
   // av-tools: the dub voice track (clips placed on the video's timeline)
   "timeline",
+  // Body Double: the body comes from the picture or the clip
+  "body-capture", "body-capture-video",
   // round 4: tools that work from their inputs (removing an object needs a prompt only on models that read one)
   "sdr-to-hdr", "export-video", "ocr", "still-motion", "audio-loop", "audio-join", "scene-3d", "splat", "rig-3d", "refine-3d", "extract-frames", "images-to-video", "overlay", "composite",
   // round 5 (O11): the face mosaic names the faces itself ("face")
@@ -624,6 +667,9 @@ export function planGeneration(
       throw new Error("Reference clips and sound can't go with an end frame. Remove the end frame, or the clips and sound");
     }
   }
+  // An end frame alone that this model can't take is never left out without a word.
+  const endAlone = op === "t2v" || op === "ref2v" ? endFrameAloneProblem(model, req.inputs) : null;
+  if (endAlone) notes.push(`${endAlone}: this clip is made without it`);
   // Reference clips and video elements on a model that bills them with the output (Kling 4.0, Pricing.clipInput): priced
   // at the least they bill (twice the output) until the server reads their length (params.clipSeconds).
   if (model.pricing?.clipInput && req.inputs?.videos?.length && params.clipSeconds === undefined) params = { ...params, clipSeconds: 0 };
@@ -652,6 +698,22 @@ export function planGeneration(
     prompt = compiled.prompt;
     params = compiled.params;
     layoutPlan = compiled.layout;
+  }
+  // A film look (MOSS-Image's Film look chip): never sent as a setting of its own. It applies to a picture made from words;
+  // a layout keeps its compiled boxes, and another model or operation runs without it, saying so.
+  let film: Plan["film"];
+  if (params.extra && FILM_LOOK_PARAM in params.extra) {
+    const look = filmLook(params.extra[FILM_LOOK_PARAM]);
+    const rest = { ...params.extra };
+    delete rest[FILM_LOOK_PARAM];
+    if (look && takesFilmLooks(model) && op === "t2i" && !layoutPlan) {
+      film = { look: look.id, mono: !!look.mono };
+      // The API's own prompt expansion would rewrite the look's words: off for this run (fal's MOSS-Image).
+      if (routesFor(model, op).some((r) => r.map?.promptExpansion)) rest[PROMPT_HELPER_PARAM] = "off";
+    } else if (look) {
+      notes.push(layoutPlan ? `${look.name} is made for words: the layout runs without the film look` : `${look.name} is a MOSS-Image film look: this run is made without it`);
+    }
+    params = { ...params, extra: Object.keys(rest).length ? rest : undefined };
   }
   // MiniMax H3's orbit of a still (its Orbit LoRA graph, src/lib/comfy-variants.ts) runs at the LoRA's own length, 3 s
   // (73 frames), unless the run names a length.
@@ -747,7 +809,7 @@ export function planGeneration(
     throw new Error(op === "remove-object" ? "Say what to remove, e.g. “the coffee cup in her hand”" : "Write a prompt first");
   }
 
-  const missing = missingInputs(op, req) ?? unreadInputs(model, op, req) ?? missingImages(model, req);
+  const missing = missingInputs(op, req, model) ?? unreadInputs(model, op, req) ?? missingImages(model, req);
   if (missing) throw new Error(missing);
   // Watermark Remover: the kept marks are checked and rebuilt here (never passed on as sent); a brushed run takes none.
   if (op === "watermark-remove" && params.extra && "boxes" in params.extra) {
@@ -802,6 +864,7 @@ export function planGeneration(
     ...(notes.length && { notes }),
     ...(soulPlan && { soul: soulPlan }),
     ...(layoutPlan && { layout: layoutPlan }),
+    ...(film && { film }),
     ...(sound && { sound }),
     ...(end && { end }),
   };
@@ -1012,6 +1075,8 @@ const NEEDS: Partial<
   captions: { video: true, msg: "Add the video to caption" },
   layers: { images: 1, msg: "Add the image to split into layers" },
   "image-to-3d": { images: 1, msg: "Add a product or object photo" },
+  "body-capture": { images: 1, msg: "Add a photo with people in it" },
+  "body-capture-video": { video: true, msg: "Add a clip of someone moving" },
   // round 3 (cloud catalog)
   "text-layers": { images: 1, msg: "Add the image to lift the text from" },
   vectorize: { images: 1, msg: "Add the image to turn into an SVG" },
@@ -1064,11 +1129,13 @@ const NEEDS: Partial<
 const given = (v: unknown) => (Array.isArray(v) ? v.length > 0 : !!v);
 
 /** Human message for the first missing input of an operation, or null. */
-export function missingInputs(op: Operation, req: Pick<GenerationRequest, "inputs">): string | null {
+export function missingInputs(op: Operation, req: Pick<GenerationRequest, "inputs">, model?: Pick<ModelDef, "routes">): string | null {
   const n = NEEDS[op];
   if (!n) return null;
   const i = req.inputs ?? {};
-  if (n.images && (i.images?.length ?? 0) < n.images) return n.msg;
+  // A start-and-end run with only the end frame, on routes that take it alone (ModelRoute.endAlone).
+  const endAlone = op === "flf2v" && !!i.endImage && !i.images?.length && !!model && takesEndAlone(model);
+  if (n.images && (i.images?.length ?? 0) < n.images && !endAlone) return n.msg;
   if (n.video && !i.video) return n.msg;
   // A join may also be one clip and a still appended after it (an ad and its end card).
   const clips = (i.videos?.length ?? 0) + (op === "concat" && i.video && i.images?.length ? 2 : 0);
@@ -1409,6 +1476,13 @@ function outputFramesPrice(o: NonNullable<Pricing["outputFrames"]>, params: GenP
  * at `now` (./promo): the clock when not given (the server planning a run, the browser after it hydrates); with null (a
  * page prerendering, the browser before it hydrates) a launch-priced model's price isn't known yet (null).
  */
+/** A keyframe animation's gaps: its timing's (params.extra.inbetween), else one between each two keyframe times, else one. */
+function filmGaps(params: GenParams): number {
+  const gaps = (params.extra?.inbetween as { gaps?: unknown[] } | undefined)?.gaps;
+  if (Array.isArray(gaps) && gaps.length) return gaps.length;
+  return Math.max(1, (params.keyframeTimes?.length ?? 0) - 1);
+}
+
 export function estimateCost(model: ModelDef, params: GenParams, jobs = 1, op?: Operation, withLoras = false, now?: PriceClock): number | null {
   if (model.engine === "open" || !model.pricing) return model.engine === "open" ? 0 : null;
   const p = pricingOn(model.pricing, now);
@@ -1429,6 +1503,8 @@ export function estimateCost(model: ModelDef, params: GenParams, jobs = 1, op?: 
   // A voice cleaned (DeepFilterNet 3, VEED) is billed on the recording's length (params.sourceDuration: its header).
   const audioClip = op && AUDIO_LENGTH_OPS.has(op) && params.sourceDuration && params.sourceDuration > 0 ? params.sourceDuration : undefined;
   if (p.unit === "image") per = usd * n;
+  // A keyframe film billed per clip (Fuobe Animation on Replicate: one clip a gap, whatever its length).
+  if (p.unit === "video" && op === "keyframes" && model.options.inbetween) per = usd * filmGaps(params);
   // Per image by tier, but per megapixel with LoRAs (fal's FLUX 3 Klein /lora): the route's size in megapixels.
   if (withLoras && p.withLorasPerMegapixel !== undefined) per = p.withLorasPerMegapixel * (routeMegapixels(model, params, op) ?? sentMegapixels(params) ?? 1) * n;
   // Per megapixel of every image made: Soul's sizes are known (about 1 or 2 MP), so is a size sent as fal's image_size

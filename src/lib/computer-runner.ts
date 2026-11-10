@@ -8,9 +8,12 @@
  * a socket and a clock, and the tests drive it from Node against a stand-in ComfyUI.
  */
 import { isGuard } from "./comfy-guard";
+import { entryReason, refusalReason } from "./comfy-reason";
+import { withoutLocalPaths } from "./engine-error";
 import { FINISH_RUN_MS, finishProblem, type FinishResult, type FinishStats } from "./finish-ticket";
 import { fetchWithin } from "./fetch-within";
 import { parseComfyBinary, parseComfyText } from "./comfy-ws";
+import { NodeClock } from "./node-times";
 import { graphProblem, localBase, mayDownload, readPath, statsFacts, viewPath, writePath, type SystemStats } from "./local-comfy";
 import {
   DONE_SHOWN_MS,
@@ -64,11 +67,15 @@ export interface RunnerDeps {
   sleep?: (ms: number) => Promise<void>;
   /**
    * A worker program's own checks (docs/gpu-workers.md) before a graph goes to its ComfyUI: its node allowlist, path
-   * strings, verified models. The failure, or null. (A browser tab has none: graphProblem is its check.)
+   * strings, verified models, and its own self-checks. The failure, a give-back (the job goes back in line: the worker
+   * can't run it now), or null. (A browser tab has none: graphProblem is its check.)
    */
-  vet?: (t: ClaimedTask) => TabFailure | null | Promise<TabFailure | null>;
-  /** A job ended here, done or not: a worker deletes its files. */
-  ended?: (t: ClaimedTask, phase: LocalJob["phase"]) => void | Promise<void>;
+  vet?: (t: ClaimedTask) => VetAnswer | Promise<VetAnswer>;
+  /**
+   * A job ended here, done or not: a worker deletes its files. `why`: a failed job's reason in one short line (ComfyUI's
+   * own, src/lib/comfy-reason.ts, or why it stopped here), for the worker's log.
+   */
+  ended?: (t: ClaimedTask, phase: LocalJob["phase"], why?: string) => void | Promise<void>;
   /**
    * A worker program's composer (src/lib/ticket-compose.ts): the graph of a job ticket (src/lib/job-ticket.ts), built
    * from its own copy of the catalog, with the small files the graph makes itself; or why it refuses the ticket. A
@@ -119,6 +126,9 @@ export async function previewForReport(preview: Blob | undefined, lastSentAt: nu
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(bin);
 }
+
+/** A worker's own checks of a job: why it fails it, why it gives it back, or null when it may run. */
+export type VetAnswer = TabFailure | { giveBack: GiveBackWhy } | null;
 
 /** Why a worker refuses a job ticket: another catalog, more than its PC allows, or a ticket it can't use (or a graph where a ticket belongs). */
 export type TicketRefused = "update-worker" | "outside-ceiling" | "bad-ticket";
@@ -311,6 +321,60 @@ const retryAfter = (res: Response) => Math.min(30, Math.max(1, Number(res.header
 const hasPrefix = (prompt: unknown, prefix: string) =>
   !!prompt && typeof prompt === "object" && Object.values(prompt as Record<string, { inputs?: Record<string, unknown> }>).some((n) => n?.inputs?.filename_prefix === prefix);
 
+type GraphLike = Record<string, { class_type?: unknown; inputs?: Record<string, unknown> } | undefined>;
+
+/**
+ * A meta-batch graph's passes: its VHS_BatchManager (`node`), the frames each pass takes, and the loader that reads the
+ * clip pass by pass (its progress counts the clip's frames, `max` = all of them). Null for any other graph.
+ */
+export function batchPlan(graph: unknown): { node: string; perPass: number; loader: string } | null {
+  const g = graph && typeof graph === "object" ? (graph as GraphLike) : {};
+  for (const [id, n] of Object.entries(g)) {
+    if (n?.class_type !== "VHS_BatchManager") continue;
+    const perPass = Number(n.inputs?.frames_per_batch);
+    if (!Number.isFinite(perPass) || perPass < 1) continue;
+    const loader = Object.entries(g).find(([, m]) => {
+      const link = m?.inputs?.meta_batch;
+      return typeof m?.class_type === "string" && /^VHS_Load/.test(m.class_type) && Array.isArray(link) && link[0] === id;
+    });
+    if (loader) return { node: id, perPass: Math.floor(perPass), loader: loader[0] };
+  }
+  return null;
+}
+
+/**
+ * A meta-batch job's progress as passes: `done` passes of all it takes (the clip's `frames` ÷ the frames a pass takes),
+ * in the shape of a sampler's steps, so the run's card reads "Step 3 of 21" and fills by pass. Without the frame count
+ * yet (its loader hasn't reported), only the node: the run shows it is working.
+ */
+export function passProgress(plan: { node: string; perPass: number }, frames: number | undefined, done: number): { value?: number; max?: number; node: string; nodesDone: number } {
+  // One node "done" for every report: the passes are one stage of the run, never a node after another.
+  if (!frames || !Number.isFinite(frames) || frames <= 0) return { node: plan.node, nodesDone: 1 };
+  const max = Math.max(1, Math.ceil(Math.round(frames) / plan.perPass));
+  return { value: Math.max(0, Math.min(done, max)), max, node: plan.node, nodesDone: 1 };
+}
+
+/** Every string inside a value with its absolute paths as base names (engine-error.ts). */
+function pathsOut<T>(v: T, depth = 0): T {
+  if (typeof v === "string") return withoutLocalPaths(v) as T;
+  if (!v || typeof v !== "object" || depth > 24) return v;
+  if (Array.isArray(v)) return v.map((x) => pathsOut(x, depth + 1)) as T;
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, pathsOut(x, depth + 1)])) as T;
+}
+
+/**
+ * A worker's report as it leaves the worker: ComfyUI's words (each entry's status messages, a refusal's answer) never
+ * name a folder of the worker's PC (its work folder, its ComfyUI, its models): each path goes as its file's name only.
+ * Results (outputs) and progress go as they are.
+ */
+export function withoutWorkerPaths(e: ReportEvent): ReportEvent {
+  const entry = (x: HistoryEntryLike): HistoryEntryLike => (x.status ? { ...x, status: pathsOut(x.status) } : x);
+  if (e.event === "finished") return { ...e, entry: entry(e.entry) };
+  if (e.event === "passes") return { ...e, entries: e.entries.map(entry) };
+  if (e.event === "refused") return { ...e, body: pathsOut(e.body) };
+  return e;
+}
+
 /** A history entry as the server needs it: status and outputs (not the whole graph again). */
 const slim = (e: HistoryEntryLike & { prompt?: unknown[] }): HistoryEntryLike => ({ prompt: e.prompt ? [e.prompt[0], e.prompt[1]] : undefined, status: e.status, outputs: e.outputs });
 
@@ -321,7 +385,11 @@ export class ComputerRunner {
   private stopping = new Set<string>();
   private ws: SocketLike | null = null;
   private wsOpen = false;
-  private events = new Map<string, { value?: number; max?: number; node?: string; nodesDone: number; done?: boolean }>();
+  private events = new Map<string, { value?: number; max?: number; node?: string; nodesDone: number; done?: boolean; maxes?: Record<string, number> }>();
+  /** A meta-batch job's progress as passes (passProgress), by task: what its reports and beats send instead of a pass's own steps. */
+  private batchShown = new Map<string, ReturnType<typeof passProgress>>();
+  /** Each prompt's node times from the socket (a worker sends them with its "finished" report); the latest few. */
+  private clocks = new Map<string, NodeClock>();
   private factsSentAt = 0;
   private factsWithLoras = 0;
   private foundAt = 0;
@@ -467,10 +535,15 @@ export class ComputerRunner {
         const e = parseComfyText(m.data);
         if (!e || !("promptId" in e) || !e.promptId) return;
         const cur = this.events.get(e.promptId) ?? { nodesDone: 0 };
-        if (e.type === "progress") Object.assign(cur, { value: e.value, max: e.max, node: e.node });
+        if (e.type === "progress") {
+          Object.assign(cur, { value: e.value, max: e.max, node: e.node });
+          // Each node's step count (a meta-batch loader's is the clip's frames: passProgress).
+          if (e.node && typeof e.max === "number") cur.maxes = { ...cur.maxes, [e.node]: e.max };
+        }
         else if (e.type === "executing" && e.node) Object.assign(cur, { node: e.node, nodesDone: cur.nodesDone + 1, value: undefined, max: undefined });
         else if (e.type === "success" || e.type === "error" || e.type === "interrupted" || (e.type === "executing" && !e.node)) cur.done = true;
         this.events.set(e.promptId, cur);
+        this.clockEvent(e);
         return;
       }
       const p = parseComfyBinary(m.data as ArrayBuffer);
@@ -480,6 +553,30 @@ export class ComputerRunner {
       if (!job) return;
       this.job({ id: job.taskId, generationId: job.generationId }, { preview: new Blob([p.data as BlobPart], { type: p.type }) });
     };
+  }
+
+  /** A socket event on its prompt's node clock (the newest 32 prompts keep theirs). */
+  private clockEvent(e: ReturnType<typeof parseComfyText>) {
+    if (!e || !("promptId" in e) || !e.promptId) return;
+    const now = this.now();
+    let clock = this.clocks.get(e.promptId);
+    if (!clock) {
+      if (e.type !== "execution_start" && e.type !== "executing") return;
+      clock = new NodeClock();
+      this.clocks.set(e.promptId, clock);
+      while (this.clocks.size > 32) this.clocks.delete(this.clocks.keys().next().value!);
+    }
+    if (e.type === "executing") clock.executing(e.node, now);
+    else if (e.type === "progress") clock.progress(e.node, e.max, now);
+    else if (e.type === "success" || e.type === "error" || e.type === "interrupted") clock.end(now);
+  }
+
+  /** The slowest nodes of a prompt as its socket timed them (a worker's "finished" report carries them), then forgotten. */
+  private nodeTimes(promptId: string, entry: HistoryEntryLike) {
+    const clock = this.clocks.get(promptId);
+    this.clocks.delete(promptId);
+    const nodes = clock?.times(entry.prompt?.[2]);
+    return nodes?.length ? { nodes } : {};
   }
 
   /** Where a prompt is on ComfyUI here. */
@@ -517,6 +614,9 @@ export class ComputerRunner {
 
   /** A report about a job (its token in a header, so the studio checks it before it reads the report). */
   private async report(t: ClaimedTask, e: ReportEvent): Promise<{ wanted?: WantedFile[]; follow?: string; stop?: boolean; state?: RelayState }> {
+    // A worker program never sends its own folders (a browser tab is the person's own computer: its words stay its own).
+    if (this.deps.worker) e = withoutWorkerPaths(e);
+    this.noteWhy(t, e);
     // A busy studio (429) is waited out, for a while; other failures are tried a few times.
     const until = this.now() + 2 * 60_000;
     for (let i = 0; ; ) {
@@ -535,6 +635,15 @@ export class ComputerRunner {
       if (++i > 4) throw new Error(`The studio answered HTTP ${res.status}`);
       await this.sleep(1000 * i);
     }
+  }
+
+  /** Why a job fails, as a report says it: ComfyUI's reason, or what stopped it here. */
+  private noteWhy(t: ClaimedTask, e: ReportEvent) {
+    const said = "why" in e && typeof e.why === "string" && e.why ? e.why : null;
+    if (said && e.event !== "give-back") this.whyOf.set(t.id, said);
+    else if (e.event === "failed") this.whyOf.set(t.id, `stopped here: ${e.reason}${e.status ? ` (HTTP ${e.status})` : ""}`);
+    else if (e.event === "refused") this.whyOf.set(t.id, `ComfyUI refused the job (HTTP ${e.status})`);
+    else if (e.event === "give-back") this.whyOf.set(t.id, `given back to the line: ${e.why}`);
   }
 
   /** One beat: say this computer is here, keep its jobs alive, and stop what the server says to stop. */
@@ -556,7 +665,8 @@ export class ComputerRunner {
     const running = this.view.jobs
       .filter((j) => j.phase !== "done" && j.phase !== "failed")
       .map((j) => {
-        const ev = this.events.get(this.promptOf.get(j.taskId) ?? "");
+        // A meta-batch job: its passes (passProgress), never its first pass's own steps.
+        const ev = this.batchShown.get(j.taskId) ?? this.events.get(this.promptOf.get(j.taskId) ?? "");
         return { task: j.taskId, ...(j.position !== undefined && { position: j.position }), ...(j.phase === "running" && ev && { value: ev.value, max: ev.max, nodesDone: ev.nodesDone }) };
       });
     const stopped = [...this.stoppedDone];
@@ -639,6 +749,8 @@ export class ComputerRunner {
   private stoppedDone = new Set<string>();
   /** The files a finishing job made, by task and name: uploaded from here, never read from ComfyUI. */
   private finishMade = new Map<string, Map<string, Blob>>();
+  /** Why each job failed here, as its reports said (for `ended`). */
+  private whyOf = new Map<string, string>();
 
   /**
    * Ask for a job and run it (one at a time). True when there was one. Only while ComfyUI here answers to this site: a
@@ -691,8 +803,11 @@ export class ComputerRunner {
     } finally {
       this.madeOf.delete(t.id);
       this.finishMade.delete(t.id);
+      this.batchShown.delete(t.id);
+      const why = this.whyOf.get(t.id);
+      this.whyOf.delete(t.id);
       const phase = this.view.jobs.find((j) => j.taskId === t.id)?.phase;
-      if (this.deps.ended && (phase === "done" || phase === "failed")) await Promise.resolve(this.deps.ended(t, phase)).catch(() => {});
+      if (this.deps.ended && (phase === "done" || phase === "failed")) await Promise.resolve(this.deps.ended(t, phase, phase === "failed" ? why : undefined)).catch(() => {});
     }
   }
 
@@ -724,6 +839,10 @@ export class ComputerRunner {
           return this.job(t, { phase: "failed" });
         }
         const refused = await this.deps.vet?.(t);
+        if (refused && typeof refused === "object") {
+          await this.giveBack(t, refused.giveBack);
+          return this.job(t, { phase: "failed" });
+        }
         if (refused) {
           await this.report(t, { event: "failed", reason: refused });
           return this.job(t, { phase: "failed" });
@@ -780,6 +899,7 @@ export class ComputerRunner {
       if (e instanceof Stopped) {
         // The studio has no such job any more: a worker's kept results of it are of no use.
         if (e.gone) this.deps.worker?.hold.drop(t.id);
+        if (!this.whyOf.has(t.id)) this.whyOf.set(t.id, e.gone ? "the studio no longer has this job" : "the studio stopped it");
         return this.job(t, { phase: "failed" });
       }
       throw e;
@@ -1076,7 +1196,7 @@ export class ComputerRunner {
         return this.sendJob(t);
       }
       if (!up.ok) {
-        await this.report(t, { event: "failed", reason: up.status === 413 ? "input-too-big" : "comfy-error", status: up.status });
+        await this.report(t, { event: "failed", reason: up.status === 413 ? "input-too-big" : "comfy-error", status: up.status, why: `ComfyUI answered HTTP ${up.status} to one of the job's files` });
         this.job(t, { phase: "failed" });
         return false;
       }
@@ -1089,12 +1209,14 @@ export class ComputerRunner {
     }
     const answer = (await res.json().catch(() => ({}))) as { prompt_id?: string; number?: number };
     if (res.status === 400) {
-      await this.report(t, { event: "refused", status: 400, body: answer });
+      const why = refusalReason(answer, { graph: t.graph });
+      await this.report(t, { event: "refused", status: 400, body: answer, ...(why && { why }) });
       this.job(t, { phase: "failed" });
       return false;
     }
     if (!res.ok || typeof answer.prompt_id !== "string") {
-      await this.report(t, { event: "failed", reason: "comfy-error", status: res.status });
+      const why = (!res.ok && refusalReason(answer, { graph: t.graph })) || `ComfyUI answered HTTP ${res.status} to the job${res.ok ? " without its id" : ""}`;
+      await this.report(t, { event: "failed", reason: "comfy-error", status: res.status, why });
       this.job(t, { phase: "failed" });
       return false;
     }
@@ -1138,6 +1260,25 @@ export class ComputerRunner {
     let lastPreview: Blob | undefined;
     let lastPreviewAt = -Infinity;
     let following: string | undefined;
+    // A meta-batch job shows its passes as its steps (passProgress): the prompts its passes ran under, and how many ended.
+    const batch = t.metaBatch ? batchPlan(t.graph) : null;
+    const passIds = new Set<string>([t.promptId]);
+    let passesDone = 0;
+    let passKey = "";
+    const frames = () => {
+      for (const id of passIds) {
+        const m = batch && this.events.get(id)?.maxes?.[batch.loader];
+        if (m) return m;
+      }
+      return undefined;
+    };
+    const batchNow = (done: number) => {
+      const p = passProgress(batch!, frames(), done);
+      this.batchShown.set(t.id, p);
+      return p;
+    };
+    // From the start, its beats carry its passes too, never its first pass's own steps.
+    if (batch) batchNow(0);
     // A worker's watchdog: when the job last moved (a step, a node, its place, a pass).
     let movedAt = this.now();
     let moveKey = "";
@@ -1183,10 +1324,28 @@ export class ComputerRunner {
         const ev = this.events.get(String(queued[0]?.[1] ?? ""));
         moved(JSON.stringify([queued.map((r) => r[1]), passes.length, ev?.value, ev?.node, ev?.nodesDone]));
         if (!running && worker) await this.keep(t, { kind: "passes", entries: passes, execMs: execOf(passes) });
-        const a = await this.report(t, { event: "passes", running, entries: running ? [] : passes.map(slim), ...(!running && exec(execOf(passes))) });
+        const passWhy = running ? null : entryReason(passes, { graph: t.graph });
+        let shown: ReturnType<typeof passProgress> | null = null;
+        if (running && batch) {
+          for (const r of queued) passIds.add(String(r[1]));
+          // A pass started or ended: count the ended ones again (its ComfyUI's history keeps every pass of the job).
+          const key = JSON.stringify(queued.map((r) => r[1]));
+          if (key !== passKey) {
+            passKey = key;
+            const h = await this.read<Record<string, HistoryEntryLike>>(`/history?max_items=${META_BATCH_HISTORY}`).catch(() => null);
+            if (h) passesDone = Object.values(h).filter((e) => hasPrefix(e.prompt?.[2], following!) && e.status?.completed).length;
+          }
+          shown = batchNow(passesDone);
+        }
+        // While a pass runs, a meta-batch job with a pass plan reports its passes as its progress (a "running" report,
+        // which any studio takes); without one, only that a pass still runs.
+        const a = await this.report(
+          t,
+          shown ? { event: "running", ...shown } : { event: "passes", running, entries: running ? [] : passes.map(slim), ...(!running && exec(execOf(passes))), ...(passWhy && { why: passWhy }) },
+        );
         if (a.stop) throw new Stopped();
         if (!running) return { entries: passes, answer: a };
-        this.job(t, { phase: "running" });
+        this.job(t, { phase: "running", ...(shown?.max && { value: shown.value, max: shown.max }) });
         await this.sleep(POLL_MS * 2);
         continue;
       }
@@ -1211,7 +1370,8 @@ export class ComputerRunner {
         const ms = execOf([w.entry]);
         // A worker keeps the results first: a stop from here on uploads them again instead of running the job again.
         if (worker && !t.metaBatch && w.entry.status?.status_str !== "error") await this.keep(t, { kind: "finished", entries: [w.entry], execMs: ms });
-        const a = await this.report(t, { event: "finished", entry: slim(w.entry), ...exec(ms) });
+        const why = w.entry.status?.status_str === "error" ? entryReason(w.entry, { graph: t.graph }) : null;
+        const a = await this.report(t, { event: "finished", entry: slim(w.entry), ...exec(ms), ...(worker && this.nodeTimes(t.promptId, w.entry)), ...(why && { why }) });
         if (a.stop) throw new Stopped();
         if (a.follow) {
           following = a.follow;
@@ -1222,7 +1382,10 @@ export class ComputerRunner {
       if (w.s === "running") runningSince ??= this.now();
       const ev = this.events.get(t.promptId);
       moved(JSON.stringify([w.s, w.s === "pending" ? w.ahead : null, ev?.value, ev?.max, ev?.node, ev?.nodesDone]));
-      const report: ReportEvent = w.s === "pending" ? { event: "queued", position: w.ahead } : { event: "running", value: ev?.value, max: ev?.max, node: ev?.node, nodesDone: ev?.nodesDone };
+      // A meta-batch job's first pass: no pass has ended yet (its own steps would read as most of the run).
+      const first = batch && w.s === "running" ? batchNow(0) : null;
+      const report: ReportEvent =
+        w.s === "pending" ? { event: "queued", position: w.ahead } : first ? { event: "running", ...first } : { event: "running", value: ev?.value, max: ev?.max, node: ev?.node, nodesDone: ev?.nodesDone };
       const key = JSON.stringify(report);
       // A worker sends its ComfyUI's latest preview with its progress, when the claim asks for one: a small JPEG, at most
       // one every 2 s.
@@ -1238,7 +1401,7 @@ export class ComputerRunner {
         lastSent = this.now();
         if (preview) lastPreviewAt = this.now();
       }
-      this.job(t, w.s === "pending" ? { phase: "queued", position: w.ahead } : { phase: "running", value: ev?.value, max: ev?.max });
+      this.job(t, w.s === "pending" ? { phase: "queued", position: w.ahead } : first ? { phase: "running", value: first.value, max: first.max } : { phase: "running", value: ev?.value, max: ev?.max });
       // The socket says when steps move; without it, a read a second.
       await this.sleep(this.wsOpen ? PROGRESS_EVERY_MS : POLL_MS);
     }

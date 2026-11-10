@@ -70,12 +70,15 @@ const ITEMS: Record<string, Entry> = {
   "genjutsu:picture-h3-renderer": { setup: gpu(24, { files: true }), passes: "picture-h3-renderer" },
   "genjutsu:finish-faces": { setup: gpu(24, { files: true }), passes: "finish-faces" },
   "genjutsu:motion-h3": { setup: gpu(24, { files: true }), passes: "motion-h3" },
+  "genjutsu:reshoot-swap": { setup: gpu(32, { files: true }), passes: "reshoot-swap" },
+  "genjutsu:reshoot-edit": { setup: gpu(32, { files: true }), passes: "reshoot-edit" },
   // Genjutsu's makers that only those features use.
   "oss-h3-scene-edit": { setup: gpu(24, { files: true }), passes: "object-change" },
   "oss-from-picture": { setup: gpu(24, { files: true }), passes: "picture" },
   "oss-from-picture-frame": { setup: gpu(24, { files: true }), passes: "picture" },
   "oss-h3-fix-faces": { setup: gpu(24, { files: true }), passes: "finish-faces" },
   "oss-h3-motion": { setup: gpu(24, { files: true }), passes: "motion-h3" },
+  "oss-h3-reshoot": { setup: gpu(32, { files: true }), passes: "reshoot-swap" },
   // "Clean the voice first": a light voice split on any GPU, or a fal.ai key.
   "sound:clean-voice-first": { setup: gpu(undefined, { orKey: "fal" }), passes: "clean-voice-first" },
   // WorldCast filming: a Linux computer with a 48 GB card.
@@ -103,6 +106,10 @@ const ITEMS: Record<string, Entry> = {
   "video-tools:remove-person": { setup: gpu(24), passes: "remove-person" },
   "video-tools:remove-object-void": { setup: gpu(40), passes: "remove-object-void" },
   "cinema:world": { setup: gpu(24, { files: true }) },
+  // Body Double's photo and clip runs (InstantHMR and its pack), on this studio's GPU once a real render passes there.
+  // Live needs no setup: it runs in the visitor's own browser.
+  "oss-body-double": { setup: gpu(8, { files: true }), passes: "body-double-photo" },
+  "oss-body-double-video": { setup: gpu(10, { files: true }), passes: "body-double-clip" },
   "oss-hy-nomas-world": { setup: gpu(24, { files: true }) },
 };
 
@@ -165,23 +172,16 @@ export const keyName = (p: string): string => KEY_NAME[p] ?? p;
 export const MODEL3D_SETUP: OwnSetup = { need: "gpu", vramGb: 24 };
 
 /**
- * The label next to an item: "Runs on your own GPU · 48 GB", "Set up on your computer", "Use your own
- * fal.ai key". Plain and positive: what to use, never why.
+ * The label next to an item: "Self-hosted", or "Self-hosted · your fal.ai key" where only a key runs it. Plain and
+ * positive: what it is, never why; the card's memory and the steps are the detail's (ownSetupDetail).
  */
 export function ownSetupLabel(o: OwnSetup): string {
-  if (o.need === "key") return `Use your own ${keyName(o.provider)} key`;
-  const gb = o.vramGb ? ` · ${o.vramGb} GB` : "";
-  if (o.linux) return `Runs on your own Linux GPU${gb}`;
-  if (o.orKey) return `Runs on your own GPU${gb} or ${keyName(o.orKey)} key`;
-  if (!o.vramGb && o.files) return "Set up on your computer";
-  return `Runs on your own GPU${gb}`;
+  return o.need === "key" ? `Self-hosted · your ${keyName(o.provider)} key` : "Self-hosted";
 }
 
-/** The short label where a phone has no room: "Your GPU · 48 GB", "Your fal.ai key". */
+/** The short label where a phone has no room: "Self-hosted", "Self-hosted · fal.ai key". */
 export function ownSetupShort(o: OwnSetup): string {
-  if (o.need === "key") return `Your ${keyName(o.provider)} key`;
-  if (o.orKey) return `GPU or ${keyName(o.orKey)} key`;
-  return `Your GPU${o.vramGb ? ` · ${o.vramGb} GB` : ""}`;
+  return o.need === "key" ? `Self-hosted · ${keyName(o.provider)} key` : "Self-hosted";
 }
 
 /** One sentence for a tooltip or a card: what the visitor sets up, and where. */

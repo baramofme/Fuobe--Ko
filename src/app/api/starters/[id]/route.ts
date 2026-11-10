@@ -6,7 +6,8 @@ import { guestRun, toolViewer } from "@/server/account-tool-run";
 import { asAccount } from "@/server/generations";
 import { createFromStarter, StarterError } from "@/server/starters";
 
-const Body = z.object({ engine: z.enum(["cloud", "open"]).default("cloud") });
+/** `shot`: one shot of a ready film ("Make this shot"), opened in its film. */
+const Body = z.object({ engine: z.enum(["cloud", "open"]).default("cloud"), shot: z.number().int().min(1).max(12).optional() });
 
 /**
  * The owner's "Use template" on a ready-made starter: makes it (a channel set up for its first episode, a brand kit with
@@ -27,11 +28,11 @@ export async function POST(request: Request, { params }: RouteContext<"/api/star
   const parsed = Body.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return Response.json({ error: "Pick an engine" }, { status: 400 });
   try {
-    const make = () => createFromStarter(id, parsed.data.engine);
+    const make = () => createFromStarter(id, parsed.data.engine, parsed.data.shot);
     return Response.json(await (viewer.kind === "account" ? asAccount(viewer.account.id, make) : make()), { status: 201 });
   } catch (e) {
     // A studio's own refusal (an engine this install doesn't use, a missing photo, an account's limit of projects) keeps its status.
     const status = e instanceof StarterError ? e.status : ((e as { status?: number }).status ?? 400);
-    return Response.json({ error: (e as Error).message || "That starter couldn't be made" }, { status });
+    return Response.json({ error: (e as Error).message || "That starter didn't come out right — try again, or pick another" }, { status });
   }
 }

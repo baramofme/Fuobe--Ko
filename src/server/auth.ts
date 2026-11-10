@@ -18,6 +18,7 @@ import crypto from "node:crypto";
 import net from "node:net";
 import os from "node:os";
 import { LOCAL_SUFFIXES } from "@/lib/page-place";
+import { markApiCaller } from "./api-caller";
 import { accountFrom, authStoreClosed, authStoreVersion, authWrite, sql, type AccountRow, type GpuRow, type KeyRow } from "./auth-store";
 
 export const SESSION_COOKIE = "fuobe_session";
@@ -403,6 +404,41 @@ export async function setAccountPassword(id: string, current: string, next: stri
   return { ...account, ...changed };
 }
 
+/**
+ * The owner sets an account's password (the admin API): the same 8-character rule and scrypt hash as sign-up. Every
+ * sign-in the account had ends (a new hash, and sessions_after), so it logs in again with the new password.
+ */
+export async function setAccountPasswordAsOwner(id: string, next: string): Promise<void> {
+  if (next.length < 8) throw new AccountError("Use at least 8 characters", 400);
+  if (!accountById(id)) throw new AccountError("No such account", 404);
+  const salt = crypto.randomBytes(16);
+  const hash = `${salt.toString("hex")}:${(await scrypt(next, salt)).toString("hex")}`;
+  const now = Date.now();
+  // The account may have gone while the password was hashed.
+  updateAccount(id, "password_hash = ?, password_changed_at = ?, sessions_after = ?", hash, now, now);
+}
+
+/**
+ * The owner changes an account's sign-in email (the admin API), normalised as sign-up does. Another account's email
+ * answers 409. Every sign-in the account had ends. Returns the email as stored.
+ */
+export function setAccountEmailAsOwner(id: string, email: string): string {
+  const e = normalizeEmail(email);
+  if (!e) throw new AccountError("Enter a valid email address", 400);
+  const taken = () => new AccountError("Another account already uses this email", 409);
+  try {
+    authWrite(() => {
+      const other = sql("SELECT id FROM auth_accounts WHERE email = ?").get(e) as { id: string } | undefined;
+      if (other && other.id !== id) throw taken();
+      if (!sql("UPDATE auth_accounts SET email = ?, sessions_after = ? WHERE id = ?").run(e, Date.now(), id).changes) throw new AccountError("No such account", 404);
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code === "SQLITE_CONSTRAINT_UNIQUE" && /auth_accounts\.email/.test((err as Error).message)) throw taken();
+    throw err;
+  }
+  return e;
+}
+
 /** How often a log-in is written down. */
 const LOGIN_RECORD_MS = 60 * 60_000;
 
@@ -602,7 +638,23 @@ export function sessionCookieOf(request: Request): string | undefined {
 export const ADMIN_BEARER = /^Bearer\s+fuobe_adm_/i;
 export const hasAdminBearer = (request: Request) => ADMIN_BEARER.test(request.headers.get("authorization") ?? "");
 
+/**
+ * Requests this server makes itself on an account's behalf (an admin's re-run of the account's run, admin-rerun.ts):
+ * read as that account's own, as if its signed-in page had sent them. Only server code can make one (accountRequest);
+ * no request that arrives from outside is ever in this map.
+ */
+const ACTING = new WeakMap<Request, Account>();
+
+/** A request read as `account`'s own by requestViewer and requestAccount (never one a client sent). */
+export function accountRequest(account: Account, url: string, init: RequestInit): Request {
+  const request = new Request(url, init);
+  ACTING.set(request, account);
+  return request;
+}
+
 export function requestViewer(request: Request, cookie = sessionCookieOf(request)): RequestViewer {
+  const acting = ACTING.get(request);
+  if (acting) return { kind: "account", account: acting };
   if (hasAdminBearer(request)) return { kind: "guest" };
   if (!authEnabled() || validToken(request.headers.get("authorization"))) return { kind: "owner" };
   const v = sessionViewer(cookie);
@@ -613,6 +665,8 @@ export function requestViewer(request: Request, cookie = sessionCookieOf(request
 
 /** The account behind this request's session, while public sign-up is on for its address (null: the owner, a guest, or off). */
 export function requestAccount(request: Request, cookie = sessionCookieOf(request)): Account | null {
+  const acting = ACTING.get(request);
+  if (acting) return acting;
   if (hasAdminBearer(request) || validToken(request.headers.get("authorization"))) return null;
   const v = sessionViewer(cookie);
   return v?.kind === "account" && publicSignup(request.headers.get("host")) ? v.account : null;
@@ -866,5 +920,7 @@ export function validToken(header: string | null): boolean {
       console.warn(`[fuobe] Couldn't note an API token's use: ${(e as Error).message}`);
     }
   }
+  // The rest of this request's work was asked for with a token: an owner's run it makes says so (api-caller.ts).
+  markApiCaller();
   return true;
 }

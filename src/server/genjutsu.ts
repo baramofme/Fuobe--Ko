@@ -23,6 +23,7 @@ import {
 import { ACCESS_PLACE } from "@/lib/model-access";
 import { CHARACTER_DESCRIBER, cleanDescription, DESCRIBE_PICTURE } from "@/lib/character-description";
 import { openCapNote, SHARPEN_COPY, SHARPEN_SIGMA_RANGE } from "@/lib/catalog/sharpen";
+import { RESHOOT, reshootFrames, reshootQuality, type ReshootOptions } from "@/lib/catalog/reshoot";
 import {
   ALL_FEATURES,
   chooseMaker,
@@ -61,7 +62,7 @@ import { planSegments, type PlanStep } from "@/lib/catalog/shorts";
 import type { Engine, Generation, GenerationRequest, PixelPoint, ProviderId } from "@/lib/catalog/types";
 import { silenceWriter } from "./canvas";
 import { createPipeline } from "./chains";
-import { llmText, llmTextBackend } from "./enhance";
+import { freeHelperFallback, llmText, llmTextBackend } from "./enhance";
 import { AccountRunError, ConnectComfyError, createGenerations, previewChained, previewGeneration } from "./generations";
 import { db } from "./db";
 import { genjutsuLive } from "./genjutsu-live";
@@ -121,6 +122,10 @@ export interface GenjutsuBody {
   picture?: PictureOptions;
   /** Finish: Fix faces or Fix colours. */
   finish?: FinishOptions;
+  /** Fuobe Reshoot: who's in it or what's in it. */
+  reshoot?: ReshootOptions;
+  /** The app the run was sent from: its result is listed with that app's runs. */
+  app?: "app-fix-faces";
 }
 
 /**
@@ -193,6 +198,12 @@ const picture = z.object({
   renderer: z.enum(["solar", "h3"]).optional(),
   motionDetail: z.union([z.literal(0), z.literal(512), z.literal(768)]).optional(),
 });
+const reshoot = z.object({
+  choice: z.enum(["swap", "edit"]),
+  who: z.string().max(RESHOOT.whoChars).optional(),
+  words: z.string().max(RESHOOT.wordsChars).optional(),
+  painted: z.boolean().optional(),
+});
 const finish = z.object({
   tool: z.enum(["faces", "colours"]),
   faceStyle: z.enum(["photo", "mouth"]).optional(),
@@ -205,7 +216,7 @@ const finish = z.object({
 /** The body of /api/genjutsu (and /estimate). */
 export const GenjutsuBodySchema = z.object({
   engine: z.enum(["cloud", "open"]),
-  mode: z.enum(["motion", "character", "swap", "restyle", "insert", "picture", "finish"]),
+  mode: z.enum(["motion", "character", "swap", "restyle", "insert", "picture", "finish", "reshoot"]),
   modelId: z.string().max(80).optional(),
   tier: z.enum(["standard", "high"]).optional(),
   quality: z.enum(["480p", "720p", "768p", "1080p", "2K", "4K"]).optional(),
@@ -232,11 +243,14 @@ export const GenjutsuBodySchema = z.object({
   object: objectEdit.optional(),
   picture: picture.optional(),
   finish: finish.optional(),
+  reshoot: reshoot.optional(),
   cuts: z.array(seconds).max(200).optional(),
   /** What of the clip's sound goes back where it is put back (src/lib/av/original-sound.ts). */
   originalSound: z.enum(ORIGINAL_SOUND_IDS).optional(),
   /** A client nonce for one submit: a repeat gets the first answer (see once()). */
   requestId: z.string().trim().min(8).max(64).optional(),
+  /** The app the run was sent from (Fix Faces sends Finish's faces): its result is listed with that app's runs. */
+  app: z.enum(["app-fix-faces"]).optional(),
 });
 
 /** The estimate is asked for before uploads finish: any URL stands in. */
@@ -296,7 +310,7 @@ async function planInput(body: GenjutsuBody, opts: { probe: boolean; viewer?: Ge
   }
   const maker = picked.maker;
   // A setting that hasn't opened (one by one, a light, the clip's own person…): the owner's alone.
-  if (requestFeatures({ mode: body.mode, maker, character: body.character, object: body.object, picture: body.picture, finish: body.finish }).some((f) => !open(f))) throw new ShortsError(NOT_HERE, 422);
+  if (requestFeatures({ mode: body.mode, maker, character: body.character, object: body.object, picture: body.picture, finish: body.finish, reshoot: body.reshoot }).some((f) => !open(f))) throw new ShortsError(NOT_HERE, 422);
   // The header's facts win over what the browser read (the estimate runs before the upload is read).
   const info = opts.probe ? await probeSource(body.source.url) : {};
   const source: RemoveSource = {
@@ -316,7 +330,7 @@ async function planInput(body: GenjutsuBody, opts: { probe: boolean; viewer?: Ge
   const target = MODE_TARGETS[body.mode].length ? (body.target ?? MODE_TARGETS[body.mode][0]) : undefined;
   const references = body.references ?? [];
   const clicks = (body.points ?? []).filter((p) => p.label !== "negative").length;
-  const problem = genjutsuProblem({ mode: body.mode, maker, source, range, references: references.length, target, subject: body.subject, prompt: body.prompt, points: clicks, mask: !!body.mask, look: body.look, seed: body.seed, character: body.character, object: body.object, picture: body.picture, finish: body.finish });
+  const problem = genjutsuProblem({ mode: body.mode, maker, source, range, references: references.length, target, subject: body.subject, prompt: body.prompt, points: clicks, mask: !!body.mask, look: body.look, seed: body.seed, character: body.character, object: body.object, picture: body.picture, finish: body.finish, reshoot: body.reshoot, quality: body.quality });
   if (problem) throw new ShortsError(problem, 422);
   // From picture's video starts from a first frame this install made (the review step can't be skipped).
   if (maker.review && body.picture?.stage === "video" && opts.probe && !madeFrame(body.picture.frame)) throw new ShortsError("Make and pick the first frame first", 422);
@@ -362,6 +376,7 @@ async function planInput(body: GenjutsuBody, opts: { probe: boolean; viewer?: Ge
       ...(body.object ? { object: body.object } : {}),
       ...(body.picture ? { picture: body.picture } : {}),
       ...(body.finish ? { finish: body.finish } : {}),
+      ...(body.mode === "reshoot" ? { reshoot: body.reshoot ?? { choice: "swap" as const } } : {}),
       ...(paint ? { paint } : {}),
       // What of the clip's sound goes back: the cloud puts it all back (DBS runs on your GPU).
       ...(body.originalSound && { originalSound: originalSoundOn(body.originalSound, maker.engine) }),
@@ -434,6 +449,15 @@ function notesFor(body: GenjutsuBody, m: Maker, source: RemoveSource, range: Rem
   const fps = source.fps ?? 30;
   const fuobeLook = body.mode === "restyle" && m.looks === "fuobe";
   const len = range.end - range.start;
+  if (m.reshoot) {
+    const r = body.reshoot ?? { choice: "swap" as const };
+    const quality = reshootQuality(body.quality);
+    const frames = reshootFrames(len, quality);
+    if (!r.painted) notes.push(r.choice === "swap" ? "Your picture is first painted into the part's first frame, then the whole part is remade from it" : "Your change is first painted into the part's first frame, then the whole part is remade from it");
+    if (frames && frames / RESHOOT.fps < len - 0.2) notes.push(`Makes the first ${(frames / RESHOOT.fps).toFixed(1)} s of your part at ${quality}`);
+    notes.push("The clip's motion, camera, timing and sound stay as filmed");
+    return notes;
+  }
   if (m.group || m.actions || m.review || m.tool || m.id === MOTION_H3) {
     notes.push(...openjutsuNotes(body, m, range));
     return notes;
@@ -719,13 +743,19 @@ export async function planGenjutsuRun(body: GenjutsuBody, viewer: GenjutsuViewer
     const plan = planGenjutsu(input);
     // The same check as the estimate: nothing starts when only some of the steps have a provider.
     price(plan.steps, input);
-    return { steps: plan.steps, final: plan.final };
+    return { steps: fromApp(plan.steps, plan.final, body), final: plan.final };
   } catch (e) {
     if (e instanceof ShortsError) throw e;
     if (e instanceof ConnectComfyError) throw e;
     if (e instanceof AccountRunError) throw e;
     throw new ShortsError((e as Error).message, 422);
   }
+}
+
+/** A run sent from an app (body.app): its finished video carries the app's feature and preset, so the app lists it. */
+function fromApp(steps: GenjutsuRun["steps"], final: string, body: GenjutsuBody): GenjutsuRun["steps"] {
+  if (body.app !== "app-fix-faces" || body.mode !== "finish" || body.finish?.tool !== "faces") return steps;
+  return steps.map((s) => (s.key === final ? { ...s, request: { ...s.request, feature: `app:${body.app}`, presetId: body.app } } : s));
 }
 
 /** A planned run's steps as the requests they make, with how many earlier steps each waits for. */
@@ -779,7 +809,9 @@ export async function describeCharacter(body: z.infer<typeof DescribeSchema>): P
   // A local model is asked on your GPU's engine (and when no Anthropic key is set): its server has to be running.
   const backend = llmTextBackend();
   const local = backend === "ollama" || (backend === "claude" && body.engine === "open");
-  if (getSetting("demoMode") === "on" || !backend || (local && !(await probeOllama()))) {
+  // The free helper on the workers' text slots, when its model sees pictures.
+  const free = !!backend && freeHelperFallback({ vision: true });
+  if (getSetting("demoMode") === "on" || ((!backend || (local && !(await probeOllama()))) && !free)) {
     throw new ShortsError("Describing needs a text model: add an Anthropic key, or run a vision model in Ollama, LM Studio or Unsloth Studio (Settings → AI helper)", 422);
   }
   let file: Awaited<ReturnType<typeof readRef>>;
@@ -789,7 +821,7 @@ export async function describeCharacter(body: z.infer<typeof DescribeSchema>): P
     throw new ShortsError("Couldn't read the character picture — add it again", 422);
   }
   if (!/^image\/(png|jpeg|webp|gif)$/.test(file.contentType)) throw new ShortsError("Describe works on a PNG, JPEG or WebP picture", 422);
-  const answer = await llmText(DESCRIBE_SYSTEM, "Describe the character in this picture.", [{ data: file.data, contentType: file.contentType }], { ollamaOnly: body.engine === "open" });
+  const answer = await llmText(DESCRIBE_SYSTEM, "Describe the character in this picture.", [{ data: file.data, contentType: file.contentType }], { ollamaOnly: body.engine === "open", task: "describe", waitMs: 45_000 });
   const description = cleanDescription(answer);
   if (!description) throw new ShortsError(body.engine === "open" ? `${cap(localLabel())} didn't describe the picture — it needs a vision model (qwen3-vl, gemma3…)` : "The text model didn't answer — try again, or describe your character in your own words", 422);
   return { description };

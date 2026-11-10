@@ -25,11 +25,15 @@ import {
   type WantedFile,
   previewOf,
 } from "@/lib/relay";
+import { reasonText } from "@/lib/comfy-reason";
+import { cleanNodeTimes } from "@/lib/node-times";
+import { trackReport, type LiveProgress } from "@/lib/run-progress";
 import type { FinishTicket } from "@/lib/finish-ticket";
 import type { JobTicket } from "@/lib/job-ticket";
 import { DATA_DIR, db, WORKER_JOBS_KEEP_MS } from "../db";
 import { runCeilingMs } from "../queue-settings";
 import { hostedRunsOn } from "../hosted-switch";
+import { jobWords, lastStage, logWorkerEvent, type JobStage } from "./worker-events";
 
 /**
  * "Use the ComfyUI on this computer" (DESIGN.md): the server keeps each ComfyUI job of a run on someone's computer as a
@@ -59,7 +63,7 @@ export const outputFile = (id: string, n: number) => path.join(taskDir(id), `out
 /** A task's latest preview picture (a worker's JPEG while the job renders), in the task's folder. */
 const previewFile = (id: string) => path.join(taskDir(id), "preview.jpg");
 
-export interface Progress {
+export interface Progress extends LiveProgress {
   value?: number;
   max?: number;
   node?: string;
@@ -110,6 +114,13 @@ export interface TaskRow {
   result_json: string | null;
   error: string | null;
   refusal_json: string | null;
+  /**
+   * ComfyUI's own reason the job failed, in one short line, as the tab or worker reported it (src/lib/comfy-reason.ts,
+   * cleaned again here): for the owner only, never part of what the run's person reads.
+   */
+  comfy_why?: string | null;
+  /** A worker's slowest nodes for the job, as JSON (src/lib/node-times.ts): for the owner only, like comfy_why. */
+  exec_nodes?: string | null;
   stop: number;
   attempts: number;
   down_at: number | null;
@@ -220,7 +231,14 @@ declare global {
  * measured time and device when the worker said them. Only ids, times and those facts: never a prompt, a file or an
  * account's details. Rows are never changed; each is kept a year, as the admin API's log is, then removed.
  */
-export function logWorkerJob(event: WorkerJobEvent, t: Pick<TaskRow, "id" | "generation_id" | "principal" | "lane">, workerId: string | null, now = Date.now(), run: { execMs?: number; device?: string } = {}): void {
+export function logWorkerJob(
+  event: WorkerJobEvent,
+  t: Pick<TaskRow, "id" | "generation_id" | "principal" | "lane"> & Partial<Pick<TaskRow, "claimed_at" | "finish_json">>,
+  workerId: string | null,
+  now = Date.now(),
+  run: { execMs?: number; device?: string } = {},
+  info: { why?: string; tries?: number } = {},
+): void {
   try {
     const name = workerId ? ((rdb().prepare("SELECT name FROM relay_workers WHERE id = ?").get(workerId) as { name: string } | undefined)?.name ?? null) : null;
     rdb()
@@ -233,7 +251,69 @@ export function logWorkerJob(event: WorkerJobEvent, t: Pick<TaskRow, "id" | "gen
   } catch (e) {
     console.warn(`[fuobe] Couldn't write the workers' log: ${(e as Error).message}`);
   }
+  // The same handoff in the worker's timeline, in words (best-effort, as above).
+  const detail = { ...(run.execMs !== undefined && { execMs: run.execMs }), ...(run.device && { device: run.device }), ...(info.why && { why: info.why }), ...(info.tries !== undefined && { tries: info.tries }) };
+  logWorkerEvent(
+    { kind: "job", event, workerId, words: jobWords(event, t, { execMs: run.execMs, why: info.why, now }), taskId: t.id, generationId: t.generation_id, lane: t.lane ?? null, detail },
+    now,
+  );
 }
+
+/** The stage of a worker's job, from its state and progress (null: it isn't with a worker now). */
+export function stageOf(t: Pick<TaskRow, "state" | "progress_json">): JobStage | null {
+  switch (t.state) {
+    case "sending":
+      return "sending";
+    case "queued":
+      return "queued";
+    case "running":
+      return taskCold(t) ? "loading" : "running";
+    case "collecting":
+      return "saving";
+    default:
+      return null;
+  }
+}
+
+/**
+ * A worker's task may have moved to another stage (a report, its first step): a stage row when it differs from the
+ * task's last one on this attempt (`fresh`: a new attempt, always a row). Called at state changes only, never on every
+ * progress report. Best-effort.
+ */
+export function noteStage(id: string, now = Date.now(), detail: Record<string, unknown> = {}, fresh = false): void {
+  try {
+    const t = rdb().prepare("SELECT id, generation_id, lane, state, progress_json, pools, worker_id, claimed_at FROM relay_tasks WHERE id = ?").get(id) as
+      | Pick<TaskRow, "id" | "generation_id" | "lane" | "state" | "progress_json" | "pools" | "worker_id" | "claimed_at">
+      | undefined;
+    if (!t?.pools || !t.worker_id) return;
+    const stage = stageOf(t);
+    if (!stage) return;
+    const last = fresh ? null : lastStage(t.id);
+    if (last && last.event === stage && last.workerId === t.worker_id && last.at >= (t.claimed_at ?? 0)) return;
+    const p = taskProgress(t);
+    logWorkerEvent(
+      {
+        kind: "stage",
+        event: stage,
+        workerId: t.worker_id,
+        words: STAGE_WORDS[stage],
+        taskId: t.id,
+        generationId: t.generation_id,
+        lane: t.lane,
+        detail: { ...detail, ...(stage === "queued" && p?.position !== undefined && { position: p.position }) },
+      },
+      now,
+    );
+  } catch {}
+}
+
+const STAGE_WORDS: Record<JobStage, string> = {
+  sending: "Sending its files to its ComfyUI",
+  queued: "In its ComfyUI's queue",
+  loading: "Loading the model",
+  running: "Running",
+  saving: "Saving the results",
+};
 
 /** A row of the workers' log as the owner reads it. */
 export interface WorkerJobRow {
@@ -570,7 +650,7 @@ export function showsPreview(t: Pick<TaskRow, "pools" | "preview" | "finish_json
  * another app process sent back in line, ended or gave to another worker meanwhile leaves nothing behind.
  */
 export function noteProgress(id: string, r: Record<string, unknown>, now: number, lease: string | null) {
-  const p: Progress = { at: now };
+  const p: Omit<Progress, "at"> = {};
   for (const k of ["value", "max", "nodesDone", "position"] as const) {
     const v = nonNeg(r[k]);
     if (v !== undefined) p[k] = Math.min(v, 1e6);
@@ -578,14 +658,19 @@ export function noteProgress(id: string, r: Record<string, unknown>, now: number
   const node = str(r.node, 64);
   if (node) p.node = node;
   const d = rdb();
-  d.transaction(() => {
-    const cur = d.prepare(`SELECT progress_json FROM relay_tasks WHERE id = ? AND ${STILL_HELD}`).get(id, lease) as Pick<TaskRow, "progress_json"> | undefined;
-    if (!cur) return;
-    const next = { ...taskProgress(cur), ...p };
+  const warmed = d.transaction((): boolean => {
+    const cur = d.prepare(`SELECT progress_json, state FROM relay_tasks WHERE id = ? AND ${STILL_HELD}`).get(id, lease) as Pick<TaskRow, "progress_json" | "state"> | undefined;
+    if (!cur) return false;
+    // Its steps as passes (src/lib/run-progress.ts): a node started since clears the step of the node before.
+    const next: Progress = { ...trackReport(taskProgress(cur), p, now), ...(p.position !== undefined && { position: p.position }), at: now };
     // Its first step reported: its model is loaded (noteCold), so it is no longer getting ready.
+    const wasCold = next.cold === true;
     if (p.value !== undefined) delete next.cold;
     d.prepare(`UPDATE relay_tasks SET progress_json = ? WHERE id = ? AND ${STILL_HELD}`).run(JSON.stringify(next), id, lease);
+    return wasCold && next.cold !== true && cur.state === "running";
   }).immediate();
+  // Loading the model → running: a stage row.
+  if (warmed) noteStage(id, now);
 }
 
 /**
@@ -596,8 +681,26 @@ export function noteCold(id: string, now: number): void {
   rdb().prepare("UPDATE relay_tasks SET progress_json = ? WHERE id = ? AND progress_json IS NULL").run(JSON.stringify({ cold: true, at: now } satisfies Progress), id);
 }
 
+/**
+ * Keep the highest share a task's run showed in this try (src/lib/run-progress.ts), so a later poll never shows less.
+ * Only over the try's own progress, and only higher.
+ */
+export function noteShown(id: string, share: number): void {
+  if (!Number.isFinite(share) || share <= 0) return;
+  const v = Math.round(share * 10_000) / 10_000;
+  rdb()
+    .prepare(
+      `UPDATE relay_tasks SET progress_json = json_set(progress_json, '$.shown', ?) WHERE id = ? AND state IN ('running','collecting')
+         AND progress_json IS NOT NULL AND json_valid(progress_json) AND COALESCE(json_extract(progress_json, '$.shown'), 0) < ?`,
+    )
+    .run(v, id, v);
+}
+
 /** Is a task still getting ready: taken cold (noteCold), with no step reported since? */
-export const taskCold = (t: Pick<TaskRow, "progress_json">): boolean => taskProgress(t)?.cold === true;
+export const taskCold = (t: Pick<TaskRow, "progress_json">): boolean => {
+  const p = taskProgress(t);
+  return p?.cold === true && p.value === undefined && !p.passes?.length;
+};
 
 /** A task still sent to the computer or worker that holds the lease given (the query's last parameter). */
 const STILL_HELD = `state IN (${SENT_STATES.map((x) => `'${x}'`).join(",")}) AND lease_hash IS ?`;
@@ -768,7 +871,9 @@ export function takeTask(t: TaskRow, device: string, now: number, fields: Partia
     lease,
     ...(finish ? { finish } : ticket ? { ticket } : { graph: json(t.graph_json, {}) }),
     ...(t.slot === "cpu" && { slot: "cpu" as const }),
-    ...(t.pools && { class: (t.class === "paid" || t.class === "owner" ? t.class : t.class === "free" || t.account ? "free" : "owner") as "paid" | "free" | "owner", ...(t.workflow_id && { workflowId: t.workflow_id }) }),
+    // The worker reads "owner" as the owner's job, the only kind that comes as a graph: the owner's hands-on run (no
+    // account, in a person's class in the line) is "owner" to it too.
+    ...(t.pools && { class: (!t.account || t.class === "owner" ? "owner" : t.class === "paid" ? "paid" : "free") as "paid" | "free" | "owner", ...(t.workflow_id && { workflowId: t.workflow_id }) }),
     promptId: t.prompt_id,
     preview: !!t.preview,
     // A worker sends live previews only of a run that shows them: never of one whose results are checked first.
@@ -821,7 +926,7 @@ export function endTask(id: string, state: "done" | "failed" | "canceled", field
   const stop = takeOff && t && t.device && (SENT_STATES as readonly string[]).includes(t.state) ? 1 : 0;
   setTask(id, { state, finished_at: Date.now(), down_at: null, down_why: null, ...(stop && { stop }), ...fields });
   // A task a worker held ends: the workers' log says how.
-  if (t?.pools && t.worker_id && (ACTIVE_STATES as readonly string[]).includes(t.state)) logWorkerJob(state, t, t.worker_id);
+  if (t?.pools && t.worker_id && (ACTIVE_STATES as readonly string[]).includes(t.state)) logWorkerJob(state, t, t.worker_id, Date.now(), {}, typeof fields.error === "string" ? { why: fields.error } : {});
   dropProgress(id);
   for (const i of rdb().prepare("SELECT name FROM relay_inputs WHERE task_id = ?").all(id) as { name: string }[]) fs.rmSync(inputFile(i.name), { force: true });
   rdb().prepare("DELETE FROM relay_inputs WHERE task_id = ?").run(id);
@@ -853,6 +958,15 @@ export function keptRefusal(body: unknown): { error?: Record<string, unknown>; n
   return JSON.stringify(kept).length <= RELAY_LIMITS.keptRefusalBytes ? kept : { ...(error && { error }), node_errors: {} };
 }
 
+/**
+ * ComfyUI's reason a job failed, as the tab or worker said it, fit to keep for the owner: the job's own words (its
+ * graph's or its ticket's texts) out, keys and paths out, at most REASON_MAX characters (src/lib/comfy-reason.ts).
+ */
+export function ownerReason(raw: string, t: Pick<TaskRow, "graph_json" | "ticket_json">): string {
+  const graph = json<unknown>(t.ticket_json ?? null, null) ?? json<unknown>(t.graph_json, null);
+  return reasonText(raw.slice(0, 8_000), { graph });
+}
+
 /** What the server does with a finished prompt: the files it wants, a meta-batch to follow, or a failure. */
 export type FinishedPlan = { wanted: WantedFile[]; outputs: unknown[]; budget: number } | { follow: string } | { error: string };
 
@@ -881,6 +995,8 @@ function reportOnce(t: TaskRow, e: ReportEvent, plan: (entries: HistoryEntryLike
     throw new RelayError(409, `That doesn't fit this run now (${t.state})`);
   }
   const seen = { device_seen_at: now, down_at: null, down_why: null };
+  const why = "why" in e && typeof e.why === "string" ? ownerReason(e.why, t) : "";
+  if (why) setTask(t.id, { comfy_why: why });
   switch (e.event) {
     case "sent": {
       const promptId = typeof e.promptId === "string" && UUID.test(e.promptId) ? e.promptId : typeof e.promptId === "string" && /^[\w-]{1,64}$/.test(e.promptId) ? e.promptId : null;
@@ -888,6 +1004,7 @@ function reportOnce(t: TaskRow, e: ReportEvent, plan: (entries: HistoryEntryLike
       // Results a worker kept from an earlier try go up instead of a new render. Each send counts toward this claim's
       // sends all the same, so a ComfyUI that "loses" a job twice on one claim (a resend after each) sends it back in line.
       setTask(t.id, { ...seen, state: "queued", prompt_id: promptId, sent_at: now, attempts: t.attempts + 1 });
+      if (t.pools) noteStage(t.id, now);
       return { ok: true };
     }
     case "refused":
@@ -904,11 +1021,14 @@ function reportOnce(t: TaskRow, e: ReportEvent, plan: (entries: HistoryEntryLike
       // A worker's live preview of the job: the tile shows the latest one while the run works. Kept only from a progress
       // report of the attempt that holds the lease, for a run that shows them (notePreview, showsPreview).
       if (e.preview) notePreview({ ...(taskById(t.id) ?? t), lease_hash: t.lease_hash }, e.preview, now);
+      // Its ComfyUI started it: loading its model (taken cold) or running. Later reports change no stage here.
+      if (t.pools && t.state !== "running") noteStage(t.id, now);
       return { ok: true };
     case "finished":
     case "passes": {
       if (e.event === "passes" && e.running) {
         setTask(t.id, { ...seen, state: "running" });
+        if (t.pools && t.state !== "running") noteStage(t.id, now);
         return { ok: true };
       }
       const entries = e.event === "finished" ? [e.entry] : e.entries;
@@ -919,6 +1039,9 @@ function reportOnce(t: TaskRow, e: ReportEvent, plan: (entries: HistoryEntryLike
       // device are never kept as the run's GPU time.
       const cpuWork = t.slot === "cpu" || !!t.finish_json;
       if (t.pools && t.worker_id && (!("follow" in p) || !t.meta_batch)) logWorkerJob("finished", t, t.worker_id, now, cpuWork ? {} : (execFields(e, t, now) ?? {}));
+      // Its slowest nodes, as its worker timed them (the owner's run details show where a slow run's time went).
+      const nodes = t.pools && t.worker_id && e.event === "finished" && !e.kept ? cleanNodeTimes(e.nodes, runCeilingMs(t.lane)) : undefined;
+      if (nodes) setTask(t.id, { exec_nodes: JSON.stringify(nodes) });
       if ("follow" in p) {
         if (!t.meta_batch) {
           endTask(t.id, "failed", { error: "This run finished without a result. Press Retry." });
@@ -944,6 +1067,7 @@ function reportOnce(t: TaskRow, e: ReportEvent, plan: (entries: HistoryEntryLike
         received_json: JSON.stringify(received),
         extra_json: JSON.stringify({ ...extraOf(t), budget: p.budget }),
       });
+      if (t.pools) noteStage(t.id, now, { files: p.wanted.length });
       return { ok: true, wanted: p.wanted };
     }
     case "give-back":
@@ -958,6 +1082,7 @@ function reportOnce(t: TaskRow, e: ReportEvent, plan: (entries: HistoryEntryLike
         setTask(t.id, { ...seen, state: "sending", note: "resent", started_at: null, ...(t.pools && { sending_since: now }) });
         dropProgress(t.id);
         rdb().prepare("UPDATE relay_inputs SET reads = 0 WHERE task_id = ?").run(t.id);
+        if (t.pools) noteStage(t.id, now, { resent: true });
         return { ok: true };
       }
       if (t.state === "sending") return { ok: true };
@@ -994,7 +1119,8 @@ export const SNIFF_BYTES = 64;
 /**
  * Take part of a wanted output: only while collecting, only a file the server asked for, at exactly the offset already
  * received, never past its size limit, and only once (a finished file can't be sent again). `check` reads the first part
- * and says what the file is (or throws); `write` appends the part.
+ * and says what the file is (or throws); `whole` reads the whole file once it has arrived, before it counts as saved
+ * (or throws); `write` appends the part.
  */
 export async function receivePart(
   t: TaskRow,
@@ -1002,6 +1128,7 @@ export async function receivePart(
   o: { offset: number; total: number; length: number },
   write: (file: string, append: boolean) => Promise<{ bytes: number; head: Buffer }>,
   check: (head: Buffer, w: WantedFile, total: number) => string,
+  whole?: (file: string, w: WantedFile, contentType: string | undefined) => void,
 ): Promise<Received> {
   if (t.state !== "collecting") throw new RelayError(409, "This run isn't saving results now");
   const wanted = json<WantedFile[]>(t.wanted_json, []).find((w) => w.n === n);
@@ -1040,7 +1167,15 @@ export async function receivePart(
   }
   const bytes = o.offset + got.bytes;
   const done = bytes === o.total;
-  if (done) fs.renameSync(part, file);
+  if (done) {
+    try {
+      whole?.(part, wanted, contentType);
+    } catch (e) {
+      fs.rmSync(part, { force: true });
+      throw new RelayError(415, (e as Error).message, { fail: true });
+    }
+    fs.renameSync(part, file);
+  }
   const fresh = taskById(t.id);
   const list = json<Received[]>(fresh?.received_json ?? null, all).map((r) => (r.n === n ? { n, bytes, total: o.total, done, ...(contentType && { contentType }) } : r));
   setTask(t.id, { received_json: JSON.stringify(list), device_seen_at: Date.now() });

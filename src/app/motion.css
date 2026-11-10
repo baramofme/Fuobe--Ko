@@ -151,9 +151,10 @@
 /* ----- The top bar's menus (bar-menus.tsx): quick utility motion, transitions only (never keyframes), so a change of
    mind half-way turns back from where it is and a fast glide never restarts anything.
    Big panels (Studios, Apps, Motions & effects, Canvas) sit on one shared sheet under the bar ([data-mega-stage]):
-   the sheet comes down from the bar (8 px, base, enter) and goes back up (4 px, fast, exit); between two panels its
-   bottom edge moves to the new height (transform only, base, standard) while the old content leaves sideways (fast,
-   exit) and the new one comes in from the side the pointer went, a stagger later: every switch ends by 240 ms. The
+   the sheet comes down from the bar (8 px, base, enter), solid from its first frame, with its content from half there
+   (never an empty sheet), and goes back up (4 px, fast, exit); between two panels its bottom edge moves to the new height (transform only, base, standard) while the
+   old content leaves sideways (fast, exit) and the new one comes in from the side the pointer went at the same time,
+   from half there: a cross-fade over the one sheet, never a frame of empty sheet; every switch ends by 200 ms. The
    columns follow 20 ms apart on a fresh open (3 steps at most: every column reads by 260 ms), never on a switch.
    Cards (Create, More) grow in from their item (scale 0.97, 4 px) and shrink out (0.98, fast, exit).
    data-phase: open | exit (inert, still painted) | gone (hidden). Under reduced motion every token is 0. ----- */
@@ -181,7 +182,8 @@
   /* The one in front during a switch is the new one; the old one fades under it. */
   &[data-phase="exit"] { z-index: 0; }
   &[data-phase="open"] { z-index: 1; }
-  &[data-phase="open"][data-mega-enter="fresh"] [data-col] { animation: motion-rise-near var(--motion-base) var(--ease-enter) backwards; }
+  /* The columns only move (no fade of their own): every card shows from the panel's first frame. */
+  &[data-phase="open"][data-mega-enter="fresh"] [data-col] { animation: motion-nudge-near var(--motion-base) var(--ease-enter) backwards; }
   &[data-phase="open"][data-mega-enter="fresh"] [data-col="1"] { animation-delay: var(--launcher-step); }
   &[data-phase="open"][data-mega-enter="fresh"] [data-col="2"] { animation-delay: calc(var(--launcher-step) * 2); }
   &[data-phase="open"][data-mega-enter="fresh"] :is([data-col="3"], [data-col="4"], [data-col="5"], [data-col="6"], [data-col="7"], [data-col="8"]) { animation-delay: calc(var(--launcher-step) * 3); }
@@ -190,7 +192,9 @@
 }
 @starting-style {
   [data-mega-panel][data-phase="open"] {
-    opacity: 0;
+    /* The content starts half there (on its solid sheet), so a panel is never seen empty, on an open or however fast
+       the pointer crosses the bar. */
+    opacity: 0.5;
     translate: var(--enter-x, 0px) var(--enter-y, calc(var(--motion-d2) * -1));
   }
 }
@@ -219,12 +223,11 @@
       translate var(--motion-fast) var(--ease-exit);
   }
   &[data-phase="gone"] [data-mega-sheet] { translate: 0 calc(var(--motion-d2) * -1); transition: none; }
+  /* Solid from its first frame (the page never shows through a panel coming in): it comes down, it never fades in. */
   &[data-open] [data-mega-sheet] {
     opacity: 1;
     translate: 0 0;
-    transition:
-      opacity var(--motion-base) var(--ease-enter),
-      translate var(--motion-base) var(--ease-enter);
+    transition: translate var(--motion-base) var(--ease-enter);
   }
 }
 [data-bar-card] {
@@ -386,8 +389,9 @@ img[data-fade="wait"] { opacity: 0; }
 /* ----- A result that finishes while the studio is open: the picture settles in over its tile, one soft light passes
    across it, and its next steps follow. Never on a page load or a scroll back. ----- */
 [data-arrive] {
-  /* The tile's frame stays; only the picture settles into it (its own load fade and the skeleton hand-over skip it). */
-  & > :first-child { animation: motion-settle var(--motion-slow) var(--ease-standard) backwards; animation-delay: calc(min(var(--i, 0), 6) * var(--motion-stagger)); }
+  /* The tile's frame stays; only the picture blooms into it, from soft to sharp (as its last preview looked), with its
+     own load fade and the skeleton hand-over skipped. */
+  & > :first-child { animation: motion-bloom calc(var(--motion-slow) * 1.75) var(--ease-standard) backwards; animation-delay: calc(min(var(--i, 0), 6) * var(--motion-stagger)); }
   &::after {
     content: "";
     position: absolute;
@@ -402,13 +406,48 @@ img[data-fade="wait"] { opacity: 0; }
 }
 [data-follow] { animation: motion-rise var(--motion-base) var(--ease-enter) backwards; animation-delay: calc(120ms + min(var(--i, 0), 6) * var(--motion-stagger)); }
 
-/* A new request at the top of a feed (not the ones there when it loaded). */
-[data-enter] { animation: motion-rise var(--motion-base) var(--ease-enter) backwards; }
+/* A new request at the top of a feed (not the ones there when it loaded), and the card a press of Run shows at once. */
+[data-enter], [data-making] { animation: motion-rise var(--motion-base) var(--ease-enter) backwards; }
+
+/* ----- A run on its way: a soft light in the brand's iris and spark that drifts across its card, so a wait reads as
+   work under way. The light is a layer larger than the card that only moves (translate), so it stays on the compositor;
+   still (one resting frame) under reduced motion. ----- */
+.run-aura { overflow: hidden; isolation: isolate; }
+.run-aura::before {
+  content: "";
+  position: absolute;
+  inset: -45%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 44% at 38% 38%, oklch(0.52 0.21 282 / 22%), transparent 70%),
+    radial-gradient(38% 40% at 62% 62%, oklch(0.88 0.16 95 / 28%), transparent 70%),
+    radial-gradient(32% 34% at 64% 36%, oklch(0.70 0.115 195 / 15%), transparent 70%);
+  animation: run-aura 9s var(--ease-move) infinite alternate;
+}
+.dark .run-aura::before {
+  background:
+    radial-gradient(42% 44% at 38% 38%, oklch(0.57 0.20 282 / 26%), transparent 70%),
+    radial-gradient(38% 40% at 62% 62%, oklch(0.85 0.15 95 / 10%), transparent 70%),
+    radial-gradient(32% 34% at 64% 36%, oklch(0.75 0.12 195 / 12%), transparent 70%);
+}
+/* Waiting in line breathes slower and quieter than a run being made. */
+[data-stage="in-line"] > .run-aura::before, [data-stage="sending"] > .run-aura::before { animation-duration: 14s; opacity: 0.8; }
+@keyframes run-aura {
+  from { translate: -14% -10%; }
+  50% { translate: 8% 12%; }
+  to { translate: 14% -8%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .run-aura::before { animation: none; }
+}
+@keyframes motion-bloom { from { opacity: 0; scale: 1.04; } 55% { opacity: 1; } }
 
 @keyframes motion-fade { from { opacity: 0; } }
 @keyframes motion-fade-out { to { opacity: 0; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes motion-rise { from { opacity: 0; translate: 0 var(--motion-d1); } }
+@keyframes motion-nudge-near { from { translate: 0 calc(var(--motion-d1) * -1); } }
 @keyframes motion-rise-near { from { opacity: 0; translate: 0 calc(var(--motion-d1) * -1); } }
 @keyframes motion-rise-page { from { translate: 0 var(--motion-d2); } }
 @keyframes motion-settle { from { opacity: 0; scale: 1.02; } }

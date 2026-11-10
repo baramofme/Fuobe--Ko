@@ -58,15 +58,16 @@ describe("the Canvas owner column's chrome strings", () => {
   });
 
   it("the skills row's title resolves through menu.line (the `what` is a feature() positional)", () => {
-    // `Assist's skills, drawn as boards`는 feature()의 위치 인자라 `what:` 정규식이 놓친다 —
-    // OWNER_STATIC로 수확했으므로 이 키가 양쪽에 존재한다.
+    // `Chat's skills, drawn as boards`는 feature()의 위치 인자라 `what:` 정규식이 놓친다 —
+    // OWNER_STATIC로 수확했으므로 이 키가 양쪽에 존재한다. (main의 리브랜드로 카피가 Assist→Chat으로
+    // 바뀌었다 — 교리②에 따라 ko도 새 브랜딩을 따라 "채팅의"로 수확, 어시스트 카피는 구 키에 잔존.)
     const what = entry("canvas-skills")!.what;
     const key = menuLineKey(what);
-    expect(key).toBe("menu.line.assist_s_skills_drawn_as_boards");
+    expect(key).toBe("menu.line.chat_s_skills_drawn_as_boards");
     expect(locales.en[key]).toBe(what); // en은 그 값과 문자 단위 동일 — title도 바이트 보존
-    expect(locales.ko[key]).toBe("어시스트의 스킬을 보드로");
+    expect(locales.ko[key]).toBe("채팅의 스킬을 보드로");
     expect(locales.ko[key]).not.toMatch(LATIN);
-    expect(translateOr("ko", key, what)).toBe("어시스트의 스킬을 보드로");
+    expect(translateOr("ko", key, what)).toBe("채팅의 스킬을 보드로");
     expect(translateOr("en", key, what)).toBe(what);
   });
 

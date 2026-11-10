@@ -17,6 +17,11 @@ export interface NavCover {
   mini?: string;
   /** How it sits in a square tile or pill (cover-framing.ts), when it isn't centred there. */
   framing?: CoverFraming;
+  /**
+   * Its short muted clip's version: the clip is /previews/presets/<id>.mp4?v=<clipV>, played over the still while its
+   * menu tile is on screen (the bar's menus) or its card is pointed at.
+   */
+  clipV?: string;
 }
 
 /** Keyed by preset id. */
@@ -33,7 +38,10 @@ export function navCovers(): NavCovers {
     if (!c) throw new Error(`The navigation names ${id}, which has no cover`);
     const framing = coverFraming(c.poster);
     const mini = hasMini(c.poster) ? miniOf(c.poster) : undefined;
-    out[id] = { thumb: c.thumb, poster: c.poster, ...(mini && { mini }), ...(framing && { framing }) };
+    // Only a clip of its own, at the usual place (a stand-in's clip is another preset's).
+    const own = `/previews/presets/${id}.mp4?v=`;
+    const clipV = c.video?.startsWith(own) ? c.video.slice(own.length) : undefined;
+    out[id] = { thumb: c.thumb, poster: c.poster, ...(mini && { mini }), ...(framing && { framing }), ...(clipV && { clipV }) };
   }
   cached = out;
   return out;

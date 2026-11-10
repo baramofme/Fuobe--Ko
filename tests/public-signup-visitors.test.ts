@@ -82,6 +82,34 @@ describe("a built-in skill opens for a guest and an account", () => {
     // The owner still opens their own.
     expect((await one.GET(new Request("http://localhost:3000/api/assist/skills/owners-secret"), ctx("owners-secret"))).status).toBe(200);
   });
+
+  it("prices only a built-in skill for a guest or an account, and never says whether the owner's own exists", async () => {
+    const { createSkill, setSkillFile } = await import("@/server/skills");
+    createSkill({ name: "owners-recipe", title: "Owner's recipe", description: "d", body: "b" });
+    setSkillFile("owners-recipe", "recipe.json", JSON.stringify({ inputs: [{ id: "topic", label: "Topic", type: "text" }], steps: [{ tool: "generate", input: { model_id: "m", prompt: "secret prompt about {topic}" } }] }));
+    const estimate = await import("@/app/api/assist/skills/[name]/estimate/route");
+    const ctx = (name: string) => ({ params: Promise.resolve({ name }) });
+    const post = (name: string, cookie?: string) =>
+      estimate.POST(
+        new Request(`http://localhost:3000/api/assist/skills/${name}/estimate`, {
+          method: "POST",
+          headers: { "content-type": "application/json", ...(cookie && { cookie: `${auth.SESSION_COOKIE}=${cookie}` }) },
+          body: JSON.stringify({ values: { topic: "x" } }),
+        }),
+        ctx(name),
+      );
+    for (const cookie of [undefined, account]) {
+      for (const name of ["owners-recipe", "owners-secret", "no-such-skill"]) {
+        const r = await post(name, cookie);
+        expect(r.status, `${name} ${cookie ? "account" : "guest"}`).toBe(404);
+        expect(await r.json()).toEqual({ error: "No such skill" });
+      }
+      // A built-in skill is still priced (here: it has no recipe, so the route says so).
+      expect((await (await post("product-photoshoot", cookie)).json()).error).not.toBe("No such skill");
+    }
+    // The owner prices their own.
+    expect((await (await post("owners-recipe", owner)).json()).error).not.toBe("No such skill");
+  });
 });
 
 describe("Assist is the owner's", () => {
@@ -128,6 +156,16 @@ describe("Assist is the owner's", () => {
   it("still prices a skill's run, and lets the owner change everything", () => {
     for (const cookie of [undefined, account]) expect(passed(proxy(req("/api/assist/skills/s1/estimate", { method: "POST", cookie })))).toBe(true);
     for (const [method, p] of changes) expect(passed(proxy(req(p, { method, cookie: owner }))), `${method} ${p}`).toBe(true);
+  });
+
+  it("shows a visitor an empty chat list and nothing of the install's AI setup", async () => {
+    for (const cookie of [undefined, account]) expect(toldGuest(proxy(req("/api/assist", { cookie })))).toBe(true);
+    const { GET } = await import("@/app/api/assist/route");
+    const visitor = await (await GET(new Request("http://localhost:3000/api/assist", { headers: { [access.GUEST_HEADER]: "1" } }))).json();
+    expect(visitor).toEqual({ threads: [] });
+    const own = await (await GET(new Request("http://localhost:3000/api/assist"))).json();
+    expect(own).toHaveProperty("availability");
+    expect(own).toHaveProperty("agent");
   });
 
   it("says an owner-only read is the owner's to see", async () => {

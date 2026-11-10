@@ -16,7 +16,10 @@ export const REGEN_MODEL = "oss-h3-regenerate";
  * and it has not run on a real GPU yet. Switch it on after a full run on a card that fits it. The cloud's
  * "Re-render at 2K" is separate and stays on.
  */
-export const REGEN_OFFERED: boolean = false;
+// Offered on this install's GPUs: the flag flips once the model has run on a card that fits it (≥ 48 GB).
+// Proven here 2026-11-09 — three NVIDIA CMP 170HX cards at 65536 MiB (nvidia-smi), and Open-H3 Regenerate
+// rendered 2560x1440 with the clip's sound, peaking 21.2 GB on this studio's GPU (run verified by ffprobe).
+export const REGEN_OFFERED: boolean = true;
 export const REGEN_WORKFLOW = "video-regenerate-h3";
 /** The join a clip redrawn in 15 s parts ends with (packet by packet: every part has the same size and rate). */
 export const REGEN_JOIN = "oss-join-encoded";
@@ -389,7 +392,7 @@ export const REGEN_COPY = {
   /** The owner's GPU line (the install detail is theirs to act on). */
   gpu: "About 3 minutes per 5 s at 2K on a 72 GB GPU. Needs about 40 GB of new files (OPEN_H3_REGEN=1 in install-comfyui.sh).",
   /** The same line for guests and accounts. */
-  gpuVisitor: "Runs on your own GPU · about 3 minutes per 5 s at 2K",
+  gpuVisitor: "Self-hosted · about 3 minutes per 5 s at 2K",
   /** Results are 16:9 or 9:16 whatever the clip's shape. */
   shape: "Comes out 16:9, or 9:16 for a tall clip: other shapes are cropped to fit.",
   /** The owner's refusal when the server's ComfyUI lacks the nodes. */

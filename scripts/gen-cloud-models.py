@@ -310,9 +310,12 @@ model("flux-2-klein-4b-cloud", "FLUX.2 [klein] 4B (hosted)", "Black Forest Labs"
        # Its edit takes "a maximum of 4 images".
        ("edit", "fal-ai/flux-2/klein/4b/edit", "fal", {"loraEndpoint": "fal-ai/flux-2/klein/4b/edit/lora", "max_images": 4})],
       badges=["fast"], defaults={"aspectRatio": "1:1"}, options={"maxImages": 4})
-model("wan-2-2-a14b-image-cloud", "Wan 2.2 A14B Image (hosted)", "Alibaba Wan", "wan", "image",
-      "Open-weights Wan 2.2 stills that take Wan LoRAs",
-      [("t2i", "fal-ai/wan/v2.2-a14b/text-to-image/lora", "fal")], defaults={"aspectRatio": "16:9"})
+# fal retires Wan 2.2 A14B on 2027-01-04 and names Wan 2.7 text to image as its successor: the hosted route runs Wan 2.7,
+# which takes no LoRAs (a run's LoRAs are left out with a note: fitLoras). "$0.03 per image" (fal's model page, 2026-11-07).
+model("wan-2-2-a14b-image-cloud", "Wan 2.2 A14B Image (hosted · Wan 2.7)", "Alibaba Wan", "wan", "image",
+      "Wan stills in the cloud, made by Wan 2.7 on fal; it takes no LoRAs",
+      [("t2i", "fal-ai/wan/v2.7/text-to-image", "fal", {"note": "Wan 2.7 on fal · no LoRAs"})], defaults={"aspectRatio": "16:9"},
+      pricing=("image", 0.03, "per image (Wan 2.7 on fal)"))
 # Soul ID on every base fal trains (O3, o/soul-id): a character or style LoRA trained on FLUX.1 [dev], FLUX.2 [dev],
 # Krea 2 or FLUX.2 [klein] 9B runs on these. The weights' licences are information on Thanks & licences, never a gate
 # (the owner's decision of 2026-10-27): FLUX [dev] and klein 9B weights are non-commercial (fal clears its own hosted
@@ -610,17 +613,20 @@ model("wan-2-6", "Wan 2.6", "Alibaba Wan", "wan", "video", "Multi-shot Wan with 
 model("wan-2-5", "Wan 2.5", "Alibaba Wan", "wan", "video", "Audio-driven video up to 1080p",
       [("t2v", "fal-ai/wan-25-preview/text-to-video"), ("i2v", "fal-ai/wan-25-preview/image-to-video")],
       badges=["audio"], pricing=("second", 0.15, "1080p"), defaults={"aspectRatio": "16:9", "duration": 5, "resolution": "1080p"})
+# fal's H3, H3 Max and H3 Max Turbo image to video take an end frame alone ("It may be provided alone for end-only keyframe
+# generation; in that case the output canvas follows this image"): ModelRoute.endAlone, so a run with only an end frame goes there.
+END_ALONE = {"flf2v": True, "endAlone": True}
 # Hosted MiniMax H3 makes its own sound. fal takes a whole number of seconds from 5 to 15 and bills each second by the
 # resolution (its pricing record, docs/research/new-models-7.json): 480P $0.05, 768P $0.06, 2K $0.13, 4K $0.16. Without
 # a resolution fal renders 2K, so 768P is set as the default (H3's native size, the open model's too).
 model("minimax-h3", "MiniMax H3", "MiniMax", "hailuo", "video", "Video with its own synchronized sound, 5–15 s, from words, a start frame, start and end frames, or references",
-      [("t2v", "minimax/h3/text-to-video"), ("i2v", "minimax/h3/image-to-video", "fal", "+flf2v"), ("ref2v", "minimax/h3/reference-to-video")],
+      [("t2v", "minimax/h3/text-to-video"), ("i2v", "minimax/h3/image-to-video", "fal", END_ALONE), ("ref2v", "minimax/h3/reference-to-video")],
       badges=["top", "audio", "new"], defaults={"aspectRatio": "16:9", "duration": 5, "resolution": "768P"}, ranged_durations=True,
       # "Reference images, videos, and audio clips must add up to at most 12 files" (reference-to-video).
       options={"maxReferences": 12},
       pricing=("second", 0.06, "768P; 480P $0.05, 2K $0.13, 4K $0.16", {"byResolution": {"480P": 0.05, "768P": 0.06, "2K": 0.13, "4K": 0.16}}))
 model("minimax-h3-max", "MiniMax H3 Max", "MiniMax", "hailuo", "video", "Top-tier MiniMax with extend",
-      [("t2v", "minimax/h3-max/text-to-video"), ("i2v", "minimax/h3-max/image-to-video", "fal", "+flf2v"), ("ref2v", "minimax/h3-max/reference-to-video"),
+      [("t2v", "minimax/h3-max/text-to-video"), ("i2v", "minimax/h3-max/image-to-video", "fal", END_ALONE), ("ref2v", "minimax/h3-max/reference-to-video"),
        ("extend", "minimax/h3-max/extend-video")],
       # 2K and "auto" are extend's alone: each route lists what it takes (fit_values), so a 2K text, picture or reference run
       # is made (and priced) at 1080P, and "auto" is left out where the route has no such value.
@@ -693,7 +699,7 @@ for _slug, _id, _name, _tag in (("16bit-pixel", "pixel", "16-bit Pixel", "16-bit
 # then the list rates. Its reference and extend routes are billed differently, so they are models of their own.
 model("minimax-h3-max-turbo", "MiniMax H3 Max Turbo", "MiniMax", "hailuo", "video",
       "Fast, cheap H3 Max with sound — drafts and quick takes from words or frames, 1–15 s",
-      [("t2v", "minimax/h3-max-turbo/text-to-video"), ("i2v", "minimax/h3-max-turbo/image-to-video", "fal", "+flf2v")],
+      [("t2v", "minimax/h3-max-turbo/text-to-video"), ("i2v", "minimax/h3-max-turbo/image-to-video", "fal", END_ALONE)],
       badges=["new", "fast", "audio"], defaults={"aspectRatio": "16:9", "duration": 5, "resolution": "768P"}, ranged_durations=True, fit_values=True,
       pricing=("second", 0.04, "768P; 480P $0.025, 1080P $0.08 — $0.028 (480P $0.0175, 1080P $0.056) until 2026-11-15",
                {"byResolution": {"480P": 0.025, "768P": 0.04, "1080P": 0.08},
@@ -746,19 +752,18 @@ model("flux-3-video", "FLUX.3 Video", "Black Forest Labs", "flux", "video", "BFL
        ("flf2v", "blackforestlabs/flux-3/first-last-frame-to-video"), ("v2v", "blackforestlabs/flux-3/edit-video"),
        ("extend", "blackforestlabs/flux-3/extend-video")],
       badges=["new"], defaults={"aspectRatio": "16:9"})
-# Originals (O1): Wan 2.2 A14B and LTX-2.3 22B open weights on fal / Replicate, with camera and effect LoRAs.
-# fal's Wan 2.2 interpolates to 32 fps by default (doubled frames): interpolator_model none keeps 16 fps (research §3.1).
-WAN22_FAL = {"interpolator_model": "none"}
+# Originals (O1): Wan 2.2 A14B and LTX-2.3 22B open weights hosted, with camera and effect LoRAs. fal removes its Wan 2.2
+# line on 2027-01-04: Wan 2.2 A14B runs on Replicate's fast Wan 2.2, which takes one LoRA per expert
+# (lora_weights_transformer = high noise, _2 = low noise; a Mix's extra LoRAs run on your GPU) and makes 81-121 frames.
+# Replicate's t2v interpolates to 30 fps by default (interpolate_output true): off, so both stay at 16 fps. Replicate bills
+# each clip: 480p $0.05, 720p $0.11 from a picture and $0.10 from words (model pages, 2026-11-07).
 WAN22_REPLICATE = {"interpolate_output": False}
+WAN22_REPLICATE_PRICE = ("video", 0.11, "per clip of 81 frames at 720p on Replicate ($0.10 from words); 480p $0.05",
+                         {"byResolution": {"720p": 0.11, "480p": 0.05}})
 model("wan-2-2-a14b-cloud", "Wan 2.2 A14B (hosted)", "Alibaba Wan", "wan", "video", "Open-weights Wan 2.2 that takes camera and effect LoRAs",
-      [("t2v", "fal-ai/wan/v2.2-a14b/text-to-video", "fal", {"loraEndpoint": "fal-ai/wan/v2.2-a14b/text-to-video/lora", "defaults": WAN22_FAL}),
-       ("i2v", "fal-ai/wan/v2.2-a14b/image-to-video", "fal", {"loraEndpoint": "fal-ai/wan/v2.2-a14b/image-to-video/lora", "defaults": WAN22_FAL}),
-       # One LoRA per expert (lora_weights_transformer = high noise, _2 = low noise): a Mix runs on fal.
-       # Replicate's t2v interpolates to 30 fps by default (interpolate_output true): off, so both stay at 16 fps.
-       ("t2v", "wan-video/wan-2.2-t2v-fast", "replicate", {"defaults": WAN22_REPLICATE}),
-       ("i2v", "wan-video/wan-2.2-i2v-fast", "replicate", {"defaults": WAN22_REPLICATE})],
-      pricing=("second", 0.08, "720p on fal; 580p $0.06/s, 480p $0.04/s; with LoRAs $0.10/s",
-               {"byResolution": {"720p": 0.08, "580p": 0.06, "480p": 0.04}, "withLoras": 0.1}),
+      [("t2v", "wan-video/wan-2.2-t2v-fast", "replicate", {"defaults": WAN22_REPLICATE}),
+       ("i2v", "wan-video/wan-2.2-i2v-fast", "replicate", {"defaults": WAN22_REPLICATE, "flf2v": True})],
+      pricing=WAN22_REPLICATE_PRICE,
       # Replicate takes 480p / 720p only and t2v only 16:9 / 9:16: each route lists what it takes (fit_values).
       defaults={"aspectRatio": "16:9", "duration": 5, "resolution": "720p"}, frame_step=4, fit_values=True)
 # LTX-2.3 22B (LTX-2 Community licence: free under US$10M annual revenue). Prompt expansion is on by default and would
@@ -772,17 +777,14 @@ model("ltx-2-3-22b-cloud", "LTX-2.3 22B (hosted)", "Lightricks", "ltx", "video",
       pricing=("second", 0.036, "$0.001605 per megapixel of video: about $0.18 for 5 s at 720p ($0.20 with LoRAs)", {"withLoras": 0.04}),
       defaults={"aspectRatio": "16:9", "duration": 5}, frame_step=8)
 # ----- Originals (O4): Fuobe DoP's cloud halves, camera motions and effects on hosted open weights (research §3.1, §7.5).
-# DoP clips are 49 or 81 frames at 16 fps (3 or 5 s): fal's Wan 2.2 interpolates to 32 fps by default, so
-# interpolator_model none, at 20 steps. Each LoRA goes to its expert (transformer high / low / both per file); a Mix
-# sends both presets' LoRAs. Replicate's fast Wan takes one LoRA per expert (a Mix runs on fal) and makes 81–121 frames.
-DOP_FAL = {"interpolator_model": "none", "frames_per_second": 16, "num_inference_steps": 20}
+# fal removes its Wan 2.2 line on 2027-01-04: DoP's Wan half runs on Replicate's fast Wan 2.2 (a start frame, and
+# last_image for a transition), 16 fps. Each LoRA goes to its expert, one per expert: a Mix's extra LoRAs run on your GPU
+# (the composer says so, with "Use it on your GPU"). Replicate makes 81-121 frames, so a 3 s clip is made as 5 s.
 model("fuobe-dop", "Fuobe DoP", "Fuobe Original", "fuobe-dop", "video",
       "Camera motions and effects with their LoRAs on Wan 2.2: 3 or 5 s at 16 fps",
-      [("i2v", "fal-ai/wan/v2.2-a14b/image-to-video", "fal", {"loraEndpoint": "fal-ai/wan/v2.2-a14b/image-to-video/lora", "fixed": DOP_FAL, "flf2v": True}),
-       ("i2v", "wan-video/wan-2.2-i2v-fast", "replicate", {"fixed": WAN22_REPLICATE})],
+      [("i2v", "wan-video/wan-2.2-i2v-fast", "replicate", {"fixed": WAN22_REPLICATE, "flf2v": True})],
       original=True,
-      pricing=("second", 0.08, "720p on fal; 580p $0.06/s, 480p $0.04/s; with LoRAs $0.10/s",
-               {"byResolution": {"720p": 0.08, "580p": 0.06, "480p": 0.04}, "withLoras": 0.1}),
+      pricing=WAN22_REPLICATE_PRICE,
       options={"durations": [3, 5]}, defaults={"aspectRatio": "auto", "duration": 5, "resolution": "720p"}, frame_step=4, fit_values=True)
 # The LTX-2.3 presets (FPV Drone, Wind to Face, the transitions with an end frame) and LTX-2.3's built-in camera LoRA
 # (camera_lora: dolly, jib, static) for the moves it covers. Prompt expansion off; sound off unless asked.
@@ -792,17 +794,19 @@ model("fuobe-dop-ltx", "Fuobe DoP · LTX", "Fuobe Original", "fuobe-dop", "video
       original=True, api_defaults={"enable_prompt_expansion": False},
       pricing=("second", 0.036, "$0.001605 per megapixel of video: about $0.18 for 5 s at 720p ($0.20 with LoRAs)", {"withLoras": 0.04}),
       options={"durations": [3, 5]}, defaults={"aspectRatio": "auto", "duration": 5, "generateAudio": False}, frame_step=8)
-# ----- Fuobe Animation: keyframe in-betweening's cloud half. fal's Wan 2.2 A14B image-to-video
-# takes an end frame, 17–161 frames and LoRAs per expert (schema read 2026-11-02): one hosted clip per gap with AniSora
-# 3.2 on the high-noise expert (models.ts sends it, options.loras), joined. fal makes every frame and plays it as made
-# (16 fps, interpolation off): the every-Nth speeds and 24 fps playback are the GPU graph's (src/lib/inbetween.ts).
-ANIMATION_FAL = {"interpolator_model": "none", "frames_per_second": 16}
+# ----- Fuobe Animation: keyframe in-betweening's cloud half on Replicate's fast Wan 2.2 A14B image-to-video (fal removes its
+# Wan 2.2 line on 2027-01-04): a start frame and last_image, one LoRA per expert (AniSora 3.2 on the high-noise
+# lora_weights_transformer, by its URL; models.ts sends it, options.loras), 81-121 frames at frames_per_second, no
+# interpolation. One clip per gap at 81 frames, brought down to the gap's own 17-81 frames inside the film
+# (createKeyframeFilm, resampleGap), joined; the every-Nth speeds and 24 fps playback are the GPU graph's
+# (src/lib/inbetween.ts). Replicate bills each clip: "$0.05 per output video" at 480p, $0.11 at 720p (model page, 2026-11-07).
+ANIMATION_REPLICATE = {"interpolate_output": False, "frames_per_second": 16}
 model("fuobe-animation", "Fuobe Animation", "Fuobe Original", "fuobe-animation", "video",
       "Keyframes in, the in-betweens drawn, one finished animation, with timing per gap: Wan 2.2 + AniSora",
-      [("i2v", "fal-ai/wan/v2.2-a14b/image-to-video", "fal", {"loraEndpoint": "fal-ai/wan/v2.2-a14b/image-to-video/lora", "fixed": ANIMATION_FAL, "flf2v": True})],
+      [("i2v", "wan-video/wan-2.2-i2v-fast", "replicate", {"fixed": ANIMATION_REPLICATE, "flf2v": True})],
       original=True,
-      pricing=("second", 0.08, "720p on fal; 580p $0.06/s, 480p $0.04/s; with LoRAs $0.10/s, per gap's clip",
-               {"byResolution": {"720p": 0.08, "580p": 0.06, "480p": 0.04}, "withLoras": 0.1}),
+      pricing=("video", 0.11, "per gap's clip at 720p (81 frames on Replicate); 480p $0.05",
+               {"byResolution": {"720p": 0.11, "480p": 0.05}}),
       defaults={"aspectRatio": "auto", "duration": 5, "resolution": "720p"}, frame_step=4, fit_values=True)
 # ----- Originals (O6): Fuobe Cinema's cloud half, Cinema Studio's Director on LTX-2.3 22B (research §8 cinema-studio →
 # studios[cinema-studio].original). Prompt expansion off so the compiled Director prompt is what runs; sound follows the
@@ -842,32 +846,39 @@ model("fuobe-cinema", "Fuobe Cinema", "Fuobe Original", "fuobe-cinema", "video",
                {"byResolution": CINEMA_PER_SECOND, "withLoras": CINEMA_PER_SECOND_LORA["720p"], "withLorasByResolution": CINEMA_PER_SECOND_LORA,
                 "videoMegapixel": {"usd": CINEMA_MP, "withLoras": CINEMA_MP_LORA}}),
       defaults={"aspectRatio": "16:9", "duration": 5, "resolution": "720p"}, frame_step=8)
-# ----- Originals (O5): Fuobe Genjutsu's cloud halves on hosted open weights (research §8 genjutsu, build plan O5;
-# docs/research/openjutsu-6.md §8 for the Character swap). Motion transfer on Wan 2.2 Animate (fal bills frames ÷ 16 as
-# "video seconds"), Object swap on Wan 2.1 VACE 14B inpainting with SAM 3.1's mask video, Restyle on Wan 2.2 Fun VACE
-# depth from a restyled first frame, Character swap on MiniMax H3 with Akatz Labs' Character Swap LoRA. Lite is the
-# cheaper, faster tier of the same Original: 480p (and fal's turbo pass on Animate).
-_ANIMATE_PRICE = {"byResolution": {"720p": 0.08, "580p": 0.06, "480p": 0.04}}
+# ----- Originals (O5): Fuobe Genjutsu's cloud halves (research §8 genjutsu, build plan O5; docs/research/openjutsu-6.md §8
+# for the Character swap). Motion transfer on MiniMax H3 Max Recast (fal retires Wan 2.2 Animate on 2027-01-04 and names
+# Recast as its successor: the character photo takes over the clip's performance in the clip's own setting, sound kept;
+# 5-30 s, no shot over 15 s), Object swap on Wan 2.1 VACE 14B inpainting with SAM 3.1's mask video, Restyle on Wan 2.2
+# Fun VACE depth from a restyled first frame, Character swap on MiniMax H3 with Akatz Labs' Character Swap LoRA. Lite is
+# the cheaper, faster tier of the same Original: 768p on Recast, 480p on VACE.
 _FRAMES16 = "fal bills frames ÷ 16 as video seconds: a 30 fps clip costs about 1.9× its length"
+# fal retires the Wan 2.1 / 2.2 line on 2027-01-04. VACE's masked inpainting and depth-guided restyle have no hosted
+# successor that does the same job (fal points VACE inpainting at H3 Max's insert-a-moment and the depth route at Recast,
+# a person swap), so those routes stay on Wan VACE and say when they end, before a run.
+WAN_ENDS = "Wan VACE runs on fal until 4 January 2027"
+_RECAST_PRICE = {"byResolution": {"768p": 0.3, "1080p": 0.45}}
 model("fuobe-genjutsu-motion", "Fuobe Genjutsu · Motion", "Fuobe Original", "fuobe-genjutsu", "video",
-      "Your character performs the clip's moves with its camera and framing: Wan 2.2 Animate",
-      [("motion-transfer", "fal-ai/wan/v2.2-14b/animate/move")],
-      original=True, fit_values=True, pricing=("second", 0.08, f"720p; 580p $0.06, 480p $0.04 · {_FRAMES16}", _ANIMATE_PRICE),
-      defaults={"resolution": "720p"})
+      "Your character takes over the clip's performance, in the clip's own setting with its sound: MiniMax H3 Max Recast",
+      [("motion-transfer", "minimax/h3-max/recast")],
+      original=True, fit_values=True, prompt_max=2000, options={"promptOptional": True},
+      pricing=("second", 0.45, "1080p; 768p $0.30/s · 5–30 s, no shot over 15 s", _RECAST_PRICE),
+      defaults={"resolution": "1080P"})
 model("fuobe-genjutsu-motion-lite", "Fuobe Genjutsu Lite · Motion", "Fuobe Original", "fuobe-genjutsu", "video",
-      "The quick tier: Wan 2.2 Animate at 480p with fal's turbo pass",
-      [("motion-transfer", "fal-ai/wan/v2.2-14b/animate/move", "fal", {"fixed": {"use_turbo": True, "resolution": "480p"}})],
-      original=True, pricing=("second", 0.04, f"480p · {_FRAMES16}"), options={"resolutions": ["480p"]}, defaults={"resolution": "480p"})
+      "The quick tier: MiniMax H3 Max Recast at 768p",
+      [("motion-transfer", "minimax/h3-max/recast", "fal", {"fixed": {"resolution": "768P"}})],
+      original=True, prompt_max=2000, pricing=("second", 0.3, "768p · 5–30 s, no shot over 15 s"),
+      options={"resolutions": ["768p"], "promptOptional": True}, defaults={"resolution": "768p"})
 _VACE14 = "fal-ai/wan-vace-14b/inpainting"
 _VACE14_PRICE = {"byResolution": {"720p": 0.08, "580p": 0.06, "480p": 0.04}}
 model("fuobe-genjutsu-swap", "Fuobe Genjutsu · Swap", "Fuobe Original", "fuobe-genjutsu", "video",
       "A thing, a person or an outfit becomes your reference: SAM 3.1 follows it, Wan VACE paints it in",
-      [("video-swap", _VACE14, "fal", {"keys": {"mask": "mask_video_url"}})],
+      [("video-swap", _VACE14, "fal", {"keys": {"mask": "mask_video_url"}, "note": WAN_ENDS})],
       original=True, fit_values=True, pricing=("second", 0.08, f"720p; 580p $0.06, 480p $0.04 · {_FRAMES16}; SAM 3.1's mask $0.01 per 16 frames", _VACE14_PRICE),
       api_defaults={"match_input_num_frames": True, "match_input_frames_per_second": True}, defaults={"resolution": "720p"})
 model("fuobe-genjutsu-swap-lite", "Fuobe Genjutsu Lite · Swap", "Fuobe Original", "fuobe-genjutsu", "video",
       "The quick tier: Wan VACE at 480p with fal's accelerated sampling",
-      [("video-swap", _VACE14, "fal", {"keys": {"mask": "mask_video_url"}, "fixed": {"resolution": "480p", "acceleration": "regular"}})],
+      [("video-swap", _VACE14, "fal", {"keys": {"mask": "mask_video_url"}, "fixed": {"resolution": "480p", "acceleration": "regular"}, "note": WAN_ENDS})],
       original=True, pricing=("second", 0.04, f"480p · {_FRAMES16}"), options={"resolutions": ["480p"]},
       api_defaults={"match_input_num_frames": True, "match_input_frames_per_second": True}, defaults={"resolution": "480p"})
 # fal's Wan 2.2 Fun VACE depth endpoint reads video_url as the depth control unless preprocess is on (its example input is
@@ -876,7 +887,7 @@ model("fuobe-genjutsu-swap-lite", "Fuobe Genjutsu Lite · Swap", "Fuobe Original
 SHORTS_O = next(s for s in ORIGINALS["studios"] if s["id"] == "shorts")["original"]
 model("fuobe-genjutsu-restyle", "Fuobe Genjutsu · Restyle", "Fuobe Original", "fuobe-genjutsu", "video",
       "Every frame takes the look of a restyled first frame, motion kept by depth: Wan 2.2 Fun VACE",
-      [("v2v", "fal-ai/wan-22-vace-fun-a14b/depth", "fal", {"fixed": SHORTS_O["cloud"]["fixed"]})],
+      [("v2v", "fal-ai/wan-22-vace-fun-a14b/depth", "fal", {"fixed": SHORTS_O["cloud"]["fixed"], "note": WAN_ENDS})],
       original=True, fit_values=True, pricing=("second", 0.1, f"720p; 580p $0.075, 480p $0.05 · {_FRAMES16}; the first frame's restyle is priced on its own",
                                                {"byResolution": {"720p": 0.1, "580p": 0.075, "480p": 0.05}}),
       api_defaults={"match_input_num_frames": True, "match_input_frames_per_second": True}, defaults={"resolution": "720p"},
@@ -906,7 +917,7 @@ model("fuobe-mixed-media", "Fuobe Mixed Media", "Fuobe Original", "fuobe-mixed-m
 # and fal derives the depth from the cut (preprocess, fixed).
 model("fuobe-shorts", "Fuobe Shorts", "Fuobe Original", "fuobe-shorts", "video",
       "Your footage in a new look, motion kept: a restyled first frame carried through every frame by depth (Wan 2.2 Fun VACE)",
-      [("v2v", SHORTS_O["cloud"]["restyle"], "fal", {"drop": ["aspectRatio", "images"], "fixed": SHORTS_O["cloud"]["fixed"]})],
+      [("v2v", SHORTS_O["cloud"]["restyle"], "fal", {"drop": ["aspectRatio", "images"], "fixed": SHORTS_O["cloud"]["fixed"], "note": WAN_ENDS})],
       original=True, fit_values=True, pricing=("second", 0.1, f"720p; 580p $0.075, 480p $0.05 · {_FRAMES16}; the first frame's Qwen edit is priced on its own",
                                                {"byResolution": {"720p": 0.1, "580p": 0.075, "480p": 0.05}}),
       api_defaults=SHORTS_O["cloud"]["defaults"], defaults={"resolution": "720p"}, licence=SHORTS_O["licence"])
@@ -922,7 +933,7 @@ model("fuobe-shorts", "Fuobe Shorts", "Fuobe Original", "fuobe-shorts", "video",
 EVOLUTION = next(s for s in ORIGINALS["studios"] if s["id"] == "evolution")["original"]["cloud"]
 model("fuobe-evolution", "Fuobe Evolution", "Fuobe Original", "fuobe-evolution", "video",
       "Takes your clip further in a direction an LLM writes from your references: a direction frame per piece carried through it by depth (Wan 2.2 Fun VACE)",
-      [("v2v", EVOLUTION["endpoint"], "fal", {"drop": ["aspectRatio", "image"], "fixed": EVOLUTION["fixed"]})],
+      [("v2v", EVOLUTION["endpoint"], "fal", {"drop": ["aspectRatio", "image"], "fixed": EVOLUTION["fixed"], "note": WAN_ENDS})],
       original=True, fit_values=True, pricing=("second", 0.1, f"720p; 580p $0.075, 480p $0.05 · {_FRAMES16}; each direction frame's Qwen edit is priced on its own",
                                                {"byResolution": {"720p": 0.1, "580p": 0.075, "480p": 0.05}}),
       options={"resolutions": EVOLUTION["resolutions"]}, api_defaults=EVOLUTION["defaults"], defaults={"resolution": "720p"},
@@ -1011,8 +1022,8 @@ model("luma-ray-3-2", "Luma Ray 3.2", "Luma", "luma", "video", "HDR, physically 
       defaults={"aspectRatio": "16:9"})
 model("ltx-reframe", "LTX Reframe", "Lightricks", "ltx", "video", "Change a clip's aspect ratio — fast, no prompt needed",
       [("reframe", "fal-ai/ltx-2.3/reframe")], defaults={"aspectRatio": "9:16"})
-model("wan-vace-reframe", "Wan VACE Reframe (hosted)", "Alibaba Wan", "wan", "video", "Open-weights reframe: outpaints the new edges with a prompt",
-      [("reframe", "fal-ai/wan-vace-14b/reframe")], defaults={"aspectRatio": "9:16"})
+# Wan VACE Reframe (fal-ai/wan-vace-14b/reframe) left with fal's Wan 2.1 / 2.2 line (removed 2027-01-04): fal names H3 Max
+# Reframe (minimax-h3-max-reframe) as its successor, and src/lib/catalog/replaced.ts sends a stored wan-vace-reframe there.
 
 # ----- Video restyle / edit (research part 3; Shorts Studio, Mixed Media, Ad Multiplier)
 # fal: "$0.28/second ($0.14 per input second and 0.14 per output second)" at 720p, $0.56 at 1080p: the whole price
@@ -1399,9 +1410,9 @@ model("ltx-2-3-clean-plate", "LTX 2.3 Clean Plate", "Lightricks", "ltx", "video"
 _VACE = "fal-ai/wan-22-vace-fun-a14b/inpainting"
 _VACE_KEYS = {"keys": {"mask": "mask_image_url"}, "drop": ["image", "endImage"]}
 model("wan-22-vace-inpaint", "Wan 2.2 VACE Fun Inpaint (hosted)", "Alibaba Wan", "wan", "video",
-      "Paint an area on the first frame: erase it, or swap or add something from a reference image",
-      [("remove-object", _VACE, "fal", {**_VACE_KEYS, "drop": ["image", "endImage", "images", "prompt"], "defaults": {"prompt": SCENE_AFTER_REMOVAL}}),
-       ("video-swap", _VACE, "fal", _VACE_KEYS), ("video-insert", _VACE, "fal", _VACE_KEYS)],
+      f"Paint an area on the first frame: erase it, or swap or add something from a reference image · {WAN_ENDS}",
+      [("remove-object", _VACE, "fal", {**_VACE_KEYS, "drop": ["image", "endImage", "images", "prompt"], "defaults": {"prompt": SCENE_AFTER_REMOVAL}, "note": WAN_ENDS}),
+       ("video-swap", _VACE, "fal", {**_VACE_KEYS, "note": WAN_ENDS}), ("video-insert", _VACE, "fal", {**_VACE_KEYS, "note": WAN_ENDS})],
       # "Video seconds calculated at 16 frames per second": the clip keeps its own frame rate, so a 30 fps clip bills ~1.9x its length.
       pricing=("second", 0.1, "720p, billed as frames ÷ 16 (a 30 fps clip costs about 1.9× its length); 580p $0.075, 480p $0.05",
                {"byResolution": {"720p": 0.1, "580p": 0.075, "480p": 0.05}}),
@@ -1422,12 +1433,10 @@ model("p-video-replace", "P-Video Replace", "Pruna AI", "p-video", "video",
       pricing=("second", 0.03, "720p; 1080p $0.06", {"byResolution": {"720p": 0.03, "1080p": 0.06}}), defaults={"resolution": "720p"},
       # "Identity reference image(s) (1-3)".
       options={"maxImages": 3})
-# Genjutsu's hosted open alternatives (O5): Wan 2.2 Animate Replace and SCAIL-2 for people, Wan Motion with pose
-# retargeting; and MiniMax's own person swap, H3 Max Recast (a partner model: closed weights).
-model("wan-22-animate-replace", "Wan 2.2 Animate Replace (hosted)", "Alibaba Wan", "wan", "video",
-      "Swaps the person on camera for your character, lighting matched to the scene",
-      [("video-swap", "fal-ai/wan/v2.2-14b/animate/replace")], fit_values=True,
-      pricing=("second", 0.08, f"720p; 580p $0.06, 480p $0.04 · {_FRAMES16}", _ANIMATE_PRICE), defaults={"resolution": "720p"})
+# Genjutsu's hosted open alternatives (O5): SCAIL-2 for people, Wan Motion with pose retargeting; and MiniMax's own person
+# swap, H3 Max Recast (a partner model: closed weights). Wan 2.2 Animate Replace (fal-ai/wan/v2.2-14b/animate/replace) left
+# with fal's Wan 2.1 / 2.2 line (removed 2027-01-04): fal names Recast as its successor, and src/lib/catalog/replaced.ts
+# sends a stored wan-22-animate-replace there.
 _SCAIL_PROMPT = "The reference character performs the motion of the video"
 model("scail-2", "SCAIL-2 (hosted)", "SCAIL", "scail", "video",
       "Character animation without skeletons: humans, several people or animals; or replace the person",
@@ -2638,6 +2647,12 @@ def build_route(op, ep, provider, m, opts, ropts=None):
     route = {"op": op, "provider": provider, "endpoint": f"{ep}:{version}" if ropts.get("pin") else ep, "map": fmap}
     if ropts.get("note"):
         route["note"] = ropts["note"]
+    # An end frame the endpoint takes without a start frame (ModelRoute.endAlone, kept in the browser's slimmed catalog).
+    if ropts.get("endAlone"):
+        if "endImage" in fmap:
+            route["endAlone"] = True
+        else:
+            warn(f"{m['id']}: {ep} has no end frame field; no endAlone")
     # The most stills this route reads (ModelRoute.maxImages): set on every route of an op, the plan refuses more.
     if ropts.get("route_max_images"):
         route["maxImages"] = ropts["route_max_images"]
@@ -2788,5 +2803,6 @@ ts = (
     "/** The Fuobe Originals' cloud halves (hosted open weights): models.ts joins each to its ComfyUI routes. */\n"
     f"export const ORIGINAL_CLOUD: ModelDef[] = {json.dumps(originals, indent=2)};\n"
 )
-(ROOT / "src/lib/catalog/cloud-models.generated.ts").write_text(ts)
+# LF on every platform (Windows would write CRLF), so a second run leaves the file as it is.
+(ROOT / "src/lib/catalog/cloud-models.generated.ts").write_text(ts, encoding="utf-8", newline="\n")
 print(f"wrote {len(out)} cloud models and {len(originals)} Originals' cloud halves")

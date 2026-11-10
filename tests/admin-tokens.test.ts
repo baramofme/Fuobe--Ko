@@ -32,6 +32,7 @@ const routes = {
   queueSettings: await import("@/app/api/admin/queue/settings/route"),
   workers: await import("@/app/api/admin/workers/route"),
   worker: await import("@/app/api/admin/workers/[id]/route"),
+  workerUpdate: await import("@/app/api/admin/workers/[id]/update/route"),
   reports: await import("@/app/api/admin/reports/route"),
   audit: await import("@/app/api/admin/audit/route"),
   files: await import("@/app/api/admin/files/[...path]/route"),
@@ -252,6 +253,7 @@ describe("admin tokens: every admin route asks for its scope", () => {
     { name: "POST workers", scope: "workers:tokens", run: (o) => routes.workers.POST(req("/api/admin/workers", { ...o, method: "POST", body: { name: `w${++n}` } })) },
     { name: "PATCH worker", scope: "workers:write", run: (o) => routes.worker.PATCH(req("/api/admin/workers/nope", { ...o, method: "PATCH", body: { paused: true } }), ctx({ id: "nope" })) },
     { name: "PATCH worker rotate", scope: "workers:tokens", run: (o) => routes.worker.PATCH(req("/api/admin/workers/nope", { ...o, method: "PATCH", body: { rotate: true } }), ctx({ id: "nope" })) },
+    { name: "POST worker update", scope: "workers:update", run: (o) => routes.workerUpdate.POST(req("/api/admin/workers/nope/update", { ...o, method: "POST", body: {} }), ctx({ id: "nope" })) },
     { name: "GET reports", scope: "reports:read", run: (o) => routes.reports.GET(req("/api/admin/reports", o)) },
     { name: "GET audit", scope: "audit:read", run: (o) => routes.audit.GET(req("/api/admin/audit", o)) },
   ];
@@ -271,7 +273,7 @@ describe("admin tokens: every admin route asks for its scope", () => {
 
   it("refuses a token without the scope (403 scope) and takes one with it", async () => {
     for (const c of calls) {
-      const other = make(admin.SCOPES.filter((s) => s !== c.scope && !(c.scope === "outputs:hide" && s === "outputs:moderate")));
+      const other = make(admin.SCOPES.filter((s) => s !== c.scope && !(c.scope === "outputs:hide" && s === "outputs:moderate") && !(c.scope === "workers:update" && s === "workers:write")));
       const res = await c.run({ token: other.token });
       expect(res.status, c.name).toBe(403);
       expect(await res.json(), c.name).toMatchObject({ code: "scope", scope: c.scope });
@@ -438,7 +440,55 @@ describe("admin tokens: accounts and files", () => {
     expect((await routes.account.PATCH(req("/api/admin/accounts/nope", { token, method: "PATCH", body: { signOut: true } }), ctx({ id: "nope" }))).status).toBe(404);
   });
 
-  it("serves accounts' and held files to outputs:view, never the owner's, and logs each view", async () => {
+  it("sets an account's password: the same rule and hash as sign-up, every sign-in ends, and the log holds no password", async () => {
+    const { token } = make(["accounts:write"]);
+    const a = auth.createAccount(`setpw-${++n}@example.com`, "long enough");
+    const s = auth.createSession(a.id).value;
+    const patch = (body: unknown, id = a.id, t = token) => routes.account.PATCH(req(`/api/admin/accounts/${id}`, { token: t, method: "PATCH", body }), ctx({ id }));
+    expect((await patch({ password: "short" })).status).toBe(400);
+    expect(auth.checkAccount(a.email, "long enough")?.id).toBe(a.id);
+    const res = await patch({ password: "a brand new one" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ id: a.id, email: a.email, disabled: false });
+    expect(auth.checkAccount(a.email, "long enough")).toBeNull();
+    expect(auth.checkAccount(a.email, "a brand new one")?.id).toBe(a.id);
+    expect(auth.accountById(a.id)!.hash).toMatch(/^[0-9a-f]{32}:[0-9a-f]{64}$/);
+    expect(auth.accountById(a.id)!.passwordChangedAt).toBeGreaterThan(0);
+    expect(auth.sessionViewer(s)).toBeNull();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(auth.sessionViewer(auth.createSession(a.id).value)?.kind).toBe("account");
+    const row = auditRows().at(-1)!;
+    expect(row).toMatchObject({ action: "account.password", target: a.id, status: 200 });
+    expect(JSON.stringify(auditRows())).not.toContain("a brand new one");
+    expect((await patch({ password: "a brand new one" }, "nope")).status).toBe(404);
+    expect((await patch({ password: "a brand new one", signOut: true })).status).toBe(400);
+    // A token without accounts:write can't.
+    expect((await patch({ password: "another new one" }, a.id, make(["accounts:read"]).token)).status).toBe(403);
+    expect(auth.checkAccount(a.email, "a brand new one")?.id).toBe(a.id);
+  });
+
+  it("changes an account's sign-in email: normalised, never another account's, every sign-in ends", async () => {
+    const { token } = make(["accounts:write"]);
+    const a = auth.createAccount(`setmail-${++n}@example.com`, "long enough");
+    const other = auth.createAccount(`taken-${++n}@example.com`, "long enough");
+    const s = auth.createSession(a.id).value;
+    const patch = (body: unknown) => routes.account.PATCH(req(`/api/admin/accounts/${a.id}`, { token, method: "PATCH", body }), ctx({ id: a.id }));
+    expect((await patch({ email: "not an email" })).status).toBe(400);
+    expect((await patch({ email: other.email.toUpperCase() })).status).toBe(409);
+    expect(auth.sessionViewer(s)?.kind).toBe("account");
+    const res = await patch({ email: `  New-${n}@Example.COM ` });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ id: a.id, email: `new-${n}@example.com` });
+    expect(auth.checkAccount(`new-${n}@example.com`, "long enough")?.id).toBe(a.id);
+    expect(auth.checkAccount(a.email, "long enough")).toBeNull();
+    expect(auth.sessionViewer(s)).toBeNull();
+    // Its own email again is no conflict.
+    expect((await patch({ email: `new-${n}@example.com` })).status).toBe(200);
+    expect(auditRows().filter((r) => r.action === "account.email").map((r) => r.status)).toEqual([400, 409, 200, 200]);
+    expect(JSON.stringify(auditRows().filter((r) => r.action === "account.email"))).not.toContain("example.com");
+  });
+
+  it("serves accounts', held and the owner's own files to outputs:view, and logs each view", async () => {
     const { token, info } = make(["outputs:view"]);
     const a = auth.createAccount(`files-${++n}@example.com`, "long enough");
     const mine = saveFile({ data: TINY_PNG, contentType: "image/png", source: "upload" });
@@ -455,14 +505,15 @@ describe("admin tokens: accounts and files", () => {
     expect(ok.headers.get("cache-control")).toBe("no-store");
     expect(Buffer.from(await ok.arrayBuffer()).equals(TINY_PNG)).toBe(true);
     expect((await get(held.url)).status).toBe(200);
-    expect((await get(mine.url)).status).toBe(404);
-    expect((await get(mineHeld.url)).status).toBe(404);
+    // The owner's own (the panel's Ours), logged as the owner's.
+    expect((await get(mine.url)).status).toBe(200);
+    expect((await get(mineHeld.url)).status).toBe(200);
     expect((await get("/api/files/outputs/none.png")).status).toBe(404);
     const views = auditRows().filter((r) => r.action === "file.view" && r.token_id === info.id);
-    expect(views.map((v) => JSON.parse(v.detail_json!))).toEqual([{ account: a.id }, { account: a.id, held: true }]);
+    expect(views.map((v) => JSON.parse(v.detail_json!))).toEqual([{ account: a.id }, { account: a.id, held: true }, { account: "owner" }, { account: "owner", held: true }]);
     // One row per file an hour.
     await get(theirs.url);
-    expect(auditRows().filter((r) => r.action === "file.view" && r.token_id === info.id)).toHaveLength(2);
+    expect(auditRows().filter((r) => r.action === "file.view" && r.token_id === info.id)).toHaveLength(4);
   });
 
   it("Sign everyone out with every API token revokes admin tokens too", async () => {

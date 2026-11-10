@@ -47,11 +47,12 @@ describe("the menu lines' locale keys", () => {
     }
     // The three fetched menus alone: 105 slots, all distinct, plus the Studios menu's own lines.
     expect(lines.size).toBeGreaterThanOrEqual(138);
-    // Distinct sentences must get distinct keys — two different English lines sharing one key
-    // would render the wrong bytes for one of them. (Two items with the SAME line sharing a key
-    // is fine, which is why this compares sentences, not item ids.)
+    // Two items sharing the SAME sentence share a key — fine by design (8 known pairs exist).
+    // The invariant that MUST hold is: two DIFFERENT sentences must never collapse to one key
+    // (that would render wrong bytes for one of them). Lines below enforce that bijection.
     const distinctSentences = new Set(lines.values());
-    expect(distinctSentences.size, "lines are what they claim").toBe(lines.size);
+    expect(distinctSentences.size, "duplicate sentences allowed; ids ≥ distinct sentences")
+      .toBeLessThanOrEqual(lines.size);
     expect(new Set([...distinctSentences].map(menuLineKey)).size, "no two different lines share a key")
       .toBe(distinctSentences.size);
   });

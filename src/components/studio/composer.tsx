@@ -1,7 +1,7 @@
 "use client";
 
 import { OrbitPad, orbitOptions } from "@/components/studio/orbit-pad";
-import { ArrowUp, AtSign, Cloud, Cpu, GalleryHorizontalEnd, LayoutDashboard, Library, Loader2, Sparkles, X } from "lucide-react";
+import { ArrowUp, AtSign, Check, Cloud, Cpu, GalleryHorizontalEnd, LayoutDashboard, Library, Loader2, Sparkles, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -12,10 +12,21 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToday } from "@/hooks/use-today";
-import { estimateCost, imageLimit, layoutCanvas, planGeneration, routesFor, type Plan } from "@/lib/catalog/plan";
+import { estimateCost, imageLimit, layoutCanvas, mixLimit, planGeneration, routesFor, type Plan } from "@/lib/catalog/plan";
 import type { Engine, InputSlot, MediaKind, ModelDef, Operation, Preset, PresetRoute, VideoFormat } from "@/lib/catalog/types";
 import { LYRICS_PARAM, SONG_ID_PARAM, songFormat, songToolProblem, withSongId } from "@/lib/lyrics";
-import { dualEngine, onEngine } from "@/lib/catalog/engines";
+import { murekaSongRule, SONG_FIT_OPS } from "@/lib/av/song-fit";
+import { FitUploadNote, useFitUpload } from "@/components/av/fit-upload";
+import { FitClipNote, useClipFit } from "@/components/av/fit-clip";
+import { ListFit, useAddFit, type ListItem } from "@/components/av/fit-list";
+import { ElementClipFix, useElementClipCheck } from "@/components/av/element-clip-fit";
+import { trimLine, trimTarget } from "@/lib/av/reference-fit";
+import { FitCropNote, useCropFit } from "@/components/av/fit-crop";
+import { fitStill, stillEndpoint } from "@/components/av/fit-still";
+import { portraitRatio } from "@/lib/catalog/clip-windows";
+import { sampleFitRule, shortName, voiceFitRule } from "@/lib/av/voice-fit";
+import { dualEngine, onEngine, runsOn } from "@/lib/catalog/engines";
+import type { Unavailable } from "@/lib/unavailable";
 import { locksByDefault } from "@/lib/catalog/palettes";
 import { DEFAULT_LOOK, lookCard } from "@/lib/catalog/soul-cards";
 import { formatsOf } from "@/lib/av/formats";
@@ -25,7 +36,10 @@ import { useSetRunOn } from "@/lib/run-on";
 import { RunOnChip } from "./run-on";
 import { PlaceIntro } from "./place-intro";
 import { PoolNote } from "./pool-note";
-import { modelOwnSetup, pickerRules, poolRunsModel } from "@/lib/pool-rules";
+import { EndFrameNote } from "./end-frame-note";
+import { modelOwnSetup, pickerRules } from "@/lib/pool-rules";
+import { carryParams, closestHere, HERE_SET_UP, hereDefault, hereReason, hereRunLabel, hereSetup, runsHere } from "@/lib/runnable-here";
+import { useHere } from "@/hooks/use-pool-rules";
 import { controlSetup, keyOnlySetup } from "@/lib/own-setup-controls";
 import { ownSetupDetail, ownSetupLabel, ownSetupShort } from "@/lib/own-setup";
 import { OwnSetupChip, useOwnSetupPress, useOwnSetupViewer } from "@/components/own-setup";
@@ -36,7 +50,7 @@ import { ExactOrbitControls } from "@/components/exact-orbit-controls";
 import { useFlyAround } from "@/components/fly-around-run";
 import { exactDefaults, takesExact, type ExactOrbit } from "@/lib/exact-orbit";
 import { placeOf } from "@/lib/place-name";
-import { askToSignUp, CONNECT_GPU_EVENT, engineForNextPage, enhance, useClipFacts, useCreateGeneration, useElements, useEngine, useHydrated, useIsOwner, useLikelyVisitor, useNewestRun, useStatus } from "@/lib/api";
+import { askToSignUp, CONNECT_GPU_EVENT, engineForNextPage, enhance, helperSignIn, useClipFacts, useCreateGeneration, useElements, useEngine, useHydrated, useIsOwner, useLikelyVisitor, useNewestRun, useStatus, useViewer } from "@/lib/api";
 import { keyTurnedDown, keyTurnedDownWords, siteRunOf, siteRunRequest } from "@/lib/site-run";
 import { usePagePlace } from "@/components/gpu/use-page-place";
 import { applyMentions, elementsNote, type StudioElement } from "@/lib/catalog/elements";
@@ -62,6 +76,7 @@ import {
   blockerFor,
   blockerLine,
   clipBlocker,
+  clipFitWindow,
   clipOutcome,
   costLabel,
   engineSwitchModel,
@@ -96,6 +111,7 @@ import {
   showsPrompt,
   startStep,
   viewerDefaults,
+  hereDefaults,
   writesCaptions,
   WRITE_PROMPT,
 } from "@/lib/composer";
@@ -103,14 +119,15 @@ import { qwen21Note } from "@/lib/qwen21-speed";
 import { H3_TIER_PARAM, h3TierNote } from "@/lib/gpu/h3-tier";
 import { formatCost } from "@/lib/format";
 import { toastError } from "@/lib/refusals";
-import { addKeyLabel, billedTo, CLOUD_KEY, cloudVersion, needsKey, paidThrough, startingModel } from "@/lib/your-keys";
+import { addKeyLabel, billedTo, CLOUD_KEY, cloudVersion, isCloudProvider, needsKey, paidThrough, startingModel, type CloudProvider } from "@/lib/your-keys";
+import { anywayKeys, anywaySaid, likelyProvider, routeNotice } from "@/lib/catalog/route-notice";
 import { beforeRunTail, gpuBeforeRun, onCloudKey, runOnceOnKey } from "@/lib/before-run";
 import { BILLING_URL, ISOLATED_ON_GPU_WHY, withKeyAction, type TroubleAction } from "@/lib/diagnose";
 import { openModelPicker } from "@/lib/open-model-picker";
 import { GpuReadinessLine } from "@/components/gpu/file-steps";
 import { TroubleActions, TroubleDetails } from "@/components/gpu/trouble";
 import { cn } from "@/lib/utils";
-import { h3ReferenceProblem, openReferenceMode } from "@/lib/h3-references";
+import { H3_REFERENCE_LIMITS, h3ReferenceProblem, openReferenceMode } from "@/lib/h3-references";
 import { badgeFor, badgeText, dropGpuRetry, openGpuSetup, setGpuRetry, useGpuBadges } from "@/hooks/use-gpu";
 import { AttachMenu } from "./attach-menu";
 import { useAttach, useComposerBridge, useUploadReaper } from "./attachments";
@@ -141,9 +158,13 @@ import { useEdgeFade } from "./use-edge-fade";
 import { CleanVoiceSlot, CleanVoiceSwitch, useVoiceCleaning } from "@/components/audio-tools/clean-voice-switch";
 import { useVoiceFirstLive, useVoiceFirstShown, VoiceFirstSwitch } from "@/components/audio-tools/voice-first-switch";
 import { VOICE_FIRST_PARAM, voiceFirstDefault } from "@/lib/av/voice-first";
+import { FixFacesAfterSwitch } from "@/components/fix-faces/fix-faces-switch";
+import { FIX_FACES_AFTER_PARAM, fixFacesAfterOffered } from "@/lib/catalog/fix-faces";
+import { framingLabel, framingSuggestion } from "@/lib/framing-hint";
 import { useSignature } from "../palettes/use-signature";
 import { placeholdersOn } from "@/lib/demo-mode";
 import { useI18n } from "@/lib/i18n";
+import { FILM_LOOK_PARAM, takesFilmLooks } from "@/lib/film-looks";
 
 const EMPTY: StudioElement[] = [];
 
@@ -160,6 +181,11 @@ const BOX_MODELS: Record<Engine, string> = { open: "oss-moss-image", cloud: "mos
 
 /** Fuobe Soul's Look picker (the look cards): its own chunk. */
 const LookChip = dynamic(() => import("./look-chip"), {
+  loading: () => <span aria-hidden className="h-8 w-28 shrink-0 animate-pulse rounded-full bg-secondary" />,
+});
+
+/** MOSS-Image's Film look picker (the look thumbnails): its own chunk. */
+const FilmLookChip = dynamic(() => import("./film-look-chip"), {
   loading: () => <span aria-hidden className="h-8 w-28 shrink-0 animate-pulse rounded-full bg-secondary" />,
 });
 
@@ -224,6 +250,25 @@ function lookCleared(from: ModelDef | undefined, to: ModelDef): Partial<Draft> {
 /** Docked and collapsed, the composer hides its tiles: this event asks it to open first. */
 const EXPAND_EVENT = "composer:expand";
 
+/** "Run anyway" keys (route-notice.ts anywayKeys) for this tab's session. */
+const ANYWAY_KEY = "fuobe:route-anyway";
+
+function readAnyway(): string[] {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(ANYWAY_KEY) ?? "[]") as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function keepAnyway(keys: string[]) {
+  try {
+    sessionStorage.setItem(ANYWAY_KEY, JSON.stringify(keys.slice(-50)));
+  } catch {
+  }
+}
+
 /** Point at an attachment tile: scroll it into view and pulse its outline. */
 function pulseSlot(root: HTMLElement | null, key: string, retried = false) {
   const el = root?.querySelector<HTMLElement>(`[data-slot-key="${key}"]`);
@@ -258,6 +303,13 @@ export function Composer({ docked }: { docked: boolean }) {
   const [engine, setEngine, engineMode] = useEngine();
   const visitor = useLikelyVisitor();
   const create = useCreateGeneration();
+  // A run just taken: Generate shows a tick for a moment (its card is already at the top of the feed).
+  const [taken, setTaken] = useState(0);
+  useEffect(() => {
+    if (!taken) return;
+    const t = setTimeout(() => setTaken(0), 1200);
+    return () => clearTimeout(t);
+  }, [taken]);
   const [enhancing, setEnhancing] = useState(false);
   const [focused, setFocused] = useState(false);
   const promptRef = useRef<PromptInputHandle>(null);
@@ -309,6 +361,10 @@ export function Composer({ docked }: { docked: boolean }) {
   const voiceFirstShown = useVoiceFirstShown(true);
   const voiceFirstLive = useVoiceFirstLive();
   const [voiceFirstAsked, setVoiceFirstAsked] = useState<boolean | null>(null);
+  // "Fix faces" after an H3 video from a start picture: off until turned on.
+  const [fixFacesAsked, setFixFacesAsked] = useState(false);
+  // The framing tip (a wide scene with a person, asked as a small square): "Keep 1:1" puts it away for this composer.
+  const [framingKept, setFramingKept] = useState(false);
   const voiceFirstKind: "audio" | "video" | null = !config.voiceFirst ? null : typed.slots.audio?.ref ? "audio" : typed.slots.video?.ref && config.ops.includes("transcribe") ? "video" : null;
   const draft = useMemo(
     () =>
@@ -350,7 +406,9 @@ export function Composer({ docked }: { docked: boolean }) {
   // what runs them (their own-setup label, src/lib/pool-rules.ts), as the models that run on a visitor's own setup only
   // do: Run then opens that setup, or runs it on the viewer's own GPU at once. Only a viewer with no GPU of its own is
   // moved off an untouched default they keep off (poolOff, below).
-  const poolRules = status?.viewer?.hosted && !status.viewer.gpu.connected ? status.viewer.pool : undefined;
+  // Where this viewer's open runs go to this install's GPUs, and what they run now (runnable-here.ts): the same check as
+  // the run's (poolGate), for the default, the picker's order and the free alternative below.
+  const here = useHere();
   const labelRules = pickerRules(status?.viewer);
   const models = useMemo(() => filterModels(catalog.models, { kind: config.kind, ops: pickerOps }), [catalog.models, config.kind, pickerOps]);
   const setupViewer = useOwnSetupViewer();
@@ -418,7 +476,11 @@ export function Composer({ docked }: { docked: boolean }) {
 
   // The studio's defaults as this viewer runs them: Ideogram 4 gives way to its stand-in where the server writes no caption.
   const writes = writesCaptions(status);
-  const defaults = useMemo(() => viewerDefaults(config.defaultModels, config.uncaptioned, writes), [config.defaultModels, config.uncaptioned, writes]);
+  // Where this viewer's runs go to this install's GPUs and they run the studio's own choice for them (hereDefault), it is
+  // the open default there (Upscale → Video: Quick · RTX on NVIDIA RTX cards).
+  const hereModel = config.hereDefault && catalog.offered(config.hereDefault, "open") ? catalog.getModel(config.hereDefault) : undefined;
+  const hereRuns = !!here && !!hereModel && runsHere(here, hereModel);
+  const defaults = useMemo(() => hereDefaults(viewerDefaults(config.defaultModels, config.uncaptioned, writes), config.hereDefault, hereRuns), [config.defaultModels, config.uncaptioned, writes, config.hereDefault, hereRuns]);
 
   // Keep the selected model in sync with the engine switch. A camera motion or effect keeps its Original (Fuobe DoP),
   // moving to the model its move names on this engine (Jib Up: Fuobe DoP on the GPU, Fuobe DoP · LTX in the cloud) when
@@ -471,6 +533,16 @@ export function Composer({ docked }: { docked: boolean }) {
     if (m) setDraft((d) => (d.modelId !== model.id ? {} : { modelId: m.id, params: { ...m.defaults, numOutputs: d.params.numOutputs, enhancePrompt: d.params.enhancePrompt }, ...lookCleared(model, m) }));
   }, [writes, model, defaults, engine, config.defaultModels, lockedModel, appIds, catalog, setDraft]);
 
+  // Runs that go to this install's GPUs, which run the studio's choice for them (hereDefault): the untouched default
+  // moves to it once that is known. A model the person picked, or a link that names one, stays.
+  const hereChecked = useRef(false);
+  useEffect(() => {
+    if (hereChecked.current || !hereRuns || !model || engine !== "open" || lockedModel || preset) return;
+    hereChecked.current = true;
+    const m = model.id === config.defaultModels.open && defaults.open !== model.id && new URLSearchParams(window.location.search).get("model") !== model.id ? catalog.getModel(defaults.open) : undefined;
+    if (m) setDraft((d) => (d.modelId !== model.id ? {} : { modelId: m.id, params: { ...m.defaults, numOutputs: d.params.numOutputs, enhancePrompt: d.params.enhancePrompt }, ...lookCleared(model, m) }));
+  }, [hereRuns, model, engine, lockedModel, preset, config.defaultModels.open, defaults.open, catalog, setDraft]);
+
   // The preset's recipe (the model its preview was made with) that this viewer can't run: a Replicate-only account and
   // hosted MiniMax H3 (fal only), or a model switched off in Settings → Models & licences. The composer moves to the
   // preset's own route on this engine when the viewer can run that (Kling 2.5 Turbo, Fuobe DoP, the app's own model).
@@ -500,13 +572,11 @@ export function Composer({ docked }: { docked: boolean }) {
   // moves to the first model of its list they run. A model the person picked (or a link, a Reuse) stays, with its label,
   // and Run opens the setup that runs it.
   const untouched = !!model && (model.id === config.defaultModels[engine] || model.id === defaults[engine]);
-  const poolOff = model && untouched && !lockedModel && !presetFallback && !offModel && !poolRunsModel(poolRules, model) ? model : undefined;
-  const poolTo = poolOff
-    ? [defaults[engine], ...models.filter((m) => m.engine === engine).map((m) => m.id)].find((id) => {
-        const m = id && id !== poolOff.id ? models.find((x) => x.id === id) : undefined;
-        return !!m && poolRunsModel(poolRules, m) && !modelSetup(m);
-      })
-    : undefined;
+  // The studio's untouched default that doesn't run here now (runnable-here.ts: a visitor whose runs go to this install's
+  // GPUs, or the owner's on the workers): the default is always one that runs, so it moves to the studio's other default
+  // when that runs, else to the closest model that does (the free alternative's pick).
+  const poolOff = model && untouched && !lockedModel && !presetFallback && !offModel && !runsHere(here, model) ? model : undefined;
+  const poolTo = poolOff ? hereDefault(poolOff, defaults[engine], models, here, { params: draft.params })?.id : undefined;
   useEffect(() => {
     const m = poolOff && poolTo ? catalog.getModel(poolTo) : undefined;
     // A link that names the model keeps it.
@@ -607,7 +677,10 @@ export function Composer({ docked }: { docked: boolean }) {
   // Hosted runs on, a guest's files are kept in this browser until sign-up (HoldFilesForGuests), and its whole draft and
   // the run it pressed come back after it (useGuestDraft).
   const guestHold = useContext(HoldFilesCtx);
-  const attach = useAttach(slots, refMax, { hold: guestHold });
+  // A song tool's song dropped or pasted on the page goes to its slot's converter first (useSongFit, below).
+  const songRoute = useRef<((f: File) => boolean) | null>(null);
+  const routeSong = useCallback((f: File) => songRoute.current?.(f) ?? false, []);
+  const attach = useAttach(slots, refMax, { hold: guestHold, route: routeSong });
   const guestDraft = useGuestDraft({ hold: guestHold, viewer: status?.viewer?.kind, draft: typed, setDraft });
   // The price changed since its guest pressed Run: said once, and Run waits for a click.
   const [priceNote, setPriceNote] = useState<string | null>(null);
@@ -732,6 +805,7 @@ export function Composer({ docked }: { docked: boolean }) {
   const engineError =
     (lockedModel && preset && !appIds.length ? `${preset.name} has no ${engine === "open" ? "open-source" : "cloud"} version yet` : null) ?? accessError ?? comfyBlock;
   let op: Operation | undefined;
+  let planModel: ModelDef | undefined;
   let cost: number | null = null;
   // The run goes to a LoRA endpoint whose price isn't published (fal's MOSS-Image /lora).
   let loraPriceUnknown = false;
@@ -757,6 +831,7 @@ export function Composer({ docked }: { docked: boolean }) {
       });
       const plan = planGeneration({ ...planned, prompt: planned.prompt || (config.promptOptional ? " " : "") }, catalog.getModel, catalog.getPreset);
       op = plan.op;
+      planModel = plan.model;
       laid = plan.layout;
       // A run with LoRAs (a Soul look) goes to the route's LoRA endpoint, which has its own price.
       const withLoras = plan.loras.length > 0 && routesFor(plan.model, plan.op).some((r) => !!r.loraEndpoint);
@@ -777,9 +852,62 @@ export function Composer({ docked }: { docked: boolean }) {
   // A voice outside what a hosted talking-avatar model takes (H3 Max lip sync: 5 s to 15 min), as the server would say.
   const voiceProblem = op === "avatar" && voiceRef && voice?.duration && model ? voiceWindowProblem(model, voice.duration) : null;
   if (voiceProblem && !planError) planError = voiceProblem;
-  // A song Mureka's tools refuse (Stems: MP3 or M4A; Remix: 10 s to 5:50), from its name and header, as the server does.
-  const songRef = config.voiceFacts && (op === "song-stems" || op === "song-remix") ? draft.slots.audio?.ref : undefined;
-  const songProblem = songRef ? songToolProblem(op!, { format: songFormat(undefined, songRef), seconds: voice?.duration }) : null;
+  // A song Mureka's tools refuse (Stems: MP3 or M4A; Remix: 10 s to 5:50; Extend and Remix of a song Mureka didn't make: MP3
+  // or M4A), from its name and header, as the server does. One of Mureka's own goes by its id (withSongId), never as a file.
+  const songRef = config.voiceFacts && (op === "song-stems" || op === "song-remix" || op === "song-extend") ? draft.slots.audio?.ref : undefined;
+  const songById = model?.family === "mureka" && !!draft.song && !!songRef && draft.song.url === songRef;
+  // One Mureka can't take as it is (another format, over 10 MB, a video's sound, longer than Remix takes) is fitted in this
+  // browser instead: converted to an MP3, or a part of it offered (src/components/av/fit-upload.tsx); what's left is said
+  // as before. One of Mureka's own songs goes by its id and is left alone.
+  const fitOp = op ?? studioOp ?? model?.routes.find((r) => SONG_FIT_OPS.has(r.op))?.op;
+  // A talking avatar's voice outside its model's length (H3 Max lip sync 5 s to 15 min, OmniHuman 2 4 s to 5 min, P-Video up to
+  // 3 min), or a file its model doesn't take (OmniHuman 2: an MP3 or WAV up to 15 MB): the same step, with that model's rule.
+  const songRule = useMemo(() => {
+    if (!config.voiceFacts || !model) return null;
+    if (model.family === "mureka") return murekaSongRule(fitOp);
+    return (op ?? studioOp) === "avatar" ? voiceFitRule({ id: model.id, name: shortName(model.name) }) : null;
+  }, [config.voiceFacts, model, fitOp, op, studioOp]);
+  const songFit = useFitUpload({
+    rule: songRule,
+    value: draft.slots.audio,
+    skip: songById,
+    seconds: voice?.duration,
+    setValue: (v) => attach.setSlotValue("audio", v),
+    upload: (f) => attach.uploadToSlot("audio", f, "audio"),
+  });
+  // A clip longer than the model's window (or a tool's longest source: Kandinsky VSR 5 s): a part of it offered, cut from a
+  // key frame without encoding it again (src/components/av/fit-clip.tsx).
+  const clipRule = useMemo(() => {
+    const w = config.clipFacts ? clipFitWindow(op ?? studioOp, model, facts?.fps) : undefined;
+    return w && model ? { for: shortName(model.name), tool: shortName(model.name), minSeconds: w.min, maxSeconds: w.max } : null;
+  }, [config.clipFacts, op, studioOp, model, facts?.fps]);
+  const clipFit = useClipFit({
+    rule: clipRule,
+    value: draft.slots.video,
+    seconds: facts?.duration,
+    setValue: (v) => attach.setSlotValue("video", v),
+    upload: (f) => attach.uploadToSlot("video", f, "video"),
+  });
+  // A portrait outside the shapes its model takes (H3 Max lip sync: 0.4:1 to 2.5:1): a crop offered.
+  const cropRule = useMemo(() => {
+    const ratio = model && (op ?? studioOp) === "avatar" ? portraitRatio(model.id) : undefined;
+    return ratio && model ? { tool: shortName(model.name), ratio } : null;
+  }, [model, op, studioOp]);
+  const cropFit = useCropFit({ rule: cropRule, value: draft.slots.image, setValue: (v) => attach.setSlotValue("image", v) });
+  // A picture for a cloud endpoint with limits of its own (Qwen Image 3 edit, Recraft Crisp…): fitted here before it goes up.
+  const stillEp = stillEndpoint(model, op ?? studioOp);
+  // AuK's voice sample (under 20 s): a part of a longer one offered.
+  const sampleRule = useMemo(() => (model?.id === "oss-auk" ? sampleFitRule() : null), [model?.id]);
+  const sampleFit = useFitUpload({
+    rule: sampleRule,
+    value: draft.slots.voiceAudio,
+    setValue: (v) => setSlot("voiceAudio", v),
+    upload: (f) => attach.uploadToSlot("voiceAudio", f, "audio"),
+  });
+  useEffect(() => {
+    songRoute.current = (f) => (songFit.wants(f) && (songFit.take(f), true)) || (clipFit.wants(f) && (clipFit.take(f), true));
+  });
+  const songProblem = songRef ? songToolProblem(op!, { format: songFormat(undefined, songRef), seconds: voice?.duration }, songById) : null;
   if (songProblem && !planError) planError = songProblem;
   if (signed.blocker) planError = signed.blocker;
   // References mode: Pika's limits (12 files, 2-15 s each, 15 s a group), checked on the clips' lengths before anything runs.
@@ -789,6 +917,37 @@ export function Composer({ docked }: { docked: boolean }) {
       ? h3ReferenceProblem({ images: refImages, videos: refSeconds.slice(0, refClips.length), audios: refSeconds.slice(refClips.length) })
       : null;
   if (refProblem && !planError) planError = refProblem;
+  // A reference clip or voice longer than H3 takes (15 s each, 15 s of each kind together): the part to use is offered.
+  const refWindow = { min: H3_REFERENCE_LIMITS.minSec, max: H3_REFERENCE_LIMITS.maxSec, total: H3_REFERENCE_LIMITS.groupSec };
+  const refFit = (() => {
+    if (!refMode || framesOn) return null;
+    const lists = [
+      { kind: "video" as const, items: refClips, seconds: refSeconds.slice(0, refClips.length), one: "Clip", all: "The clips" },
+      { kind: "audio" as const, items: refAudios, seconds: refSeconds.slice(refClips.length), one: "Voice", all: "The voice and music clips" },
+    ];
+    for (const l of lists) {
+      const t = trimTarget(l.seconds, refWindow);
+      if (!t) continue;
+      const words = { model: "H3", label: (i: number) => `${l.one} ${i + 1}`, all: l.all };
+      return { ...l, target: t, item: l.items[t.index], line: trimLine(l.seconds, t, refWindow, words), label: words.label(t.index) };
+    }
+    return null;
+  })();
+  // A clip or voice swapped for its part (a stand-in while it is cut), in whichever list holds it.
+  const replaceRef = (from: ListItem, to: SlotValue) =>
+    setDraft((d) => {
+      const swap = (l?: SlotValue[]) => l?.map((r) => ((from.id ? r.id === from.id : r.ref === from.ref) ? { ...to, id: to.id ?? r.id } : r));
+      return { refClips: swap(d.refClips), refAudios: swap(d.refAudios) };
+    });
+  // A guest's clips and voices are kept in this browser (and who is visiting may not be known yet): a long one gets its part
+  // offered before it is added. An account's are offered once stored (ListFit below).
+  const viewer = useViewer().data;
+  const guest = !viewer || (viewer.publicSignup && !viewer.signedIn);
+  const clipAdd = useAddFit({ kind: "video", max: refMode && guest ? H3_REFERENCE_LIMITS.maxSec : undefined, min: H3_REFERENCE_LIMITS.minSec, tool: "H3", add: (f) => attach.addListFile("refClips", f, refMode?.videos ?? 0) });
+  const voiceAdd = useAddFit({ kind: "audio", max: refMode && guest ? H3_REFERENCE_LIMITS.maxSec : undefined, min: H3_REFERENCE_LIMITS.minSec, tool: "H3", add: (f) => attach.addListFile("refAudios", f, refMode?.audios ?? 0) });
+  // Clip elements mentioned by name (Kling 4.0: 3–8 s each, 30 s of clips in all): said before the run, with the fix.
+  const elementCheck = useElementClipCheck(catalog.getModel(mentions.request.modelId) ?? model, mentions.request, mentions.mentioned);
+  if (elementCheck.problem && !planError) planError = elementCheck.problem;
   // An end frame runs first and last frames only: References mode's extra images, clips and sound would be left out.
   // It goes before "Write a prompt first": words won't fix it.
   if (refMode && !framesOn && draft.slots.endImage?.ref && (draft.refs.length || refClips.length || refAudios.length) && (!planError || planError === WRITE_PROMPT)) {
@@ -892,7 +1051,8 @@ export function Composer({ docked }: { docked: boolean }) {
       buildRequest(config.feature, songDraft(draft, model, config.slots), resolvesOnServer ? studioOp : op, config.promptSuffix, config.multiRef?.kind, framesCtx, targetFor(draft.modelId)),
     );
     const withVoiceFirst = cleanFirst ? { ...sent.request, params: { ...sent.request.params, extra: { ...sent.request.params?.extra, [VOICE_FIRST_PARAM]: true } } } : sent.request;
-    return runOnceOnKey(withVoiceFirst, a, (r) => create.mutateAsync(r)).then(
+    const withFixFaces = fixFacesOn ? { ...withVoiceFirst, params: { ...withVoiceFirst.params, extra: { ...withVoiceFirst.params?.extra, [FIX_FACES_AFTER_PARAM]: true } } } : withVoiceFirst;
+    return runOnceOnKey(withFixFaces, a, (r) => create.mutateAsync(r)).then(
       (words) => void toast.success(words),
       (e) => toastError(e),
     );
@@ -921,13 +1081,35 @@ export function Composer({ docked }: { docked: boolean }) {
   // GPU): run it once on the key, at its price, or connect a GPU. Nothing runs until one is pressed.
   const [keyChoice, setKeyChoice] = useState(false);
 
+  // Route notice (route-notice.ts): shown on Run; nothing runs until "Run anyway" or "Use <provider>" is pressed.
+  const usableRoute = (p: string) =>
+    !!status?.providers[p]?.configured && (viewerInfo?.kind !== "account" || (isCloudProvider(p) && (viewerInfo.usableKeys ?? viewerInfo.keys ?? []).includes(p)));
+  const routeAsk = { params: signed.request.params, negativePrompt: signed.request.negativePrompt, prefer: signed.request.prefer };
+  const routeCheck =
+    planModel && op && !placeholdersOn(status?.demoMode)
+      ? routeNotice(planModel, op, likelyProvider(planModel, op, routeAsk, { ready: usableRoute, preferred: status?.cloudProvider }), routeAsk, usableRoute)
+      : null;
+  const [routeChoice, setRouteChoice] = useState(false);
+  if (routeChoice && !routeCheck) setRouteChoice(false);
+  const [anyway, setAnyway] = useState<string[]>(readAnyway);
+  const anywayHere = !!routeCheck && !!planModel && !!op && anywaySaid(anyway, planModel.id, op, routeCheck);
+  const runAnyway = () => {
+    if (!routeCheck || !planModel || !op) return;
+    const next = [...new Set([...anyway, ...anywayKeys(planModel.id, op, routeCheck)])];
+    setAnyway(next);
+    keepAnyway(next);
+    submitRef.current(undefined, undefined, undefined, undefined, { prefer: isCloudProvider(routeCheck.provider) ? routeCheck.provider : undefined });
+  };
+
   // `skip` is true only from the guided fix's "Run anyway" (a click handler passes its event here). `withKey`: this run
   // only, on the cloud version that action names and the account's key (hosted runs on; see onRunWithKey). `once`: a
   // place for this run only (hosted runs: "Run on Our GPUs", or the account's GPU for what only it runs). `signedUp`: the
-  // run a guest pressed, started by itself back from sign-up (its note says so once the run is made).
-  const submit = (skip?: unknown, withKey?: TroubleAction, once?: "own" | "pool", signedUp?: boolean): void => {
+  // run a guest pressed, started by itself back from sign-up (its note says so once the run is made). `picked`: route chosen
+  // in the route notice, sent as `prefer`.
+  const submit = (skip?: unknown, withKey?: TroubleAction, once?: "own" | "pool", signedUp?: boolean, picked?: { prefer?: CloudProvider }): void => {
     const skipGpu = skip === true;
     setKeyChoice(false);
+    setRouteChoice(false);
     if (exact) {
       // An exact orbit: the still filmed along the orbit's numbers (Fly around), priced in its panel.
       const stop = !exactImage ? t("studio.composer.addStartFrame") : fly.preview.data?.blocker;
@@ -937,6 +1119,8 @@ export function Composer({ docked }: { docked: boolean }) {
       pressSetup(owner ? null : "fly-around:exact-orbit", () => fly.run.mutate({ engine: withKey ? "cloud" : engine, image: exactImage, orbit: exact, prompt: draft.prompt.trim() || undefined, feature: config.feature }));
       return;
     }
+    // A model that doesn't run here now: the press runs the free alternative (its own setup is the link under it).
+    if (hereAlt && !withKey && !once && !skipGpu && !signedUp && !create.isPending) return runHereAlt();
     if (keyToAdd && model && !create.isPending) return openAddKey(keyToAdd, model.id);
     if (!blocker && gpuSetup && !skipGpu && !withKey && once !== "pool" && !create.isPending) return openGpuFix();
     // It runs on the visitor's own setup: Run opens it (Connect your GPU, Add your key, a guest's sign-up), and nothing
@@ -967,6 +1151,9 @@ export function Composer({ docked }: { docked: boolean }) {
       }
       return;
     }
+    if (routeCheck && !picked && !withKey && !once && !anywayHere) return void setRouteChoice(true);
+    const route = withKey ? undefined : picked ?? (routeCheck && anywayHere && isCloudProvider(routeCheck.provider) ? { prefer: routeCheck.provider } : undefined);
+    const withRoute = <R extends object>(r: R): R => (route?.prefer ? { ...r, prefer: route.prefer } : r);
     toast.dismiss("composer-blocker");
     setPriceNote(null);
     // A guest (hosted runs on): the draft, its kept files and this run wait for the sign-up, with the price shown; back
@@ -991,7 +1178,7 @@ export function Composer({ docked }: { docked: boolean }) {
     // Open palette lock: the images are recoloured to the palette by a chained step (POST /api/palettes/lock).
     // (An account's lock runs on this studio's GPUs only: sent there by name.)
     if (sent.lock) {
-      const request = withKey ? onCloudKey(sent.request, withKey) : sent.request;
+      const request = withKey ? onCloudKey(sent.request, withKey) : withRoute(sent.request);
       return signature.lock.mutate({ request, colors: sent.lock.colors, ...hosted, ...(poolPrice && !withKey && once !== "own" && { place: "pool" as const }) }, { onError: (e) => toastError(e) });
     }
     // If the server's pre-flight stops it (409 gpu-setup), the guided fix that opens can try again, or run it anyway.
@@ -1002,12 +1189,14 @@ export function Composer({ docked }: { docked: boolean }) {
         model?.kind,
       );
     const withVoiceFirst = cleanFirst ? { ...sent.request, params: { ...sent.request.params, extra: { ...sent.request.params?.extra, [VOICE_FIRST_PARAM]: true } } } : sent.request;
-    const onKey = withKey ? onCloudKey(withVoiceFirst, withKey) : withVoiceFirst;
-    const body = { ...onKey, ...hosted, ...(skipGpu && { gpuCheck: "skip" }) } as typeof sent.request;
+    const withFixFaces = fixFacesOn ? { ...withVoiceFirst, params: { ...withVoiceFirst.params, extra: { ...withVoiceFirst.params?.extra, [FIX_FACES_AFTER_PARAM]: true } } } : withVoiceFirst;
+    const onKey = withKey ? onCloudKey(withFixFaces, withKey) : withFixFaces;
+    const body = { ...withRoute(onKey), ...hosted, ...(skipGpu && { gpuCheck: "skip" }) } as typeof sent.request;
     create.mutate(body, {
       // Accepted: nothing to try again (a card opened later never starts this run a second time). Back from sign-up, the
       // line says the run is on its way (hosted runs: its tile shows "In line" too).
       onSuccess: () => {
+        setTaken(Date.now());
         dropGpuRetry();
         setLorasOff(false);
         if (signedUp && viewerInfo?.hosted) setPriceNote(PENDING_WORDS.made);
@@ -1021,10 +1210,11 @@ export function Composer({ docked }: { docked: boolean }) {
     if (!draft.prompt.trim()) return toast(t("studio.composer.enhanceFirst"));
     setEnhancing(true);
     try {
-      const p = await enhance(draft.prompt, config.kind, op ?? (config.kind === "video" ? "t2v" : "t2i"));
+      const look = draft.params.extra?.[FILM_LOOK_PARAM];
+      const p = await enhance(draft.prompt, config.kind, op ?? (config.kind === "video" ? "t2v" : "t2i"), draft.modelId, typeof look === "string" ? look : undefined);
       setDraft({ prompt: p });
     } catch (e) {
-      toastError(e);
+      if (!helperSignIn(e)) toastError(e);
     } finally {
       setEnhancing(false);
     }
@@ -1087,6 +1277,9 @@ export function Composer({ docked }: { docked: boolean }) {
     preset?.userPrompt,
   );
   const effectiveOp = studioOp ?? op;
+  // Fix faces after the take: an H3 video from a start picture, no longer than one Fix faces run, and not at 2K.
+  const fixFacesShown = fixFacesAfterOffered(draft.modelId, effectiveOp ?? (typed.slots.image?.ref ? "i2v" : undefined), p.duration, !!typed.slots.image?.ref) && p.resolution !== "2K";
+  const fixFacesOn = fixFacesShown && fixFacesAsked;
   // Qwen-Image 2.1's Options → GPU on Small: what the small encoder can't do (or that a speed with its own graph wins).
   // MiniMax H3's GPU tier: what FastH3 V2 or Trim changes, picked or as Auto runs it on the card the GPU check read.
   const h3Note = opts.controls?.some((c) => c.param === H3_TIER_PARAM) ? h3TierNote(p.extra, effectiveOp, gpuBadges?.h3Tier) : undefined;
@@ -1114,6 +1307,17 @@ export function Composer({ docked }: { docked: boolean }) {
   // Enhance writes a scene; a tool's optional words (FLUX.3 Upscale's details) stay as typed.
   const baseShape = settingsShape(model, effectiveOp, config.kind, showPrompt && !config.hidePrompt, p, config.ops, studioFormats);
   const shape = framesCtx ? framesShape(baseShape, framesCtx.chained) : layoutOn ? layoutShape(baseShape) : baseShape;
+  // An image of a wide scene with a person in it, asked as a small square: one tap makes it 16:9 at a larger size.
+  const framing =
+    config.kind === "image" && !framingKept && !layoutOn && !framesOn && model
+      ? framingSuggestion({
+          prompt: draft.prompt,
+          aspect: p.aspectRatio ?? model.defaults?.aspectRatio,
+          resolution: p.resolution ?? model.defaults?.resolution,
+          aspects: shape.aspect,
+          resolutions: shape.resolution,
+        })
+      : null;
   const outcome = config.clipFacts && draft.slots.video?.ref ? clipOutcome(effectiveOp, facts, p, model, today) : null;
   const video = draft.slots.video?.ref;
   const alternative = config.comfyOnly?.alternative;
@@ -1311,6 +1515,50 @@ export function Composer({ docked }: { docked: boolean }) {
     if (m.engine !== engine) setEngine(m.engine);
   };
 
+  // A model picked that doesn't run on this install's GPUs now (runnable-here.ts, the run's own check): Run becomes a
+  // one-press free run on the closest model that does, with the same prompt, files and settings, and a link opens what
+  // runs the one picked (Connect your GPU, Add your key, a guest's sign-up; the owner's workers).
+  const hereNeed = model && !demo && !exact ? hereSetup(here, model) : null;
+  const altPool = lockedModel ? appPickerModels : models;
+  const hereImages = draft.refs.length + slots.filter((s) => s.accept === "image" && draft.slots[s.key]?.ref).length;
+  const hereAlt = useMemo(
+    () => (hereNeed && model ? closestHere(model, altPool, here, { op: effectiveOp, params: draft.params, images: hereImages, endFrame: !!draft.slots.endImage?.ref }) : undefined),
+    [hereNeed, model, altPool, here, effectiveOp, draft.params, hereImages, draft.slots.endImage?.ref],
+  );
+  const [altRun, setAltRun] = useState<string | null>(null);
+  const runHereAlt = () => {
+    if (!hereAlt || !model) return;
+    const keep = { aspectRatio: draft.params.aspectRatio, resolution: draft.params.resolution, duration: draft.params.duration, numOutputs: draft.params.numOutputs, generateAudio: draft.params.generateAudio, seed: draft.params.seed, enhancePrompt: draft.params.enhancePrompt };
+    const kept = Object.fromEntries(Object.entries(carryParams(keep, hereAlt)).filter(([, v]) => v !== undefined));
+    setDraft((d) => (d.modelId !== model.id ? {} : { modelId: hereAlt.id, params: { ...hereAlt.defaults, ...kept }, ...lookCleared(model, hereAlt) }));
+    if (hereAlt.engine !== engine) setEngine(hereAlt.engine);
+    setAltRun(hereAlt.id);
+  };
+  // Once the draft is on the stand-in and its files and price check have settled, it runs (as a press of Run would).
+  useEffect(() => {
+    if (!altRun) return;
+    if (model?.id !== altRun) {
+      if (model && draft.modelId !== altRun) setAltRun(null);
+      return;
+    }
+    if (settling || !priceSettled) return;
+    setAltRun(null);
+    submitRef.current();
+  }, [altRun, model, draft.modelId, settling, priceSettled]);
+  const hereOwn = () => {
+    const setup = poolSetup ?? hereNeed;
+    if (!setup || !model) return;
+    // As Run did before: the setup that runs it (an account with its GPU runs it there with this press; one whose key
+    // runs its cloud version picks, at the key's price).
+    if (viewerInfo?.gpu.connected && setup.need === "gpu") return submitRef.current(undefined, undefined, "own");
+    if (keyTwin && keyPrice && !viewerInfo?.gpu.connected) {
+      if (runOnPicked === "key") return submitRef.current(undefined, withKeyAction(keyTwin.provider, keyTwin.modelId, keyTwin.op, keyPrice));
+      return void setKeyChoice(true);
+    }
+    if (guestHold) guestDraft.keepRun(null, setup);
+    if (pressSetup(setup)) submitRef.current(undefined, undefined, "own");
+  };
+
   // Frames on: the start and end frames already attached become the first frames. Off: the first and last frames
   // go back to start and end (the ones in between can come back with Undo).
   const framesLength = framesCtx?.duration ?? (model ? framesDuration(model, p.duration) : p.duration);
@@ -1455,6 +1703,17 @@ export function Composer({ docked }: { docked: boolean }) {
     const own = engine === "open" ? preset.open : preset.cloud;
     return { here: false, on: scaled(own) && own!.modelId !== model.id ? catalog.getModel(own!.modelId)?.name : undefined };
   }, [preset, model, engine, has, catalog]);
+  // A Mix in the cloud on a model that takes one LoRA per expert (Fuobe DoP and Wan 2.2 A14B on Replicate): a second preset
+  // with no LoRA slot left stays in view as unavailable, with the way to run it (mixLimit, src/lib/catalog/plan.ts).
+  const mixFits = useMemo(() => {
+    if (!preset || !model || engine !== "cloud" || (preset.type !== "motion" && preset.type !== "effect")) return undefined;
+    const op = effectiveOp ?? "i2v";
+    const gpu = runsOn(model, "open");
+    return (second: Preset): Unavailable | undefined => {
+      const why = mixLimit(model, engine, op, preset, second);
+      return why ? { why, ...(gpu && { fix: { label: "Use it on your GPU", run: () => setEngine("open") } }) } : undefined;
+    };
+  }, [preset, model, engine, effectiveOp, setEngine]);
   const styleChips = (
     <>
       {(config.presetPicker || (preset && (preset.type === "motion" || preset.type === "effect"))) && (
@@ -1469,6 +1728,7 @@ export function Composer({ docked }: { docked: boolean }) {
           onPreset={pickPreset}
           onMix={(patch) => setDraft(patch)}
           engine={engine}
+          mixFits={mixFits}
         />
       )}
       {config.signature && (
@@ -1496,7 +1756,14 @@ export function Composer({ docked }: { docked: boolean }) {
           onStrength={(v) => setDraft({ presetStrength: v })}
         />
       )}
-      {shownControls.length > 0 && <ControlsChip controls={shownControls} values={p.extra ?? {}} onChange={setExtra} title={config.controlsTitle ? t("studio.controls.options") : undefined} op={effectiveOp} setupOf={setupViewer ? (param, v) => controlSetup(model?.id, param, v) : undefined} />}
+      {takesFilmLooks(model) && (effectiveOp ?? "t2i") === "t2i" && (
+        <FilmLookChip
+          value={typeof p.extra?.[FILM_LOOK_PARAM] === "string" ? (p.extra[FILM_LOOK_PARAM] as string) : undefined}
+          onChange={(id) => setExtra(FILM_LOOK_PARAM, id)}
+          disabled={layoutOn ? "Film looks work on words: turn Layout off to see the look in this picture." : undefined}
+        />
+      )}
+      {shownControls.length > 0 && <ControlsChip controls={shownControls} values={p.extra ?? {}} onChange={setExtra} title={config.controlsTitle} op={effectiveOp} setupOf={setupViewer ? (param, v) => controlSetup(model?.id, param, v) : undefined} />}
       {opts.lightSphere && <LightSphereChip value={draft.slots.image} onChange={setLight} />}
       {effectiveOp === "insert-moment" && <InsertRangeChip clip={facts?.duration} start={p.startTime} resume={p.endTime} onChange={setInsertRange} />}
     </>
@@ -1620,7 +1887,16 @@ export function Composer({ docked }: { docked: boolean }) {
                 caption
                 value={draft.slots[s.key] ?? null}
                 onChange={(v) => attach.setSlotValue(s.key, v)}
-                onFile={(f) => attach.uploadToSlot(s.key, f, s.accept)}
+                onFile={(f) =>
+                  s.key === "audio" && songFit.wants(f)
+                    ? songFit.take(f)
+                    : s.key === "video" && clipFit.wants(f)
+                      ? clipFit.take(f)
+                      : s.key === "image" && stillEp && model
+                        ? void fitStill(f, stillEp, model.name).then((g) => attach.uploadToSlot(s.key, g, s.accept))
+                        : attach.uploadToSlot(s.key, f, s.accept)
+                }
+                {...(s.key === "audio" && songFit.on && { accept: songFit.accept, takes: songFit.wants })}
               />
             ),
           )}
@@ -1666,7 +1942,7 @@ export function Composer({ docked }: { docked: boolean }) {
               audios={refAudios}
               images={refImages}
               limits={refMode}
-              onFile={attach.addListFile}
+              onFile={(list, f, max) => (!guest ? attach.addListFile(list, f, max) : list === "refClips" ? clipAdd.take(f) : voiceAdd.take(f))}
               onPick={attach.addToList}
               onRemove={attach.removeFromList}
             />
@@ -1676,8 +1952,30 @@ export function Composer({ docked }: { docked: boolean }) {
       {showAttachments && !collapsed && !framesOn && refMode && (refsOpen || refClips.length > 0 || refAudios.length > 0) && (
         <ReferenceOrder images={refImages} clips={refClips.length} audios={refAudios.length} problem={refProblem} />
       )}
+      {showAttachments && !collapsed && !framesOn && refMode && (
+        <div className="px-3">
+          {clipAdd.note}
+          {voiceAdd.note}
+          <ListFit
+            item={refFit?.item ?? null}
+            seconds={refFit ? refFit.seconds[refFit.target.index] : undefined}
+            kind={refFit?.kind ?? "video"}
+            max={refFit?.target.max}
+            min={H3_REFERENCE_LIMITS.minSec}
+            tool="H3"
+            line={refFit?.line}
+            label={refFit?.label ?? ""}
+            replace={replaceRef}
+          />
+        </div>
+      )}
+      {showAttachments && !collapsed && !framesOn && <FitUploadNote fit={songFit} className="px-3" />}
+      {showAttachments && !collapsed && !framesOn && <FitClipNote fit={clipFit} className="px-3" />}
+      {showAttachments && !collapsed && !framesOn && <FitUploadNote fit={sampleFit} className="px-3" />}
+      {showAttachments && !collapsed && !framesOn && <FitCropNote fit={cropFit} className="px-3" />}
       {/* On a phone the slot row scrolls sideways, so the switch gets its own line under it. */}
       {showAttachments && !collapsed && !framesOn && hasCleanVoice && <CleanVoiceSwitch status className="px-3 pb-2 sm:hidden" hint="first, free on your GPU" />}
+      {showAttachments && !collapsed && !framesOn && fixFacesShown && <FixFacesAfterSwitch className="px-3 pb-2" on={fixFacesOn} onChange={setFixFacesAsked} />}
       {showAttachments && !collapsed && !framesOn && voiceFirstShown && voiceFirstKind && (
         <VoiceFirstSwitch className="px-3 pb-2" engine={voiceFirstEngine} on={cleanFirst} onChange={setVoiceFirstAsked} seconds={voice?.duration} lip={!config.ops.includes("transcribe")} />
       )}
@@ -1732,7 +2030,9 @@ export function Composer({ docked }: { docked: boolean }) {
                 <TooltipTrigger asChild>
                   <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border bg-background pr-2.5 pl-0.5 text-[12px] font-medium", words && "border-dashed text-muted-foreground")}>
                     <span className="grid size-6 place-items-center overflow-hidden rounded-full bg-muted">
-                      {el.references[0] ? (
+                      {el.references[0] && /\.(mp4|mov|m4v|webm)(\?|#|$)/i.test(el.references[0]) ? (
+                        <video src={`${el.references[0]}#t=0.1`} muted playsInline preload="metadata" className="size-full object-cover" />
+                      ) : el.references[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={el.references[0]} alt="" className="size-full object-cover" />
                       ) : (
@@ -1750,6 +2050,7 @@ export function Composer({ docked }: { docked: boolean }) {
           })}
         </div>
       )}
+      <ElementClipFix check={elementCheck} className="px-2" />
 
       {/* Upscale → Video: Restore · faithful, Quick · RTX and (while it is offered) Regenerate · creative side by side (on your GPU). */}
       {config.finishChoices && !preset && (
@@ -1766,6 +2067,7 @@ export function Composer({ docked }: { docked: boolean }) {
               : undefined
           }
           describing={describing}
+          here={here}
         />
       )}
 
@@ -1798,7 +2100,8 @@ export function Composer({ docked }: { docked: boolean }) {
       ) : null}
 
       {/* Toolbar: one row on phones (it scrolls, with faded edges, when it does not fit); from sm up it wraps, so every chip shows. */}
-      <div className="flex items-center gap-2">
+      {/* The free alternative's button takes its own line on a phone, so the model chip keeps its name. */}
+      <div className={cn("flex items-center gap-2", hereAlt && "max-sm:flex-wrap")}>
         {/* Phones (below sm): "+", Settings (icon), the model (it shrinks to fit) and @; the other chips are in the settings sheet. */}
         <div ref={chipRow} style={fade} data-composer-toolbar className="scrollbar-none -my-1 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1 sm:flex-wrap sm:overflow-x-visible">
           {kinds.length > 0 && <AttachMenu kinds={kinds} onFiles={attach.attachFiles} onPick={attach.attach} />}
@@ -1941,7 +2244,7 @@ export function Composer({ docked }: { docked: boolean }) {
             className={cn(poolRefused && runOnRows.on === "site" && "max-w-48")}
           />
         )}
-        {!runOnRows && costText && (
+        {!runOnRows && costText && !hereAlt && (
           <Tooltip>
             <TooltipTrigger asChild>
               <span
@@ -1981,6 +2284,18 @@ export function Composer({ docked }: { docked: boolean }) {
             </TooltipContent>
           </Tooltip>
         )}
+        {hereAlt && model ? (
+          <Button
+            onClick={() => submit()}
+            disabled={create.isPending || signature.lock.isPending || !!altRun}
+            aria-busy={!!altRun || create.isPending || undefined}
+            data-slot="run-free-alt"
+            className="h-10 min-w-0 shrink gap-1.5 rounded-full px-4 text-[13px] font-medium max-sm:w-full"
+          >
+            {altRun || create.isPending ? <Loader2 className="motion-spinner size-4 shrink-0" /> : <ArrowUp className="size-4 shrink-0" />}
+            <span className="truncate">{hereRunLabel(hereAlt, sitePlace.text, here?.owner)}</span>
+          </Button>
+        ) : (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -1998,6 +2313,8 @@ export function Composer({ docked }: { docked: boolean }) {
                   <ArrowUp className="motion-hand-off col-start-1 row-start-1 size-4" />
                   <Loader2 className="motion-spinner col-start-1 row-start-1 size-4" />
                 </span>
+              ) : taken ? (
+                <Check key={taken} className="motion-confirm size-4" aria-label="Sent" />
               ) : (
                 <ArrowUp className="size-4" />
               )}
@@ -2012,8 +2329,29 @@ export function Composer({ docked }: { docked: boolean }) {
             )}
           </TooltipContent>
         </Tooltip>
+        )}
       </div>
       <div aria-live="polite">
+        {hereAlt && hereNeed && model && (
+          <p data-here-alt className="flex flex-wrap items-center gap-x-2 px-2 text-[12px] text-muted-foreground">
+            <span className="inline-flex min-h-6 items-center">{hereReason(model, hereNeed, here?.owner)}</span>
+            {here?.owner ? (
+              <Link href="/settings/workers" className="inline-flex min-h-6 items-center font-medium text-brand-text underline-offset-2 hover:underline">
+                {HERE_SET_UP} →
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                disabled={create.isPending}
+                onClick={hereOwn}
+                className="inline-flex min-h-6 items-center text-left font-medium text-brand-text underline-offset-2 hover:underline"
+              >
+                {HERE_SET_UP} →
+              </button>
+            )}
+          </p>
+        )}
         {line && blocker && (
           // Focused from the keyboard, it stays (the composer unfolding must not hide what has the focus).
           <p className={cn("px-2 text-[12px] text-muted-foreground", line === "touch" && "[@media(hover:hover)]:hidden [@media(hover:hover)]:focus-within:block")}>
@@ -2033,7 +2371,7 @@ export function Composer({ docked }: { docked: boolean }) {
           </p>
         )}
         {/* Folded (docked, not focused), the composer stays one line: the wait shows again once it opens. */}
-        {!blocker && !gpuSetup && !ownKeyHere && poolState && (poolState.refused || !collapsed) && <PoolNote state={poolState} offer={waitOffer} alt={withoutLoras} />}
+        {!blocker && !gpuSetup && !ownKeyHere && !hereAlt && poolState && (poolState.refused || !collapsed) && <PoolNote state={poolState} offer={waitOffer} alt={withoutLoras} />}
         {!blocker && turnedDown && (
           <p data-key-turned-down className="flex flex-wrap items-center gap-x-2 px-2 text-[12px] text-muted-foreground">
             <span>{keyTurnedDownWords(turnedDown.provider)}</span>
@@ -2103,6 +2441,33 @@ export function Composer({ docked }: { docked: boolean }) {
           </div>
         </div>
       )}
+      {routeChoice && routeCheck && (
+        <div role="note" aria-live="polite" data-route-notice className="mx-1 mt-2 space-y-1.5 rounded-xl border border-dashed px-3 py-2 text-[12px] leading-snug text-muted-foreground">
+          <p className="font-medium text-foreground">{routeCheck.words}</p>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={runAnyway}
+              disabled={create.isPending}
+              className="inline-flex h-7 w-fit items-center rounded-full bg-highlight px-2.5 text-[12px] font-medium text-highlight-foreground hover:opacity-90 disabled:opacity-70"
+            >
+              Run anyway
+            </button>
+            {routeCheck.instead && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => submitRef.current(undefined, undefined, undefined, undefined, { prefer: routeCheck.instead })}
+                disabled={create.isPending}
+                className="inline-flex h-7 w-fit items-center rounded-full bg-secondary px-2.5 text-[12px] font-medium hover:bg-accent disabled:opacity-70"
+              >
+                Use {CLOUD_KEY[routeCheck.instead].label}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {isolatedHere && !gpuDown && (
         <div role="note" className="mx-1 mt-2 space-y-1.5 rounded-xl border border-dashed px-3 py-2 text-[12px] leading-snug text-muted-foreground">
           <p>
@@ -2169,6 +2534,29 @@ export function Composer({ docked }: { docked: boolean }) {
       {sketched.note && <p className="px-2 pt-1 text-[12px] text-muted-foreground">{sketched.note}</p>}
       {signed.notes.length > 0 && <p className="px-2 pt-1 text-[12px] text-muted-foreground">{signed.notes.join(" · ")}</p>}
       {smallGpuNote && <p className="px-2 pt-1 text-[12px] text-muted-foreground">{smallGpuNote}</p>}
+      {framing && (
+        <div role="note" className="mx-1 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border bg-brand-faint px-3 py-2 text-[12px] leading-snug">
+          <p className="min-w-0 flex-1 basis-56 text-muted-foreground">
+            <span className="font-medium text-foreground">A wide frame suits this scene.</span> {framing.aspectRatio}
+            {framing.resolution ? ` at ${framing.resolution}` : ""} gives the figure room and keeps faces crisp and detailed.
+          </p>
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 rounded-full px-3"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setP({ aspectRatio: framing.aspectRatio, ...(framing.resolution && { resolution: framing.resolution }) })}
+            >
+              {framingLabel(framing)}
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 rounded-full px-2.5 text-muted-foreground" onMouseDown={(e) => e.preventDefault()} onClick={() => setFramingKept(true)}>
+              Keep 1:1
+            </Button>
+          </div>
+        </div>
+      )}
+      {model && !framesOn && <EndFrameNote model={model} start={draft.slots.image} end={draft.slots.endImage} hasStartSlot={slots.some((s) => s.key === "image")} setSlot={setSlot} />}
       {model && op && model.options.endFrame === undefined && draft.slots.endImage?.ref && (
         <p className="px-2 pt-1 text-[12px] text-warning">{model.name} ignores the end frame — pick Kling 2.5, Veo 3.1, Seedance or Wan 2.2 to use it.</p>
       )}

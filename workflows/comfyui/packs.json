@@ -549,7 +549,10 @@
     "requirementsTxt": true,
     "isolated": false,
     "subdir": null,
-    "folders": []
+    "folders": [],
+    "modelFolders": [
+      "ultralytics"
+    ]
   },
   "ComfyUI-Impact-Pack": {
     "repo": "https://github.com/ltdrdata/ComfyUI-Impact-Pack",
@@ -588,6 +591,53 @@
     "folders": [
       "sams"
     ]
+  },
+  "ComfyUI-Viggle-Remake": {
+    "repo": "https://huggingface.co/Viggle/Viggle-Remake",
+    "commit": "21665fa7a1e038e0a5312fb15f37b18d0f06f117",
+    "registry": null,
+    "requirementsTxt": false,
+    "isolated": false,
+    "subdir": "comfyui/ComfyUI-Viggle-Remake",
+    "folders": []
+  },
+  "ComfyUI-InstantHMR": {
+    "repo": "https://github.com/workingprototype/Fuobe",
+    "commit": "e4b74735062298af07bb931aed280a440d1b2958",
+    "registry": null,
+    "requirementsTxt": false,
+    "isolated": false,
+    "subdir": "comfy-nodes/ComfyUI-InstantHMR",
+    "folders": [
+      "detection"
+    ]
+  },
+  "ComfyUI-BodyDouble": {
+    "repo": "https://github.com/workingprototype/Fuobe",
+    "commit": "26d386bdacb371d06aa2325ac1b90373a11ff6b7",
+    "registry": null,
+    "requirementsTxt": false,
+    "isolated": false,
+    "subdir": "comfy-nodes/ComfyUI-BodyDouble",
+    "folders": []
+  },
+  "ComfyUI-HyperFlow-Flash": {
+    "repo": "https://github.com/Video-Rebirth/ComfyUI-HyperFlow-Flash",
+    "commit": "20a22ab2b075f3c948eb5dba62637ff89fc0f363",
+    "registry": null,
+    "requirementsTxt": false,
+    "isolated": false,
+    "subdir": null,
+    "folders": []
+  },
+  "ComfyUI-GGUF": {
+    "repo": "https://github.com/city96/ComfyUI-GGUF",
+    "commit": "6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
+    "registry": null,
+    "requirementsTxt": false,
+    "isolated": false,
+    "subdir": null,
+    "folders": []
   },
   "krea2-model-router": {
     "repo": "/mnt/nvmedata/comfy/custom_nodes/krea2-model-router",

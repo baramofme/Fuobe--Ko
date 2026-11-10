@@ -5,7 +5,9 @@
  * the place it had. No error, no word about the machines, no pause. A look that can't find the run (an error answer, a
  * run gone from the list) breaks the rule too, and so does the run showing to anyone but its own account.
  */
+import { isEngineWords } from "@/lib/engine-error";
 import { POOL_WORDS } from "@/lib/relay";
+import { isPoolRunWords } from "@/lib/run-progress";
 
 /** A run as the studio answers it (GET /api/generations/<id>, a list item, getGeneration). */
 export interface RunLike {
@@ -93,7 +95,7 @@ export class RunWatch {
       if (!["queued", "running", "succeeded"].includes(s.status)) out.push(`a state that isn't In line, Working or the result (${at})`);
       if (s.status === "queued" && s.message !== POOL_WORDS.inLine) out.push(`a waiting run that doesn't say In line (${at})`);
       if (s.status === "queued" && s.place === null) out.push(`a waiting run with no place in line (${at})`);
-      if (s.status === "running" && s.message !== POOL_WORDS.working && s.message !== POOL_WORDS.gettingReady) out.push(`a started run that doesn't say Working (${at})`);
+      if (s.status === "running" && !isPoolRunWords(s.message)) out.push(`a started run that doesn't say Working (${at})`);
       if (s.status === "succeeded" && s.outputs < 1) out.push(`a result with nothing in it (${at})`);
       if (s.error) out.push(`an error (${at})`);
       for (const w of [s.message, s.error]) if (w && MACHINE_WORDS.test(w)) out.push(`words about the machines (${at})`);
@@ -114,14 +116,15 @@ export class RunWatch {
 }
 
 /**
- * A run that truly can't finish: one plain sentence (`words`: the failure sentence, or one about the person's own files),
- * nothing about the machines, and "Not charged" only when its hold set something aside (`charged`). A free run says
- * nothing about a charge.
+ * A run that truly can't finish: one plain sentence (`words`: one about the person's own files; else the failure
+ * sentence or its kind's), nothing about the machines, and "Not charged" only when its hold set something aside
+ * (`charged`). A free run says nothing about a charge.
  */
 export function plainFailure(g: RunLike, o: { charged: boolean; words?: string }): string[] {
   const out: string[] = [];
   if (g.status !== "failed") out.push(`it is ${g.status}, not failed`);
-  if (g.error !== (o.words ?? POOL_WORDS.failed)) out.push(`its words are ${JSON.stringify(g.error)}`);
+  // (Without `words`: the failure sentence, or the plain sentence for its kind of failure, src/lib/engine-error.ts.)
+  if (o.words ? g.error !== o.words : g.error !== POOL_WORDS.failed && !isEngineWords(g.error)) out.push(`its words are ${JSON.stringify(g.error)}`);
   if (g.fix) out.push("it offers a fix");
   if (o.charged && !g.notCharged) out.push("it doesn't say Not charged");
   if (!o.charged && g.notCharged) out.push("it says Not charged, but nothing was set aside");

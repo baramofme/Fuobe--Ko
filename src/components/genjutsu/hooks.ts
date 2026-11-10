@@ -9,6 +9,7 @@ import type { Engine, Generation, PixelPoint } from "@/lib/catalog/types";
 import { useDebounced } from "@/components/faceless/hooks";
 import { send } from "@/components/shorts/hooks";
 import { COMPUTER_KICK_EVENT } from "@/lib/api";
+import type { ReshootOptions } from "@/lib/catalog/reshoot";
 
 /**
  * A run started: the tab that runs this person's jobs on the ComfyUI on this computer (an account's "Your GPU") asks for
@@ -43,10 +44,14 @@ export interface GenjutsuBody {
   object?: ObjectEdit;
   picture?: PictureOptions;
   finish?: FinishOptions;
+  /** Fuobe Reshoot's settings. */
+  reshoot?: ReshootOptions;
   /** What of the clip's sound goes back where it is put back (src/lib/av/original-sound.ts). */
   originalSound?: OriginalSound;
   /** Client nonce: a repeat of it gets the first answer (see useSubmitGuard). */
   requestId?: string;
+  /** The app the run was sent from: its result is listed with that app's runs. */
+  app?: "app-fix-faces";
 }
 
 export interface GenjutsuEstimate {
@@ -133,5 +138,5 @@ export async function waitForGeneration(id: string, o: { signal?: AbortSignal; t
     if (g.status === "failed" || g.status === "canceled") throw new Error(g.error || "It didn't finish");
     await new Promise((r) => setTimeout(r, 1500));
   }
-  throw new Error("It is taking too long — try again later");
+  throw new Error("This is taking longer than expected — try again in a moment");
 }

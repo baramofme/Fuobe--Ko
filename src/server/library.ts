@@ -23,7 +23,7 @@ import {
 } from "@/lib/library";
 import { fileAccount, generationAccount } from "./account-library";
 import { db } from "./db";
-import { assetUses, cancelGeneration, deleteGeneration, getGeneration, type ListOptions } from "./generations";
+import { assetInUse, assetUses, cancelGeneration, deleteGeneration, getGeneration, type ListOptions } from "./generations";
 import { absolutePath, deleteAsset, getAsset } from "./storage";
 import type { ZipEntry } from "./zip";
 
@@ -167,6 +167,8 @@ export async function emptyTrash(): Promise<number> {
     db().prepare(`DELETE FROM generation_trash WHERE generation_id IN (${placeholders(batch.length)})`).run(...batch);
     n += done;
   }
+  // Files a purged run left behind that nothing needed then but nothing needs now (a board that has since gone).
+  purgeDanglingAssets();
   return n;
 }
 
@@ -179,6 +181,40 @@ export async function purgeTrash(now = Date.now()): Promise<number> {
   return n;
 }
 
+/**
+ * Files a run made whose run row is gone: a delete that stopped before its files left, an account purge that
+ * removed the row another way, a database put back from before the run. The Library lost the run, but the
+ * "add media" popups would still offer the file — the Trash join finds nothing to hide it with — so the owner
+ * is offered a result that no longer has a home. Each one leaves only when nothing else names it
+ * (assetInUse, read again at every deletion) and it isn't held for a moderation check: a file a board, a
+ * project, a saved version or a run in the Trash still points at stays, because removing it would break what
+ * depends on it. An account's files go by their own retention (account-sweep.ts) and uploads wait for the
+ * owner to delete them, so this is the owner's results alone. Runs with the Trash purge (startup, then daily)
+ * and after Empty trash.
+ */
+export function purgeDanglingAssets(): { scanned: number; deleted: number; kept: number } {
+  const gone = db()
+    .prepare(
+      `SELECT a.id, a.generation_id FROM assets a
+       WHERE a.account_id IS NULL AND a.held = 0 AND a.generation_id IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM generations g WHERE g.id = a.generation_id)
+       ORDER BY a.created_at ASC, a.id ASC`,
+    )
+    .all() as { id: string; generation_id: string }[];
+  let deleted = 0;
+  let kept = 0;
+  for (const a of gone) {
+    // What keeps a file can appear after the run left, and go again before this sweep: judge it now, not by the list.
+    if (assetInUse(a.id, a.generation_id)) {
+      kept++;
+      continue;
+    }
+    deleteAsset(a.id);
+    deleted++;
+  }
+  return { scanned: gone.length, deleted, kept };
+}
+
 declare global {
   var __fuobeTrashPurge: { timer: NodeJS.Timeout } | undefined;
 }
@@ -186,7 +222,11 @@ declare global {
 /** Purge once at startup (the first library read) and then daily. */
 export function ensureTrashPurge(): void {
   if (globalThis.__fuobeTrashPurge) return;
-  const run = () => void purgeTrash().catch((e) => console.warn(`[fuobe] trash purge failed: ${(e as Error).message}`));
+  const run = () =>
+    void purgeTrash()
+      .catch((e) => console.warn(`[fuobe] trash purge failed: ${(e as Error).message}`))
+      .then(() => purgeDanglingAssets())
+      .catch((e) => console.warn(`[fuobe] dangling file sweep failed: ${(e as Error).message}`));
   const timer = setInterval(run, DAY);
   timer.unref?.();
   globalThis.__fuobeTrashPurge = { timer };

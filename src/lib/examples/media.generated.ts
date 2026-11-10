@@ -1727,6 +1727,15 @@ export const EXAMPLE_MEDIA: Record<string, ExampleMediaFile> = {
   "w": 512,
   "h": 384
  },
+ "/examples/character-swap/1/rest.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 30654,
+  "sha256": "43e98bdcb014c4f786cc820fb312797db45177635eb108b92887cae831d0e104",
+  "v": "43e98bdc",
+  "w": 512,
+  "h": 384
+ },
  "/examples/effect-acid/1/in-image.384.webp": {
   "role": "show",
   "type": "image/webp",
@@ -6224,6 +6233,70 @@ export const EXAMPLE_MEDIA: Record<string, ExampleMediaFile> = {
   "w": 1024,
   "h": 768
  },
+ "/examples/genjutsu-character/2/in-clip.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 28334,
+  "sha256": "e3502de86cbd014c8e4dab7d6927d7895dbd354d566127ac3624347f4f401503",
+  "v": "e3502de8",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/genjutsu-character/2/in-clip.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 166631,
+  "sha256": "bffdd9674febf76bab1d11dc5fc0baf79e4abe51de3113eea76502b03858da0d",
+  "v": "bffdd967",
+  "w": 1024,
+  "h": 768,
+  "thumb": "/examples/genjutsu-character/2/in-clip.384.webp?v=e3502de8"
+ },
+ "/examples/genjutsu-character/2/in-photo1.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 9904,
+  "sha256": "253800a94a4bad4c42c7d0dc4b94e02066e6af145733f9a19b2d8424732533a6",
+  "v": "253800a9",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/genjutsu-character/2/in-photo1.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 132363,
+  "sha256": "27b5644c11cecccfe9d2065364a9ccddce079ea49fdbbb0f0ca154df419f58b9",
+  "v": "27b5644c",
+  "w": 1280,
+  "h": 960,
+  "thumb": "/examples/genjutsu-character/2/in-photo1.384.webp?v=253800a9"
+ },
+ "/examples/genjutsu-character/2/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 967301,
+  "sha256": "780da2f97ab83ffdf68f40b48d924a3b37845c4fba02a21f0589da5a2b05f65e",
+  "v": "780da2f9",
+  "poster": "/examples/genjutsu-character/2/show.poster.webp?v=26766823"
+ },
+ "/examples/genjutsu-character/2/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 37146,
+  "sha256": "b794dfc3809f52d94161371130184d5815d6cb8b84202b5eb4ca8d3a2d1737ff",
+  "v": "b794dfc3",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/genjutsu-character/2/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 82720,
+  "sha256": "267668235facdbc060553af093b3082ecbe620346fbd337b9ff062f4773a52c7",
+  "v": "26766823",
+  "w": 1024,
+  "h": 768
+ },
  "/examples/genjutsu-finish/1/in-clip.384.webp": {
   "role": "show",
   "type": "image/webp",
@@ -6266,6 +6339,442 @@ export const EXAMPLE_MEDIA: Record<string, ExampleMediaFile> = {
   "bytes": 68274,
   "sha256": "043b6b4f591edadea151604aeac0d83095d04962210ac6278cabdbdae7dd68f8",
   "v": "043b6b4f",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/genjutsu-insert/1/in-clip.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 16140,
+  "sha256": "589ccf17a1ffbe2bdef0e114c44f8a4f2832ddb7cf7c5d861c68f3a31d1214f7",
+  "v": "589ccf17",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/genjutsu-insert/1/in-clip.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 106064,
+  "sha256": "fa6025159b92454e9b5d3a21abc88e282d57a05cc3f4b18f284c94ad2f83f87e",
+  "v": "fa602515",
+  "w": 1024,
+  "h": 768,
+  "thumb": "/examples/genjutsu-insert/1/in-clip.384.webp?v=589ccf17"
+ },
+ "/examples/genjutsu-insert/1/in-product1.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 4350,
+  "sha256": "73a90b1b4bd64229352117bfe2d4391abea2a9f1ca523cc5f831bc5ea64b1756",
+  "v": "73a90b1b",
+  "w": 288,
+  "h": 384
+ },
+ "/examples/genjutsu-insert/1/in-product1.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 56139,
+  "sha256": "809e3d622d34a17b0908e8667590a2b02d5c1a2321397299b8f30650a8371ff9",
+  "v": "809e3d62",
+  "w": 960,
+  "h": 1280,
+  "thumb": "/examples/genjutsu-insert/1/in-product1.384.webp?v=73a90b1b"
+ },
+ "/examples/genjutsu-insert/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 598547,
+  "sha256": "1bd678f9c59c311d20c211cb55d539c92c9cfe16d18519caee80d6bb53e3154e",
+  "v": "1bd678f9",
+  "poster": "/examples/genjutsu-insert/1/show.poster.webp?v=c0662bf4"
+ },
+ "/examples/genjutsu-insert/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 24298,
+  "sha256": "62aedfd41bc97a45cf18eb8a45b9e5369e1cce478dbf7462feef28ba4948c11b",
+  "v": "62aedfd4",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/genjutsu-insert/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 51784,
+  "sha256": "c0662bf4b17c4b6eb2f371a0efccd554e7b0d416da15d2e1425f7f00a47f34f9",
+  "v": "c0662bf4",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/genjutsu-motion/1/in-clip.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 7242,
+  "sha256": "e6182cfe61fd499851b85763bc17c8ba7c6e6a23daeb66440aeb5810be9fcb1f",
+  "v": "e6182cfe",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/genjutsu-motion/1/in-clip.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 71596,
+  "sha256": "681b14afb97c6d2bcd4a57c7aa4a8212604a44db41d71f2293b1593d3d2f3fb3",
+  "v": "681b14af",
+  "w": 1024,
+  "h": 768,
+  "thumb": "/examples/genjutsu-motion/1/in-clip.384.webp?v=e6182cfe"
+ },
+ "/examples/genjutsu-motion/1/in-photo1.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 15458,
+  "sha256": "79be4958f4c863ebf4c85db20d655d2e14f63efb229ed092365f108cac8b3f54",
+  "v": "79be4958",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/genjutsu-motion/1/in-photo1.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 163303,
+  "sha256": "7ea8e509661a6f80a79ca23a5ff4d60945816f7008f5c6ff70af296a4396eb5c",
+  "v": "7ea8e509",
+  "w": 1280,
+  "h": 960,
+  "thumb": "/examples/genjutsu-motion/1/in-photo1.384.webp?v=79be4958"
+ },
+ "/examples/genjutsu-motion/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 560760,
+  "sha256": "629263fe9b522df3a2c0a72572a49d2e42cc9685d4e76e7e84d8ac53fe6befd7",
+  "v": "629263fe",
+  "poster": "/examples/genjutsu-motion/1/show.poster.webp?v=dfb8a7ee"
+ },
+ "/examples/genjutsu-motion/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 19982,
+  "sha256": "a221762a58b1bc055747300627d5004b94a463b2397e6ac80c3a4ce66f415009",
+  "v": "a221762a",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/genjutsu-motion/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 47476,
+  "sha256": "dfb8a7ee29dd85e3dad279447fa8511e4531dff5cff3b5f79732387c285e1c1a",
+  "v": "dfb8a7ee",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/genjutsu-reshoot/1/in-clip.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 18012,
+  "sha256": "8604ec0a95d5e019e1f65835263ac0e92c27413f656ba05dd6bc2327d8aa8bd7",
+  "v": "8604ec0a",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/genjutsu-reshoot/1/in-clip.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 132806,
+  "sha256": "d08ffaa23e3f76ad08682a427025cf914d535ce59699ebbee23118c7441a6686",
+  "v": "d08ffaa2",
+  "w": 1280,
+  "h": 960,
+  "thumb": "/examples/genjutsu-reshoot/1/in-clip.384.webp?v=8604ec0a"
+ },
+ "/examples/genjutsu-reshoot/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 960843,
+  "sha256": "a6f0b88569d633a16e385f82e53d0e0dfd830ffe5af790232736b742e57093cf",
+  "v": "a6f0b885",
+  "poster": "/examples/genjutsu-reshoot/1/show.poster.webp?v=cd082153"
+ },
+ "/examples/genjutsu-reshoot/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 23842,
+  "sha256": "b6fbffa0921286027bfac9854527467c7186568266e64329b4cad823087e9596",
+  "v": "b6fbffa0",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/genjutsu-reshoot/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 68638,
+  "sha256": "cd0821533f3b6b693ff8173ceef974cd210e4795563565f052f23ff00a844fe3",
+  "v": "cd082153",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/genjutsu-reshoot/2/in-clip.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 18012,
+  "sha256": "8604ec0a95d5e019e1f65835263ac0e92c27413f656ba05dd6bc2327d8aa8bd7",
+  "v": "8604ec0a",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/genjutsu-reshoot/2/in-clip.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 132806,
+  "sha256": "d08ffaa23e3f76ad08682a427025cf914d535ce59699ebbee23118c7441a6686",
+  "v": "d08ffaa2",
+  "w": 1280,
+  "h": 960,
+  "thumb": "/examples/genjutsu-reshoot/2/in-clip.384.webp?v=8604ec0a"
+ },
+ "/examples/genjutsu-reshoot/2/in-photo1.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 4630,
+  "sha256": "0e4e11354054a9fe0f2572ed1bccbad3138eb705691b8337d1e6506d5fffae00",
+  "v": "0e4e1135",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/genjutsu-reshoot/2/in-photo1.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 86652,
+  "sha256": "74978427a3e7df850988212762d80a25f76391f2728b1d0299f77964ebafc215",
+  "v": "74978427",
+  "w": 1280,
+  "h": 960,
+  "thumb": "/examples/genjutsu-reshoot/2/in-photo1.384.webp?v=0e4e1135"
+ },
+ "/examples/genjutsu-reshoot/2/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 729498,
+  "sha256": "7c55195180874b86dc17ff74da489297e276a45ba28375625d6465c35c4c81c7",
+  "v": "7c551951",
+  "poster": "/examples/genjutsu-reshoot/2/show.poster.webp?v=d094e4fe"
+ },
+ "/examples/genjutsu-reshoot/2/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 24296,
+  "sha256": "56582c0261b02474c57473421dbcd10d3e1959fde0cc996b1352284cefc159a3",
+  "v": "56582c02",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/genjutsu-reshoot/2/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 61356,
+  "sha256": "d094e4fe6b8d1bd67342a97e39e6e108c1982de778e118cd6d6f47939d2d37df",
+  "v": "d094e4fe",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/genjutsu-swap/1/in-clip.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 28334,
+  "sha256": "e3502de86cbd014c8e4dab7d6927d7895dbd354d566127ac3624347f4f401503",
+  "v": "e3502de8",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/genjutsu-swap/1/in-clip.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 166631,
+  "sha256": "bffdd9674febf76bab1d11dc5fc0baf79e4abe51de3113eea76502b03858da0d",
+  "v": "bffdd967",
+  "w": 1024,
+  "h": 768,
+  "thumb": "/examples/genjutsu-swap/1/in-clip.384.webp?v=e3502de8"
+ },
+ "/examples/genjutsu-swap/1/in-photo1.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 5994,
+  "sha256": "384b548d7a7364b50d826c48a46bd9c45c02fd6c3c70de208d45ff106b6baf59",
+  "v": "384b548d",
+  "w": 288,
+  "h": 384
+ },
+ "/examples/genjutsu-swap/1/in-photo1.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 68136,
+  "sha256": "9f7263135299c0e54ff17af0daf7404ceb08adc30672bd7b6a116936784bc5e7",
+  "v": "9f726313",
+  "w": 836,
+  "h": 1114,
+  "thumb": "/examples/genjutsu-swap/1/in-photo1.384.webp?v=384b548d"
+ },
+ "/examples/genjutsu-swap/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 946055,
+  "sha256": "8536f985728fbf92535541a714992ddb53a21ec940f2630a95a0ab02105daead",
+  "v": "8536f985",
+  "poster": "/examples/genjutsu-swap/1/show.poster.webp?v=672a8a33"
+ },
+ "/examples/genjutsu-swap/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 35188,
+  "sha256": "d511b61be744199904a1cc15488e6d97be816b4ae8f071ecd87276d2ad083b6e",
+  "v": "d511b61b",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/genjutsu-swap/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 89360,
+  "sha256": "672a8a33de7dfda0e5f1505bfba2fcf74f8c27222cabfd7ed12a5efec9f941f7",
+  "v": "672a8a33",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/image-to-3d/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 251153,
+  "sha256": "b5b5a4ba83a62fcb0e4fd6f5eebcab132b4caf8dfd21bc91d998718511c73e13",
+  "v": "b5b5a4ba",
+  "poster": "/examples/image-to-3d/1/show.poster.webp?v=24db27ec"
+ },
+ "/examples/image-to-3d/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 5538,
+  "sha256": "48b3cfaa62cce24afff1b109b0bff04aee9c78acab48e8a406b6844c4709b3c1",
+  "v": "48b3cfaa",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/image-to-3d/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 14902,
+  "sha256": "24db27ecd9627280d2ba3037a0a347e8fceb57ec9442e9f013ec4a5b6f2037c0",
+  "v": "24db27ec",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/image-to-3d/2/in-image.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 5882,
+  "sha256": "8dd234980c6c1902a817ca9fabcfbe7c8eb767f855bc807175ecd80e9bb8de71",
+  "v": "8dd23498",
+  "w": 384,
+  "h": 384
+ },
+ "/examples/image-to-3d/2/in-image.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 61473,
+  "sha256": "e4e2ff4a6da49ef6d2b142685727f0755038aab6515d28036f3709affc49c571",
+  "v": "e4e2ff4a",
+  "w": 1280,
+  "h": 1280,
+  "thumb": "/examples/image-to-3d/2/in-image.384.webp?v=8dd23498"
+ },
+ "/examples/image-to-3d/3/in-image.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 4318,
+  "sha256": "e68247aa6d6396cd95f5742cb0382898ffdace8acdba1ec0b7bea82a918a7ed3",
+  "v": "e68247aa",
+  "w": 288,
+  "h": 384
+ },
+ "/examples/image-to-3d/3/in-image.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 109535,
+  "sha256": "8d57fc3e92ff4db33a96dd78f0c6067d7524a4832bbdbfc97309b60f429b3f1c",
+  "v": "8d57fc3e",
+  "w": 960,
+  "h": 1280,
+  "thumb": "/examples/image-to-3d/3/in-image.384.webp?v=e68247aa"
+ },
+ "/examples/image-to-3d/3/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 298664,
+  "sha256": "13359eaaf6860280688bdd6cd1b1af58e82a15131ac35917e87075a8ccc48ce6",
+  "v": "13359eaa",
+  "poster": "/examples/image-to-3d/3/show.poster.webp?v=3a8eed6a"
+ },
+ "/examples/image-to-3d/3/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 4356,
+  "sha256": "367d38622c275b983aa8a2e99d4cb2cf112733c870809b194a86abe4f21ca06b",
+  "v": "367d3862",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/image-to-3d/3/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 9734,
+  "sha256": "3a8eed6a45d3db33f1f36afb4324bfd0c63ad675abb276e2cb5237aeecbe86d0",
+  "v": "3a8eed6a",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/image-to-3d/4/in-image.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 7968,
+  "sha256": "c1cf1604350025953aa372d44cbead8dfc73db68a7654b289095e2b0d1bc1f18",
+  "v": "c1cf1604",
+  "w": 384,
+  "h": 384
+ },
+ "/examples/image-to-3d/4/in-image.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 88655,
+  "sha256": "2a7fa46aed1f995eaa9ec6fe1a23af4650d4d486faf61dd51ef00ad57af2ae29",
+  "v": "2a7fa46a",
+  "w": 1280,
+  "h": 1280,
+  "thumb": "/examples/image-to-3d/4/in-image.384.webp?v=c1cf1604"
+ },
+ "/examples/image-to-3d/4/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 593088,
+  "sha256": "83059e86bfd285130495e93606c1d668a64828c16eddc576953b0520c4388ca2",
+  "v": "83059e86",
+  "poster": "/examples/image-to-3d/4/show.poster.webp?v=37db4c94"
+ },
+ "/examples/image-to-3d/4/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 7934,
+  "sha256": "2df55f2e106d99012d75f641d3952cc8a3c89a7eaa5177ab08bd4d07b6c7f6ee",
+  "v": "2df55f2e",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/image-to-3d/4/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 16112,
+  "sha256": "37db4c94f1da009891dd3c1282a80ed13b7caf4b5061ea1a2e3db8f048d00727",
+  "v": "37db4c94",
   "w": 1024,
   "h": 768
  },
@@ -6820,6 +7329,130 @@ export const EXAMPLE_MEDIA: Record<string, ExampleMediaFile> = {
   "v": "3a20fdd5",
   "w": 512,
   "h": 384
+ },
+ "/examples/motion-control/1/in-image.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 19724,
+  "sha256": "765da8d074f6badfdbac52d01d554eb430ad76b5c0ff51f4e26fd7c263729d43",
+  "v": "765da8d0",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/motion-control/1/in-image.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 248325,
+  "sha256": "6698a2a7ca533380cd41f57c0423b1173af8bbd07523c5693b4e5758b13dc9ea",
+  "v": "6698a2a7",
+  "w": 1280,
+  "h": 960,
+  "thumb": "/examples/motion-control/1/in-image.384.webp?v=765da8d0"
+ },
+ "/examples/motion-control/1/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 24464,
+  "sha256": "764a732154782466534bfb1047b46de059e1fe52da14708d6ceab81c10c319b3",
+  "v": "764a7321",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/motion-control/1/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 2820548,
+  "sha256": "a26d10226c6869cd7aba4d93d430fa732f50ea034e5004479ab35ee8ca844521",
+  "v": "a26d1022",
+  "thumb": "/examples/motion-control/1/in-video.384.webp?v=764a7321"
+ },
+ "/examples/motion-control/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 1044463,
+  "sha256": "43add3614be74390e6f8c866382858e581c08f24f0e766683726afb5a07d6ccd",
+  "v": "43add361",
+  "poster": "/examples/motion-control/1/show.poster.webp?v=f288063c"
+ },
+ "/examples/motion-control/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 23468,
+  "sha256": "88ac9cd60dfc3ea42e54a9dbbdb240a20b6a63e9c1501f07f2342edff2205ae3",
+  "v": "88ac9cd6",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/motion-control/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 58558,
+  "sha256": "f288063c4341567c084afbdd7b1e731220c5678f860d2b36ef2be9a378dc6f26",
+  "v": "f288063c",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/motion-control/2/in-image.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 25046,
+  "sha256": "a9f6a0e01eb383a29b585f7ab5bf0895eb14f9f34420e24d108a383a1aa3f16f",
+  "v": "a9f6a0e0",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/motion-control/2/in-image.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 271480,
+  "sha256": "98f878301d1cd618a131fd4da037b7581d1d721b600f40887144098ed87dc0e3",
+  "v": "98f87830",
+  "w": 1280,
+  "h": 960,
+  "thumb": "/examples/motion-control/2/in-image.384.webp?v=a9f6a0e0"
+ },
+ "/examples/motion-control/2/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 28194,
+  "sha256": "b999520c60d82f182684a88e0f6a48c187f89979296e13ee91f8a0cd7d17e5bd",
+  "v": "b999520c",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/motion-control/2/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 2874999,
+  "sha256": "9367dfe5c2789c6f156cfcf36c9d13cffb0182ca189774a920d14dc6aa037984",
+  "v": "9367dfe5",
+  "thumb": "/examples/motion-control/2/in-video.384.webp?v=b999520c"
+ },
+ "/examples/motion-control/2/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 992697,
+  "sha256": "1a676928283a97e2c88d1e9f4cc1c3d9c21bdfe9662891e348dbde0cf013075d",
+  "v": "1a676928",
+  "poster": "/examples/motion-control/2/show.poster.webp?v=cad92933"
+ },
+ "/examples/motion-control/2/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 28300,
+  "sha256": "cc18b86edfcaab587d73621441bf6376d27791db6d38c59f7d506b02d1b16c7d",
+  "v": "cc18b86e",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/motion-control/2/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 63662,
+  "sha256": "cad92933f38b4297a2928659d6146995eaa4f750b5c322b9c72e4645426ca45d",
+  "v": "cad92933",
+  "w": 1024,
+  "h": 768
  },
  "/examples/motion-crane-down/1/in-image.384.webp": {
   "role": "show",
@@ -8884,6 +9517,431 @@ export const EXAMPLE_MEDIA: Record<string, ExampleMediaFile> = {
   "v": "22765392",
   "w": 512,
   "h": 384
+ },
+ "/examples/upscale-fps/1/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 25876,
+  "sha256": "9541d9c179ae7a6c8f8ab0ec59fd6496dc12b8f8656c830fa7901af18105696c",
+  "v": "9541d9c1",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/upscale-fps/1/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 2457739,
+  "sha256": "ba3d65157d3ec306af296583b33dcfd9c954f1fb774e1f9db377059691af4515",
+  "v": "ba3d6515",
+  "thumb": "/examples/upscale-fps/1/in-video.384.webp?v=9541d9c1"
+ },
+ "/examples/upscale-fps/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 1171238,
+  "sha256": "b4695fa8c3770e66d4143e241da2b553cffcaa7ea00faebd26534cd01e33b16d",
+  "v": "b4695fa8",
+  "poster": "/examples/upscale-fps/1/show.poster.webp?v=e60afc9c"
+ },
+ "/examples/upscale-fps/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 38492,
+  "sha256": "a2c3b9f00501a994e4053cf7ab8a9e13824205a746d5a8b8f8864d43c16aeb3b",
+  "v": "a2c3b9f0",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/upscale-fps/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 85236,
+  "sha256": "e60afc9c3b6834a909dd7e398139566b8c6da43aea3e7e5793c82a882085f869",
+  "v": "e60afc9c",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/upscale-fps/2/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 18574,
+  "sha256": "c96818276a28baafb4fe520722038eca2c05ed3dabf7ee0f186d708cfb0a0a61",
+  "v": "c9681827",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/upscale-fps/2/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 2558459,
+  "sha256": "2a0dcc2816117a1e09d07216324e194984f95b0aed2201c58f424e4a0e759899",
+  "v": "2a0dcc28",
+  "thumb": "/examples/upscale-fps/2/in-video.384.webp?v=c9681827"
+ },
+ "/examples/upscale-fps/2/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 1006513,
+  "sha256": "91ebb61785ac73649fe9be9716ca9d8b2d128a3bf0313dfed71446f12e1a94a8",
+  "v": "91ebb617",
+  "poster": "/examples/upscale-fps/2/show.poster.webp?v=e99686a6"
+ },
+ "/examples/upscale-fps/2/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 15266,
+  "sha256": "0ed46fc5e7c5b7f1377003e0d80c275b4040f65d6d6ff128fb973b946bf97ce9",
+  "v": "0ed46fc5",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/upscale-fps/2/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 60924,
+  "sha256": "e99686a6d8307dd4ffc62d1875b66ca59afd921af0f58b8fddb569d742f60a9f",
+  "v": "e99686a6",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/upscale-video/1/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 25508,
+  "sha256": "9cab632ec470cc98db0fb9d77b9c4312880f21fc54caadc9885818463b8d703a",
+  "v": "9cab632e",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/upscale-video/1/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 1241342,
+  "sha256": "c182d46b277804539626df43c1a3c075a5dc3f1ed851b74d18386c970968d904",
+  "v": "c182d46b",
+  "thumb": "/examples/upscale-video/1/in-video.384.webp?v=9cab632e"
+ },
+ "/examples/upscale-video/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 1013785,
+  "sha256": "2cad149938815558d81317eb7d27d6a210a39d5399389ac42da6f8916f51b7b5",
+  "v": "2cad1499",
+  "poster": "/examples/upscale-video/1/show.poster.webp?v=6f5a0f9f"
+ },
+ "/examples/upscale-video/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 14994,
+  "sha256": "bb3dcbd279906082d76b8516905c69db1de65c085427ad0c0d220761a8527ba2",
+  "v": "bb3dcbd2",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/upscale-video/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 89972,
+  "sha256": "6f5a0f9f1282554062736c993a0ebe191f62489435d4d47583699b3e5bd2aec5",
+  "v": "6f5a0f9f",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/video-tools-colors/1/in-image.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 8892,
+  "sha256": "5e4d608f8e3b58c468274fce9d1b732b35afc1373db791d9c09bad85944ef589",
+  "v": "5e4d608f",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/video-tools-colors/1/in-image.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 105953,
+  "sha256": "728e4b3555ea638686213590d9134bf2d123baeaaf4644a1d85362450beb0443",
+  "v": "728e4b35",
+  "w": 1280,
+  "h": 960,
+  "thumb": "/examples/video-tools-colors/1/in-image.384.webp?v=5e4d608f"
+ },
+ "/examples/video-tools-colors/1/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 10652,
+  "sha256": "f96b67acd985e2905d5be350b156d5edce1b3a75d75c3339aaee767101c1ba40",
+  "v": "f96b67ac",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/video-tools-colors/1/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 1904226,
+  "sha256": "d114ddcb3bf371eb71349f06c76c068c04abe40ed41d966be31e75b7be4e3f67",
+  "v": "d114ddcb",
+  "thumb": "/examples/video-tools-colors/1/in-video.384.webp?v=f96b67ac"
+ },
+ "/examples/video-tools-colors/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 956880,
+  "sha256": "5e51b6359900a16c58adf7ddadbe06a295063521459ef68c38573f8315bf535e",
+  "v": "5e51b635",
+  "poster": "/examples/video-tools-colors/1/show.poster.webp?v=d07ab519"
+ },
+ "/examples/video-tools-colors/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 22172,
+  "sha256": "4149893569dbbe629ccadc86add4eb3959c626681ce0accc2bcfebe798437dc8",
+  "v": "41498935",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/video-tools-colors/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 49022,
+  "sha256": "d07ab5197c1a8d013645fdc10a9125907c7fa245ca7a6b763ecd28112ccd126c",
+  "v": "d07ab519",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/video-tools-colors/2/in-image.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 25174,
+  "sha256": "c5f41ee718818a262ee04505ceda35f36a842152e477d0a60be817a0ceef07fb",
+  "v": "c5f41ee7",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/video-tools-colors/2/in-image.jpg": {
+  "role": "in",
+  "type": "image/jpeg",
+  "bytes": 246805,
+  "sha256": "62421ee902b1308960311d6a69d21b0c094a5d6824dcfa81274292b6fe4789f1",
+  "v": "62421ee9",
+  "w": 1280,
+  "h": 960,
+  "thumb": "/examples/video-tools-colors/2/in-image.384.webp?v=c5f41ee7"
+ },
+ "/examples/video-tools-colors/2/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 20724,
+  "sha256": "34342885480697de47bebc849fae44abcb0c520663092b8943f41d934c01b983",
+  "v": "34342885",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/video-tools-colors/2/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 2507731,
+  "sha256": "b46750270145985b8f15b237f5a6eb046ca3b7a713849e44576909d5d15cef06",
+  "v": "b4675027",
+  "thumb": "/examples/video-tools-colors/2/in-video.384.webp?v=34342885"
+ },
+ "/examples/video-tools-colors/2/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 994043,
+  "sha256": "74aaf92ae7100f57c1d45caec5900fb982e7d1807f2b1be3e42cb54173afc3a0",
+  "v": "74aaf92a",
+  "poster": "/examples/video-tools-colors/2/show.poster.webp?v=60ab9f70"
+ },
+ "/examples/video-tools-colors/2/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 30880,
+  "sha256": "a2780214d4b1b3baa9bd61e0d5c4f455fffff9eefef238a5bc3676df9594d810",
+  "v": "a2780214",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/video-tools-colors/2/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 80008,
+  "sha256": "60ab9f7064473ee3b25cd56d3dafd20e8de4d98139581657da5c0ba6686e3dde",
+  "v": "60ab9f70",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/video-tools-depth/1/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 30670,
+  "sha256": "50c517ada30d6d09600025cb66cf000830e5160c2084b448b3668d16b3e25db1",
+  "v": "50c517ad",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/video-tools-depth/1/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 2305660,
+  "sha256": "12a4cae3dde1b93fa7d80bf1d77711b90b11b32e97308058cd92d1d8485b95f7",
+  "v": "12a4cae3",
+  "thumb": "/examples/video-tools-depth/1/in-video.384.webp?v=50c517ad"
+ },
+ "/examples/video-tools-depth/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 982836,
+  "sha256": "8be6c4adfd710478fc24661016ae595ee5a0f9c7432cfe4c41df496583b15758",
+  "v": "8be6c4ad",
+  "poster": "/examples/video-tools-depth/1/show.poster.webp?v=07db7c84"
+ },
+ "/examples/video-tools-depth/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 21548,
+  "sha256": "421314f43dd5dc45d5e98f623143dde93031953d3328db953aae0440b04a3310",
+  "v": "421314f4",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/video-tools-depth/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 69734,
+  "sha256": "07db7c849a77cb31e7039a8b799a5f0582b79444f06a114a29568b75d525c289",
+  "v": "07db7c84",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/video-tools-depth/2/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 27542,
+  "sha256": "a8d6fe9eb52db96dc87b343f06ef2aa550a57e2eb569019748be1f337c971557",
+  "v": "a8d6fe9e",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/video-tools-depth/2/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 2078499,
+  "sha256": "0de9beb99eb9f419b7c754c11d5168c3083ffd9b8a770101b5899f03ed55faae",
+  "v": "0de9beb9",
+  "thumb": "/examples/video-tools-depth/2/in-video.384.webp?v=a8d6fe9e"
+ },
+ "/examples/video-tools-depth/2/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 1160057,
+  "sha256": "b4f3d07aba34d09ac40785181999a41eda008fcb95d1d77f4220c175d3109cd8",
+  "v": "b4f3d07a",
+  "poster": "/examples/video-tools-depth/2/show.poster.webp?v=7d4f418b"
+ },
+ "/examples/video-tools-depth/2/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 17620,
+  "sha256": "01a489ad409af21bdd66d8fc5303419a6a2b487ea660f7520cea673eed0ec01b",
+  "v": "01a489ad",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/video-tools-depth/2/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 63124,
+  "sha256": "7d4f418b862c6250043e42d9c744e9a1e99ecb6bf65d5786805c3cd7314012ea",
+  "v": "7d4f418b",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/video-tools/1/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 18574,
+  "sha256": "c96818276a28baafb4fe520722038eca2c05ed3dabf7ee0f186d708cfb0a0a61",
+  "v": "c9681827",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/video-tools/1/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 2558459,
+  "sha256": "2a0dcc2816117a1e09d07216324e194984f95b0aed2201c58f424e4a0e759899",
+  "v": "2a0dcc28",
+  "thumb": "/examples/video-tools/1/in-video.384.webp?v=c9681827"
+ },
+ "/examples/video-tools/1/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 1059241,
+  "sha256": "9d47fcaee57b9e041bdcc8554074bd63977a3f4a39a49eb0fb3eaf68f1365c73",
+  "v": "9d47fcae",
+  "poster": "/examples/video-tools/1/show.poster.webp?v=14eed7c3"
+ },
+ "/examples/video-tools/1/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 9936,
+  "sha256": "6f62d15a9ad4bde6bcfc374728fae79e6218aa896a8268deae375980d10b2236",
+  "v": "6f62d15a",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/video-tools/1/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 45030,
+  "sha256": "14eed7c38910a8bff814e2ffea2fce383a8b45bb0f75cf38f1873f9d112911bd",
+  "v": "14eed7c3",
+  "w": 1024,
+  "h": 768
+ },
+ "/examples/video-tools/2/in-video.384.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 9898,
+  "sha256": "3bb84c6f6a9a2a1aa74e27c9d6ff63793aa4576c273f4445deded047b3e9b15d",
+  "v": "3bb84c6f",
+  "w": 384,
+  "h": 288
+ },
+ "/examples/video-tools/2/in-video.mp4": {
+  "role": "in",
+  "type": "video/mp4",
+  "bytes": 1775353,
+  "sha256": "d4aa55c861e1b39ac5128e59227b433f7ee5b8e939c0ff2dc1f7f0c81addc6be",
+  "v": "d4aa55c8",
+  "thumb": "/examples/video-tools/2/in-video.384.webp?v=3bb84c6f"
+ },
+ "/examples/video-tools/2/show.mp4": {
+  "role": "show",
+  "type": "video/mp4",
+  "bytes": 527013,
+  "sha256": "bc34122d4a4782bf6483dce291fdf39b69b5130fe92b16fc7bd39d39e916e9af",
+  "v": "bc34122d",
+  "poster": "/examples/video-tools/2/show.poster.webp?v=dc8fc451"
+ },
+ "/examples/video-tools/2/show.peak.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 8724,
+  "sha256": "66fa32f910347415c6016f6030abbff2273eb6f8bb85487c42e18d65d6c06535",
+  "v": "66fa32f9",
+  "w": 512,
+  "h": 384
+ },
+ "/examples/video-tools/2/show.poster.webp": {
+  "role": "show",
+  "type": "image/webp",
+  "bytes": 23116,
+  "sha256": "dc8fc4516e374017b4b41ae431f407923d29d8d6b0f15fdd37122f7dbc493799",
+  "v": "dc8fc451",
+  "w": 1024,
+  "h": 768
  },
  "/samples/clean-voice/noisy.m4a": {
   "role": "in",

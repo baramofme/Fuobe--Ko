@@ -1,14 +1,13 @@
 {
   "1": {
-    "class_type": "VHS_LoadVideo",
+    "class_type": "VHS_LoadVideoFFmpeg",
     "inputs": {
       "video": "input.mp4",
       "force_rate": 24,
       "custom_width": 0,
       "custom_height": 0,
       "frame_load_cap": 141,
-      "skip_first_frames": 0,
-      "select_every_nth": 1,
+      "start_time": 0,
       "format": "None"
     },
     "_meta": {
@@ -146,7 +145,7 @@
     "class_type": "MiniMaxH3SigmaShift",
     "inputs": {
       "model": [
-        "49",
+        "90",
         0
       ],
       "shift_video": 12,
@@ -339,6 +338,27 @@
     },
     "_meta": {
       "title": "6 · Result with original soundtrack"
+    }
+  },
+  "90": {
+    "inputs": {
+      "selection": "sol-attn",
+      "selection.tau": 1.3,
+      "start_percent": 0.2,
+      "end_percent": 1,
+      "dense_blocks": "",
+      "min_tokens": 12288,
+      "extra_tokens": 256,
+      "sink_conditioning": "exact_kv_and_rows",
+      "verbose": false,
+      "model": [
+        "49",
+        0
+      ]
+    },
+    "class_type": "BlockSparseAttention",
+    "_meta": {
+      "title": "Sparse attention (sol-attn)"
     }
   }
 }

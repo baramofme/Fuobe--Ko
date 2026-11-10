@@ -31,6 +31,9 @@ export function readCard(name: string | undefined, type?: string): CardReading {
   if (/\bRTX\b/i.test(n)) return { rtx: true, ...seriesOf(n) };
   // GeForce GTX / older Quadro and Tesla cards have no RTX Video support.
   if (/\b(GTX|GT \d|Quadro (?!RTX)|Tesla [KMP]\d|TITAN (X|V|Xp))\b/i.test(n)) return { rtx: false };
+  // NVIDIA's CMP line (Crypto Mining Processors — CMP 90HX, CMP 170HX…): mining cards with no GeForce driver path, so no
+  // NGX runtime and no RTX Video. Their name says it — refuse the run before it starts, not at it (nvidia-vfx code -12).
+  if (/\bCMP\b/i.test(n)) return { rtx: false };
   return { rtx: undefined };
 }
 

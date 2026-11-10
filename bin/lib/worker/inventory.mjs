@@ -20,6 +20,22 @@ export function filePins(file = path.join(here, "dist", "file-pins.json")) {
   }
 }
 
+/**
+ * The files a run may add beyond its workflow's own, built into this worker (dist/runtime-files.json: every LoRA library
+ * entry with a pinned size and SHA-256, src/lib/runtime-files.ts): [{ folder, file, sizeBytes, sha256 }]. None when the
+ * build has no such list (a build from before it): the worker then reports the catalog's own files only.
+ */
+export function runtimeFileList(file = path.join(here, "dist", "runtime-files.json")) {
+  try {
+    const list = JSON.parse(fs.readFileSync(file, "utf8")).files;
+    return Array.isArray(list)
+      ? list.filter((f) => f && typeof f.folder === "string" && typeof f.file === "string" && Number.isInteger(f.sizeBytes) && typeof f.sha256 === "string" && /^[0-9a-f]{64}$/.test(f.sha256))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function sha256File(file) {
   return new Promise((resolve, reject) => {
     const h = crypto.createHash("sha256");
@@ -55,6 +71,51 @@ export function packFolders(comfyDir, index) {
 
 /** The node packs as the studio sees them: the catalog's name and the commit. */
 export const nodePacks = (comfyDir, index) => packFolders(comfyDir, index).map(({ name, commit }) => ({ name, commit }));
+
+/**
+ * What its ComfyUI loaded of each pack it has (GET /object_info's node classes): for every pack folder, the catalog's
+ * classes of that pack (requirements.json packs → classes) that ComfyUI doesn't list, sorted. A pack whose import
+ * failed (a missing Python module) lists none of its classes: a folder alone doesn't run its workflows.
+ * { [pack name]: { commit, missing: [class, …] } }.
+ * @returns {Record<string, { commit: string | null; missing: string[] }>}
+ */
+export function loadedPacks(packs, index, objectInfo) {
+  /** @type {Record<string, { commit: string | null; missing: string[] }>} */
+  const out = {};
+  for (const p of packs) {
+    const classes = Array.isArray(index.packs?.[p.name]?.classes) ? index.packs[p.name].classes : [];
+    out[p.name] = { commit: p.commit ?? null, missing: classes.filter((c) => typeof c === "string" && !Object.hasOwn(objectInfo, c)).sort() };
+  }
+  return out;
+}
+
+/**
+ * The node packs as the studio sees them, with what its ComfyUI loaded of each (`missingClasses`: the catalog classes it
+ * didn't list) where it was read at the same commit (`loaded`: loadedPacks, kept from its last start). A pack not read
+ * yet has no `missingClasses`: the studio then counts its folder, as from a worker that doesn't say.
+ */
+export function packsAsSeen(packs, loaded = {}) {
+  return packs.map(({ name, commit }) => {
+    const l = loaded[name];
+    return l && Array.isArray(l.missing) && (l.commit ?? null) === (commit ?? null) ? { name, commit, missingClasses: l.missing } : { name, commit };
+  });
+}
+
+/** Its last reading of what its ComfyUI loaded (loadedPacks), kept in its working folder across restarts. */
+export function readLoaded(file) {
+  try {
+    const v = JSON.parse(fs.readFileSync(file, "utf8"));
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+export function writeLoaded(file, loaded) {
+  try {
+    fs.writeFileSync(file, JSON.stringify(loaded), { mode: 0o600 });
+  } catch {}
+}
 
 function gitCommit(dir) {
   try {
@@ -201,6 +262,9 @@ const samePath = (a, b) => (process.platform === "win32" ? path.resolve(a).toLow
  * older twin (twinFolders: text_encoders/x and then clip/x). Every copy where ComfyUI itself also looks (`o.comfyDir`: its own models
  * folder and its extra_model_paths.yaml) must be the same file too, or it isn't reported. A file with no pin isn't
  * reported at all, so no job that needs it comes here.
+ *
+ * `o.runtime`: the run-time files (runtimeFileList), checked the same way after the catalog's own (a file the catalog
+ * names already counts once), so a look's or a motion's LoRA on this PC is verified and a job that loads it may come.
  */
 export async function modelFiles(modelDirs, index, cacheFile, pins = filePins(), o = {}) {
   const cache = (() => {
@@ -229,7 +293,10 @@ export async function modelFiles(modelDirs, index, cacheFile, pins = filePins(),
     return { ok: sha === want, size: st.size, sha };
   };
   const out = [];
-  for (const f of Object.values(index.files ?? {})) {
+  const catalog = Object.values(index.files ?? {});
+  const named = new Set(catalog.map((f) => `${f.folder}/${f.file}`));
+  const runtime = (o.runtime ?? []).filter((f) => !named.has(`${f.folder}/${f.file}`));
+  for (const f of [...catalog, ...runtime]) {
     const want = pins[`${f.folder}/${f.file}`] ?? f.sha256;
     if (typeof want !== "string" || !/^[0-9a-f]{64}$/.test(want)) continue;
     let first = null;
@@ -265,9 +332,12 @@ export async function modelFiles(modelDirs, index, cacheFile, pins = filePins(),
   return out;
 }
 
+/** A pack in the hash: name@commit, and the classes its ComfyUI didn't load after a "!" (none: as before). */
+const packKey = (p) => `${p.name}@${p.commit ?? ""}${p.missingClasses?.length ? `!${[...p.missingClasses].sort().join(",")}` : ""}`;
+
 /** The same hash the studio computes (src/server/computer/pool.ts inventoryHash), with the kinds of input it takes. */
 export function inventoryHash(inv) {
   const files = inv.files.map((f) => `${f.folder}/${f.name}:${f.size}:${f.sha256 ?? ""}`).sort();
-  const packs = inv.nodePacks.map((p) => `${p.name}@${p.commit ?? ""}`).sort();
+  const packs = inv.nodePacks.map(packKey).sort();
   return crypto.createHash("sha256").update(JSON.stringify({ files, packs, ...(inv.media && { media: [...inv.media].sort() }) })).digest("hex");
 }

@@ -82,7 +82,7 @@ import { expandInbetweenWorkflow, type InbetweenPass } from "@/lib/av/inbetween-
 import { gapPrompt, requestTiming, type InbetweenTiming } from "@/lib/inbetween";
 import { expandTimelineWorkflow, readTimeline } from "@/lib/av/timeline";
 import { expandWorldWorkflow, readWorld, WorldGraphError, worldProblem, type WorldScript } from "@/lib/world";
-import { exportValues, framesPerPass, hdrColorSpace, RTX_UPSCALE_WORKFLOW, rtxScale, upscaleShortSide, wholeClipProblem, wholeClipTool } from "@/lib/av/video-finish";
+import { esrganWholeFrames, exportValues, framesPerPass, hdrColorSpace, RTX_UPSCALE_WORKFLOW, rtxScale, upscaleShortSide, wholeClipProblem, wholeClipTool } from "@/lib/av/video-finish";
 import { keyFormatValues } from "@/lib/av/keying";
 import { factorTier } from "@/lib/av/upscale";
 import { CHARACTER_SWAP, packResolution, samCoords, swapPrompt, SWAP_LORAS, windowPlan } from "@/lib/catalog/character-swap";
@@ -90,6 +90,7 @@ import { maskMemoryProblem } from "@/lib/catalog/swap-studio";
 import { STUDIO_WORKFLOWS } from "@/lib/catalog/swap-studio-plan";
 import { maskGraph, segmentGraph, type MaskGraphOptions, type SegmentGraphOptions } from "@/lib/swap-studio-graphs";
 import { OPENJUTSU_IDS, openjutsuGraph, openjutsuLeftOut, type OpenjutsuSettings } from "@/lib/openjutsu-graphs";
+import { RESHOOT_IDS, reshootGraph, type ReshootSettings } from "@/lib/reshoot-graph";
 import { RESTORE_EXTRA_KEYS, restoreGraph, restoreJob, type RestoreJob } from "@/lib/restore-graph";
 import { getMaker, makerPrompt, OPEN_TARGET_PROBLEM, ORIGINALS, swapTarget } from "@/lib/catalog/genjutsu";
 import { CLICK_OPEN_PROBLEM, HAND_OFF, REMOVE_SCENE, REVIEW_EXTRA, reuseOf, targetPhrase, type RemovalReview } from "@/lib/catalog/remove-object";
@@ -116,7 +117,7 @@ const onPlace = (site: boolean | undefined, own: string, onSite: string): string
 const openEngine = (site: boolean | undefined): string => onPlace(site, "on the open engine", "with open models");
 
 /** The one sentence for a run that can't be made (POOL_WORDS.failed in src/lib/relay.ts, kept equal by its test). */
-export const SITE_FAILED_WORDS = "Sorry, this one couldn't be made.";
+export const SITE_FAILED_WORDS = "That one didn't come out right — try again, or try a similar model.";
 
 /** A request the composer refuses, in words (status: the HTTP status the server answers with). */
 export class ComposeError extends Error {
@@ -219,6 +220,7 @@ const MEDIA_LOADERS: Record<string, string> = {
   LoadImageMask: "image",
   LoadVideo: "file",
   VHS_LoadVideo: "video",
+  VHS_LoadVideoFFmpeg: "video",
   LoadAudio: "audio",
   VHS_LoadAudioUpload: "audio",
   AUSBOSS_NODES_ImageCropRotatePad: "image",
@@ -230,6 +232,7 @@ const MEDIA_LOADERS: Record<string, string> = {
 const SLOT_RULES: Record<string, { reuse?: boolean; required?: string[]; hints?: Record<string, string>; views?: ViewSlots }> = {
   // Edit graphs whose extra images feed TextEncodeQwenImageEditPlus: a repeated reference is harmless.
   "qwen-image-edit-2511-multi": { reuse: true },
+  "qwen-image-edit-2511-multi-fast": { reuse: true },
   "storyboard-qwen-edit-2509-next-scene": { reuse: true },
   "tryon-flux2-klein-4b": { required: ["image2"], hints: { image: "Add a photo of the person", image2: "Add the garment to try on" } },
   // Its describer reads the outfit photo; the words graph (outfit-swap-qwen-image-21-text) runs when there is none.
@@ -799,6 +802,8 @@ export async function composeWorkflow(endpointTemplate: string, input: GenInput,
   // Genjutsu's Openjutsu modes (src/lib/openjutsu-graphs.ts): the settings travel as params.extra.openjutsu and are written
   // into the graph by node title after the media are bound; the pictures a request leaves out go with their branches.
   const openjutsu = OPENJUTSU_IDS.has(manifest.id) ? ((extra.openjutsu && typeof extra.openjutsu === "object" ? extra.openjutsu : {}) as OpenjutsuSettings) : null;
+  // Fuobe Reshoot (src/lib/reshoot-graph.ts): its settings travel the same way, so the own-setup checks read them too.
+  const reshoot = RESHOOT_IDS.has(manifest.id) ? ((extra.openjutsu && typeof extra.openjutsu === "object" ? extra.openjutsu : {}) as ReshootSettings) : null;
   delete extra.openjutsu;
   // Genjutsu's Character swap (MiniMax H3 on the h3_character_swap / H3 Relay packs): the part, the quality as the
   // unpatched pack's string, who to swap (SAM words, largest / leftmost / rightmost / index, or clicks moved into H3's
@@ -1262,6 +1267,10 @@ export async function composeWorkflow(endpointTemplate: string, input: GenInput,
     if (problem) throw new ComposeError(problem);
   }
 
+  // The SeedVR2 pack nodes validate their seed as a uint32 (max 4294967295) while Fuobe picks 48-bit ones:
+  // wrap into range so the graph accepts them. The image SeedVR2 graph binds its seed on a KSampler, which
+  // takes both, so wrapping it is harmless there.
+  if (/seedvr/i.test(manifest.id) && typeof values.seed === "number") values.seed = values.seed % 4294967296;
   const bound = applyBindings(graph, b, Object.fromEntries(Object.entries(values).filter(([k]) => !left.includes(k))));
   // maxDimension targets for removed reference branches are expected: their scale nodes go with the loader.
   const realMissing = bound.missing.filter((m) => !/^maxDimension\b/.test(m));
@@ -1290,6 +1299,14 @@ export async function composeWorkflow(endpointTemplate: string, input: GenInput,
       throw new ComposeError((e as Error).message, 400);
     }
   }
+  if (reshoot) {
+    const seed = typeof reshoot.seed === "number" ? reshoot.seed : typeof values.seed === "number" ? values.seed : randomSeed();
+    try {
+      wf = reshootGraph(wf, { ...reshoot, seed });
+    } catch (e) {
+      throw new ComposeError((e as Error).message, 400);
+    }
+  }
   // LoRA "none": the swap LoRA's loader is linked out (H3 runs with the Turbo LoRA alone).
   if (dropSwapLora && b.lora?.length === 1) wf = bypassNode(wf, b.lora[0].node, "model", outputIds);
   if (studioSegment) wf = segmentGraph(wf, { ...studioSegment, outputs: outputIds });
@@ -1299,6 +1316,12 @@ export async function composeWorkflow(endpointTemplate: string, input: GenInput,
   if (finish.bypassInterpolation) {
     const id = Object.keys(wf).find((k) => wf[k].class_type === "FrameInterpolate" || wf[k].class_type === "RTXVideoFrameGeneration");
     if (id) wf = bypassNode(wf, id, "images", outputIds);
+  }
+  // ESRGAN video upscale: whole frames in fp16 on a card with room for them, else the core node's tiles (any card).
+  const wholeFrames = Object.keys(wf).find((k) => wf[k].class_type === "ImageUpscaleWithModelBatched");
+  if (wholeFrames && !esrganWholeFrames(clipFacts(clip), await ctx.vram?.().catch(() => undefined))) {
+    const n = wf[wholeFrames];
+    wf = { ...wf, [wholeFrames]: { ...n, class_type: "ImageUpscaleWithModel", inputs: { upscale_model: n.inputs.upscale_model, image: n.inputs.images } } };
   }
   if (surroundSource(sourceChannels)) wf = dbsSurroundBed(wf);
   // Zen Image Edit's loader (Qwen-Image 2.1 on a small GPU) reads paths, not names: the adapter where the server keeps it
@@ -1324,7 +1347,7 @@ export async function composeWorkflow(endpointTemplate: string, input: GenInput,
     wf = seconds ? silenceVhsAudio(wf, Math.max(1, Math.round(seconds * fps)) / fps) : dropVhsAudio(wf);
   }
   if (clip && !clip.hasAudio && clip.hasVideo) {
-    wf = dropVhsAudio(wf);
+    wf = dropVhsAudio(wf, clipLength);
     // Core LoadAudio reading the clip's own sound (the end card's ad): no sound, no sound track.
     wf = dropLoadedSound(wf, (b.video ?? []).filter((t) => t.input === "audio").map((t) => t.node), outputIds);
   }

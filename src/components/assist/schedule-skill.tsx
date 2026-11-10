@@ -170,7 +170,7 @@ export function SkillTaskFields({
         ) : skills.length === 0 ? (
           <p className="rounded-xl bg-muted/60 px-3.5 py-2.5 text-[13px] text-muted-foreground">
             {tr("assist.composer.scheduleNoSkills")}{" "}
-            <Link href="/assist/skills" className="font-medium text-brand-text underline-offset-2 hover:underline">
+            <Link href="/chat/skills" className="font-medium text-brand-text underline-offset-2 hover:underline">
               {tr("assist.composer.scheduleOpenSkills")}
             </Link>
           </p>

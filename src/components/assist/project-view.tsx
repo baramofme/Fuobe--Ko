@@ -61,6 +61,7 @@ import { useModeChoice } from "./mode-picker";
 import { ProjectDialog } from "./project-dialog";
 import { ScheduledView } from "./scheduled-view";
 import { ProjectDot, RailButton } from "./shell";
+import { ElementThumb } from "@/components/element-thumb";
 
 const SOURCE_ICON: Record<SourceKind, typeof FileText> = { link: Link2, file: FileText, image: ImageIcon, video: Video, audio: AudioLines, element: AtSign, text: NotebookPen };
 
@@ -140,7 +141,7 @@ function Project({ p }: { p: AssistProject }) {
               onSend={async (text, attachments) => {
                 const created = await actions.start({ text, attachments, engine, autoApprove: !askFirst, projectId: p.id, mode: choice ?? undefined });
                 if (created.note) toast(created.note);
-                router.push(`/assist?c=${created.id}`);
+                router.push(`/chat/make?c=${created.id}`);
               }}
               footer={<NewChatControls choice={choice} setChoice={setChoice} can={can} engine={engine} setEngine={setEngine} askFirst={askFirst} setAskFirst={setAskFirst} />}
             />
@@ -173,7 +174,7 @@ function Project({ p }: { p: AssistProject }) {
               <ul className="divide-y rounded-2xl border bg-background">
                 {chats.data.threads.map((t) => (
                   <li key={t.id} className="relative">
-                    <Link href={`/assist?c=${t.id}`} className="flex items-center gap-3 py-3 pr-12 pl-4 transition-colors hover:bg-accent">
+                    <Link href={`/chat/make?c=${t.id}`} className="flex items-center gap-3 py-3 pr-12 pl-4 transition-colors hover:bg-accent">
                       <span className="min-w-0 flex-1 truncate text-[14px]">{t.title}</span>
                       <span className="shrink-0 text-[12px] text-muted-foreground">{t.status === "running" ? tr("assist.rail.working") : t.status === "waiting" ? tr("assist.transcript.waitingForYou") : timeAgo(t.updatedAt)}</span>
                     </Link>
@@ -214,7 +215,7 @@ function Project({ p }: { p: AssistProject }) {
                 try {
                   await projectActions.remove(p.id);
                   toast(tr("assist.composer.projectDeletedToast"), { duration: 1500 });
-                  router.push("/assist");
+                  router.push("/chat/make");
                 } catch (e) {
                   toastError(e);
                 }
@@ -369,8 +370,7 @@ function Sources({ p }: { p: AssistProject }) {
                       className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-accent disabled:opacity-50"
                     >
                       {el.references[0] ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={el.references[0]} alt="" className="size-8 shrink-0 rounded-md object-cover" />
+                        <ElementThumb src={el.references[0]} mark="small" className="size-8 shrink-0 rounded-md object-cover" />
                       ) : (
                         <span className="grid size-8 place-items-center rounded-md bg-muted">
                           <AtSign className="size-4" />

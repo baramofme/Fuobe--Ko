@@ -351,7 +351,11 @@ server too (`fuobe mcp`).
 For script writers who'd rather call the API directly: `GET /api/models` (`kind`, `engine`, `op`,
 `q`, `hidden=1`; it answers with the studios' `defaults` per engine, `demoMode`, and per model
 `connected` and `runs`), `POST /api/generations` (with `?preview=1` to price; a model id Fuobe has
-retired runs on the model that replaced it, and the answer gives that `modelId` with `notes` saying so),
+retired runs on the model that replaced it, and the answer gives that `modelId` with `notes` saying so;
+a script can say what made the run with `source` (`batch`, `drill`, `example` or `test`) and `sourceName` (its own
+name, up to 80 characters); a run sent with an API token and no `source` reads as `api`, through any route that makes one (the studios'
+and apps' routes too), and the admin runs list tells
+all of them apart from `hands-on` runs made on the site),
 `GET /api/generations[/<id>]`,
 `POST /api/generations/<id>/cancel`, `POST /api/uploads` (multipart `file`), `GET /api/files/…`,
 `GET /api/status`, `GET|PATCH /api/assist/skills[/<name>]`, `POST /api/assist/skills/upload`

@@ -13,15 +13,15 @@ import { activeEntry, entry, labelKeyOf, type NavEntry } from "@/lib/nav-model";
 import { isPlainClick, useTappedTab } from "@/lib/use-tapped-tab";
 import { cn } from "@/lib/utils";
 import { CoverThumb, NavIcon } from "./cover-thumb";
-import { CreateMenu } from "./create-menu";
 import { CARD_ROW, MENU_ROW_2, ROW_LINE, rowName, SeeAllRow } from "./nav-row";
 import { useNavUi, useViewerKind } from "./nav-ui";
 import { useSearchPalette } from "./search-context";
+import { UpdateAvailable } from "@/components/update-available";
 import { BarPills } from "./status-chips";
 import { NavPrefetcher, warmNav } from "./nav-prefetch";
 import type { FetchedMegaId } from "@/lib/mega-menus";
-import { loadMenusNow } from "./mega-data";
-import { MegaLauncher, preloadMegaPanel } from "./mega-launcher";
+import { loadMenusNow, saveData } from "./mega-data";
+import { MegaLauncher, preloadMegaPanel, primeMegaPanels } from "./mega-launcher";
 import { BarCardMenu } from "./bar-split";
 import { BarIndicator, BarMenusProvider, BarScrim, BarStage, CloseMenusOnRoute, useBarController } from "./bar-menus";
 import { ViewerSlot } from "./viewer-slot";
@@ -30,40 +30,42 @@ import { LangSelector } from "./lang-selector";
 export { prefetchHrefs } from "./nav-prefetch";
 
 /*
- * The top bar (md and up): the wordmark, Create, Studios (the launcher), Apps, Motions & effects, Canvas, Assist and
+ * The top bar (md and up): the wordmark, Create, Studios (the launcher), Fuobe FX, Apps, Motions & effects, Canvas, Chat and
  * Library; search; New creation; who is looking. 56 px on every page. What doesn't fit moves into More, by CSS alone
  * (nothing is measured, so nothing moves after the first paint):
  *   1600 and up   everything, search 280 px, a guest's Log in
- *   1440-1599     the same, search 220 px (Apps, Motions & effects and Canvas each carry a chevron)
- *   1280-1439     Canvas and Assist in More, search 200 px
- *   1024-1279     Apps and Motions & effects in More too
+ *   1440-1599     the same, search 220 px, items 4 px narrower a side (Apps, Motions & effects and Canvas each carry a chevron)
+ *   1280-1439     Canvas and Chat in More, search 200 px
+ *   1024-1279     Fuobe FX, Apps and Motions & effects in More too
  *   768-1023      the same, search and New creation as icon buttons
  * Measured with the site's fonts for a guest, an account and the owner, a classic scrollbar's width to spare at every
  * width. Below md the phone tabs take over (phone-tabs.tsx).
  */
 
 /**
- * A plain bar link (Assist, Library). Its states are the nav's (nav-states.css): the highlight on hover or keyboard
+ * A plain bar link (Chat, Library). Its states are the nav's (nav-states.css): the highlight on hover or keyboard
  * focus, and for the open page (aria-current) a pip under the words, never a fill. The items with a menu are
  * BAR_TRIGGER (bar-split.tsx).
  */
 export const BAR_ITEM =
-  "nav-row nav-mark-under group/bar-item inline-flex h-10 shrink-0 [@media(pointer:coarse)]:h-11 items-center gap-1.5 rounded-[10px] px-2.5 text-[14px] whitespace-nowrap text-foreground/80 nav-hover:text-foreground focus-visible:text-foreground data-[state=open]:text-foreground data-[active]:font-semibold data-[active]:text-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground min-[1440px]:px-3.5";
+  "nav-row nav-mark-under group/bar-item inline-flex h-10 shrink-0 [@media(pointer:coarse)]:h-11 items-center gap-1.5 rounded-[10px] px-2.5 text-[14px] whitespace-nowrap text-foreground/80 nav-hover:text-foreground focus-visible:text-foreground data-[state=open]:text-foreground data-[active]:font-semibold data-[active]:text-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground min-[1600px]:px-3.5";
 
 /**
  * Which bar item holds the open page, one item per page (areaOfPath): Create for the create tools, Studios for a studio
  * or one of its tools, Apps for the apps, Motions & effects for both galleries, each for its own area page; Canvas,
- * Assist and Library for theirs. `page`: the area whose own page this is (its name is marked aria-current).
+ * Chat (and Assist's pages) and Library for theirs. `page`: the area whose own page this is (its name is marked aria-current).
  */
 export function barActive(pathname: string): {
   create: boolean;
   studios: boolean;
   apps: boolean;
   motions: boolean;
+  /** Fuobe FX: its studios and their modes (FX_HOME). */
+  fx: boolean;
   canvas: boolean;
   /** /canvas itself (the Canvas item's own page). */
   canvasHome: boolean;
-  assist: boolean;
+  chat: boolean;
   library: boolean;
   page: AreaId | undefined;
 } {
@@ -74,9 +76,10 @@ export function barActive(pathname: string): {
     studios: area === "studios",
     apps: area === "apps",
     motions: area === "motions",
+    fx: area === "fx",
     canvas: e?.id === "canvas",
     canvasHome: pathname === "/canvas",
-    assist: e?.id === "assist",
+    chat: e?.id === "chat",
     library: e?.kind === "library",
     page: pathname ? areaPageOf(pathname) : undefined,
   };
@@ -108,22 +111,44 @@ function useOn(): (e: NavEntry) => boolean {
 
 const MOTIONS_AREA_HREF = area("motions").href;
 
+/** Fuobe FX's own page, as More lists it where the bar has no room for its item. */
+const FX_ENTRY = entry(area("fx").entryId)!;
+
+/** Fuobe FX in More: its page, with an icon (it has no cover of its own) and its line. */
+function FxRow({ current, row }: { current: boolean; row: number }) {
+  const { lang } = useI18n();
+  return (
+    <IntentLink href={FX_ENTRY.href} aria-current={current ? "page" : undefined} data-col={0} data-row={row} className={cn(CARD_ROW, MENU_ROW_2)}>
+      <span className="grid h-[27px] w-9 shrink-0 place-items-center rounded-[6px] bg-muted">
+        <NavIcon name={FX_ENTRY.icon} className="nav-icon size-4 text-muted-foreground" />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className={rowName(current)}>{translateOr(lang, labelKeyOf(FX_ENTRY.id), FX_ENTRY.label)}</span>
+        <span className={ROW_LINE}>{translateOr(lang, `nav.${FX_ENTRY.id}.what`, FX_ENTRY.what)}</span>
+      </span>
+    </IntentLink>
+  );
+}
+
 function MoreItems() {
   const on = useOn();
   const { t, lang } = useI18n();
   return (
     <>
+      <div className="xl:hidden">
+        <FxRow current={on(FX_ENTRY)} row={0} />
+      </div>
       {pick(["apps", "motions", "effects"]).map((e, i) => (
         <div key={e.id} className="xl:hidden">
-          <RichItem e={e} current={on(e)} row={i} />
+          <RichItem e={e} current={on(e)} row={1 + i} />
         </div>
       ))}
       <div className="xl:hidden">
-        <SeeAllRow href={MOTIONS_AREA_HREF} name={t("nav.seeAllMotions")} data-col={0} data-row={3} className="mt-1" />
+        <SeeAllRow href={MOTIONS_AREA_HREF} name="See all motions & effects" data-col={0} data-row={4} className="mt-1" />
         <div role="separator" className="mx-2.5 my-1.5 h-px bg-border" />
       </div>
-      {pick(["canvas", "assist"]).map((e, i) => (
-        <IntentLink key={e.id} href={e.href} eager={e.eager} aria-current={on(e) ? "page" : undefined} data-col={0} data-row={4 + i} className={cn(CARD_ROW, MENU_ROW_2)}>
+      {pick(["canvas", "chat"]).map((e, i) => (
+        <IntentLink key={e.id} href={e.href} eager={e.eager} aria-current={on(e) ? "page" : undefined} data-col={0} data-row={5 + i} className={cn(CARD_ROW, MENU_ROW_2)}>
           <span className="grid h-[27px] w-9 shrink-0 place-items-center rounded-[6px] bg-muted">
             <NavIcon name={e.icon} className="nav-icon size-4 text-muted-foreground" />
           </span>
@@ -151,9 +176,9 @@ function MoreMenu({ active }: { active: Active }) {
       onOpen={warmMore}
       cardClassName="w-80"
       className="min-[1440px]:hidden"
-      // Marked when it holds the open page at this width: Canvas and Assist always; Apps, Motions and Effects below xl.
-      active={active.canvas || active.assist}
-      data-narrow={active.apps || active.motions || undefined}
+      // Marked when it holds the open page at this width: Canvas and Chat always; Fuobe FX, Apps, Motions and Effects below xl.
+      active={active.canvas || active.chat}
+      data-narrow={active.apps || active.motions || active.fx || undefined}
     >
       <MoreItems />
     </BarCardMenu>
@@ -171,13 +196,14 @@ function BarLinks({ active, onTap }: { active: Active; onTap?: (href: string) =>
   return (
     <>
       {/* An item is marked anywhere in its area, its own page (/create, /studios …) included. */}
-      <CreateMenu active={active.create || active.page === "create"} />
+      <MegaLauncher id="create" active={active.create || active.page === "create"} />
       <MegaLauncher id="studios" active={active.studios || active.page === "studios"} />
+      <MegaLauncher id="fx" active={active.fx || active.page === "fx"} className="hidden xl:inline-flex" />
       <MegaLauncher id="apps" active={active.apps || active.page === "apps"} className="hidden xl:inline-flex" />
       <MegaLauncher id="motions" active={active.motions || active.page === "motions"} className="hidden xl:inline-flex" />
       <MegaLauncher id="canvas" active={active.canvas || active.canvasHome} className="hidden min-[1440px]:inline-flex" />
-      <IntentLink href="/assist" eager data-bar-item="" onClick={tap("/assist")} aria-current={cur(active.assist)} className={cn(BAR_ITEM, "hidden min-[1440px]:inline-flex")}>
-        {t("nav.assist")}
+      <IntentLink href="/chat" eager data-bar-item="" onClick={tap("/chat")} aria-current={cur(active.chat)} className={cn(BAR_ITEM, "hidden min-[1440px]:inline-flex")}>
+        Chat
       </IntentLink>
       <IntentLink href="/library" eager data-bar-item="" onClick={tap("/library")} aria-current={cur(active.library)} className={BAR_ITEM}>
         {t("nav.library")}
@@ -252,6 +278,7 @@ function RightCluster() {
     <>
       <BarPills kind={kind} />
       <LangSelector />
+      <UpdateAvailable />
       <SearchField />
       <NewCreation />
       <ViewerSlot />
@@ -260,17 +287,19 @@ function RightCluster() {
 }
 
 /**
- * Everything the bar's menus need before their first open: the panels' body (its own chunk) and the data (no
- * pictures) of the grouped menus whose item the bar shows at this width. A phone loads none (its sheet asks when it
- * shows one); a browser saving data loads only the code.
+ * Everything the bar's menus need before their first open: the panels' body (its own chunk), the data of the grouped
+ * menus whose item the bar shows at this width, then each of those panels' first screen of pictures, decoded, so the
+ * first open and every switch show whole (primeMegaPanels: nearest `x` first, the pointer's place when it came to the
+ * bar). A phone loads none (its sheet asks when it shows one); a browser saving data loads only the code.
  */
-export function warmBar(): void {
+export function warmBar(x?: number): void {
   if (!window.matchMedia("(min-width: 768px)").matches) return;
   const ids: FetchedMegaId[] = [];
-  if (window.matchMedia("(min-width: 1280px)").matches) ids.push("apps", "motions");
+  if (window.matchMedia("(min-width: 1280px)").matches) ids.push("fx", "apps", "motions");
   if (window.matchMedia("(min-width: 1440px)").matches) ids.push("canvas");
   preloadMegaPanel();
   loadMenusNow(ids);
+  if (!saveData()) primeMegaPanels(x);
 }
 
 /**
@@ -282,11 +311,11 @@ function MenuPrefetch() {
     let stop = () => {};
     const schedule = () => {
       if (typeof window.requestIdleCallback !== "function") {
-        const t = window.setTimeout(warmBar, 300);
+        const t = window.setTimeout(() => warmBar(), 300);
         stop = () => window.clearTimeout(t);
         return;
       }
-      const h = window.requestIdleCallback(warmBar, { timeout: 1500 });
+      const h = window.requestIdleCallback(() => warmBar(), { timeout: 1500 });
       stop = () => window.cancelIdleCallback(h);
     };
     if (document.readyState === "complete") schedule();
@@ -299,18 +328,21 @@ function MenuPrefetch() {
   return null;
 }
 
-/** The main nav: its keys (Left and Right along the items); the first pointer or focus near it warms the menus. */
+/**
+ * The main nav: its keys (Left and Right along the items); the first pointer or focus near it warms the menus (warmBar),
+ * if the page's idle time has not already.
+ */
 function MainNav({ children }: { children: React.ReactNode }) {
   const ctl = useBarController();
   const { t } = useI18n();
   const warmed = useRef(false);
-  const warm = () => {
+  const warm = (x?: number) => {
     if (warmed.current) return;
     warmed.current = true;
-    warmBar();
+    warmBar(x);
   };
   return (
-    <nav aria-label={t("nav.main")} className="flex min-w-0 items-center gap-0.5" onKeyDown={(e) => ctl?.navKey(e)} onPointerEnter={warm} onFocus={warm}>
+    <nav aria-label={t("nav.main")} className="flex min-w-0 items-center gap-0.5" onKeyDown={(e) => ctl?.navKey(e)} onPointerEnter={(e) => warm(e.clientX)} onFocus={() => warm()}>
       {children}
     </nav>
   );

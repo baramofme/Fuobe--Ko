@@ -5,12 +5,14 @@ import { ASR_LANGUAGES, WHISPER_LANGUAGES } from "../speech-languages";
 import { PROMPT_HELPER_PARAM } from "@/lib/comfy";
 import { KANDINSKY_PLACEHOLDER } from "@/lib/kandinsky-prompt";
 import { QWEN21_DECODER, QWEN21_GPU, QWEN21_SPEED } from "@/lib/qwen21-speed";
+import { QWEN_EDIT_SPEED } from "@/lib/qwen-edit-speed";
 import { QMA_AZIMUTHS, QMA_AZIMUTH_LABELS, QMA_DISTANCES, QMA_DISTANCE_LABELS, QMA_DISTANCE_ZOOM, QMA_ELEVATIONS, QMA_ELEVATION_DEGREES, QMA_ELEVATION_LABELS, QMA_MODEL, QMA_PARAMS } from "@/lib/qma";
 import { H3_DECODER, H3_FAST_DECODE_OFFERED, H3_GPU_TIER } from "@/lib/gpu/h3-tier";
 import { loraEntry, loraRef } from "./loras";
 import { AUTO_IMAGE, AUTO_NAME } from "@/lib/auto-image";
 import { ANGLES_LORA, ANY_ANGLE_LORA, MOSAIC_SCALE, MOSAIC_TARGET, SPEAK_GRAPH, SPEAK_LORA, SPEAK_PROMPT } from "./open-tools";
 import { ANY_ANGLE } from "./any-angle";
+import { BODY_DOUBLE } from "./body-double";
 import { RECOLOR_TAP_FIRST } from "./recolor";
 import { CINEMA_CROP, SOUL_ASPECTS, SOUL_TIERS } from "./soul";
 import { RESTORE, offlineRestorePrompt } from "./restore";
@@ -148,7 +150,7 @@ const open: ModelDef[] = [
   // (Ideogram 4, Qwen-Image 2.1, Krea 2, MOSS-Image, FIBO 2), then the edit models (Qwen-Image 2.1, FIBO 2, Krea 2).
   // A studio's "Best" list is its default, then the `top` models in this order (bestForStudio in src/lib/composer.ts).
   // Auto: the Image studio's default on the open engine. Not a model of its own: the server plans each run on the model it
-  // picks (src/lib/auto-image.ts), and the run names that model. Its routes are its picks' own (Ideogram 4 for words,
+  // picks (src/lib/auto-image.ts), and the run names that model. Its routes are its picks' own (Krea 2 Realism for words,
   // Qwen-Image 2.1 for edits), so the picker, the price and the GPU pre-flight read them; it never runs as itself.
   o({
     id: AUTO_IMAGE,
@@ -156,8 +158,8 @@ const open: ModelDef[] = [
     vendor: "Fuobe",
     family: "auto",
     kind: "image",
-    tagline: "Picks the model for you: Ideogram 4 for most pictures and lettering, Krea 2 Realism where Ideogram 4 often declines, Qwen-Image 2.1 for edits",
-    routes: [comfy("t2i", "ideogram4-t2i", "Auto picks the model before the run"), { ...comfy("edit", "qwen-image-21-edit", "Auto: Qwen-Image 2.1, up to 4 references"), unsized: true }],
+    tagline: "Picks the model for you: Krea 2 Realism for most pictures, MOSS-Image for lettering, Qwen-Image 2.1 for edits",
+    routes: [comfy("t2i", "krea2-realism-t2i", "Auto picks the model before the run"), { ...comfy("edit", "qwen-image-21-edit", "Auto: Qwen-Image 2.1, up to 4 references"), unsized: true }],
     options: { aspectRatios: IMG_AR, resolutions: ["1K", "1.5K", "2K"], maxImages: 4, seed: true },
     defaults: { aspectRatio: "1:1", resolution: "1.5K" },
   }),
@@ -583,8 +585,9 @@ const open: ModelDef[] = [
     kind: "image",
     tagline: "Edit with words, up to 3 references",
     badges: ["top"],
+    // Options → Speed: Fast (4 steps, the Lightning LoRA, the default) or Best (40 steps): src/lib/qwen-edit-speed.ts.
     routes: [comfy("edit", "qwen-image-edit-2511-multi")],
-    options: { maxImages: 3, seed: true, negativePrompt: true },
+    options: { maxImages: 3, seed: true, negativePrompt: true, controls: [QWEN_EDIT_SPEED] },
   }),
   o({
     id: "oss-flux-kontext",
@@ -810,6 +813,24 @@ const open: ModelDef[] = [
     routes: [comfy("t2v", "minimax-h3-trim-t2v", "FastH3 Trim, 8 steps, experimental")],
     options: { aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"], durations: [3, 5, 10, 15], resolutions: ["768p"], seed: true, audio: "always", promptFormat: "minimax-h3" },
     defaults: { aspectRatio: "16:9", duration: 5, resolution: "768p" },
+    hidden: true,
+  }),
+  // MiniMax H3's GPU tier → Flash (any card, picked in Options → GPU tier): Video Rebirth's HyperFlow H3 Flash as GGUF. Listed for its
+  // licence, its switch in Models & licences and the pre-flight's readiness; never in a picker.
+  o({
+    id: "oss-minimax-h3-flash",
+    name: "MiniMax H3 · H3 Flash",
+    vendor: "Video Rebirth",
+    family: "minimax-h3",
+    kind: "video",
+    tagline: "MiniMax H3 in 6 steps with a natural, filmic look, from words, a start frame, or start and end frames; its 9 GB build fits 16 GB GPUs · MiniMax H3 Community License",
+    routes: [
+      comfy("t2v", "minimax-h3-flash-t2v", "H3 Flash, 6 steps"),
+      comfy("i2v", "minimax-h3-flash-i2v", "H3 Flash, 6 steps; the clip takes the start frame's shape"),
+      comfy("flf2v", "minimax-h3-flash-flf2v", "H3 Flash, 6 steps; the clip takes the start frame's shape"),
+    ],
+    options: { aspectRatios: ["auto", "16:9", "9:16", "1:1", "4:3", "3:4"], durations: [3, 5, 10, 15], resolutions: ["768p"], seed: true, endFrame: true, audio: "always", promptFormat: "minimax-h3" },
+    defaults: { aspectRatio: "auto", duration: 5, resolution: "768p" },
     hidden: true,
   }),
   o({
@@ -1437,6 +1458,21 @@ const open: ModelDef[] = [
     hidden: true,
     routes: [comfy("scene-edit", "video-scene-edit-h3", "Openjutsu object: SAM 3.1 tracks what you name, MiniMax H3 + DMAD redraw only that, clip by clip")],
     options: { seed: true, resolutions: ["480p", "720p", "1080p"], maxImages: 1 },
+  }),
+  // Fuobe Reshoot (Genjutsu; src/lib/catalog/reshoot.ts): Viggle Remake on MiniMax H3, one graph per choice. Your GPU only.
+  o({
+    id: "oss-h3-reshoot",
+    name: "Fuobe Reshoot",
+    vendor: "MiniMax × Viggle",
+    family: "minimax-h3",
+    kind: "video",
+    tagline: "Same shot. Anything you change: who's in it, or what's in it · the clip's motion, camera and sound kept · 32 GB GPU",
+    hidden: true,
+    routes: [
+      comfy("video-swap", "video-reshoot-swap-h3", "Viggle Remake swap (int8): a new person plays the part from the painted first frame; Qwen3-VL 8B describes the motion"),
+      comfy("scene-edit", "video-reshoot-edit-h3", "Viggle Remake edit (int8): an outfit, an object, the place, the weather or the light changes from the painted first frame"),
+    ],
+    options: { seed: true, resolutions: ["480p", "720p"], maxImages: 1 },
   }),
   o({
     id: "oss-from-picture-frame",
@@ -2789,6 +2825,30 @@ const open: ModelDef[] = [
     defaults: {},
     hidden: true,
   }),
+  // Body Double's models (the app's own page runs them): InstantHMR finds every person's MHR body, ComfyUI's SAM 3D Body
+  // nodes draw it in the picked look, render the SCAIL pose and export a skinned GLB. Listed for their licence and switch.
+  o({
+    id: BODY_DOUBLE.photoModel,
+    name: "Body Double",
+    vendor: "Naturalpad InstantHMR + Meta MHR",
+    family: "instanthmr",
+    kind: "image",
+    tagline: "Every person's 3D body from a photo: drawn over each person's whole outline, a skinned GLB and the pose · 8 GB GPU",
+    routes: [{ ...comfy(BODY_DOUBLE.photoOp, BODY_DOUBLE.photoGraph, "RT-DETR finds the people, InstantHMR medium recovers each body"), maxImages: 1 }],
+    options: { promptless: true, maxImages: 1, requires: { images: 1, msg: "Add a photo with people in it" } },
+    hidden: true,
+  }),
+  o({
+    id: BODY_DOUBLE.clipModel,
+    name: "Body Double motion capture",
+    vendor: "Naturalpad InstantHMR + Meta MHR",
+    family: "instanthmr",
+    kind: "video",
+    tagline: "Motion capture from a clip: the body over every frame, an animated skinned GLB and the pose video · 10 GB GPU",
+    routes: [comfy(BODY_DOUBLE.clipOp, BODY_DOUBLE.clipGraph, "24 fps, up to 15 s, smoothed")],
+    options: { promptless: true },
+    hidden: true,
+  }),
 ];
 
 /** fal's FFmpeg utilities (docs/research/paid-model-apis-2.md): the cloud side of join clips and Kling extend. */
@@ -2917,10 +2977,11 @@ function original(spec: { id: string; open: ModelRoute[]; options: ModelOptions;
 }
 
 /**
- * Fuobe Animation's hosted gap clip (fal's Wan 2.2 A14B start/end-frame route): the cloud film's chained route takes
- * LoRAs the way each gap's clip does, so the run keeps AniSora when it is planned and each gap sends it to `/lora`.
+ * Fuobe Animation's hosted gap clip (Replicate's fast Wan 2.2 A14B, start and last image): the cloud film's chained route
+ * takes LoRAs the way each gap's clip does (one per expert), so the run keeps AniSora when it is planned and each gap
+ * sends it as the high-noise expert's weights.
  */
-const ANIMATION_GAP = ORIGINAL_HALVES.get("fuobe-animation")?.routes.find((r) => r.op === "flf2v" && r.provider === "fal");
+const ANIMATION_GAP = ORIGINAL_HALVES.get("fuobe-animation")?.routes.find((r) => r.op === "flf2v" && r.provider === "replicate");
 
 /** Fuobe DoP on both engines: a start frame (and an end frame for a transition), 3 or 5 s (49 or 81 frames at 16 fps on Wan). */
 const DOP_OPTIONS: ModelOptions = {
@@ -2982,7 +3043,7 @@ const originals: ModelDef[] = [
         // Frames mode: one start/end-frame clip per pair of frames, the motion's LoRAs on each, then joined.
         KEYFRAME_FILM,
       ],
-      tagline: "Camera motions and effects with their LoRAs on Wan 2.2 · free on your GPU (24 GB), or hosted on fal",
+      tagline: "Camera motions and effects with their LoRAs on Wan 2.2 · free on your GPU (24 GB), or hosted on Replicate",
       options: DOP_OPTIONS,
     }),
     // 480p on the user's GPU (720p takes about three times as long); 720p in the cloud, where a run with LoRAs costs the same.
@@ -3010,7 +3071,7 @@ const originals: ModelDef[] = [
     ...original({
       id: "fuobe-animation",
       open: [comfy("keyframes", "wan22-inbetween-anisora", "every gap on one set of loaders: AniSora 3.2 + lightx2v 4 steps, every Nth frame, one video")],
-      tagline: "Keyframes in, the in-betweens drawn, one finished animation · Wan 2.2 + AniSora free on your GPU (24 GB), or hosted on fal",
+      tagline: "Keyframes in, the in-betweens drawn, one finished animation · Wan 2.2 + AniSora free on your GPU (24 GB), or hosted on Replicate",
       options: {
         inbetween: true,
         aspectRatios: ["auto", ...VID_AR],
@@ -3028,12 +3089,12 @@ const originals: ModelDef[] = [
       ...(ORIGINAL_HALVES.get("fuobe-animation")?.routes ?? []),
       {
         op: "keyframes",
-        provider: "fal",
-        endpoint: "fal-ai/wan/v2.2-a14b/image-to-video",
+        provider: "replicate",
+        endpoint: "wan-video/wan-2.2-i2v-fast",
         chained: true,
-        note: "one hosted clip per gap with AniSora, joined",
+        note: "one hosted clip per gap with AniSora, each brought to its gap's frames, joined",
         // Without a LoRA field here the planner leaves AniSora out of the film and refuses it (prepare's lost-LoRA check).
-        ...(ANIMATION_GAP?.map?.loras && { loraEndpoint: ANIMATION_GAP.loraEndpoint, map: { loras: ANIMATION_GAP.map.loras } }),
+        ...(ANIMATION_GAP?.map?.loras && { map: { loras: ANIMATION_GAP.map.loras } }),
       },
     ],
     engineDefaults: { open: { resolution: "720p" } },
@@ -3063,18 +3124,31 @@ const originals: ModelDef[] = [
   },
   // Fuobe Genjutsu (O5): the parity studio's Genjutsu rebuilt on open weights, one model per mode on both engines, and Lite as the
   // cheaper, faster tier of the same Original (src/lib/catalog/genjutsu.ts plans the pieces, masks, looks and sound).
-  original({
-    id: "fuobe-genjutsu-motion",
-    open: [comfy("motion-transfer", "wan-animate2", "Wan Animate 2: the whole selection in 81-frame fragments, the clip's fps and sound kept")],
-    tagline: "Your character performs the clip's moves · Wan Animate 2 free on your GPU (24 GB), Wan 2.2 Animate on fal",
-    options: { seed: true, resolutions: ["480p", "720p"], maxImages: 1, promptOptional: true },
-  }),
-  original({
-    id: "fuobe-genjutsu-motion-lite",
-    open: [comfy("motion-transfer", "wan-animate2", "Wan Animate 2 at 480p with 4 distilled steps")],
-    tagline: "The quick tier: 480p · Wan Animate 2 in 4 steps on your GPU, Wan 2.2 Animate turbo on fal",
-    options: { seed: true, resolutions: ["480p"], maxImages: 1, promptOptional: true },
-  }),
+  // In the cloud on MiniMax H3 Max Recast, fal's successor to Wan 2.2 Animate: the character takes the person's place in the
+  // clip's own setting (on your GPU, Wan Animate 2 keeps its photo's setting).
+  {
+    ...original({
+      id: "fuobe-genjutsu-motion",
+      open: [comfy("motion-transfer", "wan-animate2", "Wan Animate 2: the whole selection in 81-frame fragments, the clip's fps and sound kept")],
+      tagline: "Your character performs the clip's moves · Wan Animate 2 free on your GPU (24 GB), MiniMax H3 Max Recast in the cloud",
+      options: { seed: true, resolutions: ["480p", "720p"], maxImages: 1, promptOptional: true },
+    }),
+    // The cloud half's own defaults are Recast's; the model as a whole keeps a size both engines read.
+    defaults: { resolution: "720p" },
+    engineOptions: { cloud: { resolutions: ["768P", "1080P"] } },
+    engineDefaults: { cloud: { resolution: "1080P" } },
+  },
+  {
+    ...original({
+      id: "fuobe-genjutsu-motion-lite",
+      open: [comfy("motion-transfer", "wan-animate2", "Wan Animate 2 at 480p with 4 distilled steps")],
+      tagline: "The quick tier: 480p · Wan Animate 2 in 4 steps on your GPU, MiniMax H3 Max Recast at 768p in the cloud",
+      options: { seed: true, resolutions: ["480p"], maxImages: 1, promptOptional: true },
+    }),
+    defaults: { resolution: "480p" },
+    engineOptions: { cloud: { resolutions: ["768P"] } },
+    engineDefaults: { cloud: { resolution: "768P" } },
+  },
   {
     ...original({
       id: "fuobe-genjutsu-swap",

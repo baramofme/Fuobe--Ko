@@ -178,13 +178,19 @@ const HOME_LINE_PARAMS: Record<string, (f: HomeFacts) => Params> = {
 };
 
 /** Destinations with a section of their own on Home, so they aren't pills as well. */
-export const HOME_OWN_SECTIONS = ["/assist", "/motions", "/effects", "/apps", "/live-edit"];
+export const HOME_OWN_SECTIONS = ["/motions", "/effects", "/apps", "/live-edit"];
 
 /** Live edit's moment on Home: a recorded session plays (no GPU, no requests), with one way in. */
 export const HOME_LIVE = {
   href: "/live-edit?from=home",
   title: "Change it as you type",
   line: "Type a change and watch the picture follow, then keep adding to the words. Nothing blurs, however many changes you make.",
+};
+
+export const HOME_BODY_DOUBLE = {
+  href: "/apps/app-body-double?from=home",
+  title: "A 3D body double for everyone in the shot",
+  line: "Every person in a photo or a clip becomes their double, clothes and hair included, with a full 3D body you can animate. Or go live with your camera, right in the browser.",
 };
 
 /** Assist's starter skills, as its empty chat lists them first (assist-view.tsx). */
@@ -274,10 +280,12 @@ export function homeCard(id: string): PresetCardData {
 export const presetHref = (id: string) => (id.startsWith("app-") ? `/apps/${id}` : `/video?preset=${id}`);
 
 const navItems = (label: string) => NAV.find((g) => g.label === label)?.items ?? [];
-export const navLabel = (href: string) => [...navItems("Create"), ...navItems("Studios")].find((i) => i.href === href)?.label ?? href;
+/** The places to create: Create's, the studios and Fuobe FX's (its studios moved there from Studios, its page first). */
+const placeItems = () => [...navItems("Create"), ...navItems("Studios"), ...navItems("Fuobe FX")];
+export const navLabel = (href: string) => placeItems().find((i) => i.href === href)?.label ?? href;
 
 /** The navigation's places to create, but Home. */
-export const homeDestinations = () => [...navItems("Create"), ...navItems("Studios")].filter((i) => i.href !== "/");
+export const homeDestinations = () => placeItems().filter((i) => i.href !== "/");
 
 /** The places to create that have no card or section of their own on Home, in the navigation's order. */
 export const homePills = () =>

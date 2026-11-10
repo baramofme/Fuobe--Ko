@@ -154,6 +154,14 @@ export const PRESET_PREVIEWS: Record<string, PresetPreviewMedia> = {
     "model": "minimax-h3",
     "variant": "lean-json"
   },
+  "app-body-double": {
+    "poster": "/previews/presets/app-body-double.jpg?v=126dc81a",
+    "video": "/previews/presets/app-body-double.mp4?v=db8221c5",
+    "run": "body-double-covers",
+    "engine": "comfyui",
+    "model": "oss-body-double",
+    "variant": ""
+  },
   "app-breakdown": {
     "poster": "/previews/presets/app-breakdown.jpg?v=c7d1bbc5",
     "video": "/previews/presets/app-breakdown.mp4?v=6649ebea",
@@ -336,6 +344,14 @@ export const PRESET_PREVIEWS: Record<string, PresetPreviewMedia> = {
     "engine": "comfyui",
     "model": "minimax-h3",
     "variant": "lean-json"
+  },
+  "app-fix-faces": {
+    "poster": "/previews/presets/app-fix-faces.jpg?v=b06f4d33",
+    "video": "/previews/presets/app-fix-faces.mp4?v=263883e5",
+    "run": "fix-faces-covers",
+    "engine": "comfyui",
+    "model": "oss-h3-fix-faces",
+    "variant": ""
   },
   "app-fridge-ad": {
     "poster": "/previews/presets/app-fridge-ad.jpg?v=2ac8c16a",
@@ -3216,8 +3232,8 @@ export const PRESET_PREVIEWS: Record<string, PresetPreviewMedia> = {
     "variant": "lean-json"
   },
   "motion-catwalk": {
-    "poster": "/previews/presets/motion-catwalk.jpg?v=57f553e7",
-    "video": "/previews/presets/motion-catwalk.mp4?v=2b71fd01",
+    "poster": "/previews/presets/motion-catwalk.jpg?v=f357606b",
+    "video": "/previews/presets/motion-catwalk.mp4?v=75f24e9a",
     "run": "comfyui-previews-2026-10",
     "engine": "comfyui",
     "model": "minimax-h3",

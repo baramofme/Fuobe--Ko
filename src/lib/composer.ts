@@ -7,7 +7,7 @@ import { FORMAT_INFO } from "./av/formats";
 import { fpsPlan, fpsSummary } from "./av/fps";
 import { sideMultipleProblem, targetShortEdge, upscaledSize, upscaleFactorFor, upscaleTier } from "./av/upscale";
 import { wholeClipProblem, wholeClipTool } from "./av/video-finish";
-import { clipFpsProblem, clipSizeProblem, clipWindowProblem } from "./catalog/clip-windows";
+import { clipFpsProblem, clipSizeProblem, clipWindow, clipWindowProblem } from "./catalog/clip-windows";
 import { clipBilling, sourceLengthProblem } from "./catalog/plan";
 import { addFrameAt, frameTimes, framesInputs, removeFrameAt, spread, type FrameSupport } from "./catalog/keyframes";
 import { keyTimes, totalSeconds, type InbetweenTiming } from "./inbetween";
@@ -318,8 +318,10 @@ export function clipBlocker(
   model: (Pick<ModelDef, "engine" | "options" | "defaults"> & Partial<Pick<ModelDef, "id" | "name">>) | undefined,
   ramBytes: number | undefined,
 ): string | null {
-  // (A clip relit, extended or given a new moment on a hosted model with a window of its own: H3 Max relight up to 15 s.)
-  if ((op === "v2v" || op === "relight-video" || op === "insert-moment" || op === "extend") && model?.id && (facts?.duration || facts?.width)) {
+  // (A clip relit, extended, reframed, erased from, driving a motion transfer or given a new moment on a hosted model with a
+  // window of its own: H3 Max relight up to 15 s, Luma Ray 3.2 reframe up to 10 s.)
+  const windowed = op === "v2v" || op === "relight-video" || op === "insert-moment" || op === "extend" || op === "reframe" || op === "remove-object" || op === "motion-transfer";
+  if (windowed && model?.id && (facts?.duration || facts?.width)) {
     const named = { id: model.id, name: model.name ?? model.id, engine: model.engine };
     return (
       (facts.duration ? clipWindowProblem(named, facts.duration, facts.fps) : null) ??
@@ -959,6 +961,14 @@ export function viewerDefaults<D extends { cloud: string; open: string }>(defaul
 }
 
 /**
+ * The open default where this viewer's runs go to this install's GPUs (StudioConfig.hereDefault), when they run it now
+ * (`runs`: runnable-here.ts runsHere for it); otherwise the defaults as they are.
+ */
+export function hereDefaults<D extends { cloud: string; open: string }>(defaults: D, hereDefault: string | undefined, runs: boolean): D {
+  return hereDefault && runs ? { ...defaults, open: hereDefault } : defaults;
+}
+
+/**
  * What the engine switch (or a model change) does to the composer's model: the model id to move to, or undefined to
  * keep it. An app runs only on its own models for the engine (its recipe's, then its route's): any other model, even
  * one that also runs on this engine (Fuobe Soul, AI Influencer's cloud model), gives way to the first. A model that
@@ -1204,7 +1214,7 @@ export function studioBest(models: ModelDef[], engine: Engine, defaultId: string
 }
 
 export interface ModelGroup {
-  id: "boxes" | "recent" | "starred" | "best" | "all" | "results" | "paid";
+  id: "boxes" | "recent" | "starred" | "best" | "all" | "results" | "paid" | "more";
   label: string;
   models: ModelDef[];
 }
@@ -1230,6 +1240,10 @@ export function matchScore(m: Pick<ModelDef, "name" | "vendor" | "tagline" | "fa
  * models" under them, "All models" when it is the only one). `count` is still every model of
  * the engine. With a query: one list across every allowed engine, best
  * matches first.
+ *
+ * `runs` (src/lib/runnable-here.ts runsHere): the models that run on this install's GPUs now come first everywhere: the
+ * sections above hold only those, the rest of them follow as "Ready to run", and the others go last as "More models",
+ * each with what runs it. A search lists them first among equal matches.
  */
 export function groupModels(input: {
   models: ModelDef[];
@@ -1244,21 +1258,27 @@ export function groupModels(input: {
   boxes?: boolean;
   /** A short list in its own order (an app's models): one group. */
   flat?: boolean;
+  /** Does it run here now (runnable-here.ts)? Absent: every model does. */
+  runs?: (m: ModelDef) => boolean;
 }): { groups: ModelGroup[]; count: number } {
-  const { models, engine, engines, query, recent, starred, best, boxes } = input;
+  const { models, engine, engines, query, recent, starred, best, boxes, runs } = input;
+  const later = (m: ModelDef) => (runs && !runs(m) ? 1 : 0);
   const q = query.trim();
   if (q) {
     const hits = models
       .filter((m) => engines.includes(m.engine))
       .map((m, i) => ({ m, s: matchScore(m, q), i }))
       .filter((x) => x.s >= 0)
-      .sort((a, b) => a.s - b.s || (boxes ? Number(!readsBoxes(a.m)) - Number(!readsBoxes(b.m)) : 0) || Number(a.m.engine !== engine) - Number(b.m.engine !== engine) || a.i - b.i)
+      .sort((a, b) => a.s - b.s || later(a.m) - later(b.m) || (boxes ? Number(!readsBoxes(a.m)) - Number(!readsBoxes(b.m)) : 0) || Number(a.m.engine !== engine) - Number(b.m.engine !== engine) || a.i - b.i)
       .map((x) => x.m);
     return { groups: hits.length ? [{ id: "results", label: "Results", models: hits }] : [], count: hits.length };
   }
   const pool = models.filter((m) => m.engine === engine);
-  if (input.flat) return { groups: pool.length ? [{ id: "all", label: "Models", models: pool }] : [], count: pool.length };
-  const byId = new Map(pool.map((m) => [m.id, m]));
+  const more = runs ? pool.filter((m) => !runs(m)) : [];
+  const moreGroup: ModelGroup[] = more.length ? [{ id: "more", label: "More models", models: more }] : [];
+  const now = more.length ? pool.filter((m) => !more.includes(m)) : pool;
+  if (input.flat) return { groups: [...(now.length ? [{ id: "all" as const, label: "Models", models: now }] : []), ...moreGroup], count: pool.length };
+  const byId = new Map(now.map((m) => [m.id, m]));
   const used = new Set<string>();
   const take = (ids: string[], max: number) => {
     const out: ModelDef[] = [];
@@ -1272,14 +1292,15 @@ export function groupModels(input: {
   };
   const top = (
     [
-      ...(boxes ? [{ id: "boxes" as const, label: "studio.model.groupReadsBoxes", models: take(pool.filter((m) => readsBoxes(m)).map((m) => m.id), 50) }] : []),
+      ...(boxes ? [{ id: "boxes" as const, label: "studio.model.groupReadsBoxes", models: take(now.filter((m) => readsBoxes(m)).map((m) => m.id), 50) }] : []),
       { id: "recent", label: "studio.model.groupRecent", models: take(recent, 3) },
       { id: "starred", label: "studio.model.groupStarred", models: take(starred, 50) },
       { id: "best", label: "studio.model.groupBest", models: take(best, 4) },
     ] satisfies ModelGroup[]
   ).filter((g) => g.models.length);
-  const rest = pool.filter((m) => !used.has(m.id));
-  const groups: ModelGroup[] = [...top, ...(rest.length ? [{ id: "all" as const, label: top.length ? "studio.model.groupMore" : "studio.model.groupAll", models: rest }] : [])];
+  const rest = now.filter((m) => !used.has(m.id));
+  const restLabel = more.length ? "Ready to run" : top.length ? "studio.model.groupMore" : "studio.model.groupAll";
+  const groups: ModelGroup[] = [...top, ...(rest.length ? [{ id: "all" as const, label: restLabel, models: rest }] : []), ...moreGroup];
   return { groups, count: pool.length };
 }
 
@@ -1335,4 +1356,21 @@ export function relatedHref(related: { href: string; models?: Partial<Record<Eng
   const model = related.models?.[engine];
   if (!model) return related.href;
   return `${related.href}${related.href.includes("?") ? "&" : "?"}model=${encodeURIComponent(model)}`;
+}
+
+/**
+ * The clip length the attached clip is fitted to before Generate (a part offered: src/components/av/fit-clip.tsx): a clip
+ * edit's window, or a tool's longest source (Kandinsky VSR 5 s, FLUX video upscale 20 s). Undefined when nothing limits it.
+ */
+export function clipFitWindow(
+  op: Operation | undefined,
+  model: (Pick<ModelDef, "options"> & Partial<Pick<ModelDef, "id" | "engine">>) | undefined,
+  fps?: number,
+): { min?: number; max: number } | undefined {
+  if (!model) return undefined;
+  const windowed = op === "v2v" || op === "relight-video" || op === "insert-moment" || op === "extend" || op === "reframe" || op === "remove-object" || op === "motion-transfer";
+  const w = windowed && model.id ? clipWindow({ id: model.id, engine: model.engine }, fps) : undefined;
+  if (w?.max) return { min: w.min, max: w.max };
+  const max = model.options.maxSourceSeconds;
+  return max ? { max } : undefined;
 }

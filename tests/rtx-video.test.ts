@@ -249,6 +249,8 @@ describe("the card check", () => {
     expect(readCard("Quadro RTX 8000")).toEqual({ rtx: true, series: 20 });
     expect(readCard("NVIDIA GB10")).toEqual({ rtx: undefined });
     expect(readCard("NVIDIA GeForce GTX 1080 Ti").rtx).toBe(false);
+    // NVIDIA's CMP mining cards (CMP 170HX, this install's cards): their name says non-RTX — refused, never a guess.
+    expect(readCard("cuda:0 NVIDIA CMP 170HX : cudaMallocAsync").rtx).toBe(false);
     expect(readCard("cuda:0 AMD Radeon RX 7900 XTX : native").rtx).toBe(false);
     expect(readCard("mps", "mps").rtx).toBe(false);
     expect(readCard("cpu", "cpu").rtx).toBe(false);
@@ -290,6 +292,7 @@ describe("the card check", () => {
       inventory(rtx4070, { cpuOnly: true }),
       inventory({ name: "cuda:0 AMD Radeon RX 7900 XTX : native", type: "cuda" }),
       inventory({ name: "cuda:0 NVIDIA GeForce GTX 1080 : cudaMallocAsync", type: "cuda" }),
+      inventory({ name: "cuda:0 NVIDIA CMP 170HX : cudaMallocAsync", type: "cuda" }),
       inventory({ name: "mps", type: "mps" }),
     ]) {
       expect(at(RTX.RTX_UPSCALE_WORKFLOW, inv)).toMatchObject({ state: "unsupported", reason: GPU_NEED_TEXT["nvidia-rtx"] });
@@ -322,6 +325,7 @@ describe("the card check", () => {
     expect(RTX.rtxStanding("nvidia-rtx", "RTX 4070")).toBe("fits");
     expect(RTX.rtxStanding("nvidia-rtx-40", "RTX 3080")).toBe("no");
     expect(RTX.rtxStanding("nvidia-rtx", "GTX 1660")).toBe("no");
+    expect(RTX.rtxStanding("nvidia-rtx", "CMP 170HX")).toBe("no");
     expect(RTX.rtxStanding("nvidia-rtx", undefined)).toBe("unknown");
     expect(RTX.rtxStanding("nvidia-rtx", "H100 80GB HBM3")).toBe("unknown");
     // A CPU or Apple ComfyUI reports no card name: the model's own chip says it can't run there.
@@ -405,5 +409,23 @@ describe("where the choices show up", () => {
     expect(fix).not.toContain("The other choices in this tool work on your GPU");
     // The arrow keys skip a choice that is switched off (Quick · RTX on a card that can't run it).
     expect(fs.readFileSync(path.join(ROOT, "src/components/studio/radio-keys.ts"), "utf8")).toContain(':not([aria-disabled="true"])');
+  });
+});
+
+describe("Upscale → Video on this install's GPUs", () => {
+  it("starts on Quick · RTX where they run it, and keeps the studio's defaults anywhere else", async () => {
+    const { VIDEO_UPSCALE_STUDIO } = await import("@/lib/studios");
+    const { hereDefaults } = await import("@/lib/composer");
+    const { runsHere } = await import("@/lib/runnable-here");
+    expect(VIDEO_UPSCALE_STUDIO.hereDefault).toBe(RTX.RTX_UPSCALE_MODEL);
+    const rtx = { id: RTX.RTX_UPSCALE_MODEL, kind: "video" as const, engine: "open" as const };
+    // Their cards run it: it is the open default there.
+    const fits = { rules: undefined, owner: false };
+    expect(hereDefaults(VIDEO_UPSCALE_STUDIO.defaultModels, VIDEO_UPSCALE_STUDIO.hereDefault, runsHere(fits, rtx))).toEqual({ cloud: "topaz-video", open: RTX.RTX_UPSCALE_MODEL });
+    // They can't run it now (no RTX card among them), or runs go to the viewer's own GPU: the studio's own default.
+    const noCard = { rules: { own: { [RTX.RTX_UPSCALE_MODEL]: { need: "gpu" as const } } }, owner: false };
+    expect(runsHere(noCard, rtx)).toBe(false);
+    expect(hereDefaults(VIDEO_UPSCALE_STUDIO.defaultModels, VIDEO_UPSCALE_STUDIO.hereDefault, runsHere(noCard, rtx))).toEqual(VIDEO_UPSCALE_STUDIO.defaultModels);
+    expect(hereDefaults(VIDEO_UPSCALE_STUDIO.defaultModels, undefined, true)).toEqual(VIDEO_UPSCALE_STUDIO.defaultModels);
   });
 });

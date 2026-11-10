@@ -19,6 +19,8 @@
  * - A model folder that isn't there yet (a drive still locked after a restart): the worker waits for it, says so, and
  *   sends no list of files meanwhile; once the folder is there, the waiting job is taken within one look.
  * - New worker code installed mid-job: it takes no new job, finishes the one it has, and ends to start again on it.
+ * - A node pack whose folder is there but whose nodes its ComfyUI didn't load is said in its list, with the missing
+ *   classes, and kept for its next start.
  */
 import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
@@ -87,7 +89,7 @@ function addWorker(): W {
 
 let gens = 0;
 /** A job for the workers that loads one input (a picture, or a clip) and saves a picture (or what `save` says). */
-function addTask(o: { clip?: Buffer; save?: { class_type: string; inputs: Record<string, unknown> } } = {}): { id: string; input: string } {
+function addTask(o: { clip?: Buffer; save?: { class_type: string; inputs: Record<string, unknown> }; account?: string } = {}): { id: string; input: string } {
   const gid = `recovery-gen-${++gens}`;
   const now = Date.now();
   db()
@@ -99,7 +101,7 @@ function addTask(o: { clip?: Buffer; save?: { class_type: string; inputs: Record
     principal: "owner",
     generationId: gid,
     graph: { "1": loader, "3": { class_type: "KSampler", inputs: { seed: 1, steps: 4 } }, "9": o.save ?? { class_type: "SaveImage", inputs: { images: ["1", 0], filename_prefix: "fuobe/worker-test" } } },
-    pool: { pools: ["pool"], rankAt: now, lane: "small", needs: { workflowId: "wf-test", files: [], packs: [], minVramBytes: 0 } },
+    pool: { pools: ["pool"], account: o.account, rankAt: now, lane: "small", needs: { workflowId: "wf-test", files: [], packs: [], minVramBytes: 0 } },
   });
   return { id: t.id, input };
 }
@@ -172,7 +174,7 @@ function start(
   w: W,
   s: Studio,
   p: Pc,
-  o: { steps?: number; stepMs?: number; failNext?: string; stallMin?: number; hungMin?: number; ffmpeg?: string | null; rescanMs?: number; modelsCheckMs?: number; modelDirs?: string[]; requirements?: unknown; pins?: Record<string, string>; command?: string[]; readGpu?: () => Promise<unknown>; gpuEveryMs?: number; port?: number; now?: () => number; sleep?: (ms: number) => Promise<void>; env?: Record<string, string | undefined>; codeWatch?: unknown } = {},
+  o: { steps?: number; stepMs?: number; failNext?: string; stallMin?: number; hungMin?: number; ffmpeg?: string | null; rescanMs?: number; modelsCheckMs?: number; modelDirs?: string[]; requirements?: unknown; pins?: Record<string, string>; command?: string[]; readGpu?: () => Promise<unknown>; gpuEveryMs?: number; port?: number; now?: () => number; sleep?: (ms: number) => Promise<void>; env?: Record<string, string | undefined>; codeWatch?: unknown; updateDeferMs?: number } = {},
 ) {
   const ctrl = new AbortController();
   const cfg = {
@@ -215,6 +217,7 @@ function start(
     ...(o.modelsCheckMs && { modelsCheckMs: o.modelsCheckMs }),
     ...(o.env && { env: o.env }),
     ...(o.codeWatch ? { codeWatch: o.codeWatch } : {}),
+    ...(o.updateDeferMs !== undefined && { updateDeferMs: o.updateDeferMs }),
   });
   const r = { ctrl, done };
   running.push(r);
@@ -544,6 +547,54 @@ http.createServer((q, s) => { s.writeHead(200, { "content-type": "application/js
     expect(p.logs.some((l) => /comfy-crashes/.test(l))).toBe(true);
   });
 
+  it("dropped connections (a deploy, a proxy): no job is said to stop, a lone missed beat says nothing, and the job runs", async () => {
+    const w = addWorker();
+    const s = studio();
+    const p = pc();
+    const dropped = () => Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNRESET" } });
+    const api = apiAs(routes, null);
+    let lost: string | null = null;
+    let beats = 0;
+    s.intercept = async (q, init) => {
+      // The studio gives out the job on its first claim, and the answer is lost on the way; its second beat doesn't
+      // get through either.
+      if (q === "/api/gpu/computer/claim" && !lost) {
+        const res = await api(q, init);
+        if (res.status !== 200) return res;
+        lost = ((await res.json()) as { task: { id: string } }).task.id;
+        throw dropped();
+      }
+      if (q === "/api/gpu/computer/beat" && ++beats === 2) throw dropped();
+      return undefined;
+    };
+    const { id } = addTask();
+    start(w, s, p);
+    const t = await ended(id);
+    expect(lost).toBe(id);
+    expect(t.state).toBe("done");
+    expect(fs.readFileSync(tasks.outputFile(id, 0)).equals(FAKE_PNG)).toBe(true);
+    // The claim sent again got the same job, and it ran once.
+    expect(prompts(p)).toBe(1);
+    await until(() => beats >= 3, 60_000);
+    expect(p.logs.filter((l) => /job stopped|Can't reach the studio|can't ask the studio|trying again/.test(l))).toEqual([]);
+  });
+
+  it("a studio it can't reach for longer: said once with the network's reason, and once when it answers again", async () => {
+    const w = addWorker();
+    const s = studio();
+    const p = pc();
+    let down = true;
+    s.intercept = (q) => {
+      if (down && q === "/api/gpu/computer/beat") throw Object.assign(new TypeError("fetch failed"), { cause: { code: "UND_ERR_SOCKET" } });
+      return undefined;
+    };
+    start(w, s, p);
+    await until(() => p.logs.some((l) => /Can't reach the studio/.test(l)), 60_000);
+    down = false;
+    await until(() => p.logs.some((l) => /The studio answers again/.test(l)), 60_000);
+    expect(p.logs.filter((l) => /Can't reach the studio|answers again/.test(l))).toEqual(["Can't reach the studio: fetch failed (UND_ERR_SOCKET)", "The studio answers again."]);
+  });
+
   it("stops when the studio no longer knows its token, and says so", async () => {
     const w = addWorker();
     const s = studio();
@@ -558,6 +609,67 @@ http.createServer((q, s) => { s.writeHead(200, { "content-type": "application/js
     const p = pc();
     await expect(runWorker({ site: "http://studio.example", token: "t", workDir: p.workDir, comfyDir: p.comfyDir }, { home: p.home })).rejects.toThrow(/https/);
   });
+});
+
+describe("the worker's timeline", () => {
+  it("its log lines reach the studio masked, each in one beat; its job's handoffs and stages are rows in order", async () => {
+    const w = addWorker();
+    const s = studio();
+    const p = pc();
+    const beats: { lines: { at: number; level: string; line: string }[] }[] = [];
+    s.intercept = (path, init) => {
+      if (path === "/api/gpu/computer/beat") beats.push({ lines: (JSON.parse(String(init.body)) as { log?: { at: number; level: string; line: string }[] }).log ?? [] });
+      return undefined;
+    };
+    const { id } = addTask();
+    start(w, s, p, { steps: 4, stepMs: 100 });
+    expect((await ended(id)).state).toBe("done");
+    await until(() => p.logs.some((l) => l.includes(`Job ${id} done`)));
+    await until(() => beats.some((b) => b.lines.some((l) => l.line.includes(`Job ${id} done`))));
+    // Each line went in one beat only (each beat got a 2xx), oldest first, never more than 40 a beat.
+    const sent = beats.flatMap((b) => b.lines);
+    expect(beats.every((b) => b.lines.length <= 40)).toBe(true);
+    expect(new Set(sent.map((l) => `${l.at} ${l.line}`)).size).toBe(sent.length);
+    const rows = db().prepare("SELECT kind, event, words, task_id FROM worker_events WHERE worker_id = ? ORDER BY id").all(w.id) as { kind: string; event: string; words: string; task_id: string | null }[];
+    const logs = rows.filter((r) => r.kind === "log").map((r) => r.words);
+    expect(logs).toContain(`Job ${id} done.`);
+    // No folder of this PC leaves it.
+    for (const folder of [p.workDir, p.comfyDir, p.home]) expect(JSON.stringify({ sent, logs })).not.toContain(folder.replace(/\\/g, "\\\\"));
+    expect(rows.filter((r) => r.kind === "job" && r.task_id === id).map((r) => r.event)).toEqual(["claimed", "finished", "done"]);
+    const stages = rows.filter((r) => r.kind === "stage" && r.task_id === id).map((r) => r.event);
+    expect(stages[0]).toBe("sending");
+    expect(stages.at(-1)).toBe("saving");
+    // Started on its ComfyUI: loading its model (taken cold) until a step reports, then running.
+    expect(stages.slice(1, -1).filter((x) => x === "loading" || x === "running").length).toBeGreaterThan(0);
+    expect(stages).toContain("queued");
+  });
+});
+
+describe("people first", () => {
+  it("a person's run that waits stops the owner's job on its ComfyUI: back in line with no attempt counted, then it runs again from the start", async () => {
+    const w = addWorker();
+    const s = studio();
+    const p = pc();
+    const own = addTask();
+    start(w, s, p, { steps: 30, stepMs: 150 });
+    await until(async () => {
+      const c = comfyOf(p);
+      return state(own.id).state === "running" && c && ((await fakeStats(c.port).catch(() => null))?.step ?? 0) >= 2;
+    });
+    // A person's run comes (this harness can't run an account's job: the worker gives it back, and the line has only
+    // the owner's job again).
+    const person = addTask({ account: "acct-preempt" });
+    await until(() => state(own.id).state === "waiting" && state(own.id));
+    expect(state(own.id).requeues).toBe(0);
+    expect(pool.poolWaitWords(state(own.id))).toBe("Paused for a moment · starts again automatically");
+    // The worker took the person's run next.
+    await until(() => state(person.id).claimed_at && state(person.id));
+    const t = await ended(own.id);
+    expect(t.state).toBe("done");
+    expect(t.requeues).toBe(0);
+    // Its ComfyUI got the owner's prompt twice: the one it stopped, and the run from the start.
+    expect(prompts(p)).toBe(2);
+  }, 120_000);
 });
 
 describe("new worker code", () => {
@@ -594,6 +706,68 @@ describe("new worker code", () => {
     expect(p.logs.filter((l) => l === LINE)).toHaveLength(1);
     expect(p.logs.indexOf(LINE)).toBeLessThan(p.logs.indexOf(`Job ${id} done.`));
     expect(JSON.parse(fs.readFileSync(path.join(p.home, "status.json"), "utf8")).state).toBe("Finishing its job, then restarting on new code");
+  });
+
+  /**
+   * The beat's word on people's jobs (claimableNow), as `people()` says: the harness runs graph jobs, which only the
+   * owner's own jobs are, so the job that stands for a person's here is the owner's, and the beat says it is a person's.
+   */
+  function peopleSay(s: Studio, people: () => number) {
+    const api = apiAs(routes, null);
+    s.intercept = async (path, init) => {
+      if (path !== "/api/gpu/computer/beat") return undefined;
+      const res = await api(path, init);
+      if (!res.ok) return res;
+      const body = (await res.json()) as Record<string, unknown> & { worker?: { token?: { value: string } } };
+      if (body.worker?.token?.value) s.tokens.push(body.worker.token.value);
+      return Response.json({ ...body, claimableNow: people() });
+    };
+  }
+
+  it("installed while a person's job waits: it runs that job first, then restarts; the owner's own job stays for the next start", async () => {
+    const w = addWorker();
+    const s = studio();
+    const p = pc();
+    const first = addTask();
+    const person = addTask();
+    peopleSay(s, () => (state(person.id).state === "waiting" ? 1 : 0));
+    // Each job runs longer than a beat apart (5 s while busy), so a beat while the person's job runs says none waits.
+    const r = start(w, s, p, { steps: 20, stepMs: 400, codeWatch: watch(p) });
+    await until(async () => {
+      const c = comfyOf(p);
+      return state(first.id).state !== "waiting" && c && ((await fakeStats(c.port).catch(() => null))?.step ?? 0) >= 2;
+    });
+    installed(p);
+    await until(() => p.logs.some((l) => l.startsWith("New worker code is installed: restarting once no person's job waits for it")));
+    const owners = addTask();
+    expect(await r.done).toBe("update");
+    expect(state(first.id).state).toBe("done");
+    expect(state(person.id).state).toBe("done");
+    expect(prompts(p)).toBe(2);
+    expect(state(owners.id).state).toBe("waiting");
+    expect(p.logs.filter((l) => l === LINE)).toHaveLength(1);
+    // The restart began only once the person's job no longer waited.
+    expect(p.logs.indexOf(LINE)).toBeGreaterThan(p.logs.indexOf(`Job ${first.id} done.`));
+  }, 120_000);
+
+  it("a person's job keeps the restart back for at most the cap: past it, the worker restarts after the job in hand", async () => {
+    const w = addWorker();
+    const s = studio();
+    const p = pc();
+    const first = addTask();
+    const waiting = addTask();
+    peopleSay(s, () => 1);
+    const r = start(w, s, p, { steps: 20, stepMs: 150, codeWatch: watch(p), updateDeferMs: 0 });
+    await until(async () => {
+      const c = comfyOf(p);
+      return state(first.id).state !== "waiting" && c && ((await fakeStats(c.port).catch(() => null))?.step ?? 0) >= 2;
+    });
+    installed(p);
+    expect(await r.done).toBe("update");
+    expect(state(first.id).state).toBe("done");
+    expect(state(waiting.id).state).toBe("waiting");
+    expect(prompts(p)).toBe(1);
+    expect(p.logs.filter((l) => l === LINE)).toHaveLength(1);
   });
 
   it("installed while it waits for work: it ends at once, with its ComfyUI stopped", async () => {
@@ -833,5 +1007,41 @@ describe("its model folders", () => {
     } finally {
       delete process.env.FUOBE_WORKER_TOKEN_DAYS;
     }
+  });
+});
+
+describe("what its ComfyUI loaded", () => {
+  it("a pack whose folder is there but whose nodes didn't load is said, with its classes, and kept for the next start", async () => {
+    const w = addWorker();
+    const s = studio();
+    const p = pc();
+    for (const f of ["PackGood", "PackBroken"]) fs.mkdirSync(path.join(p.comfyDir, "custom_nodes", f), { recursive: true });
+    const requirements = {
+      folders: [],
+      files: {},
+      packs: { PackGood: { repo: "https://github.com/example/PackGood", classes: ["GoodNode"] }, PackBroken: { repo: "https://github.com/example/PackBroken", classes: ["BrokenA", "BrokenB"] } },
+      workflows: {},
+    };
+    // Its ComfyUI lists the good pack's node and the core ones, none of the broken pack's (its import failed).
+    const has = path.join(p.home, "has.json");
+    fs.writeFileSync(has, JSON.stringify({ folders: [], files: {}, workflows: { x: { core: ["KSampler", "SaveImage"], packs: { PackGood: ["GoodNode"] } } } }));
+    const command = [process.execPath, "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", FAKE, "--port", "{port}", "--cors", "off", "--worker-guard", "1", "--has", has];
+    const packsOf = (i: Record<string, unknown>) => i.nodePacks as { name: string; commit: string | null; missingClasses?: string[] }[];
+    const first = start(w, s, p, { requirements, command });
+    const sent = await until(() => s.inventories.find((i) => packsOf(i).some((n) => n.missingClasses)));
+    expect(packsOf(sent).sort((a, b) => a.name.localeCompare(b.name))).toEqual([
+      { name: "PackBroken", commit: null, missingClasses: ["BrokenA", "BrokenB"] },
+      { name: "PackGood", commit: null, missingClasses: [] },
+    ]);
+    expect(p.logs.some((l) => /The node pack PackBroken didn't load in its ComfyUI \(BrokenA, BrokenB; see comfyui\.log\)/.test(l))).toBe(true);
+    expect(p.logs.some((l) => /PackGood/.test(l))).toBe(false);
+    expect(JSON.parse(fs.readFileSync(path.join(p.workDir, "loaded-packs.json"), "utf8"))).toEqual({ PackGood: { commit: null, missing: [] }, PackBroken: { commit: null, missing: ["BrokenA", "BrokenB"] } });
+    first.ctrl.abort();
+    await first.done;
+    // The next start says it from its first list, before its ComfyUI answers again.
+    const before = s.inventories.length;
+    start(w, s, p, { requirements, command });
+    const again = await until(() => s.inventories[before]);
+    expect(packsOf(again).find((n) => n.name === "PackBroken")?.missingClasses).toEqual(["BrokenA", "BrokenB"]);
   });
 });

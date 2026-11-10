@@ -6,7 +6,20 @@ import type { StudioConfig } from "@/components/studio/studio-context";
 import { HOME_CAPTION_MAX } from "@/lib/home-showcase";
 import { HUB_MODES, type HubKind } from "@/lib/hubs";
 import { GENJUTSU_MODES } from "@/lib/catalog/genjutsu";
-import { appStudio, EDIT_STUDIO, IMAGE_STUDIO, INPAINT_STUDIO, UPSCALE_STUDIO, VIDEO_STUDIO } from "@/lib/studios";
+import {
+  appStudio,
+  EDIT_STUDIO,
+  FPS_BOOST_STUDIO,
+  IMAGE_STUDIO,
+  INPAINT_STUDIO,
+  MOTION_CONTROL_STUDIO,
+  UPSCALE_STUDIO,
+  VIDEO_COLOR_MATCH_STUDIO,
+  VIDEO_DEPTH_STUDIO,
+  VIDEO_MATTE_STUDIO,
+  VIDEO_STUDIO,
+  VIDEO_UPSCALE_STUDIO,
+} from "@/lib/studios";
 import { EXAMPLE_MEDIA } from "@/lib/examples/media.generated";
 import { STUDIO_COVERS, isStudioCover } from "@/lib/studio-covers";
 import { EXAMPLE_CAPTION_MAX, EXAMPLE_WORDS_MAX, EXAMPLES_HEADING, MORE_HEADING, exampleFits, type ExampleCard, type ExampleMedia } from "@/lib/examples/types";
@@ -53,6 +66,12 @@ const STUDIO_OF: Record<string, StudioConfig> = {
   "studio:edit": EDIT_STUDIO,
   "studio:inpaint": INPAINT_STUDIO,
   "hub:upscale": UPSCALE_STUDIO,
+  "hub:upscale/video": VIDEO_UPSCALE_STUDIO,
+  "hub:upscale/fps": FPS_BOOST_STUDIO,
+  "studio:motion-control": MOTION_CONTROL_STUDIO,
+  "hub:video-tools": VIDEO_MATTE_STUDIO,
+  "hub:video-tools/depth": VIDEO_DEPTH_STUDIO,
+  "hub:video-tools/colors": VIDEO_COLOR_MATCH_STUDIO,
 };
 function configOf(surface: string): StudioConfig {
   const [kind, name] = splitSurface(surface);
@@ -239,9 +258,25 @@ describe("the examples' catalog", () => {
       }
     }
     // Video upscale, FPS Boost, SDR to HDR and Export never show a still photo's app.
-    for (const m of ["video", "fps", "hdr", "export"]) expect(exampleRow(`hub:upscale/${m}` as never), m).toBeNull();
+    for (const m of ["video", "fps", "hdr", "export"]) expect(exampleRow(`hub:upscale/${m}` as never)?.cards.filter((c) => c.id.startsWith("more.")) ?? [], m).toEqual([]);
     // Every row names its page, so a linked example loads only where it belongs.
     for (const s of [...exampleSurfaces(), ...Object.keys(FALLBACK_ROWS)]) expect(exampleRow(s as never)?.surface, s).toBe(s);
+  });
+
+  it("links a card that opens another page to an example that page loads", () => {
+    for (const c of cards) {
+      if (c.load.via !== "look" || !c.load.href) continue;
+      const sp = new URL(c.load.href, "https://x").searchParams;
+      // The files it hands over are published inputs a run may read.
+      for (const v of sp.values()) if (v.startsWith("/examples/")) expect(EXAMPLE_MEDIA[v]?.role, `${c.id}: ${v}`).toBe("in");
+      const id = sp.get("example");
+      if (!id) continue;
+      expect(exampleById(id), `${c.id} → ${id}`).toBeTruthy();
+      const surface = exampleSurfaceOf(id)!;
+      // The link opens the page of the example it names (a Genjutsu mode's: Genjutsu, on that mode).
+      const page = surface.startsWith("tool:genjutsu/") ? `/genjutsu?mode=${surface.split("/")[1]}` : undefined;
+      if (page) expect(c.load.href.startsWith(page), c.id).toBe(true);
+    }
   });
 
   it("loads a linked example only on its own page (or a motion's, an effect's or a clip app's in the Video studio)", () => {

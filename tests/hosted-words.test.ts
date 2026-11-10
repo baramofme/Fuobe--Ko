@@ -41,6 +41,7 @@ const { OWN_GPU_TOOL_HOSTED } = await import("@/lib/guest-access");
 const { SITE_HIDDEN_WORDS } = await import("@/server/output-checks");
 const { SITE_FAILED_WORDS } = await import("@/lib/comfy-compose");
 const { FILE_TROUBLE_WORDS, POOL_WORDS } = await import("@/lib/relay");
+const { ENGINE_WORDS } = await import("@/lib/engine-error");
 const { notePlaceName, placeOf } = await import("@/lib/place-name");
 const { runPlace } = await import("@/lib/run-place");
 const { accountEngine } = await import("@/lib/your-keys");
@@ -53,7 +54,7 @@ const { EngineSwitch, engineTip } = await import("@/components/studio/engine-swi
 const { TooltipProvider } = await import("@/components/ui/tooltip");
 
 /** Words no visitor reads about runs on this install's GPUs (acceptance check A11). */
-const FORBIDDEN = /studio's GPUs|\bworkers?\b|\blanes?\b|\btickets?\b|\bpool\b|\bhosted\b|\bqueue|\bcatalog|Press Retry|Try again later|isn't available here|Not available here|not checked|unverified|ComfyUI/i;
+const FORBIDDEN = /studio's GPUs|\bworkers?\b|\blanes?\b|\btickets?\b|\bpool\b|(?<!self-)\bhosted\b|\bqueue|\bcatalog|Press Retry|Try again later|isn't available here|Not available here|not checked|unverified|ComfyUI/i;
 
 const NAMED = placeOf("Studio North GPUs");
 const DEFAULT = placeOf(null);
@@ -112,7 +113,7 @@ afterEach(() => notePlaceName(null));
 
 /** Every sentence a visitor reads from the server's word tables, for a place. */
 function serverWords(place: ReturnType<typeof placeOf>): string[] {
-  const reasons = ["notOffered", "rtxCard", "loras", "inputs", "size", "model3d"] as const;
+  const reasons = ["notOffered", "rtxCard", "loras", "files", "inputs", "size", "model3d"] as const;
   const setups = [needsGpu(), { need: "gpu" as const, vramGb: 48 }, { need: "gpu" as const, vramGb: 24, orKey: "fal" as const }, { need: "key" as const, provider: "fal" }];
   return [
     ...Object.values(hostedWords(place)),
@@ -131,6 +132,7 @@ function serverWords(place: ReturnType<typeof placeOf>): string[] {
     ownGpuQuiet(place),
     ...Object.values(POOL_WORDS),
     ...Object.values(FILE_TROUBLE_WORDS),
+    ...Object.values(ENGINE_WORDS),
     SITE_HIDDEN_WORDS,
     SITE_FAILED_WORDS,
   ];
@@ -140,11 +142,11 @@ function serverWords(place: ReturnType<typeof placeOf>): string[] {
 function chipWords(place: ReturnType<typeof placeOf>): string[] {
   const out: string[] = [];
   for (const audience of ["account", "guest"] as const)
-    for (const pool of [undefined, { text: "" }, { text: "1 generation", wait: "ready in about 40 s" }, { text: "Free", wait: "starts when a GPU is free" }, { text: "You have 2 runs going.", refused: true }])
+    for (const pool of [undefined, { text: "" }, { text: "1 generation", wait: "ready in about 40 s" }, { text: "Free", wait: "starts automatically" }, { text: "You have 2 runs going.", refused: true }])
       for (const p of [runPlace({ audience, engine: "open", hosted: true, models: ["Z-Image Turbo"], pool, place, format: String })]) out.push(p.label, p.price, p.title, p.tip, p.send);
   // A label (what runs on one's own GPU), and a tool for the studio's owner only.
   for (const audience of ["account", "guest"] as const) {
-    const labelled = runPlace({ audience, engine: "open", hosted: true, pool: { text: "Runs on your own GPU · 48 GB", refused: true, setup: { need: "gpu", vramGb: 48 } }, place, format: String });
+    const labelled = runPlace({ audience, engine: "open", hosted: true, pool: { text: "Self-hosted", refused: true, setup: { need: "gpu", vramGb: 48 } }, place, format: String });
     const ownerOnly = runPlace({ audience, engine: "cloud", hosted: true, ownerOnly: "Ads Studio", place, format: String });
     for (const p of [labelled, ownerOnly]) out.push(p.label, p.price, p.title, p.tip, p.send);
   }
@@ -175,7 +177,7 @@ describe("the words for runs on this install's GPUs", () => {
   });
 
   it("one sentence for a run that can't be made, the same in the planner and the tile", () => {
-    expect(POOL_WORDS.failed).toBe("Sorry, this one couldn't be made.");
+    expect(POOL_WORDS.failed).toBe("That one didn't come out right — try again, or try a similar model.");
     expect(SITE_FAILED_WORDS).toBe(POOL_WORDS.failed);
     expect(SITE_HIDDEN_WORDS).toBe("This result didn't pass the safety check, so it was removed. Not charged.");
   });
@@ -213,11 +215,11 @@ describe("the pages a visitor reads while hosted runs are on", () => {
       render(createElement(StatusCover, { g: gen({ status: "running", message: POOL_WORDS.working, progress: 0.4 }) })),
       render(createElement(StatusCover, { g: gen({ status: "failed", error: POOL_WORDS.failed }) })),
     ].map(textOf);
-    expect(pages[3]).toContain("In line · 3rd · ready in about 2 min");
+    expect(pages[3]).toContain("2 ahead of you · about 2 min");
     expect(pages[4]).toContain("Working");
-    expect(pages[5]).toContain("Sorry, this one couldn't be made.");
+    expect(pages[5]).toContain("That one didn't come out right — try again, or try a similar model.");
     expect(pages[5]).not.toContain("Couldn't generate this one");
-    expect(listStatus({ status: "failed", place: "pool" })).toBe("Couldn't be made");
+    expect(listStatus({ status: "failed", place: "pool" })).toBe("Didn't come out right");
     expect(listStatus({ status: "queued", place: "pool" })).toBe("In line");
     expect(listStatus({ status: "running", place: "pool" })).toBe("Working");
     for (const t of pages) expect(t).not.toMatch(FORBIDDEN);

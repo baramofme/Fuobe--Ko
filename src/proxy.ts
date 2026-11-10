@@ -3,6 +3,7 @@ import { APPS } from "@/lib/catalog/apps";
 import { FORMER_HOME, modeHref, type HubKind } from "@/lib/hubs";
 import { hiddenStarterPage, recordForPath, unknownHubMode, unknownStarterPage } from "@/lib/record-pages";
 import { countsAsView, SHARE_VIEW_HEADER, shareRoute } from "@/lib/share";
+import { chatShareRoute } from "@/lib/chat/share";
 import {
   ACCOUNT_LIBRARY_MESSAGE,
   accountGeneration,
@@ -26,6 +27,7 @@ import {
   LIBRARY_MESSAGE,
   ownGpuToolMessage,
   ownerOnly,
+  helperRoute,
   ownGpuRun,
   poolToolRun,
 } from "@/lib/guest-access";
@@ -41,7 +43,7 @@ import { authStoreFailed } from "@/server/auth-store";
  * Paths that work signed out: the login page and its API (and share links: openShare). Sign-up and
  * "who am I" answer for themselves whether public sign-up is on.
  */
-const OPEN = new Set(["/login", "/api/auth/login", "/api/auth/signup", "/api/auth/me", "/api/gpu/pair/start", "/api/gpu/pair/poll"]);
+const OPEN = new Set(["/login", "/api/auth/login", "/api/auth/signup", "/api/auth/me", "/api/gpu/pair/start", "/api/gpu/pair/poll", "/api/version"]);
 
 /**
  * A worker's token (src/server/computer/workers.ts) works only on the routes a computer runs jobs through; the route
@@ -146,7 +148,7 @@ const SECTIONS: { prefix: string; label: string; missing?: string; why?: string 
   { prefix: "/content-factory", label: "Back to Content Factory", missing: "This series isn’t here" },
   { prefix: "/character-swap", label: "Back to Character Swap", missing: "This project isn’t here" },
   { prefix: "/layers", label: "Back to Layers", missing: "This project isn’t here" },
-  { prefix: "/assist", label: "Back to Assist", missing: "This project isn’t here" },
+  { prefix: "/chat/projects", label: "Back to Chat", missing: "This project isn’t here" },
   { prefix: "/audio", label: "Back to Audio" },
   { prefix: "/video-tools", label: "Back to Video tools" },
   { prefix: "/upscale", label: "Back to Upscale" },
@@ -216,6 +218,8 @@ function guest(request: NextRequest): NextResponse {
   if (isPriceCheck(method, pathname, search, hostedRunsOn())) return priceCheck(request, `guest:${LoginGuard.clientKey(request.headers)}`);
   if (isAssistChange(method, pathname)) return assistOwner();
   if (anyoneMayReport(method, pathname)) return pass(request);
+  // The free text helper's route, while hosted runs are on: a guest gets the offline rewrite, and sign-up for lyrics.
+  if (helperRoute(method, pathname) && hostedRunsOn()) return pass(request);
   // What an account may send, the library, the owner's settings and the studios' runs: signing up is the next step.
   // A tool run made only on this install's GPUs counts as one of them with hosted runs on, and as a tool that isn't
   // available here without them.
@@ -292,6 +296,7 @@ function account(request: NextRequest, who: Account): NextResponse {
   if (accountMayChange(request.method, pathname, search)) return pass(request);
   if (isAssistChange(request.method, pathname)) return assistOwner();
   if (isLibraryChange(request.method, pathname)) return NextResponse.json({ error: LIBRARY_MESSAGE, code: "library" }, { status: 403 });
+  if (helperRoute(request.method, pathname) && hostedRunsOn()) return pass(request);
   // A tool its own GPU or key wouldn't run says so first: "Connect your GPU" only for what a GPU or a key unlocks. A tool
   // run made only on this install's GPUs (the palette lock) goes to its route with hosted runs on, and is refused so
   // without them, as before.
@@ -402,6 +407,8 @@ export function proxy(request: NextRequest) {
   const read = request.method === "GET" || request.method === "HEAD";
   const share = read && shareRoute(pathname);
   if (share) return openShare(request, share.token, !!share.file);
+  // A shared chat (Fuobe Chat) is public too: its page, its portrait and its link preview, each checking the token.
+  if (read && chatShareRoute(pathname)) return NextResponse.next();
   // Any other /s/ link is no share: the same "link unavailable" 404 as an unknown token.
   if (read && pathname.startsWith("/s/")) {
     const res = shareGone(request);

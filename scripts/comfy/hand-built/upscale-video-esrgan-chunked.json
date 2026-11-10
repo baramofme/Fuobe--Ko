@@ -1,14 +1,13 @@
 {
   "1": {
-    "class_type": "VHS_LoadVideo",
+    "class_type": "VHS_LoadVideoFFmpeg",
     "inputs": {
       "video": "input.mp4",
       "force_rate": 0,
       "custom_width": 0,
       "custom_height": 0,
       "frame_load_cap": 0,
-      "skip_first_frames": 0,
-      "select_every_nth": 1,
+      "start_time": 0,
       "format": "None",
       "meta_batch": [
         "2",
@@ -38,19 +37,21 @@
     }
   },
   "4": {
-    "class_type": "ImageUpscaleWithModel",
+    "class_type": "ImageUpscaleWithModelBatched",
     "inputs": {
       "upscale_model": [
         "3",
         0
       ],
-      "image": [
+      "images": [
         "1",
         0
-      ]
+      ],
+      "per_batch": 1,
+      "precision": "float16"
     },
     "_meta": {
-      "title": "Upscale this pass's frames (tiled)"
+      "title": "Upscale this pass's frames (whole frames in fp16; the provider swaps in the tiled core node when the GPU is small)"
     }
   },
   "5": {

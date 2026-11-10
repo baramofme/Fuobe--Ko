@@ -4,6 +4,7 @@ import { SIGNATURE_MODELS } from "@/lib/catalog/palettes";
 import { FACE_MOSAIC_MODELS } from "@/lib/catalog/open-tools";
 import { UPSCALE_FIRST_STEPS } from "@/lib/catalog/upscale-first";
 import { FINISH_CHOICES, REGEN_MODEL } from "@/lib/catalog/regenerate";
+import { RTX_UPSCALE_MODEL } from "@/lib/catalog/rtx-video";
 import type { Preset } from "@/lib/catalog/types";
 import type { StudioConfig } from "@/components/studio/studio-context";
 
@@ -21,8 +22,8 @@ export const IMAGE_STUDIO: StudioConfig = {
   slots: [],
   // Up to 10 references where the model takes them (FLUX 3 Klein); each model's own limit caps it (composer refMax).
   multiRef: { label: "Add ref", max: 10 },
-  // Auto picks the open model for each run (src/lib/auto-image.ts): Ideogram 4 for most, Krea 2 Realism for prompts its
-  // safety filter often declines, Qwen-Image 2.1 for edits. The default for everyone: the owner, an account and a guest.
+  // Auto picks the open model for each run (src/lib/auto-image.ts): Krea 2 Realism for most, MOSS-Image for lettering
+  // (each the other's fallback), Qwen-Image 2.1 for edits. The default for everyone: the owner, an account and a guest.
   defaultModels: { cloud: "nano-banana-pro", open: AUTO_IMAGE },
   // A model's own settings (MOSS-Image's Quality, Ideogram's speed) sit under "Options".
   controlsTitle: "Options",
@@ -165,6 +166,8 @@ export const VIDEO_UPSCALE_STUDIO: StudioConfig = {
   extraModels: [REGEN_MODEL],
   slots: [{ key: "video", label: "Video", accept: "video", required: true }],
   defaultModels: { cloud: "topaz-video", open: "oss-seedvr2" },
+  // Where runs go to this install's GPUs and they run it (NVIDIA RTX cards): Quick · RTX, the fastest, is the default.
+  hereDefault: RTX_UPSCALE_MODEL,
   clipFacts: true,
 };
 

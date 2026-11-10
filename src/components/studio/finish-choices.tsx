@@ -9,6 +9,7 @@ import { RTX_COPY, RTX_UPSCALE_MODEL, rtxStanding } from "@/lib/catalog/rtx-vide
 import { badgeFor, useGpuBadges } from "@/hooks/use-gpu";
 import { OwnSetupChip } from "@/components/own-setup";
 import { useIsOwner } from "@/lib/api";
+import { runsHere, type Here } from "@/lib/runnable-here";
 import { cn } from "@/lib/utils";
 import { radioKeys, radioTab } from "./radio-keys";
 
@@ -20,7 +21,9 @@ import { radioKeys, radioTab } from "./radio-keys";
  * With Regenerate picked: the GPU line (the install detail for the owner only), the 16:9 / 9:16 shape, and for a clip with
  * no words yet a button that has Fuobe's reading model describe it (`onDescribe`).
  * NVIDIA RTX Video's "Quick · RTX" joins them: first on an NVIDIA RTX card, switched off with the reason on a card that
- * can't run it (a CPU, Apple, AMD or an older NVIDIA card), last when the card isn't known. It is never picked for anyone.
+ * can't run it (a CPU, Apple, AMD or an older NVIDIA card), last when the card isn't known. Where runs go to this install's
+ * GPUs (`here`, runnable-here.ts), their cards decide: first, and the studio's default there (StudioConfig.hereDefault),
+ * when they run it.
  */
 export function FinishChoices({
   choices,
@@ -31,6 +34,7 @@ export function FinishChoices({
   onPick,
   onDescribe,
   describing,
+  here,
 }: {
   choices: readonly FinishChoice[];
   model: ModelDef | undefined;
@@ -42,6 +46,8 @@ export function FinishChoices({
   /** Writes the clip's words into the prompt box (shown while it has none). */
   onDescribe?: () => void;
   describing?: boolean;
+  /** Where this viewer's runs go to this install's GPUs (null: its own GPU, whose card the GPU check read). */
+  here?: Here | null;
 }) {
   const { t } = useI18n();
   const owner = useIsOwner();
@@ -71,11 +77,13 @@ export function FinishChoices({
   // Quick · RTX: where it stands on the viewer's card (its own chip says when the card can't run it).
   const rtx = offered(RTX_UPSCALE_MODEL);
   const chip = badgeFor(badges, { modelId: RTX_UPSCALE_MODEL, op: "upscale-video" });
-  const standing = rtxStanding("nvidia-rtx", badges?.gpu, !!chip && chip[0] === "u" && (chip[3] & 24) !== 0);
+  // On this install's GPUs, they run it or not; on the viewer's own GPU, its card as the GPU check read it.
+  const onHere = !!here && !!rtx && runsHere(here, rtx);
+  const standing = here && rtx ? (onHere ? "fits" : rtxStanding("nvidia-rtx", undefined)) : rtxStanding("nvidia-rtx", badges?.gpu, !!chip && chip[0] === "u" && (chip[3] & 24) !== 0);
   const quick = rtx && {
     modelId: RTX_UPSCALE_MODEL,
     label: RTX_COPY.quick,
-    hint: standing === "fits" ? RTX_COPY.quickHint : standing === "no" ? RTX_COPY.needsCard : `${RTX_COPY.onRtx}. ${t("studio.finish.addsNoDetail")}`,
+    hint: onHere ? RTX_COPY.quickHere : standing === "fits" ? RTX_COPY.quickHint : standing === "no" ? RTX_COPY.needsCard : `${RTX_COPY.onRtx}. ${t("studio.finish.addsNoDetail")}`,
     m: rtx,
     ...(standing === "no" && model?.id !== RTX_UPSCALE_MODEL && { off: true as const }),
   };
@@ -111,7 +119,7 @@ export function FinishChoices({
           );
         })}
       </div>
-      {model?.id === RTX_UPSCALE_MODEL && <p className="mt-1.5 px-1 text-[11px] leading-snug text-pretty text-muted-foreground">{RTX_COPY.picked}</p>}
+      {model?.id === RTX_UPSCALE_MODEL && <p className="mt-1.5 px-1 text-[11px] leading-snug text-pretty text-muted-foreground">{onHere ? RTX_COPY.pickedHere : RTX_COPY.picked}</p>}
       {model?.id === REGEN_MODEL && (
         <>
           <p className="mt-1.5 px-1 text-[11px] leading-snug text-pretty text-muted-foreground">
