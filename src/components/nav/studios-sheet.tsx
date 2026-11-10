@@ -145,11 +145,12 @@ function Shortcuts({ onSearch }: { onSearch: () => void }) {
 
 /** The sheet's family switch, in its title row: Studios · Fuobe FX · Apps · Motions & effects · Canvas. */
 export function FamilySwitch({ family, onFamily }: { family: MegaId; onFamily: (f: MegaId) => void }) {
+  const { t } = useI18n();
   return (
     <TabRow role="group" aria-label="What to show" follow className="min-w-0 flex-1 gap-0.5">
       {SHEET_FAMILIES.map((f) => (
         <button key={f} type="button" aria-pressed={family === f} {...onAttr(family === f)} onClick={() => onFamily(f)} className={cn(TAB_PILL, "px-[7px] text-[14px]")}>
-          {MEGA_AREAS[f].label}
+          {t(`nav.${f}`)}
         </button>
       ))}
     </TabRow>

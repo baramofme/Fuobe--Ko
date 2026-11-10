@@ -116,14 +116,15 @@ const FX_ENTRY = entry(area("fx").entryId)!;
 
 /** Fuobe FX in More: its page, with an icon (it has no cover of its own) and its line. */
 function FxRow({ current, row }: { current: boolean; row: number }) {
+  const { lang } = useI18n();
   return (
     <IntentLink href={FX_ENTRY.href} aria-current={current ? "page" : undefined} data-col={0} data-row={row} className={cn(CARD_ROW, MENU_ROW_2)}>
       <span className="grid h-[27px] w-9 shrink-0 place-items-center rounded-[6px] bg-muted">
         <NavIcon name={FX_ENTRY.icon} className="nav-icon size-4 text-muted-foreground" />
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className={rowName(current)}>{FX_ENTRY.label}</span>
-        <span className={ROW_LINE}>{FX_ENTRY.what}</span>
+        <span className={rowName(current)}>{translateOr(lang, labelKeyOf(FX_ENTRY.id), FX_ENTRY.label)}</span>
+        <span className={ROW_LINE}>{translateOr(lang, `nav.${FX_ENTRY.id}.what`, FX_ENTRY.what)}</span>
       </span>
     </IntentLink>
   );

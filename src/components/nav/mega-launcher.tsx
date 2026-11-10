@@ -49,7 +49,7 @@ export const LAUNCHER_PANEL = "absolute inset-x-0 top-full max-h-[calc(100dvh-3.
 const WARM: Record<MegaId, NavPanel> = { create: "create", studios: "studios", apps: "more", motions: "more", canvas: "more", fx: "fx" };
 
 /** The panel's accessible name, looked up in the language of the switch (the bar's words go by the item's id). */
-const PANEL_KEY: Partial<Record<MegaId, string>> = { studios: "nav.panelStudios", apps: "nav.panelApps", motions: "nav.panelMotions", canvas: "nav.panelCanvas" };
+const PANEL_KEY: Partial<Record<MegaId, string>> = { studios: "nav.panelStudios", apps: "nav.panelApps", motions: "nav.panelMotions", canvas: "nav.panelCanvas", fx: "nav.panelFx" };
 
 /** The item of a menu the open page is (aria-current): a studio or one of its features, an app, a preset, a ready board. */
 export function megaCurrent(id: MegaId, pathname: string, search = ""): string | undefined {
