@@ -1,6 +1,7 @@
 import "server-only";
 import { getModel } from "@/lib/catalog";
 import { computeDimensions, fitCanvas } from "@/lib/comfy";
+import { requestWorkflowId } from "@/lib/comfy-variants";
 import { h3Canvas, isH3Graph } from "@/lib/h3-prompt";
 import { imageSize } from "@/lib/image-size";
 import type { GenerationRequest } from "@/lib/catalog/types";
@@ -381,9 +382,20 @@ export function queueFacts(accountId: string | null, workflowId?: string | null)
  * starts when a GPU is free). Behind the account's runs going: about when it would be ready, when known (when the first
  * of them is due done, plus a new run's wait now). Until a time: that time. Null when the row isn't held.
  */
-export function heldLine(generationId: string, now = Date.now()): (LinePlace & { held: HoldReason; startAt?: number; paused?: true }) | null {
+export function heldLine(generationId: string, now = Date.now()): (LinePlace & { held: HoldReason; startAt?: number; paused?: true; waitsFor?: string }) | null {
   const h = holdOf(generationId);
   if (!h) return null;
+  // Held until the service says ready: its card's title on the tile ("<title> · starts by itself").
+  if (h.ready_json) {
+    let title = "One more step";
+    try {
+      const c = JSON.parse(h.ready_json) as { title?: unknown };
+      if (typeof c.title === "string" && c.title) title = c.title;
+    } catch {
+      // the plain words
+    }
+    return { place: 1, etaSeconds: null, held: h.reason, waitsFor: title };
+  }
   const startAt = h.start_at !== null && h.start_at > now ? h.start_at : undefined;
   const base = { held: h.reason, ...(startAt !== undefined && { startAt }) };
   if (startAt !== undefined) return { place: 1, etaSeconds: null, ...base };
@@ -592,12 +604,27 @@ function stepsBeside(own: NonNullable<RunFacts["steps"]>[number], others: { mode
 /** The facts the billing service prices a run by (from a planned request: previewGeneration's answer). */
 export function runFacts(
   req: GenerationRequest,
-  p: { model: { id: string; kind: string; engine: "open" | "cloud" }; op: string; jobs: number; outputs: number; providerId: string; costUsd: number | null; loras: { applied: unknown[] }; route?: { endpoint?: string }; steps?: { model: string; op: string }[] },
+  p: {
+    model: { id: string; kind: string; engine: "open" | "cloud" };
+    op: string;
+    jobs: number;
+    outputs: number;
+    providerId: string;
+    costUsd: number | null;
+    loras: { applied: unknown[] };
+    route?: { endpoint?: string };
+    steps?: { model: string; op: string }[];
+    gpu?: string | null;
+    h3?: { gpuTier: string; unet?: string } | null;
+  },
   kind: RunFacts["kind"],
 ): RunFacts {
   const model = getModel(p.model.id);
   const endpoint = p.route?.endpoint;
   const lane = poolOnWorkers() && endpoint && !endpoint.includes("{") ? poolLane(endpoint) : POOL_LANE;
+  // The graph an open-engine run resolves to, its options' variant picked as the pre-flight and the provider pick it.
+  const graphs = p.model.engine === "open" && p.providerId === "comfyui" && endpoint ? loadIndex().workflows : null;
+  const workflow = graphs && endpoint ? requestWorkflowId(endpoint, req, { op: p.op, gpu: p.gpu ?? undefined, h3: p.h3 ?? undefined, has: (id) => !!graphs[id] }).id : null;
   return {
     place: "pool",
     model: p.model.id,
@@ -617,6 +644,7 @@ export function runFacts(
     inputs: inputCounts(req),
     lane,
     providerUsd: p.costUsd,
+    ...(workflow && { workflow }),
     // The run's other steps (a 2K take's finish), priced beside its own step as one run. A plan of every row the run
     // makes (hosted-run.ts pricedSteps) takes the place of this where there is one.
     ...(p.steps?.length && { steps: stepsBeside({ model: p.model.id, op: p.op || null, kind, jobs: p.jobs, lane }, p.steps) }),

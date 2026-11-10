@@ -357,7 +357,7 @@ export const PACK_CLASSES = {
   'ComfyUI-H3-FaceRefine': /^H3Face(TrackCrop|MaskSAM|Stitch)$/,
   'ComfyUI-Impact-Pack': /^SAMLoader$/,
   comfyui_controlnet_aux: /^Metric3D-NormalMapPreprocessor$/,
-  'ComfyUI-KJNodes': /^VRAM_Debug$/,
+  'ComfyUI-KJNodes': /^(VRAM_Debug|ImageUpscaleWithModelBatched)$/,
   'ComfyUI-Qwen-Watermark': /^QWM(Detect|ResidualDetect|RefineMask|Prepare|Composite|Final)$/,
 };
 
@@ -1357,6 +1357,46 @@ export const SPEC = [
     limits: { maxWidth: 2048, maxHeight: 2048 },
     vramGb: 24,
     notes: 'TextEncodeQwenImageEditPlus takes up to 3 images; refer to them as "image 1/2/3" in the prompt. All three are required. Output size follows image 1.',
+  },
+  // Options → Speed "fast" (the default) on qwen-image-edit-2511-multi (src/lib/qwen-edit-speed.ts): the built graph above
+  // with one LoRA, its steps and CFG set to the LoRA's.
+  {
+    id: 'qwen-image-edit-2511-multi-fast',
+    title: 'Qwen-Image-Edit 2511 Multi-Image (3 images) · 4 steps, Lightning LoRA',
+    capability: 'edit',
+    derive: 'qwen-image-edit-2511-multi',
+    transforms: [
+      {
+        op: 'addNodes',
+        nodes: {
+          1202: {
+            class_type: 'LoraLoaderModelOnly',
+            inputs: { lora_name: 'Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors', strength_model: 1.0, model: ['170:161', 0] },
+            _meta: { title: 'LoraLoaderModelOnly (Lightning 4 steps)' },
+          },
+        },
+      },
+      { op: 'set', node: '170:145', input: 'model', value: ['1202', 0] },
+      { op: 'set', node: '170:166', input: 'value', value: 4 },
+      { op: 'set', node: '170:154', input: 'value', value: 1.0 },
+    ],
+    bindings: {
+      prompt: [b('170:151', 'prompt')],
+      negativePrompt: [b('170:149', 'prompt')],
+      image: [b('41', 'image')],
+      image2: [b('83', 'image')],
+      image3: [b('1201', 'image')],
+      seed: [b('170:169', 'seed')],
+    },
+    outputs: [{ node: '9', kind: 'image' }],
+    limits: { maxWidth: 2048, maxHeight: 2048 },
+    vramGb: 24,
+    license: 'Apache-2.0 (Qwen-Image-Edit-2511, Lightning LoRA)',
+    notes:
+      'Options → Speed "fast" (the default) on qwen-image-edit-2511-multi: the same graph with LightX2V\'s Qwen-Image-Edit-2511-Lightning 4-step LoRA ' +
+      '(LoraLoaderModelOnly, strength 1) between the UNETLoader and ModelSamplingAuraFlow, 4 steps at cfg 1, euler / simple. ' +
+      'No steps or cfg binding: the LoRA sets both. "best" runs qwen-image-edit-2511-multi (40 steps, cfg 4). ' +
+      'TextEncodeQwenImageEditPlus takes up to 3 images; refer to them as "image 1/2/3" in the prompt. All three are required. Output size follows image 1.',
   },
   {
     id: 'flux1-kontext-dev-edit',
@@ -5991,6 +6031,7 @@ export const SPEC = [
     title: 'Video Upscale (Real-ESRGAN 4x) in passes of a few frames: memory stays flat whatever the length (VHS meta-batch)',
     capability: 'upscale-video',
     handBuilt: 'hand-built/upscale-video-esrgan-chunked.json',
+    packs: ['ComfyUI-KJNodes'],
     bindings: {
       video: [b('1', 'video')], framesPerBatch: [b('2', 'frames_per_batch')], upscaleModel: [b('3', 'model_name')], shortSide: [b('5', 'resize_type.shorter_size')],
     },
@@ -6001,7 +6042,7 @@ export const SPEC = [
     license: 'Real-ESRGAN weights (BSD-3-Clause); VideoHelperSuite GPL-3.0 code',
     notes:
       'R4-38: upscale-video-esrgan decodes the whole film (about 38 GB of float frames for 30 s at 480p before the 4x model). This one decodes framesPerBatch frames per pass (VHS_BatchManager re-queues the prompt ' +
-      'until the clip is done, as mixed-media-zimage-frames does), upscales them with the model (tiled), scales them so the shorter edge is shortSide px (params.resolution: 1080p -> 1080, the shape kept) and pipes them ' +
+      'until the clip is done, as mixed-media-zimage-frames does), upscales them with the model (whole frames in fp16 through KJNodes\x27 ImageUpscaleWithModelBatched, about twice as fast as the core node; the provider swaps in the core node\x27s fp32 tiles when the GPU has no room for whole frames or its memory is unknown), scales them so the shorter edge is shortSide px (params.resolution: 1080p -> 1080, the shape kept) and pipes them ' +
       'into one ffmpeg H.264 encode that stays open across passes; the last pass writes the file with the source\'s sound at the source frame rate. The provider follows the passes by their filename prefix. ' +
       'framesPerBatch: the provider sizes it from the clip\'s header so a pass holds about 1.5 GB of frames (16 by default). Any spandrel model in models/upscale_models works as upscaleModel (x2 / x4). ' +
       'Tested on CPU with an x4 ESRGAN network: 30 s 256x144 25 fps with sound -> 1920x1080, 750 frames, AAC, 47 passes of 16 frames in 417 s, ComfyUI\'s RSS peaked 0.87 GB above idle (upscale-video-esrgan on 10 s of the same clip, 4x to 1024x576 only, peaked 3.0 GB above idle); through Fuobe a silent 2 s 24 fps clip -> 1280x720, 48 frames, no audio link.',

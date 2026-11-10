@@ -152,6 +152,7 @@ import { accountSend } from "./account-send";
 import { stamped, stampOf, withoutStamp, withRunStamp, type RunStamp } from "./run-stamp";
 import { anyHeld, dropGone, dropHold, HELD, NOT_HELD } from "./pool-holds";
 import { FILE_TROUBLE_WORDS, POOL_WORDS, RELAY_WORDS } from "@/lib/relay";
+import { isPoolRunWords } from "@/lib/run-progress";
 import { heldLine, placeInLine, poolOnWorkers, poolRunsProvider, poolWaitMs, requestFileKinds, runOnPool, type FileKind } from "./hosted";
 import { hostedRunsOn } from "./hosted-switch";
 import { catalogVersion } from "./computer/catalog-version";
@@ -227,8 +228,8 @@ export function toGeneration(r: Row): Generation {
   // sentence when it can't finish: never the technical reason, which the owner reads in the accounts' runs.
   const pool = stored.place === "pool";
   const checking = r.stage === "checking";
-  // Working on the workers with its model still loading (taken by a worker that had another model loaded): "getting
-  // ready", with no progress yet.
+  // Working on the workers with its model still loading (taken by a worker that had another model loaded): "Loading the
+  // model", with the small share that grows while it loads.
   const ready = pool && r.status === "running" && !checking && gettingReady(r.id);
   const model = getModel(r.model_id);
   // What it is made at where that differs from what it asked (a 2K run on a model that makes up to 1080P), worked out from
@@ -260,7 +261,7 @@ export function toGeneration(r: Row): Generation {
     kind: r.kind,
     status: again ? "running" : r.status,
     // In line on this install's GPUs (again, after an attempt): no progress.
-    progress: (pool && r.status === "queued") || ready ? null : r.progress,
+    progress: pool && r.status === "queued" ? null : r.progress,
     message: again ?? (pool ? poolMessage(r, ready) : r.message),
     prompt: r.prompt,
     request,
@@ -370,10 +371,13 @@ export function shownError(id: string, raw: string | null): string | null {
   return stored.place === "pool" ? poolError(id, raw, !!stored.hold && !!stored.charged) : raw;
 }
 
-/** A pool row's words while it goes: in line, or working on it (`ready`: still getting ready, its model loading). */
+/**
+ * A pool row's words while it goes: in line, or working on it (`ready`: still getting ready, its model loading), with
+ * its stage and the sampler's step when its poll said them ("Working · Step 3 of 6", "Finishing").
+ */
 function poolMessage(r: Pick<Row, "status" | "message">, ready = false): string | null {
   if (r.status === "queued") return POOL_WORDS.inLine;
-  if (r.status === "running") return ready ? POOL_WORDS.gettingReady : POOL_WORDS.working;
+  if (r.status === "running") return ready ? POOL_WORDS.gettingReady : isPoolRunWords(r.message) && r.message !== POOL_WORDS.gettingReady ? r.message : POOL_WORDS.working;
   return null;
 }
 
@@ -4566,9 +4570,11 @@ async function pollOne(r: Row): Promise<void> {
       throw pollError;
     }
     if (startsNow) db().prepare("UPDATE generation_runs SET started_at = ? WHERE id = ?").run(Date.now(), r.id);
-    // Back in line (a worker paused, went quiet or gave it back): no progress of the attempt before is kept.
+    // Back in line (a worker paused, went quiet or gave it back): no progress of the attempt before is kept. On this
+    // install's GPUs each poll of a running try says its share; one that says none (its files still going to the GPU, a
+    // new try not started yet) shows none, never the share of the try before.
     // (An Ideogram 4 run made again after it declined says so while it works.)
-    updateLive(r.id, { status: res.state, progress: ownClocks && res.state === "queued" ? null : (res.progress ?? r.progress), message: declinedWords(ctx.meta) ?? res.message ?? null });
+    updateLive(r.id, { status: res.state, progress: ownClocks ? (res.state === "queued" ? null : (res.progress ?? null)) : (res.progress ?? r.progress), message: declinedWords(ctx.meta) ?? res.message ?? null });
     return;
   }
   if (res.state === "failed") {
@@ -5341,6 +5347,11 @@ async function persistOutput(o: RichOutput, generationId: string, pre?: { linked
 
 export async function cancelGeneration(id: string): Promise<void> {
   const r = db().prepare("SELECT * FROM generations WHERE id = ?").get(id) as Row | undefined;
+  if (r && stoppedJustAfterItsInput(r)) {
+    const now = Date.now();
+    db().prepare("UPDATE generations SET status = 'canceled', error = NULL, message = NULL, updated_at = ? WHERE id = ? AND status = 'failed' AND external_id IS NULL").run(now, id);
+    return;
+  }
   if (!r || (r.status !== "queued" && r.status !== "running")) return;
   // Its outputs are in and the 3D finish runs: the provider's job is over. Stop the finish before anything
   // awaits, so it can't mark the job done in between.
@@ -5375,6 +5386,19 @@ export async function cancelGeneration(id: string): Promise<void> {
   dropHold(id);
   // Steps waiting only to feed this one are dropped too (nothing was spent on them).
   dropUnused(depIds(r.depends_on));
+}
+
+/**
+ * A waiting step that was marked failed a moment ago only because the step it waited for was stopped: a person's Stop
+ * on a whole run reaches its steps one by one, and the sweep can fail the later step in between. Stopping it then makes
+ * it stopped, as the person asked, instead of failed. A step that ran, or failed on its own, stays as it is.
+ */
+function stoppedJustAfterItsInput(r: Row): boolean {
+  if (r.status !== "failed" || r.external_id || !r.depends_on || !WAITED_ON_FAILURE.has(r.error ?? "")) return false;
+  if (Date.now() - (r.completed_at ?? 0) > 10 * 60_000) return false;
+  const ids = depIds(r.depends_on);
+  const status = db().prepare("SELECT status FROM generations WHERE id = ?");
+  return ids.length > 0 && ids.every((d) => (status.get(d) as { status: string } | undefined)?.status === "canceled");
 }
 
 /**

@@ -49,6 +49,7 @@ type RunFacts = {
   kind: "image" | "video" | "audio" | "text" | "model3d"; engine: "open" | "cloud"; provider: string;
   jobs: number; outputsPerJob: number; megapixels: number | null; seconds: number | null; fps: number | null;
   loras: number; inputs: { image: number; video: number; audio: number }; lane: string | null; providerUsd: number | null;
+  workflow?: string | null;
   steps?: { model: string; op: string | null; kind: RunFacts["kind"]; jobs: number; lane: string | null }[];
 };
 type QueueFacts = { lane: string; ahead: number; etaS: number | null; workersOnline: number; nextOpenAt: number | null; mine: { waiting: number; running: number } };
@@ -138,6 +139,10 @@ every visitor (`src/lib/service-copy.ts`).
 workflow binds (a canvas the request names counts only there; else the aspect ratio and resolution, the model's
 defaults where the request names none), or for a workflow sized by its input (an edit, an upscale, a face swap) the
 input's size, an upscale's times its factor, within the workflow's limits. It is null for sound, text and 3D.
+
+`workflow` is the graph a ComfyUI run resolves to after its options pick a variant (a speed, a quality, a GPU tier),
+so a service can treat graph variants differently: Qwen-Image-Edit 2511 on Fast is `qwen-image-edit-2511-multi-fast`, on
+Best `qwen-image-edit-2511-multi`. It is absent (or null) for every other run, and a service should accept a run without it.
 
 `steps` lists every step of the run that uses this install's GPUs, the run's own step first: a chain (a film of
 several shots, a picture and then a step on it) is priced once, with one quote and one hold, for one press of Run.
@@ -321,6 +326,23 @@ run for free on one's own GPU.
 | `limit` | 429 |
 | `busy`, `paused` | 503 |
 | `blocked`, `not-offered`, `closed` | 403 |
+
+A reserve refusal may also say how the card looks. Every field is optional; an answer without them gets the card
+above, unchanged.
+
+| Field | What the card does |
+|---|---|
+| `title` | Its heading, in place of "This run didn't start" (one line, up to 80 characters). |
+| `tone: "info"` | A friendly look: an info icon in the brand colour, never a warning colour, and no other place offered (the way to one's own GPU is left out). |
+| `links` | Up to two more links, `[{ label, url }]` (labels up to 40 characters; `url` a same-site path or https), shown before `action`. |
+| `waitFor: { url, everyMs }` | A same-site path (an address on another site is left out) that the page asks with a GET, never cached, every `everyMs` (2 to 60 seconds; 4 by default) while the card is open, for 10 minutes at most. Once it answers `{ "ready": true }`, the card says "All set", sends the same run once more by itself as a new press (a fresh request id), and closes when it has started. While it waits, the card's links open in a new tab, so the card stays. |
+
+| `hold: true` | Only where runs wait instead of being refused (the policy has `limits.held`): the run is made at once and held until the service says ready. Its tile says "<title> · starts by itself", and the card opens once with the same look (and its `waitFor`, which here only closes the card: nothing is sent again). The release loop asks the reserve again under the press's own request id every few seconds; once it is taken, the run enters the line by itself, with no page open, after restarts too. A run the service hasn't taken within 48 hours is cancelled quietly. Without `limits.held`, the answer stays the refusal it is. |
+
+```json
+{ "ok": false, "code": "blocked", "text": "One more step and your run starts.", "title": "One quick step",
+  "tone": "info", "action": { "label": "Details", "url": "/your-page" }, "waitFor": { "url": "/your-page/ready", "everyMs": 4000 } }
+```
 
 ## Holds and the outbox
 

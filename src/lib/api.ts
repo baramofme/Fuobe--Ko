@@ -40,7 +40,7 @@ import type { AccessSummary } from "./model-access";
 import { ADD_KEY_HEADER, isCloudProvider, type CloudProvider } from "./your-keys";
 import type { Diagnosis } from "./diagnose";
 import type { OwnSetup } from "./own-setup";
-import { BILLING_EVENT, BILLING_HEADER, refreshPriceChecks, type BillingAction, type BillingRefusalDetail, type HostedBalance } from "./hosted";
+import { BILLING_EVENT, BILLING_HEADER, freshBody, refreshPriceChecks, type BillingAction, type BillingRefusalDetail, type HostedBalance } from "./hosted";
 import { knownPlace, notePlaceName, placeOf, type Place } from "./place-name";
 import { noteServiceCopy, type ServiceCopy } from "./service-copy";
 import { ENGINE_KEY, ENGINE_SLOT_KEY, engineSlot, SHARED_SLOT, slotToCache, storedEngine, type EngineSlot, type SlotFacts } from "./engine-pref";
@@ -1827,6 +1827,17 @@ export function watchGuestRefusals(): void {
     // A run started here, on the ComfyUI on this computer: the tab that runs it asks for it at once.
     if (res.status === 201 && method === "POST" && requestPath(input) === "/api/generations") {
       window.dispatchEvent(new Event(COMPUTER_KICK_EVENT));
+      // A run held until the billing service says ready: its card opens once (the run starts by itself).
+      res
+        .clone()
+        .json()
+        .then((b: { held?: { card?: { text?: string } & Omit<BillingRefusalDetail, "code" | "error"> } }) => {
+          const c = b.held?.card;
+          if (!c?.text || !refusalCard("gpu", window.location)) return;
+          const { text, ...look } = c;
+          window.dispatchEvent(new CustomEvent<BillingRefusalDetail>(BILLING_EVENT, { detail: { ...look, code: "held", error: text, heldRun: true } }));
+        })
+        .catch(() => {});
     }
     // An account's paid run without its own key for that provider (x-fuobe-add-key: fal | replicate): "Add your key".
     const addKey = res.status === 403 ? res.headers.get(ADD_KEY_HEADER) : null;
@@ -1848,7 +1859,14 @@ export function watchGuestRefusals(): void {
             billing === "price-changed" && method === "POST" && q && resendable(input, init) ? () => sendRunAgain(input, init, { [RUN_SHOWN_HEADER]: shownHeader(q) }) : undefined;
           // Hosted runs: the same run on the account's own GPU, for the card's "Run on your GPU".
           const own = method === "POST" && resendable(input, init) ? againAt(input, init, "own") : undefined;
-          window.dispatchEvent(new CustomEvent<BillingRefusalDetail>(BILLING_EVENT, { detail: { ...b, code: billing, ...(again && { runAgain: again }), ...(own && { runOwn: own }) } }));
+          // A run the service lets start once something clears (waitFor): the same run as a new press, sent by the card.
+          const fresh =
+            b.waitFor && method === "POST" && resendable(input, init)
+              ? () => sendRunAgain(input, { ...init, ...(typeof init?.body === "string" && { body: freshBody(init.body, newPressId) }) }, {})
+              : undefined;
+          window.dispatchEvent(
+            new CustomEvent<BillingRefusalDetail>(BILLING_EVENT, { detail: { ...b, code: billing, ...(again && { runAgain: again }), ...(own && { runOwn: own }), ...(fresh && { runFresh: fresh }) } }),
+          );
         })
         .catch(() => {});
     }

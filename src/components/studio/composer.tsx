@@ -111,6 +111,7 @@ import {
   showsPrompt,
   startStep,
   viewerDefaults,
+  hereDefaults,
   writesCaptions,
   WRITE_PROMPT,
 } from "@/lib/composer";
@@ -159,6 +160,7 @@ import { useVoiceFirstLive, useVoiceFirstShown, VoiceFirstSwitch } from "@/compo
 import { VOICE_FIRST_PARAM, voiceFirstDefault } from "@/lib/av/voice-first";
 import { FixFacesAfterSwitch } from "@/components/fix-faces/fix-faces-switch";
 import { FIX_FACES_AFTER_PARAM, fixFacesAfterOffered } from "@/lib/catalog/fix-faces";
+import { framingLabel, framingSuggestion } from "@/lib/framing-hint";
 import { useSignature } from "../palettes/use-signature";
 import { placeholdersOn } from "@/lib/demo-mode";
 import { useI18n } from "@/lib/i18n";
@@ -361,6 +363,8 @@ export function Composer({ docked }: { docked: boolean }) {
   const [voiceFirstAsked, setVoiceFirstAsked] = useState<boolean | null>(null);
   // "Fix faces" after an H3 video from a start picture: off until turned on.
   const [fixFacesAsked, setFixFacesAsked] = useState(false);
+  // The framing tip (a wide scene with a person, asked as a small square): "Keep 1:1" puts it away for this composer.
+  const [framingKept, setFramingKept] = useState(false);
   const voiceFirstKind: "audio" | "video" | null = !config.voiceFirst ? null : typed.slots.audio?.ref ? "audio" : typed.slots.video?.ref && config.ops.includes("transcribe") ? "video" : null;
   const draft = useMemo(
     () =>
@@ -472,7 +476,11 @@ export function Composer({ docked }: { docked: boolean }) {
 
   // The studio's defaults as this viewer runs them: Ideogram 4 gives way to its stand-in where the server writes no caption.
   const writes = writesCaptions(status);
-  const defaults = useMemo(() => viewerDefaults(config.defaultModels, config.uncaptioned, writes), [config.defaultModels, config.uncaptioned, writes]);
+  // Where this viewer's runs go to this install's GPUs and they run the studio's own choice for them (hereDefault), it is
+  // the open default there (Upscale → Video: Quick · RTX on NVIDIA RTX cards).
+  const hereModel = config.hereDefault && catalog.offered(config.hereDefault, "open") ? catalog.getModel(config.hereDefault) : undefined;
+  const hereRuns = !!here && !!hereModel && runsHere(here, hereModel);
+  const defaults = useMemo(() => hereDefaults(viewerDefaults(config.defaultModels, config.uncaptioned, writes), config.hereDefault, hereRuns), [config.defaultModels, config.uncaptioned, writes, config.hereDefault, hereRuns]);
 
   // Keep the selected model in sync with the engine switch. A camera motion or effect keeps its Original (Fuobe DoP),
   // moving to the model its move names on this engine (Jib Up: Fuobe DoP on the GPU, Fuobe DoP · LTX in the cloud) when
@@ -524,6 +532,16 @@ export function Composer({ docked }: { docked: boolean }) {
     const m = to !== model.id && model.id === config.defaultModels[engine] && (!lockedModel || appIds.includes(to)) ? catalog.getModel(to) : undefined;
     if (m) setDraft((d) => (d.modelId !== model.id ? {} : { modelId: m.id, params: { ...m.defaults, numOutputs: d.params.numOutputs, enhancePrompt: d.params.enhancePrompt }, ...lookCleared(model, m) }));
   }, [writes, model, defaults, engine, config.defaultModels, lockedModel, appIds, catalog, setDraft]);
+
+  // Runs that go to this install's GPUs, which run the studio's choice for them (hereDefault): the untouched default
+  // moves to it once that is known. A model the person picked, or a link that names one, stays.
+  const hereChecked = useRef(false);
+  useEffect(() => {
+    if (hereChecked.current || !hereRuns || !model || engine !== "open" || lockedModel || preset) return;
+    hereChecked.current = true;
+    const m = model.id === config.defaultModels.open && defaults.open !== model.id && new URLSearchParams(window.location.search).get("model") !== model.id ? catalog.getModel(defaults.open) : undefined;
+    if (m) setDraft((d) => (d.modelId !== model.id ? {} : { modelId: m.id, params: { ...m.defaults, numOutputs: d.params.numOutputs, enhancePrompt: d.params.enhancePrompt }, ...lookCleared(model, m) }));
+  }, [hereRuns, model, engine, lockedModel, preset, config.defaultModels.open, defaults.open, catalog, setDraft]);
 
   // The preset's recipe (the model its preview was made with) that this viewer can't run: a Replicate-only account and
   // hosted MiniMax H3 (fal only), or a model switched off in Settings → Models & licences. The composer moves to the
@@ -1289,6 +1307,17 @@ export function Composer({ docked }: { docked: boolean }) {
   // Enhance writes a scene; a tool's optional words (FLUX.3 Upscale's details) stay as typed.
   const baseShape = settingsShape(model, effectiveOp, config.kind, showPrompt && !config.hidePrompt, p, config.ops, studioFormats);
   const shape = framesCtx ? framesShape(baseShape, framesCtx.chained) : layoutOn ? layoutShape(baseShape) : baseShape;
+  // An image of a wide scene with a person in it, asked as a small square: one tap makes it 16:9 at a larger size.
+  const framing =
+    config.kind === "image" && !framingKept && !layoutOn && !framesOn && model
+      ? framingSuggestion({
+          prompt: draft.prompt,
+          aspect: p.aspectRatio ?? model.defaults?.aspectRatio,
+          resolution: p.resolution ?? model.defaults?.resolution,
+          aspects: shape.aspect,
+          resolutions: shape.resolution,
+        })
+      : null;
   const outcome = config.clipFacts && draft.slots.video?.ref ? clipOutcome(effectiveOp, facts, p, model, today) : null;
   const video = draft.slots.video?.ref;
   const alternative = config.comfyOnly?.alternative;
@@ -2037,6 +2066,7 @@ export function Composer({ docked }: { docked: boolean }) {
               : undefined
           }
           describing={describing}
+          here={here}
         />
       )}
 
@@ -2503,6 +2533,28 @@ export function Composer({ docked }: { docked: boolean }) {
       {sketched.note && <p className="px-2 pt-1 text-[12px] text-muted-foreground">{sketched.note}</p>}
       {signed.notes.length > 0 && <p className="px-2 pt-1 text-[12px] text-muted-foreground">{signed.notes.join(" · ")}</p>}
       {smallGpuNote && <p className="px-2 pt-1 text-[12px] text-muted-foreground">{smallGpuNote}</p>}
+      {framing && (
+        <div role="note" className="mx-1 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border bg-brand-faint px-3 py-2 text-[12px] leading-snug">
+          <p className="min-w-0 flex-1 basis-56 text-muted-foreground">
+            <span className="font-medium text-foreground">A wide frame suits this scene.</span> {framing.aspectRatio}
+            {framing.resolution ? ` at ${framing.resolution}` : ""} gives the figure room and keeps faces crisp and detailed.
+          </p>
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 rounded-full px-3"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setP({ aspectRatio: framing.aspectRatio, ...(framing.resolution && { resolution: framing.resolution }) })}
+            >
+              {framingLabel(framing)}
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 rounded-full px-2.5 text-muted-foreground" onMouseDown={(e) => e.preventDefault()} onClick={() => setFramingKept(true)}>
+              Keep 1:1
+            </Button>
+          </div>
+        </div>
+      )}
       {model && !framesOn && <EndFrameNote model={model} start={draft.slots.image} end={draft.slots.endImage} hasStartSlot={slots.some((s) => s.key === "image")} setSlot={setSlot} />}
       {model && op && model.options.endFrame === undefined && draft.slots.endImage?.ref && (
         <p className="px-2 pt-1 text-[12px] text-warning">{model.name} ignores the end frame — pick Kling 2.5, Veo 3.1, Seedance or Wan 2.2 to use it.</p>

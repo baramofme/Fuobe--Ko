@@ -82,7 +82,7 @@ import { expandInbetweenWorkflow, type InbetweenPass } from "@/lib/av/inbetween-
 import { gapPrompt, requestTiming, type InbetweenTiming } from "@/lib/inbetween";
 import { expandTimelineWorkflow, readTimeline } from "@/lib/av/timeline";
 import { expandWorldWorkflow, readWorld, WorldGraphError, worldProblem, type WorldScript } from "@/lib/world";
-import { exportValues, framesPerPass, hdrColorSpace, RTX_UPSCALE_WORKFLOW, rtxScale, upscaleShortSide, wholeClipProblem, wholeClipTool } from "@/lib/av/video-finish";
+import { esrganWholeFrames, exportValues, framesPerPass, hdrColorSpace, RTX_UPSCALE_WORKFLOW, rtxScale, upscaleShortSide, wholeClipProblem, wholeClipTool } from "@/lib/av/video-finish";
 import { keyFormatValues } from "@/lib/av/keying";
 import { factorTier } from "@/lib/av/upscale";
 import { CHARACTER_SWAP, packResolution, samCoords, swapPrompt, SWAP_LORAS, windowPlan } from "@/lib/catalog/character-swap";
@@ -232,6 +232,7 @@ const MEDIA_LOADERS: Record<string, string> = {
 const SLOT_RULES: Record<string, { reuse?: boolean; required?: string[]; hints?: Record<string, string>; views?: ViewSlots }> = {
   // Edit graphs whose extra images feed TextEncodeQwenImageEditPlus: a repeated reference is harmless.
   "qwen-image-edit-2511-multi": { reuse: true },
+  "qwen-image-edit-2511-multi-fast": { reuse: true },
   "storyboard-qwen-edit-2509-next-scene": { reuse: true },
   "tryon-flux2-klein-4b": { required: ["image2"], hints: { image: "Add a photo of the person", image2: "Add the garment to try on" } },
   // Its describer reads the outfit photo; the words graph (outfit-swap-qwen-image-21-text) runs when there is none.
@@ -1315,6 +1316,12 @@ export async function composeWorkflow(endpointTemplate: string, input: GenInput,
   if (finish.bypassInterpolation) {
     const id = Object.keys(wf).find((k) => wf[k].class_type === "FrameInterpolate" || wf[k].class_type === "RTXVideoFrameGeneration");
     if (id) wf = bypassNode(wf, id, "images", outputIds);
+  }
+  // ESRGAN video upscale: whole frames in fp16 on a card with room for them, else the core node's tiles (any card).
+  const wholeFrames = Object.keys(wf).find((k) => wf[k].class_type === "ImageUpscaleWithModelBatched");
+  if (wholeFrames && !esrganWholeFrames(clipFacts(clip), await ctx.vram?.().catch(() => undefined))) {
+    const n = wf[wholeFrames];
+    wf = { ...wf, [wholeFrames]: { ...n, class_type: "ImageUpscaleWithModel", inputs: { upscale_model: n.inputs.upscale_model, image: n.inputs.images } } };
   }
   if (surroundSource(sourceChannels)) wf = dbsSurroundBed(wf);
   // Zen Image Edit's loader (Qwen-Image 2.1 on a small GPU) reads paths, not names: the adapter where the server keeps it

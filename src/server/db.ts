@@ -977,7 +977,12 @@ export const ADMIN_TABLES = `CREATE TABLE IF NOT EXISTS admin_tokens (
     detail_json TEXT,
     status INTEGER NOT NULL
   );
-  CREATE INDEX IF NOT EXISTS admin_audit_at ON admin_audit(at);`;
+  CREATE INDEX IF NOT EXISTS admin_audit_at ON admin_audit(at);
+  CREATE TABLE IF NOT EXISTS admin_reruns (
+    run_id TEXT PRIMARY KEY,
+    new_ids_json TEXT,
+    at INTEGER NOT NULL
+  );`;
 
 /**
  * Skills (src/server/recipes.ts, src/server/skill-runs.ts): a run of a skill whose steps wait for each other across
@@ -1310,6 +1315,10 @@ function open(): Database.Database {
   db.exec(RUN_ON_TABLES);
   // Runs on this install's GPUs waiting to enter the line (pool-holds.ts): empty unless hosted runs are on.
   db.exec(POOL_HOLD_TABLES);
+  // A run held until the billing service says ready keeps its card (pool-holds.ts ready_json), for tables made before it.
+  if (!(db.prepare("PRAGMA table_info(pool_holds)").all() as { name: string }[]).some((c) => c.name === "ready_json")) {
+    addColumn(db, "ALTER TABLE pool_holds ADD COLUMN ready_json TEXT");
+  }
   // The billing service's last policy answer (billing.ts keptPolicy): empty unless hosted runs are on.
   db.exec(KEPT_POLICY_TABLES);
   // Its list reads this small summary, never every board's pages (a table made before it had the column gets it).
