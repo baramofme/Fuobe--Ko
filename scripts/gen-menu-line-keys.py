@@ -298,7 +298,7 @@ KO_MAP: dict[str, str] = {
     "menu.line.product_close_ups_inside": "제품 근접, 내부에",  # en 'Product close-ups inside'
     "menu.line.a_whispered_product_promo": "속삭이는 제품 홍보",  # en 'A whispered product promo'
     "menu.line.spin_your_product": "내 제품을 회전",  # en 'Spin your product'
-    "menu.line.turn_a_product_into_a_bold": "제품을 과감한海报로",  # en 'Turn a product into a bold'
+    "menu.line.turn_a_product_into_a_bold": "제품을 과감한 포스터로",  # en 'Turn a product into a bold'
     "menu.line.a_button_press_triggers": "버튼 누름이 발동",  # en 'A button press triggers'
     "menu.line.turn_a_product_photo": "제품 사진을",  # en 'Turn a product photo'
     "menu.line.freeze_frame_360_rotation": "정지 프레임 360도 회전",  # en 'Freeze-frame 360° rotation'
