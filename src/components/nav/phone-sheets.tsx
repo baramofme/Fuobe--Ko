@@ -15,8 +15,13 @@ import { MEGA_AREAS, type MegaId } from "@/lib/mega-menus";
 import { warmNav } from "@/components/nav/nav-prefetch";
 import { area } from "@/lib/nav-areas";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { translateOr } from "@/lib/i18n/store";
+import { labelKeyOf } from "@/lib/nav-model";
 
 const TITLES: Record<NavSheet, string> = { studios: "Studios", create: "Create", you: "You" };
+/** A sheet's title in the language: the area's name under its own key, byte-identical in English. */
+const TITLE_KEYS: Record<NavSheet, string> = { studios: "nav.studios", create: "nav.create", you: "nav.you" };
 
 /** "See all" in a sheet's header: the area's own page, with covers and lines. */
 const SEE_ALL: Partial<Record<NavSheet, string>> = { create: area("create").href };
@@ -78,6 +83,7 @@ function YouSheet() {
  * it, and focus goes back to what opened it.
  */
 export function PhoneSheets() {
+  const { t, lang } = useI18n();
   const { sheet, setSheet, sheetGroup, sheetFamily } = useNavUi();
   // The Studios sheet's family (Studios, Apps, Motions & effects, Canvas): where openArea() asked, then as switched.
   const [family, setFamily] = useState<MegaId>(sheetFamily);
@@ -186,7 +192,7 @@ export function PhoneSheets() {
               {/* On the sheet's 16 px gutter, as the chips and tiles under it are. */}
               <div className={cn("flex items-center pr-2 pl-4", shown === "studios" ? "gap-1" : "gap-3")}>
                 <SheetPrimitive.Title className={cn("font-heading text-[28px] leading-none font-normal text-foreground", shown === "studios" && "sr-only")}>
-                  {shown === "studios" ? MEGA_AREAS[family].label : TITLES[shown]}
+                  {shown === "studios" ? translateOr(lang, labelKeyOf(family), MEGA_AREAS[family].label) : translateOr(lang, TITLE_KEYS[shown], TITLES[shown])}
                 </SheetPrimitive.Title>
                 {shown === "studios" && <FamilySwitch family={family} onFamily={setFamily} />}
                 {SEE_ALL[shown] && (
@@ -196,7 +202,7 @@ export function PhoneSheets() {
                     aria-label={`See all ${TITLES[shown].toLowerCase()}`}
                     className="nav-row group/all ml-auto inline-flex h-11 items-center gap-1 rounded-full px-3 text-[13px] font-medium text-brand-text"
                   >
-                    See all
+                    {t("nav.seeAll")}
                     <ArrowRight aria-hidden className="size-4" />
                   </IntentLink>
                 )}

@@ -9,8 +9,20 @@ import { area } from "@/lib/nav-areas";
 import { NAV_ICONS } from "@/lib/nav-icons";
 import { GOALS, goalBand, isNew, tapHref, type GoalId, type NavEntry, type ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { translateOr } from "@/lib/i18n/store";
 import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import { GOAL_STRIP } from "./goal-tab";
+
+/**
+ * The goals whose chip says an area's section title word for word (byte-identical in English): the chip reads that
+ * title's key, so it changes with the language. The others ("Make a film", "Grow on social") are the goal's own words,
+ * nobody's key — they stay as authored.
+ */
+const GOAL_TITLE_KEYS: Readonly<Partial<Record<GoalId, string>>> = {
+  people: "area.section.people.title",
+  sound: "area.section.sound.title",
+};
 
 /**
  * Home's goal row: six goals under the hero, each a button that opens a band of that goal's studios, one-tap presets
@@ -248,6 +260,7 @@ export function GoalRow({ names }: { names: Readonly<Record<string, string>> }) 
   const [open, setOpen] = useState<GoalId | null>(null);
   // The goal that holds the row's one tab stop (the last one focused or opened).
   const [stop, setStop] = useState(0);
+  const { lang } = useI18n();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -317,7 +330,9 @@ export function GoalRow({ names }: { names: Readonly<Record<string, string>> }) 
                 {...onAttr(on)}
               >
                 <Icon aria-hidden />
-                {g.label}
+                {/* A goal whose chip says the area's own title reads that title in the language (Sound, People &
+                    fashion); the rest keep their words — no key of theirs exists to borrow. */}
+                {GOAL_TITLE_KEYS[g.id] ? translateOr(lang, GOAL_TITLE_KEYS[g.id]!, g.label) : g.label}
               </button>
             );
           })}

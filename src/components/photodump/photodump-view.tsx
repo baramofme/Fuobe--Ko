@@ -17,6 +17,7 @@ import { customPack, DEFAULT_ASPECT, MAX_PACK_REFS, MAX_SELFIE_MB, PACKS, PHOTOD
 import type { Generation } from "@/lib/catalog/types";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import { linkTab, TabFromLink } from "@/components/nav/tab-from-link";
 import { toastError } from "@/lib/refusals";
@@ -47,6 +48,12 @@ const TABS = [
   ["mine", "My packs"],
 ] as const;
 type PackTab = (typeof TABS)[number][0];
+/** The tabs' names as keys, where somebody keyed them (byte-identical in English); "My packs" is this page's own words. */
+const TAB_KEYS: Readonly<Partial<Record<PackTab, string>>> = {
+  all: "search.chipAll",
+  photodump: "nav.photodump",
+  instadump: "nav.photodump-instadump",
+};
 /** The tabs a link can open (?tab=instadump: the bar's menus, search). */
 const TAB_IDS: readonly PackTab[] = TABS.map(([id]) => id);
 const ratioOf = (a: string) => {
@@ -161,6 +168,7 @@ export function PhotodumpView() {
   // own GPU nor its own key to connect one (as before any upload). An account's packs and runs are its own.
   const askFirst = useAskFirst();
   const [step, setStep] = useState(0);
+  const { t } = useI18n();
   const [reached, setReached] = useState(0);
   const [tab, setTab] = useState<PackTab>("all");
   // A link to a tab (the bar's menus, search) shows that tab's packs: back to the first step.
@@ -239,7 +247,7 @@ export function PhotodumpView() {
   return (
     <PageShell wide>
       <TabFromLink param="tab" ids={TAB_IDS} onTab={tabFromLink} />
-      <PageHeader title="Photodump" description="A whole set of photos of you in one go, from one selfie or a saved character, in a pack of styles.">
+      <PageHeader title={t("nav.photodump")} description="A whole set of photos of you in one go, from one selfie or a saved character, in a pack of styles.">
         <EngineSwitch value={engine} onChange={setEngine} />
       </PageHeader>
       <div className="mb-6">
@@ -262,7 +270,7 @@ export function PhotodumpView() {
                   className={TAB_PILL}
                   {...onAttr(tab === id)}
                 >
-                  {label}
+                  {TAB_KEYS[id] ? t(TAB_KEYS[id]!) : label}
                 </button>
               ))}
             </TabRow>

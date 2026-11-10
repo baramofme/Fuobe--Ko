@@ -2,6 +2,7 @@
 
 import { Pause, Play } from "lucide-react";
 import { setPreviewsPaused, usePreviewsPaused } from "@/components/preset-preview";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,8 +12,9 @@ import { cn } from "@/lib/utils";
  */
 export function PausePreviews({ className }: { className?: string }) {
   const paused = usePreviewsPaused();
+  const { t } = useI18n();
   const Icon = paused ? Play : Pause;
-  const label = paused ? "Play previews" : "Pause previews";
+  const label = paused ? t("home.islands.playPreviews") : t("home.islands.pausePreviews");
   return (
     <button
       type="button"

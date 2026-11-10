@@ -224,6 +224,7 @@ export function canvasMenu(): MegaModel {
       {
         id: "start",
         label: "Start here",
+        titleKey: "area.section.start.title",
         chip: "Start",
         span: 2,
         owner: "canvas-start",
@@ -241,6 +242,7 @@ export function canvasMenu(): MegaModel {
         (s, i): MegaColumn => ({
           id: s.key || "films",
           label: s.title,
+          titleKey: s.titleKey,
           chip: s.title,
           variant: "tiles",
           span: 4,

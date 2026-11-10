@@ -7,6 +7,7 @@ import { IntentLink } from "@/components/intent-link";
 import { CountUp } from "@/components/ui/count-up";
 import type { BentoPicture, BentoTile, HomeBento as Bento } from "@/lib/home-bento";
 import { cn } from "@/lib/utils";
+import { translate, type Lang } from "@/lib/i18n/store";
 import { s } from "./home-bento-classes";
 import "./home-bento.css";
 
@@ -175,7 +176,7 @@ function CanvasBoard({ board }: { board: Bento["canvas"] }) {
  * (bento-islands.tsx), and so is the Audio tile, Clean up voice's demo to play (bento-voice.tsx). Nothing in it depends
  * on who is looking.
  */
-export function HomeBento({ bento }: { bento: Bento }) {
+export function HomeBento({ bento, lang }: { bento: Bento; lang: Lang }) {
   const { tiles } = bento;
   // The video tile's still is the first screen's biggest picture: asked for from the head, before the body's HTML.
   const still = bento.video.poster;
@@ -216,7 +217,7 @@ export function HomeBento({ bento }: { bento: Bento }) {
           <Pic pic={still} sizes={SIZES.video} fetchPriority="high" decoding="sync" position={bento.video.reel[0].position} />
           <BentoReel id={bento.video.id} reel={bento.video.reel} progress />
           <span aria-hidden className={s.badge}>
-            <Video className="size-3.5" /> Video
+            <Video className="size-3.5" /> {translate(lang, "gallery.cat.video")}
           </span>
         </Tile>
 
@@ -276,8 +277,8 @@ export function HomeBento({ bento }: { bento: Bento }) {
 
       <div id="home-bento-foot" className={s.foot}>
         <p className="min-w-0">
-          <span className="xl:hidden">Rendered locally on ComfyUI, on one RTX 5090.</span>
-          <span className="max-xl:hidden">Every preview on this page was rendered locally on ComfyUI, on one RTX 5090.</span>
+          <span className="xl:hidden">{translate(lang, "home.wall.footShort")}</span>
+          <span className="max-xl:hidden">{translate(lang, "home.wall.footFull")}</span>
         </p>
         <ScrollCue footId="home-bento-foot" />
         <PausePreviews className="justify-self-end [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11" />

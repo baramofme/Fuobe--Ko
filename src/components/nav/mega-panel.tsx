@@ -8,7 +8,7 @@ import { PausePreviews } from "@/components/pause-previews";
 import { usePreviewsPaused } from "@/components/preset-preview";
 import { Kbd } from "@/components/ui/kbd";
 import { NEW_CREATION_HREF } from "@/lib/nav";
-import { bundledMenu, MEGA_AREAS, type MegaColumn, type MegaId, type MegaItem, type MegaModel } from "@/lib/mega-menus";
+import { bundledMenu, MEGA_AREAS, type MegaColumn, type MegaFamily, type MegaId, type MegaItem, type MegaModel, type MegaSub } from "@/lib/mega-menus";
 import { isNew, labelKeyOf, subParent, type ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -80,6 +80,16 @@ const lineIn = (lang: Lang, line: string | undefined): string | undefined =>
 const nameIn = (lang: Lang, e: MegaItem): string =>
   translateOr(lang, `preset.${keySnake(e.label)}.name`, translateOr(lang, labelKeyOf(e.id), e.label));
 
+/**
+ * A feature pill's name in the language of this render: the tab's key under its studio (`nav.<id>.tab`), else the
+ * entry's label key (`nav.<id>`), else its own words — the fallback rule, byte-identical in English by construction.
+ */
+const subLabelIn = (lang: Lang, s: MegaSub): string =>
+  translateOr(lang, `${labelKeyOf(s.id)}.tab`, translateOr(lang, labelKeyOf(s.id), s.label));
+
+/** A column's name in the language of this render: its `titleKey` where it has one, else its label (keyless groups). */
+const colLabelIn = (lang: Lang, c: MegaColumn): string => (c.titleKey ? translateOr(lang, c.titleKey, c.label) : c.label);
+
 function NewBadge() {
   const { t } = useI18n();
   return (
@@ -95,7 +105,7 @@ function NewBadge() {
  * focusing it plays it too. `eager`: on the menu's first screen, so its picture loads with the panel.
  */
 const MegaTile = memo(function MegaTile({ e, current, inside, now, playing, eager, subCurrent }: { e: MegaItem; current: boolean; inside: boolean; now: number; playing: boolean; eager: boolean; subCurrent?: string }) {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const nameTr = nameIn(lang, e);
   const lineTr = lineIn(lang, e.line);
   const { alive, handlers } = useAliveCard();
@@ -122,7 +132,7 @@ const MegaTile = memo(function MegaTile({ e, current, inside, now, playing, eage
       </IntentLink>
       {/* A studio's features (its tabs and modes): every one a click away from the menu. */}
       {e.subs && e.subs.length > 0 && (
-        <ul aria-label={`In ${nameTr}`} data-subs={e.id} className="flex flex-wrap gap-1 px-0.5 pt-1.5">
+        <ul aria-label={t("area.in", { name: nameTr })} data-subs={e.id} className="flex flex-wrap gap-1 px-0.5 pt-1.5">
           {e.subs.map((s) => (
             <li key={s.id} className="min-w-0">
               <IntentLink
@@ -130,14 +140,14 @@ const MegaTile = memo(function MegaTile({ e, current, inside, now, playing, eage
                 data-key=""
                 data-sub=""
                 aria-current={subCurrent === s.id ? "page" : undefined}
-                aria-label={s.name}
-                title={s.line}
+                aria-label={s.more ? t("nav.sub.seeAllName", { count: s.allCount!, name: nameTr }) : s.name}
+                title={s.more ? t("nav.sub.everyTool", { name: nameTr }) : s.line}
                 className={cn(
                   "nav-row inline-flex h-7 max-w-full items-center gap-1 rounded-full px-2.5 text-[12px] [@media(pointer:coarse)]:h-9",
                   s.more ? "font-medium text-brand-text" : "bg-muted/70 text-muted-foreground hover:text-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground",
                 )}
               >
-                <span className="truncate">{s.label}</span>
+                <span className="truncate">{s.more ? t("nav.sub.seeAll", { count: s.allCount! }) : subLabelIn(lang, s)}</span>
                 {s.more && <ArrowRight aria-hidden className="size-3 shrink-0" />}
               </IntentLink>
             </li>
@@ -262,6 +272,7 @@ function OwnerStartSkeleton() {
  */
 export function MegaGrid({ model, current, now, kind }: { model: MegaModel; current?: string; now: number; kind?: ViewerKind }) {
   const ids = useId();
+  const { lang } = useI18n();
   const [tab, setTab] = useState(-1);
   const group = tab >= 0 ? model.columns[tab] : undefined;
   const root = useRef<HTMLDivElement>(null);
@@ -299,7 +310,10 @@ export function MegaGrid({ model, current, now, kind }: { model: MegaModel; curr
     <div ref={root}>
       {/* One row of names: All, then each group (the header line above says how many). Pinned under the panel's header as it scrolls. */}
       <div role="group" aria-label={`Show in ${MEGA_AREAS[model.id].label}`} className="sticky top-[var(--mega-head,0px)] z-10 -mx-6 mb-4 flex gap-1 overflow-x-auto border-b bg-popover px-6 [scrollbar-width:none]">
-        {["All", ...model.columns.map((c) => c.label)].map((label, i) => {
+        {[null, ...model.columns].map((c, i) => {
+          // "All" is the menu's own word (keyed like the sheet's chip); a group's name reads its titleKey where it
+          // has one, else its label byte-identical (fetched menus' categories have no keys).
+          const label = c ? colLabelIn(lang, c) : translateOr(lang, "search.chipAll", "All");
           const on = tab === i - 1;
           return (
             <button
@@ -329,12 +343,12 @@ export function MegaGrid({ model, current, now, kind }: { model: MegaModel; curr
               <Fragment key={c.id}>
                 {famHead && (
                   <p data-family={famHead.id} className="break-after-avoid pt-1 pb-2 font-heading text-[22px] leading-7 text-brand-text">
-                    {famHead.label}
+                    {translateOr(lang, labelKeyOf(famHead.id), famHead.label)}
                   </p>
                 )}
                 <p id={`${ids}-${c.id}`} data-group={c.id} className="break-inside-avoid break-after-avoid pb-2">
                   <button type="button" onClick={() => pick(ci)} aria-label={`Show only ${c.label}`} className="nav-row -mx-1.5 flex w-[calc(100%+12px)] min-w-0 items-baseline gap-1.5 rounded-[8px] px-1.5 py-1 text-left">
-                    <span className="truncate text-[13.5px] font-semibold">{c.label}</span>
+                    <span className="truncate text-[13.5px] font-semibold">{colLabelIn(lang, c)}</span>
                     <ChevronRight aria-hidden className="ml-auto size-3.5 shrink-0 self-center text-muted-foreground" />
                   </button>
                 </p>
@@ -422,7 +436,7 @@ export function MegaPanel({ id, onClose, onDismiss, onSearch, onPrimed }: { id: 
     <div ref={root} className="max-w-[1680px] px-6 pb-6 lg:pb-7">
       <div ref={head} className="sticky top-0 z-20 -mx-6 flex min-h-10 items-center gap-3 bg-popover px-6 pt-5 pb-3 lg:pt-6">
         <p className="text-[13px] text-muted-foreground" data-count-line>
-          {model ? model.countLine : failed ? "Couldn't load this menu" : " "}
+          {model ? translateOr(lang, model.countLineKey, model.countLine, model.countLineParams) : failed ? t("nav.couldNotLoadMenu") : " "}
         </p>
         {/* A plain link in Tab order before the tiles; the arrow keys skip it (it has no data-key). */}
         <IntentLink
@@ -438,7 +452,7 @@ export function MegaPanel({ id, onClose, onDismiss, onSearch, onPrimed }: { id: 
         {id === "create" && (
           <IntentLink href={NEW_CREATION_HREF} eager className="nav-row inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-medium [@media(pointer:coarse)]:h-11">
             <Plus aria-hidden className="size-3.5 text-brand-text" />
-            New creation
+            {t("nav.newCreation")}
           </IntentLink>
         )}
         {failed && (
@@ -456,8 +470,8 @@ export function MegaPanel({ id, onClose, onDismiss, onSearch, onPrimed }: { id: 
           className="nav-row inline-flex h-10 items-center gap-2 rounded-[10px] px-2.5 text-[13px] font-medium text-brand-text"
         >
           <Search aria-hidden className="size-4" />
-          <span className="max-lg:hidden">Search all apps, effects and tools</span>
-          <span className="lg:hidden">Search</span>
+          <span className="max-lg:hidden">{t("nav.searchAll")}</span>
+          <span className="lg:hidden">{t("nav.searchAria")}</span>
           <Kbd aria-hidden className="[@media(hover:none)]:hidden">
             /
           </Kbd>

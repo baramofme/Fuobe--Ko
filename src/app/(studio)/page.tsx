@@ -46,7 +46,7 @@ export default async function Page() {
       chips={HOME_TRY}
       assist={{ label: "Plan a perfume ad with Assist", href: `/chat/make?prompt=${encodeURIComponent(ASSIST_SUGGESTIONS[0])}` }}
       goals={<GoalRow names={goalTapNames()} />}
-      bento={<HomeBento bento={home.bento} />}
+      bento={<HomeBento bento={home.bento} lang={lang} />}
       prices={starterPriceLine()}
       quotes={startQuotes()}
     >
