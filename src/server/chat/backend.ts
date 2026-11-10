@@ -2,6 +2,7 @@ import "server-only";
 import { alternate, CHAT_EXTRA, fitHistory, summaryAsk, tidyReply, transcript, type ChatTurn } from "@/lib/chat/prompt";
 import type { ChatEngine, ChatErrorCode } from "@/lib/chat/types";
 import { readSse } from "../llm/sse";
+import { activeLocal, chatLocal, type ChatMessage, type ChatResult, type ChatTool, type ChatToolCall } from "../llm";
 import { runAsTenant } from "../tenant";
 import { askHelper, freeHelperOn, freeHelperState, helperKnown, HELPER_LIMITS, helperMessagesProblem, type HelperAnswer, type HelperCall, type HelperTool } from "../text-helper";
 
@@ -63,6 +64,9 @@ const MAKE_TOOL: HelperTool = {
   },
 };
 
+/** The make tool, as a local server's ChatTool: the same shape, one layer down. */
+const MAKE_CHAT_TOOL: ChatTool = { name: MAKE_TOOL.function.name, description: MAKE_TOOL.function.description, parameters: MAKE_TOOL.function.parameters };
+
 const MAKE_HINT =
   "When the person asks you to make, create, generate, draw, design, compose, record or show them a picture, video, song, jingle, beat or voice-over (in any language, including Hindi and Hinglish), call the make tool right away with a rich description; don't reply with ideas or options first. For questions, advice, ideas, writing, stories or play, answer in words and call no tool.";
 
@@ -83,6 +87,16 @@ function makeOf(calls: HelperCall[] | undefined): MakeCall | null {
   } catch {
     return null;
   }
+}
+
+/** The make call a local model returned through the API: its `input` is already an object. */
+function localMakeOf(calls: ChatToolCall[]): MakeCall | null {
+  const c = calls.find((x) => x.name === "make");
+  if (!c) return null;
+  const a = (c.input ?? {}) as { what?: unknown; kind?: unknown };
+  const what = typeof a.what === "string" ? a.what.trim().slice(0, 2000) : "";
+  const kind = a.kind === "video" || a.kind === "music" || a.kind === "voice" ? a.kind : "image";
+  return what.length >= 3 ? { what, kind } : null;
 }
 
 export type ReplyAnswer =
@@ -121,6 +135,48 @@ function fromHelper(a: Exclude<HelperAnswer, { text: string }>): ReplyAnswer {
   const code: ChatErrorCode = a.error === "sign-in" ? "sign-in" : a.error === "limit" ? "limit" : a.error === "blocked" ? "blocked" : a.error === "busy" ? "busy" : "failed";
   const message = code === "limit" ? CHAT_WORDS.limit : a.error === "blocked" && a.message ? a.message : CHAT_WORDS[code];
   return { error: code, message, ...(a.retryAfterS ? { retryAfterS: a.retryAfterS } : {}) };
+}
+
+/**
+ * The install's own local model (Assist's), reached through the llm layer. Fuobe Chat has no local
+ * engine of its own: when the free helper isn't answering at all — a self-hosted install with the
+ * helper off, or a host that never runs one — the owner's chats fall back to the local model that is
+ * up, so a new chat gets a real reply instead of waiting out the helper and going "pending". It runs
+ * only for the owner, never for an account: the local model is theirs, not a shared helper for others.
+ * Null when no local server is ready or the call fails: the free-helper wait carries on, never an error.
+ */
+async function localReply(ask: ReplyAsk): Promise<ReplyAnswer | null> {
+  if (ask.who !== "owner") return null;
+  const ready = await activeLocal();
+  if (!ready) return null;
+  const fit = fitHistory(ask.turns, KEY_BUDGET); // a local context is far larger than the helper's message limit
+  const messages: ChatMessage[] = [{ role: "system", content: ask.makeTool ? withMakeTool(ask.system) : ask.system }];
+  for (const t of alternate(fit.turns)) messages.push({ role: t.role, content: t.content });
+  // The newest turn's picture, as OpenAI vision data a model that can see reads.
+  if (ask.image) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        messages[i].images = [{ data: ask.image.data.toString("base64"), contentType: ask.image.contentType }];
+        break;
+      }
+    }
+  }
+  let r: ChatResult;
+  try {
+    r = await chatLocal(ready, {
+      messages,
+      ...(ask.makeTool && { tools: [MAKE_CHAT_TOOL] }),
+      maxTokens: 1200,
+      timeoutMs: 120_000,
+      signal: ask.signal,
+    });
+  } catch {
+    return null;
+  }
+  const text = tidyReply(r.text, ask.speaker);
+  const make = ask.makeTool ? localMakeOf(r.toolCalls) : null;
+  if (make) return { text, dropped: fit.dropped, make };
+  return text ? { text, dropped: fit.dropped } : null;
 }
 
 /** How long a reply waits for the free model to come up before the message is kept for later. */
@@ -173,7 +229,12 @@ async function siteTry(ask: ReplyAsk, waitMs: number): Promise<ReplyAnswer | "bu
     if (make) return { text, dropped: fit.dropped, make };
     return text ? { text, dropped: fit.dropped } : { error: "failed", message: CHAT_WORDS.failed };
   }
-  if (!freeHelperOn(Date.now(), { vision })) return "busy";
+  if (!freeHelperOn(Date.now(), { vision })) {
+    // The helper isn't up at all: the owner's own local model, if it is up, can take the turn.
+    const lr = await localReply(ask);
+    if (lr) return lr;
+    return "busy";
+  }
   const fit = fitHistory(ask.turns, SITE_BUDGET);
   const a = await askHelper({ task: "write", system: ask.system, user: transcript(fit.turns, ask.speaker), ...(ask.image && { images: [ask.image] }), signal: ask.signal, waitMs });
   if ("error" in a) return a.error === "busy" ? "busy" : fromHelper(a);
