@@ -18,10 +18,12 @@ export function EngineLine({ me, className }: { me: ChatMe | undefined; classNam
   if (!me) return null;
   const key = me.engine === "key" && me.key;
   const short = key ? me.key!.model.split("/").pop()!.replace(/:free$/, "") : null;
+  const local = me.engine === "local";
+  const localText = local ? `Local · ${me.local?.model ?? me.local?.label ?? "your local server"}` : null;
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-1.5 px-1 text-[12.5px] text-muted-foreground", className)}>
-      {(key || me.site) && <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />}
-      <span className="truncate">{key ? `Your key · ${short}` : "Free model"}</span>
+      {(key || me.site || (local && me.local?.on)) && <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />}
+      <span className="truncate">{key ? `Your key · ${short}` : local ? localText : "Free model"}</span>
     </span>
   );
 }

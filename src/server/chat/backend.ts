@@ -349,6 +349,11 @@ export async function chatReply(engine: ChatEngine, ask: ReplyAsk, key: { key: s
     if (!key) return { error: "key-refused", message: "Your saved key can't be opened any more. Add it again in chat settings." };
     return keyReply(ask, key);
   }
+  if (engine === "local") {
+    // The owner picked the install's own local model: the same call the helper-off fallback makes, run on purpose.
+    const lr = await localReply(ask);
+    return lr ?? { error: "failed", message: "Your local server didn't answer. Make sure your local model is running, or pick another answer in chat settings." };
+  }
   return siteReply(ask);
 }
 

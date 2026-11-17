@@ -411,7 +411,7 @@ function prefsRow(who: string): PrefsRow | null {
 export function getPrefs(who: string): ChatPrefs {
   const r = prefsRow(who);
   const key = r?.key_sealed && r.key_last4 ? { last4: r.key_last4, model: r.key_model || DEFAULT_KEY_MODEL } : null;
-  return { mature: !!r?.mature_at, engine: key && r?.engine === "key" ? "key" : "site", key };
+  return { mature: !!r?.mature_at, engine: key && r?.engine === "key" ? "key" : r?.engine === "local" ? "local" : "site", key };
 }
 
 function upsertPrefs(who: string, set: Partial<Omit<PrefsRow, "account_id" | "updated_at">>): void {

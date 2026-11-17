@@ -159,11 +159,26 @@ export function ChatSettingsDialog({ open, onOpenChange, me }: { open: boolean; 
               >
                 Your OpenRouter key
               </button>
+              {me?.owner && me.local && (
+                <button
+                  role="radio"
+                  aria-checked={engine === "local"}
+                  className={TAB_PILL}
+                  {...onAttr(engine === "local")}
+                  disabled={!me.local.on}
+                  onClick={() => engine !== "local" && void patch({ engine: "local" }, "engine")}
+                  title={me.local.on ? undefined : "Your local server isn't answering right now"}
+                >
+                  {me.local.model ? `Your local model · ${me.local.model}` : me.local.label}
+                </button>
+              )}
             </TabRow>
             <p className="text-[13px] leading-relaxed text-muted-foreground">
               {engine === "site"
                 ? "Free, on Fuobe's own GPUs."
-                : "Replies come from your OpenRouter account, with the model you pick. OpenRouter bills you for paid models."}
+                : engine === "local"
+                  ? "Answers come from the model on this machine, through your local server."
+                  : "Replies come from your OpenRouter account, with the model you pick. OpenRouter bills you for paid models."}
             </p>
             {me?.key ? (
               <div className="space-y-2 rounded-xl border p-3">

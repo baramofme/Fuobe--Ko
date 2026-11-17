@@ -71,8 +71,8 @@ export interface ChatThreadView extends ChatThreadSummary {
   generations: Generation[];
 }
 
-/** Where a reply comes from. */
-export type ChatEngine = "site" | "key";
+/** Where a reply comes from: Fuobe's free helper, the person's own OpenRouter key, or the install's own local server. */
+export type ChatEngine = "site" | "key" | "local";
 
 export interface ChatMe {
   /** The free model can answer this person now. */
@@ -82,6 +82,8 @@ export interface ChatMe {
   /** Their own OpenRouter key, when saved. */
   key: { last4: string; model: string } | null;
   engine: ChatEngine;
+  /** The install's own local server: null when none is configured; when one is, whether it can answer now and what it uses. */
+  local: { on: boolean; label: string; model: string | null } | null;
   mature: boolean;
   owner: boolean;
 }
