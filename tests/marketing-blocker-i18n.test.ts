@@ -11,8 +11,10 @@
  * en/ko 값이 나란히 동일해야 화면이 한 문구로 말한다. 패널 쪽 키는 이 카드의 접촉 대상이
  * 아니다(lang-switch의 영어 리터럴 선택기가 거기에 결속되어 있다).
  *
- * line 500의 SelfHostNote는 마침표가 붙은 별개 바이트("…available here.") — 이 3종이 아니며
- * kinetic-templates.mjs가 그 버전을 결속 검사하므로 무접촉이 규정이다.
+ * line 500의 SelfHostNote는 마침표가 붙은 별개 바이트("…available here.") — 이 3종이 아니다.
+ * kinetic-templates.mjs lines 153·302·316이 그 버전으로 guest 코드로/AI 템플릿의 유·무를 판정하므로
+ * 바이트 보존이 필수였다. 후속 카드 t_85502228가 marketing.blocker.unavailableNote로 배선했다 —
+ * en은 마침표까지 원 바이트 동일이라 kinetic 결속은 그대로 성립한다.
  */
 import { describe, expect, it } from "vitest";
 import { locales, t } from "@/lib/i18n/store";
@@ -80,5 +82,52 @@ describe("marketing run blockers switch to Korean with the rest of the chrome", 
     expect(positions[3] - positions[0]).toBe(3);
     expect(enKeys[positions[0] - 1]).toBe("marketing.output.model");
     expect(enKeys[positions[3] + 1]).toBe("studio.shots.addShot");
+    // 정렬 순서로 붙어 있다(앵커 뒤 연속 삽입): 앞이 직전 블록의 마지막, 뒤가 후속 카드의 note 키다.
+    expect(positions[2] - positions[0]).toBe(2);
+    expect(enKeys[positions[0] - 1]).toBe("marketing.output.model");
+    expect(enKeys[positions[2] + 1]).toBe("marketing.blocker.unavailableNote"); // 같은 블록 안에서 이어 붙였다
+    expect(enKeys[positions[2] + 2]).toBe("studio.shots.addShot");
+  });
+});
+
+/** line 500의 렌더 시점 리터럴 — 끝 마침표가 붙은 별개 바이트(Generate 차단 키와 다른 표면, 다른 열쇠). */
+const NOTE = {
+  key: "marketing.blocker.unavailableNote",
+  en: "Marketing Studio isn't available here.",
+  ko: "여기서는 마케팅 스튜디오를 사용할 수 없습니다.",
+} as const;
+
+describe("the SelfHostNote keeps its period byte and reads Korean", () => {
+  it("English keeps the note's source bytes — trailing period, ASCII apostrophe", () => {
+    const v = locales.en[NOTE.key] ?? ""; // 열쇠가 없으면 ""로 첫 단언에서 실패한다(누락 감지)
+    expect(v, NOTE.key).toBe(NOTE.en);
+    expect(v.endsWith("."), "kinetic이 getByText로 grep하는 마침표").toBe(true);
+    expect(v.includes("\u2019"), "kinetic은 U+0027과 결속하므로 typographic apostrophe 금물").toBe(false);
+    // 마침표 없는 Generate 차단 키와 별개 바이트 — 두 열쇠가 서로 다른 표면을 말한다.
+    expect(locales.en["marketing.blocker.unavailable"]).not.toBe(v);
+    expect(`${locales.en["marketing.blocker.unavailable"]}.`).toBe(v);
+  });
+
+  it("Korean uses the established sentence's period form, Hangul end to end", () => {
+    const v = locales.ko[NOTE.key] ?? ""; // 열쇠가 없으면 ""로 첫 단언에서 실패한다(누락 감지)
+    expect(v, NOTE.key).toBe(NOTE.ko);
+    expect(HANGUL.test(v), `ko ${NOTE.key} must read Korean`).toBe(true);
+    expect(v.endsWith("."), "확립된 문장의 마침표형으로 통일").toBe(true);
+    expect(v).not.toBe(locales.en[NOTE.key]);
+  });
+
+  it("the default language renders what the kinetic stage matches on", () => {
+    // vitest 기본 언어는 en: kinetic-templates.mjs의 마침표 버전 getByText(lines 153·302·316)가
+    // 배선 후에도 실렌더와 바이트 동일로 초록을 유지한다(보존 바인딩의 기계 판정).
+    expect(t(NOTE.key)).toBe("Marketing Studio isn't available here.");
+  });
+
+  it("the note hangs off the blocker block's tail, in the same place in both locales", () => {
+    const enKeys = Object.keys(locales.en);
+    const i = enKeys.indexOf(NOTE.key);
+    expect(i, `${NOTE.key} present in en`).toBeGreaterThan(-1);
+    expect(enKeys[i - 1]).toBe("marketing.blocker.badUrl"); // 차단 블록의 꼬리 — 계보 순서
+    expect(enKeys[i + 1]).toBe("studio.shots.addShot"); // 다음 블록의 첫 키
+    expect(Object.keys(locales.ko)[i], `ko ${NOTE.key} shares the position`).toBe(NOTE.key);
   });
 });

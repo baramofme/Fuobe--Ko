@@ -5193,7 +5193,8 @@
       "fragmentCloud": "클라우드의 Fuobe Marketing Image 또는 파트너 모델로"
     },
     "blocker": {
-      "noProductImages": "이 제품에는 아직 이미지가 없습니다"
+      "noProductImages": "이 제품에는 아직 이미지가 없습니다",
+      "unavailableNote": "여기서는 마케팅 스튜디오를 사용할 수 없습니다."
     }
   }
 }

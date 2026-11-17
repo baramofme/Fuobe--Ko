@@ -5193,7 +5193,8 @@
       "fragmentCloud": "Fuobe Marketing Image or partner models in the cloud"
     },
     "blocker": {
-      "noProductImages": "This product has no images yet"
+      "noProductImages": "This product has no images yet",
+      "unavailableNote": "Marketing Studio isn't available here."
     }
   }
 }
