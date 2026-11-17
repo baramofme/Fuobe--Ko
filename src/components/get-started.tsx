@@ -12,6 +12,8 @@ import { openConnect, useComputerSupport } from "@/components/gpu/open-connect";
 import { unsupportedWords } from "@/components/gpu/this-computer";
 import { usePagePlace } from "@/components/gpu/use-local-comfy";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useI18n } from "@/lib/i18n/use-i18n";
+import { t as tr } from "@/lib/i18n/store";
 import { saveSettings, useEngineMode, type StatusInfo } from "@/lib/api";
 import { copyWithToast } from "@/lib/clipboard";
 import { COMFY_INSTALL_COMMAND, COMFY_INSTALL_DOCS, FAL_KEYS_URL, nothingConnected } from "@/lib/connections";
@@ -24,30 +26,31 @@ import { toastError } from "@/lib/refusals";
  * itself, where the Start frame is, since Home's Video mode would run text-to-video without one.
  */
 const INTENTS = [
-  { label: "Make an image", href: "/image", icon: ImageIcon, mode: "image" },
-  { label: "Animate a photo", href: "/video", icon: Video },
-  { label: "Edit a photo", href: "/edit", icon: Wand2, mode: "edit" },
-  { label: "Advertise a product", href: "/marketing", icon: Megaphone },
-  { label: "A talking avatar", href: "/lipsync", icon: Mic2 },
-  { label: "A faceless video", href: "/faceless", icon: Clapperboard },
-  { label: "Voice or music", href: "/audio", icon: AudioLines },
-  { label: "Plan it with Assist", href: "/chat/make", icon: Bot },
+  { labelKey: "settings.panel.getStarted.intentMakeImage", href: "/image", icon: ImageIcon, mode: "image" },
+  { labelKey: "settings.panel.getStarted.intentAnimatePhoto", href: "/video", icon: Video },
+  { labelKey: "settings.panel.getStarted.intentEditPhoto", href: "/edit", icon: Wand2, mode: "edit" },
+  { labelKey: "settings.panel.getStarted.intentAdvertiseProduct", href: "/marketing", icon: Megaphone },
+  { labelKey: "settings.panel.getStarted.intentTalkingAvatar", href: "/lipsync", icon: Mic2 },
+  { labelKey: "settings.panel.getStarted.intentFacelessVideo", href: "/faceless", icon: Clapperboard },
+  { labelKey: "settings.panel.getStarted.intentVoiceOrMusic", href: "/audio", icon: AudioLines },
+  { labelKey: "settings.panel.getStarted.intentPlanWithAssist", href: "/assist", icon: Bot },
 ] as const;
 
 export type IntentMode = "image" | "video" | "edit";
 
 /** How to install ComfyUI, and its install command: the GPU card's links. */
 function ComfyLinks() {
+  const { t } = useI18n();
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <a href={COMFY_INSTALL_DOCS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-text underline-offset-2 hover:underline">
-        Install ComfyUI <ExternalLink className="size-3" />
+        {t("settings.panel.getStarted.installComfyUI")} <ExternalLink className="size-3" />
       </a>
       <button
         type="button"
-        onClick={() => void copyWithToast(COMFY_INSTALL_COMMAND, "Install command copied")}
+        onClick={() => void copyWithToast(COMFY_INSTALL_COMMAND, tr("settings.panel.getStarted.installCommandCopied"))}
         className="inline-flex max-w-full items-center gap-1 rounded-md bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground ring-1 ring-border hover:bg-accent"
-        aria-label={`Copy the install command: ${COMFY_INSTALL_COMMAND}`}
+        aria-label={tr("settings.panel.getStarted.copyInstallCommand", { cmd: COMFY_INSTALL_COMMAND })}
       >
         <span className="truncate">{COMFY_INSTALL_COMMAND}</span> <Copy className="size-3 shrink-0" />
       </button>
@@ -63,10 +66,11 @@ function ComfyLinks() {
  * server way open.
  */
 function HostedGpuCard({ computer }: { computer: boolean }) {
+  const { t } = useI18n();
   const support = useComputerSupport();
   const [server, setServer] = useState(false);
   return (
-    <GuideCard icon={Cpu} title="Use your GPU" cost="Free: open-source models run on your own graphics card">
+    <GuideCard icon={Cpu} titleKey="settings.panel.getStarted.useYourGpu" costKey="settings.panel.getStarted.costGpuGraphicsCard">
       {computer ? (
         <OwnerComputerLine />
       ) : support !== "ok" ? (
@@ -76,16 +80,16 @@ function HostedGpuCard({ computer }: { computer: boolean }) {
         </>
       ) : (
         <>
-          <p className="text-[13px] leading-relaxed text-muted-foreground">Fuobe finds the ComfyUI running on this computer and sends your runs to it.</p>
+          <p className="text-[13px] leading-relaxed text-muted-foreground">{t("settings.panel.getStarted.findsComfyOnThisComputer")}</p>
           <div className="space-y-1.5">
             <Button className="h-11 w-full sm:h-9 sm:w-fit" onClick={() => openConnect(true)}>
-              <Cpu /> Use the ComfyUI on this computer
+              <Cpu /> {t("settings.panel.getStarted.useComfyOnThisComputer")}
             </Button>
-            <p className="text-[12px] text-muted-foreground">Runs while Fuobe is open in this browser.</p>
+            <p className="text-[12px] text-muted-foreground">{t("settings.panel.getStarted.runsWhileOpenHere")}</p>
           </div>
           <div>
             <button type="button" onClick={() => setServer((v) => !v)} aria-expanded={server} className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground">
-              ComfyUI on a server or a cloud GPU? <ChevronDown className={cn("size-3.5 transition-transform", server && "rotate-180")} />
+              {t("settings.panel.getStarted.comfyOnServerOrCloudGpu")} <ChevronDown className={cn("size-3.5 transition-transform", server && "rotate-180")} />
             </button>
             {server && (
               <div className="mt-3">
@@ -102,7 +106,9 @@ function HostedGpuCard({ computer }: { computer: boolean }) {
   );
 }
 
-function GuideCard({ icon: Icon, title, cost, children }: { icon: typeof Cloud; title: string; cost: string; children: React.ReactNode }) {
+function GuideCard({ icon: Icon, titleKey, costKey, costParams, children }: { icon: typeof Cloud; titleKey: string; costKey: string; costParams?: Record<string, string | number>; children: React.ReactNode }) {
+  const { t } = useI18n();
+  const title = t(titleKey);
   return (
     <section aria-label={title} className="flex min-w-0 flex-col gap-3 rounded-xl border bg-background p-4 text-left">
       <div className="flex items-center gap-2.5">
@@ -111,7 +117,7 @@ function GuideCard({ icon: Icon, title, cost, children }: { icon: typeof Cloud; 
         </span>
         <div className="min-w-0">
           <h3 className="text-[14px] font-medium">{title}</h3>
-          <p className="text-[12px] text-muted-foreground">{cost}</p>
+          <p className="text-[12px] text-muted-foreground">{t(costKey, costParams)}</p>
         </div>
       </div>
       {children}
@@ -146,6 +152,7 @@ export function GetStarted({
   intents?: boolean;
   className?: string;
 }) {
+  const { t } = useI18n();
   const qc = useQueryClient();
   // Not in Home's static shell (no status yet): a returning visitor's guide is gone once the status
   // arrives, so it shouldn't cost a settings read on every Home visit.
@@ -171,77 +178,68 @@ export function GetStarted({
       setHiding(false);
     }
   };
-  const connected = (what: string) => (r: { detail: string }) => toast.success(`${what} connected`, { description: r.detail });
+  const connected = (what: string) => (r: { detail: string }) => toast.success(tr("settings.panel.connectors.connectedToast", { name: what }), { description: r.detail });
 
   return (
     <section className={cn("w-full animate-fade-up rounded-2xl border bg-muted/40 p-4 text-left sm:p-5", className)} aria-labelledby={titleId}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="font-heading text-[24px] leading-tight">
-            Get started
+            {t("settings.panel.getStarted.title")}
           </h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
             {status && nothingConnected(status)
-              ? "Nothing is connected yet. Connect a model to make the real thing:"
-              : "The ways to make things with Fuobe. Connect another one, or check one you set up:"}
+              ? t("settings.panel.getStarted.nothingConnectedYet")
+              : t("settings.panel.getStarted.waysToIntro")}
           </p>
         </div>
-        <Button variant="ghost" size="sm" className="-mt-1 -mr-2 shrink-0 text-muted-foreground" disabled={hiding} onClick={() => void hide()} aria-label="Hide the setup guide">
-          <X /> <span className="hidden sm:inline">Hide</span>
+        <Button variant="ghost" size="sm" className="-mt-1 -mr-2 shrink-0 text-muted-foreground" disabled={hiding} onClick={() => void hide()} aria-label={t("settings.panel.getStarted.hideSetupGuide")}>
+          <X /> <span className="hidden sm:inline">{t("settings.panel.common.hide")}</span>
         </Button>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         {mode !== "open" && (
-          <GuideCard icon={Cloud} title="Use paid models" cost={prices ? `Pay per run with your own key: ${prices}` : "Pay per run with your own key"}>
-            <p className="text-[13px] leading-relaxed text-muted-foreground">The Fuobe Originals hosted on open weights, plus Nano Banana, Seedance, Kling, Veo and many more, through one fal.ai key. A Replicate token works too (Settings).</p>
+          <GuideCard
+            icon={Cloud}
+            titleKey="settings.panel.getStarted.usePaidModels"
+            costKey={prices ? "settings.panel.getStarted.costWithPrices" : "settings.panel.getStarted.costPayPerRun"}
+            costParams={prices ? { prices } : undefined}
+          >
+            <p className="text-[13px] leading-relaxed text-muted-foreground">{t("settings.panel.getStarted.paidModelsDesc")}</p>
             <ConnectField
               name="falKey"
               setting={get("falKey")}
               provider="fal"
-              label="fal.ai API key"
+              label={t("settings.panel.getStarted.falApiKey")}
               placeholder="key_id:key_secret"
               onConnected={connected("fal.ai")}
               hint={
                 <a href={FAL_KEYS_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-text underline-offset-2 hover:underline">
-                  Get a key at fal.ai <ExternalLink className="size-3" />
+                  {t("settings.panel.getStarted.getKeyAtFal")} <ExternalLink className="size-3" />
                 </a>
               }
             />
           </GuideCard>
         )}
         {mode !== "cloud" && place === null ? (
-          <GuideCard icon={Cpu} title="Use your GPU" cost="Free: open-source models run on your own graphics card">
+          <GuideCard icon={Cpu} titleKey="settings.panel.getStarted.useYourGpu" costKey="settings.panel.getStarted.costGpuGraphicsCard">
             <Skeleton className="h-[116px] w-full rounded-lg" />
           </GuideCard>
         ) : mode !== "cloud" && place === "hosted" ? (
           <HostedGpuCard computer={get("comfyWhere")?.value === "computer"} />
         ) : mode !== "cloud" && (
-          <GuideCard icon={Cpu} title="Use your GPU" cost="Free: open-source models run on your machine">
-            <p className="text-[13px] leading-relaxed text-muted-foreground">Point Fuobe at a running ComfyUI. Each workflow lists the model files it needs.</p>
+          <GuideCard icon={Cpu} titleKey="settings.panel.getStarted.useYourGpu" costKey="settings.panel.getStarted.costGpuMachine">
+            <p className="text-[13px] leading-relaxed text-muted-foreground">{t("settings.panel.getStarted.pointAtComfy")}</p>
             <ConnectField
               name="comfyUrl"
               setting={get("comfyUrl")}
               provider="comfyui"
-              label="ComfyUI address"
+              label={t("settings.panel.getStarted.comfyAddress")}
               placeholder="http://127.0.0.1:8188"
-              idleLabel="Connect"
+              idleLabel={t("settings.panel.common.connect")}
               onConnected={connected("ComfyUI")}
-              hint={
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <a href={COMFY_INSTALL_DOCS} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-text underline-offset-2 hover:underline">
-                    Install ComfyUI <ExternalLink className="size-3" />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => void copyWithToast(COMFY_INSTALL_COMMAND, "Install command copied")}
-                    className="inline-flex max-w-full items-center gap-1 rounded-md bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground ring-1 ring-border hover:bg-accent"
-                    aria-label={`Copy the install command: ${COMFY_INSTALL_COMMAND}`}
-                  >
-                    <span className="truncate">{COMFY_INSTALL_COMMAND}</span> <Copy className="size-3 shrink-0" />
-                  </button>
-                </span>
-              }
+              hint={<ComfyLinks />}
             />
           </GuideCard>
         )}
@@ -249,20 +247,20 @@ export function GetStarted({
 
       {intents && (
         <div className="mt-5">
-          <h3 className="text-[13px] font-medium">What do you want to do?</h3>
+          <h3 className="text-[13px] font-medium">{t("settings.panel.getStarted.whatDoYouWant")}</h3>
           <ul className="mt-2 flex flex-wrap gap-2">
             {INTENTS.map((i) => {
               const cls = "inline-flex h-8 items-center gap-1.5 rounded-full border bg-background px-3 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground";
               const pick = "mode" in i && onMode ? i.mode : null;
               return (
-                <li key={i.label}>
+                <li key={i.labelKey}>
                   {pick ? (
                     <button type="button" className={cls} onClick={() => onMode?.(pick)}>
-                      <i.icon className="size-3.5" /> {i.label}
+                      <i.icon className="size-3.5" /> {t(i.labelKey)}
                     </button>
                   ) : (
                     <Link href={i.href} className={cls}>
-                      <i.icon className="size-3.5" /> {i.label}
+                      <i.icon className="size-3.5" /> {t(i.labelKey)}
                     </Link>
                   )}
                 </li>

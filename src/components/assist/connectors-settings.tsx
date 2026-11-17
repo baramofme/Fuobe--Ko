@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { checkConnectorUrl, MAX_CONNECTOR_NAME, MAX_CONNECTORS, parseToolList, type ConnectorView } from "@/lib/assist-connectors";
 import { toastError } from "@/lib/refusals";
 import { useConnectorActions, useConnectors } from "./hooks";
@@ -29,6 +30,7 @@ import { useConnectorActions, useConnectors } from "./hooks";
  * the URL (Claude does, from Anthropic's servers).
  */
 export function ConnectorSettings({ claudeReady }: { claudeReady: boolean }) {
+  const { t } = useI18n();
   const list = useConnectors();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -41,13 +43,14 @@ export function ConnectorSettings({ claudeReady }: { claudeReady: boolean }) {
         <Info className="mt-0.5 size-4 shrink-0" />
         <div className="space-y-1.5">
           <p>
-            Connectors work in Claude chats (Smart, or Manual with a Claude model){claudeReady ? "" : " — add an Anthropic API key above first"}. Claude reaches them from Anthropic&apos;s servers, so each needs a
-            public https address. Chats on a local model (Ollama, LM Studio or Unsloth Studio) or the offline planner can&apos;t use them. Tool calls cost Claude tokens; the chat lists each connector tool Claude used.
+            {t("settings.panel.connectors.worksInClaudeChats")}
+            {claudeReady ? "" : t("settings.panel.connectors.addKeyFirst")}
+            {t("settings.panel.connectors.worksInClaudeChatsRest")}
           </p>
           <p>
-            <span className="font-medium text-foreground">Connector tools run without asking.</span> Claude calls them inside its reply, so approval cards (Ask first) and auto-run&apos;s cost cap don&apos;t
-            cover them; Claude is told to check with you in chat before changing anything. Limit a connector to the tools you trust with <span className="font-medium text-foreground">Allowed tools</span>.
-            Scheduled tasks use connectors only when the task says so.
+            <span className="font-medium text-foreground">{t("settings.panel.connectors.runWithoutAsking")}</span> Claude calls them inside its reply, so approval cards (Ask first) and auto-run&apos;s cost cap don&apos;t
+            cover them; Claude is told to check with you in chat before changing anything. Limit a connector to the tools you trust with{" "}
+            <span className="font-medium text-foreground">{t("settings.panel.connectors.allowedTools")}</span>.{t("settings.panel.connectors.scheduledTasksTail")}
           </p>
         </div>
       </div>
@@ -66,7 +69,7 @@ export function ConnectorSettings({ claudeReady }: { claudeReady: boolean }) {
           )}
         </ul>
       ) : (
-        !adding && <p className="text-[13px] text-muted-foreground">No connectors yet. Add one with its MCP server URL — the app&apos;s docs list it (often ending in /mcp).</p>
+        !adding && <p className="text-[13px] text-muted-foreground">{t("settings.panel.connectors.noneYet")}</p>
       )}
       {adding ? (
         <div className="rounded-xl border p-3 sm:w-[40rem] sm:max-w-full">
@@ -74,7 +77,7 @@ export function ConnectorSettings({ claudeReady }: { claudeReady: boolean }) {
         </div>
       ) : (
         <Button size="sm" variant="secondary" disabled={full} onClick={() => setAdding(true)}>
-          <Plus /> {full ? `Up to ${MAX_CONNECTORS} connectors` : "Add a connector"}
+          <Plus /> {full ? t("settings.panel.connectors.upToConnectors", { max: MAX_CONNECTORS }) : t("settings.panel.connectors.addAConnector")}
         </Button>
       )}
     </div>
@@ -82,6 +85,7 @@ export function ConnectorSettings({ claudeReady }: { claudeReady: boolean }) {
 }
 
 function Row({ c, onEdit }: { c: ConnectorView; onEdit: () => void }) {
+  const { t } = useI18n();
   const actions = useConnectorActions();
   const [deleting, setDeleting] = useState(false);
   return (
@@ -94,15 +98,18 @@ function Row({ c, onEdit }: { c: ConnectorView; onEdit: () => void }) {
         </p>
         <p className="text-[11px] text-muted-foreground">
           <KeyRound className="mr-1 inline size-3 align-[-2px]" aria-hidden />
-          {c.hasToken ? <span className="font-mono">{c.token}</span> : "No token"} · Claude sees it as <span className="font-mono">{c.slug}</span>
+          {c.hasToken ? <span className="font-mono">{c.token}</span> : t("settings.panel.connectors.noToken")}
+          {t("settings.panel.connectors.seesItAs")}
+          <span className="font-mono">{c.slug}</span>
         </p>
         <p className="text-[11px] break-words text-muted-foreground">
           {c.tools ? (
             <>
-              Only: <span className="font-mono">{c.tools.join(", ")}</span>
+              {t("settings.panel.connectors.onlyPrefix")}
+              <span className="font-mono">{c.tools.join(", ")}</span>
             </>
           ) : (
-            "Every tool it lists"
+            t("settings.panel.connectors.everyToolItLists")
           )}
         </p>
         {c.warning && (
@@ -115,25 +122,25 @@ function Row({ c, onEdit }: { c: ConnectorView; onEdit: () => void }) {
         <Switch
           checked={c.enabled}
           onCheckedChange={(on) => void actions.update(c.id, { enabled: on }).catch((e) => toastError(e))}
-          aria-label={c.enabled ? `Switch off ${c.name}` : `Switch on ${c.name}`}
+          aria-label={c.enabled ? t("settings.panel.connectors.switchOffName", { name: c.name }) : t("settings.panel.connectors.switchOnName", { name: c.name })}
         />
-        <Button size="icon" variant="ghost" className="size-8 text-muted-foreground" aria-label={`Edit ${c.name}`} onClick={onEdit}>
+        <Button size="icon" variant="ghost" className="size-8 text-muted-foreground" aria-label={t("settings.panel.connectors.editName", { name: c.name })} onClick={onEdit}>
           <Pencil className="size-3.5" />
         </Button>
-        <Button size="icon" variant="ghost" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Delete ${c.name}`} onClick={() => setDeleting(true)}>
+        <Button size="icon" variant="ghost" className="size-8 text-muted-foreground hover:text-destructive" aria-label={t("settings.panel.connectors.deleteName", { name: c.name })} onClick={() => setDeleting(true)}>
           <Trash2 className="size-3.5" />
         </Button>
       </div>
       <AlertDialog open={deleting} onOpenChange={setDeleting}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {c.name}?</AlertDialogTitle>
-            <AlertDialogDescription>Claude stops using its tools, and its token is deleted from this server. Chats that used it keep what it returned.</AlertDialogDescription>
+            <AlertDialogTitle>{t("settings.panel.connectors.deleteNameQuestion", { name: c.name })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("settings.panel.connectors.deleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={() => void actions.remove(c.id).catch((e) => toastError(e))}>
-              Delete
+              {t("settings.panel.common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -144,6 +151,7 @@ function Row({ c, onEdit }: { c: ConnectorView; onEdit: () => void }) {
 
 /** Add a connector, or edit one: an empty token field keeps the saved token. */
 function ConnectorForm({ connector, onDone }: { connector?: ConnectorView; onDone: () => void }) {
+  const { t } = useI18n();
   const actions = useConnectorActions();
   const ids = { name: useId(), url: useId(), token: useId(), hint: useId(), tools: useId(), toolsHint: useId() };
   const [name, setName] = useState(connector?.name ?? "");
@@ -171,10 +179,10 @@ function ConnectorForm({ connector, onDone }: { connector?: ConnectorView; onDon
           ...(dropToken ? { token: "" } : token.trim() ? { token: token.trim() } : {}),
           tools: tools.trim() || null,
         });
-        toast.success("Connector saved", { duration: 1500 });
+        toast.success(t("settings.panel.connectors.connectorSaved"), { duration: 1500 });
       } else {
         await actions.create({ name: name.trim(), url: url.trim(), ...(token.trim() && { token: token.trim() }), ...(tools.trim() && { tools: tools.trim() }) });
-        toast.success(`${name.trim()} connected`, { description: "Claude chats can use its tools from the next message.", duration: 2500 });
+        toast.success(t("settings.panel.connectors.connectedToast", { name: name.trim() }), { description: t("settings.panel.connectors.connectedDesc"), duration: 2500 });
       }
       onDone();
     } catch (err) {
@@ -185,17 +193,17 @@ function ConnectorForm({ connector, onDone }: { connector?: ConnectorView; onDon
   };
 
   return (
-    <form onSubmit={save} className="space-y-3" aria-label={connector ? `Edit ${connector.name}` : "Add a connector"}>
+    <form onSubmit={save} className="space-y-3" aria-label={connector ? t("settings.panel.connectors.editName", { name: connector.name }) : t("settings.panel.connectors.addAConnector")}>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         <div className="space-y-1.5">
           <Label htmlFor={ids.name} className="text-[13px]">
-            Name
+            {t("settings.panel.connectors.name")}
           </Label>
-          <Input id={ids.name} value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_CONNECTOR_NAME} placeholder="e.g. Notion" autoFocus />
+          <Input id={ids.name} value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_CONNECTOR_NAME} placeholder={t("settings.panel.connectors.nameExample")} autoFocus />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={ids.url} className="text-[13px]">
-            MCP server URL
+            {t("settings.panel.connectors.mcpServerUrl")}
           </Label>
           <Input
             id={ids.url}
@@ -205,7 +213,7 @@ function ConnectorForm({ connector, onDone }: { connector?: ConnectorView; onDon
             spellCheck={false}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder={connector ? `Unchanged: ${connector.url}` : "https://mcp.example.com/mcp"}
+            placeholder={connector ? t("settings.panel.connectors.unchangedUrl", { url: connector.url }) : "https://mcp.example.com/mcp"}
             aria-invalid={!!urlError}
             aria-describedby={urlError ? ids.hint : undefined}
           />
@@ -218,7 +226,7 @@ function ConnectorForm({ connector, onDone }: { connector?: ConnectorView; onDon
       </div>
       <div className="space-y-1.5">
         <Label htmlFor={ids.token} className="text-[13px]">
-          Token <span className="font-normal text-muted-foreground">(optional)</span>
+          {t("settings.panel.connectors.token")} <span className="font-normal text-muted-foreground">{t("settings.panel.common.optional")}</span>
         </Label>
         <Input
           id={ids.token}
@@ -228,18 +236,18 @@ function ConnectorForm({ connector, onDone }: { connector?: ConnectorView; onDon
           value={token}
           disabled={dropToken}
           onChange={(e) => setToken(e.target.value)}
-          placeholder={connector?.hasToken ? `Saved (${connector.token}) — type a new one to replace it` : "The server's API key or access token"}
+          placeholder={connector?.hasToken ? t("settings.panel.connectors.savedTokenPrompt", { token: connector.token }) : t("settings.panel.connectors.serverKeyOrToken")}
         />
-        <p className="text-[12px] text-muted-foreground">Sent as an Authorization: Bearer header, by Anthropic, to this server only. Stored on this server like your other keys and never shown again.</p>
+        <p className="text-[12px] text-muted-foreground">{t("settings.panel.connectors.tokenHint")}</p>
         {connector?.hasToken && (
           <label className="inline-flex items-center gap-2 text-[12px]">
-            <Checkbox checked={dropToken} onCheckedChange={(v) => setDropToken(v === true)} /> Remove the saved token
+            <Checkbox checked={dropToken} onCheckedChange={(v) => setDropToken(v === true)} /> {t("settings.panel.connectors.removeSavedToken")}
           </label>
         )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor={ids.tools} className="text-[13px]">
-          Allowed tools <span className="font-normal text-muted-foreground">(optional)</span>
+          {t("settings.panel.connectors.allowedTools")} <span className="font-normal text-muted-foreground">{t("settings.panel.common.optional")}</span>
         </Label>
         <Input
           id={ids.tools}
@@ -247,22 +255,21 @@ function ConnectorForm({ connector, onDone }: { connector?: ConnectorView; onDon
           spellCheck={false}
           value={tools}
           onChange={(e) => setTools(e.target.value)}
-          placeholder="Every tool — or only these, e.g. search_pages, get_page"
+          placeholder={t("settings.panel.connectors.toolsPlaceholder")}
           aria-invalid={!!toolsError}
           aria-describedby={ids.toolsHint}
           className="font-mono text-[13px]"
         />
         <p id={ids.toolsHint} className={toolsError ? "text-[12px] text-destructive" : "text-[12px] text-muted-foreground"}>
-          {toolsError ??
-            "Tool names as the server lists them (its docs, or the chat's “Notion · search_pages” lines), separated by commas. Leave it empty to allow every tool; prefer read-only ones for scheduled tasks."}
+          {toolsError ?? t("settings.panel.connectors.toolsHint")}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" disabled={busy || !canSave}>
-          {busy && <Loader2 className="animate-spin" />} {connector ? "Save" : "Add connector"}
+          {busy && <Loader2 className="animate-spin" />} {connector ? t("common.save") : t("settings.panel.connectors.addConnector")}
         </Button>
         <Button type="button" size="sm" variant="ghost" onClick={onDone}>
-          Cancel
+          {t("common.cancel")}
         </Button>
       </div>
     </form>

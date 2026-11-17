@@ -10,6 +10,8 @@ import { gib } from "@/components/gpu/comfy-finder";
 import { useNow } from "@/components/studio/use-now";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/lib/i18n/use-i18n";
+import { t as tr } from "@/lib/i18n/store";
 import { useHydrated, useViewer } from "@/lib/api";
 import { copyWithToast } from "@/lib/clipboard";
 import { deviceLabel } from "@/lib/gpu/readiness";
@@ -87,13 +89,13 @@ export function heldLine(h: HeldCounts | undefined, now: number): string | null 
   const n = h.mine + h.today + h.service + h.hour + h.list + h.credits;
   if (!n) return null;
   const min = h.oldestAt === null ? null : Math.max(0, Math.round((now - h.oldestAt) / 60_000));
-  return `Waiting to enter the line: ${n}${min === null ? "" : ` (oldest ${min} min)`}`;
+  return tr("settings.panel.workers.heldLine", { n }) + (min === null ? "" : tr("settings.panel.workers.heldLineOldest", { min }));
 }
 
 async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
   const j = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(j.error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(j.error ?? tr("settings.panel.workers.requestFailed", { status: res.status }));
   return j;
 }
 
@@ -101,57 +103,61 @@ const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
 function hoursWords(h: Hours | null): string {
-  if (!h) return "No hours yet: it takes nothing";
-  if ("always" in h) return "All day, every day";
+  if (!h) return tr("settings.panel.workers.noHoursYet");
+  if ("always" in h) return tr("settings.panel.workers.allDayEveryDay");
   const first = Object.values(h.days).find((w) => w?.length)?.[0];
-  return first ? `Every day ${first[0]}–${first[1]} (${h.tz})` : "No hours yet: it takes nothing";
+  return first ? tr("settings.panel.workers.everyDayRange", { from: first[0], to: first[1], tz: h.tz }) : tr("settings.panel.workers.noHoursYet");
 }
 
 function TokenOnce({ token, onDone }: { token: string; onDone: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-[13px]">
       <p className="flex items-center gap-2 font-medium">
-        <KeyRound className="size-4" /> The worker&apos;s token. It is shown only now.
+        <KeyRound className="size-4" /> {t("settings.panel.workers.tokenShownOnceOnly")}
       </p>
       <div className="flex items-center gap-2 rounded-lg bg-muted px-2.5 py-2">
         <code className="min-w-0 flex-1 overflow-x-auto font-mono text-[12px] whitespace-nowrap">{token}</code>
-        <button type="button" onClick={() => void copyWithToast(token)} aria-label="Copy the token" className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-background">
+        <button type="button" onClick={() => void copyWithToast(token)} aria-label={t("settings.panel.workers.copyToken")} className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-background">
           <Copy className="size-3.5" />
         </button>
       </div>
       <p className="text-muted-foreground">
-        On the GPU&apos;s PC, run <code className="font-mono">node bin/fuobe.mjs worker setup</code> and paste it when asked. See{" "}
+        {t("settings.panel.workers.onGpuPcRun")}
+        <code className="font-mono">node bin/fuobe.mjs worker setup</code>
+        {t("settings.panel.workers.pasteWhenAsked")}{" "}
         <a className="text-brand-text underline-offset-4 hover:underline" href="https://github.com/workingprototype/Fuobe/blob/main/docs/gpu-workers.md" target="_blank" rel="noreferrer">
-          the workers guide
+          {t("settings.panel.workers.workersGuide")}
         </a>
         .
       </p>
       <Button size="sm" variant="secondary" onClick={onDone}>
-        I saved it
+        {t("settings.panel.workers.iSavedIt")}
       </Button>
     </div>
   );
 }
 
 function HoursEditor({ w, onSave }: { w: WorkerView; onSave: (hours: Hours | null) => void }) {
+  const { t } = useI18n();
   const cur = w.hours && "days" in w.hours ? Object.values(w.hours.days).find((x) => x?.length)?.[0] : undefined;
   const [from, setFrom] = useState(cur?.[0] ?? "01:00");
   const [to, setTo] = useState(cur?.[1] ?? "09:00");
   return (
     <div className="flex flex-wrap items-center gap-2 text-[13px]">
-      <span className="text-muted-foreground">Hours:</span>
+      <span className="text-muted-foreground">{t("settings.panel.workers.hoursLabel")}</span>
       <Button size="sm" variant={w.hours && "always" in w.hours ? "secondary" : "ghost"} className="h-8" onClick={() => onSave({ always: true })}>
-        All day
+        {t("settings.panel.workers.allDay")}
       </Button>
-      <span className="text-muted-foreground">or every day</span>
-      <Input aria-label="From" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 w-20" />
+      <span className="text-muted-foreground">{t("settings.panel.workers.orEveryDay")}</span>
+      <Input aria-label={t("settings.panel.workers.hoursFrom")} value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 w-20" />
       <span>–</span>
-      <Input aria-label="To" value={to} onChange={(e) => setTo(e.target.value)} className="h-8 w-20" />
+      <Input aria-label={t("settings.panel.workers.hoursTo")} value={to} onChange={(e) => setTo(e.target.value)} className="h-8 w-20" />
       <Button size="sm" variant="secondary" className="h-8" onClick={() => onSave({ tz: zone(), days: Object.fromEntries(DAYS.map((d) => [d, [[from, to]]])) as Record<string, [string, string][]> })}>
-        Set
+        {t("settings.panel.workers.set")}
       </Button>
       <Button size="sm" variant="ghost" className="h-8" onClick={() => onSave(null)}>
-        None
+        {t("settings.panel.workers.none")}
       </Button>
     </div>
   );
@@ -171,7 +177,7 @@ export function laneFit(w: LaneSource, lane: string): LaneFit {
 /** The note after a lane's name: none when it runs every workflow, "(24 of 26 workflows)", or "(files missing)". */
 export function laneNote(fit: LaneFit): string | null {
   if (fit.kind === "all") return null;
-  return fit.kind === "some" ? `(${fit.runnable} of ${fit.of} workflows)` : "(files missing)";
+  return fit.kind === "some" ? tr("settings.panel.workers.laneNoteSome", { runnable: fit.runnable, of: fit.of }) : tr("settings.panel.workers.laneNoteNone");
 }
 
 /** Every lane it can run at least one workflow of. */
@@ -190,6 +196,7 @@ export function allowAllItCanRun(w: LaneSource, allow: Record<string, { delayMs:
 const FIT_RANK = { all: 0, some: 1, none: 2 } as const;
 
 export function LanesEditor({ w, lanes, onSave }: { w: WorkerView; lanes: Lane[]; onSave: (allow: Record<string, { delayMs: number }>) => void }) {
+  const { t } = useI18n();
   const [allow, setAllow] = useState(w.allow);
   // Every workflow first, then some of them, then none; by name within each.
   const sorted = [...lanes].sort((a, b) => FIT_RANK[laneFit(w, a.lane).kind] - FIT_RANK[laneFit(w, b.lane).kind] || a.label.localeCompare(b.label));
@@ -199,7 +206,7 @@ export function LanesEditor({ w, lanes, onSave }: { w: WorkerView; lanes: Lane[]
   return (
     <details className="text-[13px]">
       <summary className="cursor-pointer text-muted-foreground">
-        Lanes it may run: {Object.keys(w.allow).length} of {lanes.length} ({runnable} it can run)
+        {t("settings.panel.workers.lanesMayRunSummary", { allowed: Object.keys(w.allow).length, total: lanes.length, runnable })}
       </summary>
       <label className="mt-2 flex items-center gap-2">
         <Search className="size-4 shrink-0 text-muted-foreground" />
@@ -233,15 +240,15 @@ export function LanesEditor({ w, lanes, onSave }: { w: WorkerView; lanes: Lane[]
               </label>
               {l.lane in allow && (
                 <label className="flex items-center gap-1 text-[12px] text-muted-foreground">
-                  wait
+                  {t("settings.panel.workers.waitWord")}
                   <Input
-                    aria-label={`Delay for ${l.label}`}
+                    aria-label={t("settings.panel.workers.delayForLabel", { label: l.label })}
                     className="h-7 w-14"
                     inputMode="numeric"
                     value={String(Math.round((allow[l.lane]?.delayMs ?? 0) / 1000))}
                     onChange={(e) => setAllow({ ...allow, [l.lane]: { delayMs: Math.max(0, Number(e.target.value) || 0) * 1000 } })}
                   />
-                  s first
+                  {t("settings.panel.workers.secondsFirst")}
                 </label>
               )}
             </li>
@@ -260,13 +267,13 @@ export function LanesEditor({ w, lanes, onSave }: { w: WorkerView; lanes: Lane[]
             onSave(next);
           }}
         >
-          Allow all it can run ({runnable})
+          {t("settings.panel.workers.allowAllItCanRun", { runnable })}
         </Button>
         <Button size="sm" variant="ghost" className="h-8" disabled={!Object.keys(allow).length} onClick={() => setAllow({})}>
-          Clear
+          {t("settings.panel.workers.clear")}
         </Button>
         <Button size="sm" variant="secondary" className="h-8" onClick={() => onSave(allow)}>
-          Save lanes
+          {t("settings.panel.workers.saveLanes")}
         </Button>
       </div>
     </details>
@@ -310,7 +317,8 @@ export function UpdateLine({ w, now }: { w: Pick<WorkerView, "id" | "words" | "u
   );
 }
 
-function WorkerCard({ w, lanes, onToken }: { w: WorkerView; lanes: Lane[]; onToken: (t: string) => void }) {
+function WorkerCard({ w, lanes, onToken }: { w: WorkerView; lanes: Lane[]; onToken: (token: string) => void }) {
+  const { t } = useI18n();
   const qc = useQueryClient();
   const now = useNow(10_000);
   const patch = useMutation({
@@ -321,8 +329,8 @@ function WorkerCard({ w, lanes, onToken }: { w: WorkerView; lanes: Lane[]; onTok
     },
     onError: (e) => toast.error((e as Error).message),
   });
-  const gpu = [w.facts.device && deviceLabel(w.facts.device), gib(w.facts.vramBytes), w.version && `worker ${w.version}`].filter(Boolean).join(" · ");
-  const seen = w.seenAt ? `${Math.max(0, Math.round((now - w.seenAt) / 1000))} s ago` : "never";
+  const gpu = [w.facts.device && deviceLabel(w.facts.device), gib(w.facts.vramBytes), w.version && tr("settings.panel.workers.workerVersion", { version: w.version })].filter(Boolean).join(" · ");
+  const seen = w.seenAt ? `${Math.max(0, Math.round((now - w.seenAt) / 1000))} ${tr("settings.panel.workers.secondsAgo")}` : tr("settings.panel.workers.seenNever");
   return (
     <li className="space-y-2 rounded-xl border p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -331,23 +339,23 @@ function WorkerCard({ w, lanes, onToken }: { w: WorkerView; lanes: Lane[]; onTok
             <Cpu className="size-4 text-brand-text" /> {w.name}
           </p>
           <p className="text-[13px]">{w.words}</p>
-          <p className="truncate text-[12px] text-muted-foreground">{[gpu, `heard from ${seen}`].filter(Boolean).join(" · ")}</p>
+          <p className="truncate text-[12px] text-muted-foreground">{[gpu, tr("settings.panel.workers.heardFrom", { seen })].filter(Boolean).join(" · ")}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {w.pausedServer ? (
             <Button size="sm" className="h-8" disabled={patch.isPending} onClick={() => patch.mutate({ paused: false })}>
-              <Play /> Resume
+              <Play /> {t("settings.panel.workers.resume")}
             </Button>
           ) : (
             <>
               <Button size="sm" variant="secondary" className="h-8" disabled={patch.isPending} onClick={() => patch.mutate({ paused: true })}>
-                <Pause /> Pause
+                <Pause /> {t("settings.panel.workers.pause")}
               </Button>
               <Button size="sm" variant="ghost" className="h-8" disabled={patch.isPending || !w.current} onClick={() => patch.mutate({ pauseNow: true })}>
-                <Square /> Pause now
+                <Square /> {t("settings.panel.workers.pauseNow")}
               </Button>
               <Button size="sm" variant="ghost" className="h-8" disabled={patch.isPending || w.drain} onClick={() => patch.mutate({ drain: true })}>
-                Finish, then pause
+                {t("settings.panel.workers.finishThenPause")}
               </Button>
             </>
           )}
@@ -369,10 +377,10 @@ function WorkerCard({ w, lanes, onToken }: { w: WorkerView; lanes: Lane[]; onTok
           onChange={(e) => patch.mutate({ autoResume: e.target.checked })}
         />
         <span>
-          Resume by itself after another program used the GPU
+          {t("settings.panel.workers.autoResumeMain")}
           <span className="block text-[12px] text-muted-foreground">
-            Once the GPU has been free for its cool-down. A pause by hand always waits for a resume by hand.
-            {w.autoResume === null && " Now: as the PC's own setting says."}
+            {t("settings.panel.workers.autoResumeSub")}
+            {w.autoResume === null && t("settings.panel.workers.autoResumeNow")}
           </span>
         </span>
       </label>
@@ -380,7 +388,7 @@ function WorkerCard({ w, lanes, onToken }: { w: WorkerView; lanes: Lane[]; onTok
       <LanesEditor key={JSON.stringify(w.allow)} w={w} lanes={lanes} onSave={(allow) => patch.mutate({ allow })} />
       <div className="flex flex-wrap gap-1.5 border-t pt-2">
         <Button size="sm" variant="ghost" className="h-8" disabled={patch.isPending} onClick={() => patch.mutate({ rotate: true })}>
-          <RotateCw /> New token
+          <RotateCw /> {t("settings.panel.workers.newToken")}
         </Button>
         <Button
           size="sm"
@@ -388,10 +396,10 @@ function WorkerCard({ w, lanes, onToken }: { w: WorkerView; lanes: Lane[]; onTok
           className="h-8 text-destructive"
           disabled={patch.isPending}
           onClick={() => {
-            if (window.confirm(`Revoke ${w.name}? Its token stops at once, and its job goes back in line.`)) patch.mutate({ revoke: true });
+            if (window.confirm(tr("settings.panel.workers.revokeConfirm", { name: w.name }))) patch.mutate({ revoke: true });
           }}
         >
-          <Trash2 /> Revoke
+          <Trash2 /> {t("settings.panel.workers.revoke")}
         </Button>
       </div>
     </li>
@@ -409,6 +417,7 @@ export function useWorkers(enabled: boolean) {
 
 /** The whole Workers screen. */
 export function WorkersAdmin() {
+  const { t } = useI18n();
   const hydrated = useHydrated();
   const owner = useViewer().data?.owner;
   const q = useWorkers(!!owner);
@@ -433,19 +442,18 @@ export function WorkersAdmin() {
     onError: (e) => toast.error((e as Error).message),
   });
   if (!hydrated) return null;
-  if (!owner) return <p className="text-[14px] text-muted-foreground">Only the studio&apos;s owner manages workers.</p>;
+  if (!owner) return <p className="text-[14px] text-muted-foreground">{t("settings.panel.workers.ownerOnlyManages")}</p>;
   const workers = q.data?.workers ?? [];
   const held = heldLine(q.data?.held, now);
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="max-w-2xl text-[14px] text-muted-foreground">
-          A worker is a program on another PC with a GPU. It takes this studio&apos;s ComfyUI jobs over HTTPS and runs them on its own ComfyUI, so you can share GPUs with your team or
-          your other machines. It opens no port. A new worker starts paused, with no hours and no lanes.
+          {t("settings.panel.workers.workerIntro")}
         </p>
         <label className="flex items-center gap-2 text-[14px]">
           <input type="checkbox" checked={onWorkers} disabled={setWhere.isPending || !where.data} onChange={(e) => setWhere.mutate(e.target.checked ? "workers" : "server")} />
-          Run this studio&apos;s ComfyUI jobs on the workers
+          {t("settings.panel.workers.runJobsOnWorkers")}
         </label>
       </div>
       {/* The name visitors read for these GPUs: asked for only while hosted runs are on. */}
@@ -458,9 +466,9 @@ export function WorkersAdmin() {
           if (name.trim()) add.mutate();
         }}
       >
-        <Input aria-label="Worker name" placeholder="A name, like pc-3060ti" value={name} onChange={(e) => setName(e.target.value)} className="h-9 w-56" />
+        <Input aria-label={t("settings.panel.workers.workerName")} placeholder={t("settings.panel.workers.nameLikePc3060ti")} value={name} onChange={(e) => setName(e.target.value)} className="h-9 w-56" />
         <Button size="sm" className="h-9" disabled={!name.trim() || add.isPending}>
-          <Plus /> Add a worker
+          <Plus /> {t("settings.panel.workers.addAWorker")}
         </Button>
       </form>
       {q.isError && <p className="text-[13px] text-destructive">{(q.error as Error).message}</p>}
@@ -476,7 +484,7 @@ export function WorkersAdmin() {
           ))}
         </ul>
       ) : (
-        q.data && <p className="text-[13px] text-muted-foreground">No workers yet.</p>
+        q.data && <p className="text-[13px] text-muted-foreground">{t("settings.panel.workers.noWorkersYet")}</p>
       )}
     </div>
   );
@@ -487,6 +495,7 @@ export function WorkersAdmin() {
  * Empty: FUOBE_PLACE_NAME, else "Our GPUs". A billing service's own name for them wins over both.
  */
 function PlaceNameField({ saved }: { saved?: { value: string; fromEnv: boolean } }) {
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [typed, setTyped] = useState<string | null>(null);
   const value = typed ?? (saved && !saved.fromEnv ? saved.value : "");
@@ -494,7 +503,7 @@ function PlaceNameField({ saved }: { saved?: { value: string; fromEnv: boolean }
     mutationFn: () => call("PUT", "/api/settings", { hostedPlaceName: value.trim() }),
     onSuccess: () => {
       setTyped(null);
-      toast.success("Saved");
+      toast.success(tr("settings.panel.common.saved"));
       void qc.invalidateQueries({ queryKey: ["settings"] });
       void qc.invalidateQueries({ queryKey: ["status"] });
     },
@@ -509,16 +518,16 @@ function PlaceNameField({ saved }: { saved?: { value: string; fromEnv: boolean }
       }}
     >
       <label htmlFor="place-name" className="text-[14px] font-medium">
-        Name for your GPUs
+        {t("settings.panel.workers.nameForYourGpus")}
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <Input id="place-name" maxLength={PLACE_NAME_MAX} placeholder={saved?.fromEnv ? saved.value : PLACE_NAME_DEFAULT} value={value} onChange={(e) => setTyped(e.target.value)} className="h-9 w-64" />
         <Button size="sm" variant="secondary" className="h-9" disabled={typed === null || save.isPending}>
-          Save
+          {t("common.save")}
         </Button>
       </div>
       <p className="text-[13px] text-muted-foreground">
-        Visitors read it where their runs go, as in &ldquo;Runs on {value.trim() || (saved?.fromEnv ? saved.value : PLACE_NAME_DEFAULT)}&rdquo;. Shown while runs on your GPUs are open to accounts.
+        {t("settings.panel.workers.visitorsReadIt", { name: value.trim() || (saved?.fromEnv ? saved.value : PLACE_NAME_DEFAULT) })}
       </p>
     </form>
   );
@@ -526,13 +535,14 @@ function PlaceNameField({ saved }: { saved?: { value: string; fromEnv: boolean }
 
 /** The Workers line in Settings: how many, and the way in. */
 export function WorkersChip() {
+  const { t } = useI18n();
   const owner = useViewer().data?.owner;
   const q = useWorkers(!!owner);
   if (!owner) return null;
   const n = q.data?.workers.length ?? 0;
   return (
     <Link href="/settings/workers" className="text-[13px] text-brand-text underline-offset-4 hover:underline">
-      {n ? `Workers: ${n}` : "Workers: share your GPUs with other machines"}
+      {n ? t("settings.panel.workers.workersCount", { n }) : t("settings.panel.workers.workersShareChip")}
     </Link>
   );
 }
