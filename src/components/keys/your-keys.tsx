@@ -18,6 +18,8 @@ import { engineAfterKeySave } from "@/lib/engine-pref";
 import { placeOf } from "@/lib/place-name";
 import { placeRows } from "@/lib/run-place";
 import { runsGoNowText } from "@/lib/run-on";
+import { useI18n } from "@/lib/i18n/use-i18n";
+import { t as tStore } from "@/lib/i18n/store";
 import { KeyAccountDetails, NoKeyYet } from "./key-account-details";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -50,7 +52,8 @@ class KeyError extends Error {
 async function call<T>(url: string, method: string, body?: unknown): Promise<T> {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
   const j = (await res.json().catch(() => ({}))) as T & { error?: string; code?: string; count?: number };
-  if (!res.ok) throw new KeyError(j.error ?? "Something went wrong. Please try again.", res.status, j);
+  // A server error with no message of its own falls back to a key (byte-identical under English, Korean on the switch).
+  if (!res.ok) throw new KeyError(j.error ?? tStore("settings.yourKeys.somethingWrong"), res.status, j);
   return j;
 }
 
@@ -74,6 +77,7 @@ const day = (t: number) => new Date(t).toLocaleDateString(undefined, { day: "num
 
 /** "2 runs are using this key now…": stop them and go on, or keep the key. */
 function RunsGoing({ message, action, busy, onGo, onKeep }: { message: string; action: string; busy: boolean; onGo: () => void; onKeep: () => void }) {
+  const { t: tr } = useI18n();
   return (
     <div role="alert" className="grid gap-2 rounded-lg bg-highlight/20 p-3 text-[13px]">
       <p>{message}</p>
@@ -83,7 +87,7 @@ function RunsGoing({ message, action, busy, onGo, onKeep }: { message: string; a
           {action}
         </Button>
         <Button size="sm" variant="secondary" onClick={onKeep} disabled={busy}>
-          Keep it
+          {tr("settings.yourKeys.keepIt")}
         </Button>
       </div>
     </div>
@@ -95,6 +99,7 @@ function RunsGoing({ message, action, busy, onGo, onKeep }: { message: string; a
  * word), "Check and save". Replacing a key runs are going on asks first.
  */
 function KeyForm({ provider, replacing, onSaved, onCancel, autoFocus }: { provider: CloudProvider; replacing?: boolean; onSaved: (info: KeyInfo) => void; onCancel?: () => void; autoFocus?: boolean }) {
+  const { t: tr } = useI18n();
   const p = CLOUD_KEY[provider];
   const id = useId();
   const changed = useKeysChanged();
@@ -141,10 +146,10 @@ function KeyForm({ provider, replacing, onSaved, onCancel, autoFocus }: { provid
     >
       <div className="flex items-baseline justify-between gap-3">
         <Label htmlFor={id} className="text-[13px]">
-          {p.field}
+          {tr(`settings.yourKeys.${provider}.field`)}
         </Label>
         <a href={p.keysUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] text-brand-text hover:underline">
-          {p.getKey} <ExternalLink className="size-3" />
+          {tr(`settings.yourKeys.${provider}.getKey`)} <ExternalLink className="size-3" />
         </a>
       </div>
       <Input
@@ -152,7 +157,7 @@ function KeyForm({ provider, replacing, onSaved, onCancel, autoFocus }: { provid
         type="password"
         autoComplete="off"
         spellCheck={false}
-        placeholder={p.placeholder}
+        placeholder={tr(`settings.yourKeys.${provider}.placeholder`)}
         value={key}
         readOnly={busy}
         autoFocus={autoFocus}
@@ -168,16 +173,16 @@ function KeyForm({ provider, replacing, onSaved, onCancel, autoFocus }: { provid
         {error && <p className="text-destructive">{error}</p>}
       </div>
       {going ? (
-        <RunsGoing message={going} action="Stop runs and replace" busy={busy} onGo={() => void save(true)} onKeep={() => setGoing(null)} />
+        <RunsGoing message={going} action={tr("settings.yourKeys.stopRunsReplace")} busy={busy} onGo={() => void save(true)} onKeep={() => setGoing(null)} />
       ) : (
         <div className="flex flex-wrap gap-2">
           <Button type="submit" size="sm" disabled={busy || !key.trim()}>
             {busy ? <Loader2 className="animate-spin" /> : <KeyRound />}
-            {busy ? "Checking…" : replacing ? "Check and replace" : "Check and save"}
+            {busy ? tr("settings.yourKeys.checking") : replacing ? tr("settings.yourKeys.checkAndReplace") : tr("settings.yourKeys.checkAndSave")}
           </Button>
           {onCancel && (
             <Button type="button" size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
-              Cancel
+              {tr("settings.yourKeys.cancel")}
             </Button>
           )}
         </div>
@@ -188,6 +193,7 @@ function KeyForm({ provider, replacing, onSaved, onCancel, autoFocus }: { provid
 
 /** One provider in Settings → Your keys: the field, or the saved key (its last 4 characters) with Replace and Remove. */
 function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | null }) {
+  const { t: tr } = useI18n();
   const p = CLOUD_KEY[provider];
   const changed = useKeysChanged();
   const [replacing, setReplacing] = useState(false);
@@ -205,10 +211,10 @@ function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | 
       const r = await fetch(`/api/account/keys/${provider}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recheck: true }) });
       const j = (await r.json().catch(() => ({}))) as KeyInfo & { error?: string; details?: string };
       changed();
-      if (r.ok) toast.success(j.balanceEmptyAt ? `Your ${p.label} key works, but its balance is empty. Add credit, then run.` : `Your ${p.label} key works.`);
-      else setCheckNote({ words: j.error ?? "We couldn't check your key. Try again in a minute.", ...(j.details && { details: j.details }) });
+      if (r.ok) toast.success(j.balanceEmptyAt ? tr("settings.yourKeys.checkWorksEmpty", { label: p.label }) : tr("settings.yourKeys.checkWorks", { label: p.label }));
+      else setCheckNote({ words: j.error ?? tr("settings.yourKeys.checkFailed"), ...(j.details && { details: j.details }) });
     } catch {
-      setCheckNote({ words: "We couldn't check your key. Check this computer's internet, then try again." });
+      setCheckNote({ words: tr("settings.yourKeys.checkNoInternet") });
     } finally {
       setChecking(false);
     }
@@ -221,7 +227,7 @@ function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | 
       const r = await call<{ runOnCleared?: true }>(`/api/account/keys/${provider}`, "DELETE", stopRuns ? { stopRuns: true } : {});
       setConfirm(null);
       changed();
-      toast.success(`Your ${p.label} key is removed.`);
+      toast.success(tr("settings.yourKeys.keyIsRemoved", { label: p.label }));
       // Hosted runs: the account's runs went to this key by its pick, so they go to this studio's GPUs now.
       if (r.runOnCleared && viewer?.hosted) toast(runsGoNowText(placeOf(viewer.placeName)), { id: "run-on" });
     } catch (e) {
@@ -239,11 +245,11 @@ function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-[14px] font-medium">{p.label}</h3>
-          <p className="text-[12px] text-muted-foreground">{p.blurb}</p>
+          <p className="text-[12px] text-muted-foreground">{tr(`settings.yourKeys.${provider}.blurb`)}</p>
         </div>
         {info?.readable && !info.rejectedAt && !empty && (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
-            <Check className="size-3" /> Ready
+            <Check className="size-3" /> {tr("settings.yourKeys.ready")}
           </span>
         )}
         {empty && (
@@ -254,7 +260,7 @@ function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | 
             rel="noopener noreferrer"
             className="inline-flex shrink-0 items-center gap-1 rounded-full bg-highlight px-2 py-0.5 text-[12px] font-medium text-highlight-foreground hover:opacity-90"
           >
-            <CreditCard className="size-3" /> Add credit
+            <CreditCard className="size-3" /> {tr("settings.yourKeys.addCredit")}
             <ExternalLink className="size-3 opacity-60" aria-hidden />
           </a>
         )}
@@ -264,25 +270,25 @@ function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | 
           <p className="text-[13px]">
             {info.readable ? (
               <>
-                <span className="font-medium">{provider === "replicate" ? "Token" : "Key"} ending in </span>
+                <span className="font-medium">{tr(provider === "replicate" ? "settings.yourKeys.endingToken" : "settings.yourKeys.endingKey")}</span>
                 <code className="rounded bg-muted px-1 font-mono text-[12px]">{info.last4}</code>
-                <span className="text-muted-foreground"> · added {day(info.addedAt)}</span>
+                <span className="text-muted-foreground">{tr("settings.yourKeys.addedAt", { date: day(info.addedAt) })}</span>
               </>
             ) : (
               <span className="inline-flex items-start gap-1.5 text-destructive">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" /> This key can&apos;t be read any more. Add it again.
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" /> {tr("settings.yourKeys.unreadable")}
               </span>
             )}
           </p>
           {info.readable && info.rejectedAt && (
             <p className="inline-flex items-start gap-1.5 text-[13px] text-destructive">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-              {p.label} stopped accepting this key on {day(info.rejectedAt)}. Replace it, or check it again.
+              {tr("settings.yourKeys.stoppedAccepting", { label: p.label, date: day(info.rejectedAt) })}
             </p>
           )}
           {empty && (
             <p className="text-[13px] text-muted-foreground">
-              Your {p.label} balance ran out on {day(info.balanceEmptyAt!)}. Add credit on {p.label}, then press Check again.
+              {tr("settings.yourKeys.balanceRanOut", { label: p.label, date: day(info.balanceEmptyAt!) })}
             </p>
           )}
           {info.readable && <KeyAccountDetails provider={provider} scope="account" refused={!!info.rejectedAt} emptyNoted={empty} />}
@@ -294,19 +300,19 @@ function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | 
           )}
           {confirm ? (
             confirm.going ? (
-              <RunsGoing message={confirm.going} action="Stop runs and remove" busy={busy} onGo={() => void remove(true)} onKeep={() => setConfirm(null)} />
+              <RunsGoing message={confirm.going} action={tr("settings.yourKeys.stopRunsRemove")} busy={busy} onGo={() => void remove(true)} onKeep={() => setConfirm(null)} />
             ) : (
               <div role="alert" className="grid gap-2 rounded-lg border p-3 text-[13px]">
                 <p>
-                  Remove your {p.label} key? Paid models on {p.label} stop working for you until you add a key again.
+                  {tr("settings.yourKeys.removeConfirm", { label: p.label })}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="destructive" onClick={() => void remove(false)} disabled={busy}>
                     {busy && <Loader2 className="animate-spin" />}
-                    Remove key
+                    {tr("settings.yourKeys.removeKey")}
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => setConfirm(null)} disabled={busy}>
-                    Keep it
+                    {tr("settings.yourKeys.keepIt")}
                   </Button>
                 </div>
               </div>
@@ -314,15 +320,15 @@ function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | 
           ) : (
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={() => setReplacing(true)}>
-                {info.readable ? "Replace" : "Add again"}
+                {info.readable ? tr("settings.yourKeys.replace") : tr("settings.yourKeys.addAgain")}
               </Button>
               {info.readable && (
                 <Button size="sm" variant="ghost" onClick={() => void checkAgain()} disabled={checking}>
-                  {checking && <Loader2 className="animate-spin" />} Check again
+                  {checking && <Loader2 className="animate-spin" />} {tr("settings.yourKeys.checkAgain")}
                 </Button>
               )}
               <Button size="sm" variant="ghost" onClick={() => setConfirm({})}>
-                Remove
+                {tr("settings.yourKeys.remove")}
               </Button>
             </div>
           )}
@@ -339,6 +345,7 @@ function KeyCard({ provider, info }: { provider: CloudProvider; info: KeyInfo | 
 
 /** Settings → Your keys, for accounts (below Your GPU). `prices`: what the studios' paid defaults cost (starterPriceLine). */
 export function AccountKeysSection({ prices }: { prices?: string }) {
+  const { t: tr } = useI18n();
   // Nothing until hydrated, as in the server's HTML, even when the viewer query has already answered.
   const hydrated = useHydrated();
   const { t: tr } = useI18n();
@@ -360,30 +367,27 @@ export function AccountKeysSection({ prices }: { prices?: string }) {
   return (
     <section id="your-keys" aria-labelledby="your-keys-title" className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 border-b py-8 md:scroll-mt-20 md:grid-cols-[260px_minmax(0,1fr)]">
       <div className="min-w-0">
-        <h2 id="your-keys-title" className="text-[15px] font-semibold">
-          Your keys
-        </h2>
+        <h2 id="your-keys-title" className="text-[15px] font-semibold">{tr("settings.yourKeys.title")}</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Add your fal.ai or Replicate key to use Nano Banana, Kling, Veo and more. You pay the provider directly. Your key is stored encrypted.
+          {tr("settings.yourKeys.intro")}
         </p>
       </div>
       <div className="grid min-w-0 gap-4">
         {goesTo && (
           <p className="text-[13px] text-muted-foreground">
-            Where your runs go: <span className="font-medium text-foreground">{goesTo}</span> ·{" "}
+            {tr("settings.yourKeys.whereRunsGo")}<span className="font-medium text-foreground">{goesTo}</span> ·{" "}
             <a href="#where-runs-go" className="font-medium text-brand-text underline-offset-2 hover:underline">
-              Change
+              {tr("settings.yourKeys.change")}
             </a>
           </p>
         )}
         <ul className="grid gap-1.5 text-[13px] text-muted-foreground">
           {prices && (
             <li>
-              <span className="font-medium text-foreground">What it costs:</span> {prices}. The price next to Generate is an estimate; your provider&apos;s bill is the
-              final word.
+              <span className="font-medium text-foreground">{tr("settings.yourKeys.whatItCosts")}</span> {prices}.{tr("settings.yourKeys.costsNote")}
             </li>
           )}
-          <li>{hosted ? "On your key: up to 4 runs at once and 60 an hour." : "Up to 4 runs at once and 60 an hour."}</li>
+          <li>{hosted ? tr("settings.yourKeys.limitsOnKey") : tr("settings.yourKeys.limitsDefault")}</li>
         </ul>
         {q.isError ? (
           <p className="text-[13px] text-muted-foreground">{q.error.message}</p>
@@ -406,6 +410,7 @@ export function AccountKeysSection({ prices }: { prices?: string }) {
  * else). The button opens "Add your fal.ai key" where the person is; `onOpen` first (a card closing to make room).
  */
 export function KeyInstead({ onOpen, className }: { onOpen?: () => void; className?: string }) {
+  const { t: tr } = useI18n();
   const v = useStatus().data?.viewer;
   if (v?.kind !== "account" || v.paidAllowed === false || v.keys?.length) return null;
   return (
@@ -415,13 +420,11 @@ export function KeyInstead({ onOpen, className }: { onOpen?: () => void; classNa
         {v.hosted ? (
           // Hosted runs: open models already run without a GPU of one's own, so a key is for the paid ones.
           <>
-            <span className="font-medium text-foreground">Paid models:</span> add your own fal.ai or Replicate key to use Nano Banana, Kling and Veo, billed to your
-            account with them.
+            <span className="font-medium text-foreground">{tr("settings.yourKeys.paidModelsLead")}</span>{tr("settings.yourKeys.paidModelsTail")}
           </>
         ) : (
           <>
-            <span className="font-medium text-foreground">No GPU?</span> Add your own fal.ai or Replicate key to use paid models like Nano Banana, Kling and Veo, billed to
-            your account with them.
+            <span className="font-medium text-foreground">{tr("settings.yourKeys.noGpuLead")}</span>{tr("settings.yourKeys.noGpuTail")}
           </>
         )}
       </p>
@@ -433,7 +436,7 @@ export function KeyInstead({ onOpen, className }: { onOpen?: () => void; classNa
           openAddKey("fal");
         }}
       >
-        Add a key
+        {tr("settings.yourKeys.addAKey")}
       </Button>
     </div>
   );
@@ -445,6 +448,7 @@ export function KeyInstead({ onOpen, className }: { onOpen?: () => void; classNa
  * sees the price first). Mounted once, in the app's providers.
  */
 export function AddKeyPrompt() {
+  const { t: tr } = useI18n();
   const [ask, setAsk] = useState<{ provider: CloudProvider; modelId?: string } | null>(null);
   useEffect(() => {
     const open = (e: Event) => {
@@ -464,9 +468,9 @@ export function AddKeyPrompt() {
               <div className="mb-1 grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
                 <KeyRound className="size-5" />
               </div>
-              <DialogTitle>Add your {p.label} key</DialogTitle>
+              <DialogTitle>{tr("settings.yourKeys.dialogTitle", { label: p.label })}</DialogTitle>
               <DialogDescription>
-                Runs on {p.label} are billed to your own {p.label} account. Your key is stored encrypted.
+                {tr("settings.yourKeys.dialogDesc", { label: p.label })}
                 {/* Opened for no model in particular: either provider will do. */}
                 {!ask.modelId && (
                   <>
@@ -476,7 +480,7 @@ export function AddKeyPrompt() {
                       onClick={() => setAsk({ provider: ask.provider === "fal" ? "replicate" : "fal" })}
                       className="text-brand-text underline-offset-2 hover:underline"
                     >
-                      {ask.provider === "fal" ? "Have a Replicate token instead?" : "Have a fal.ai key instead?"}
+                      {tr(ask.provider === "fal" ? "settings.yourKeys.haveReplicateInstead" : "settings.yourKeys.haveFalInstead")}
                     </button>
                   </>
                 )}
@@ -493,9 +497,9 @@ export function AddKeyPrompt() {
             />
             <DialogFooter className="sm:justify-start">
               <p className={cn("text-[12px] text-muted-foreground")}>
-                Change or remove it any time in{" "}
+                {tr("settings.yourKeys.changeAnyTime")}
                 <Link href="/settings#your-keys" onClick={() => setAsk(null)} className="text-brand-text underline-offset-2 hover:underline">
-                  Settings → Your keys
+                  {tr("settings.yourKeys.yourKeysLink")}
                 </Link>
                 .
               </p>

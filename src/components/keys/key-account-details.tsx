@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { useKeyInfo, useRefreshKeyInfo } from "@/components/keys/use-key-info";
 import { useNow } from "@/components/studio/use-now";
 import { BILLING_URL } from "@/lib/diagnose";
-import { accountWords, checkKeyWords, FAL_BALANCE_HOW, FAL_BALANCE_PERMISSION, money, noKeyYetWords, updatedWords, type ProviderAccount } from "@/lib/key-info";
+import { accountWords, checkKeyWords, FAL_BALANCE_PERMISSION, money, noKeyYetWords, updatedWords, type ProviderAccount } from "@/lib/key-info";
 import { CLOUD_KEY, type CloudProvider } from "@/lib/your-keys";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { cn } from "@/lib/utils";
 
 /*
@@ -19,11 +20,12 @@ import { cn } from "@/lib/utils";
 const PANEL = "rounded-lg bg-muted/60 px-3 py-2.5 text-[13px]";
 
 function Outbound({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
+  const { t: tr } = useI18n();
   return (
     <a href={href} target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-1 font-medium text-brand-text underline-offset-2 hover:underline", className)}>
       {children}
       <ExternalLink aria-hidden className="size-3" />
-      <span className="sr-only"> (opens in a new tab)</span>
+      <span className="sr-only">{tr("settings.yourKeys.opensInNewTab")}</span>
     </a>
   );
 }
@@ -38,6 +40,7 @@ function Row({ label, children, figure }: { label: string; children: React.React
 }
 
 function Footer({ info, onRefresh, disabled, busy, children }: { info: ProviderAccount | undefined; onRefresh: () => void; disabled: boolean; busy: boolean; children?: React.ReactNode }) {
+  const { t: tr } = useI18n();
   const now = useNow(30_000);
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
@@ -51,7 +54,7 @@ function Footer({ info, onRefresh, disabled, busy, children }: { info: ProviderA
           className="inline-flex min-h-6 items-center gap-1 rounded font-medium [@media(pointer:coarse)]:min-h-11 text-foreground underline-offset-2 hover:underline disabled:pointer-events-none disabled:opacity-50"
         >
           {busy && <Loader2 aria-hidden className="size-3 animate-spin" />}
-          Refresh
+          {tr("settings.yourKeys.refresh")}
         </button>
       </span>
     </div>
@@ -60,27 +63,28 @@ function Footer({ info, onRefresh, disabled, busy, children }: { info: ProviderA
 
 /**
  * Under a fal.ai key that may not read its balance: the three steps to a key that may, from fal.ai's keys page, and
- * what the added permission lets Fuobe do. Folded, with the chevron Settings' other folded rows use.
+ * what the added permission lets Fuobe do. Folded, with the chevron Settings' other folded rows use. Each piece is read
+ * through a key (byte-identical under English, Korean on the switch), so the whole steps read in the active language.
  */
 function FalBalanceHow() {
-  const { title, steps, why } = FAL_BALANCE_HOW;
+  const { t: tr } = useI18n();
   return (
     <details className="group mt-2 text-[12px]">
       <summary className="flex min-h-6 w-fit cursor-pointer list-none items-center gap-1 font-medium [@media(pointer:coarse)]:min-h-11 text-foreground underline-offset-2 hover:underline [&::-webkit-details-marker]:hidden">
-        {title}
+        {tr("settings.yourKeys.falBalanceTitle")}
         <ChevronDown aria-hidden className="size-3.5 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
       <ol className="mt-1.5 max-w-prose list-decimal space-y-1 pl-4 text-muted-foreground marker:text-muted-foreground">
         <li>
-          {steps.open.before} <Outbound href={CLOUD_KEY.fal.keysUrl}>{steps.open.link}</Outbound> {steps.open.after}
+          {tr("settings.yourKeys.falBalanceOpenBefore")} <Outbound href={CLOUD_KEY.fal.keysUrl}>{tr("settings.yourKeys.falBalanceOpenLink")}</Outbound> {tr("settings.yourKeys.falBalanceOpenAfter")}
         </li>
         <li>
-          {steps.pick.before} <code className="rounded bg-background px-1 font-mono text-[11px] text-foreground">{FAL_BALANCE_PERMISSION}</code>
-          {steps.pick.after}
+          {tr("settings.yourKeys.falBalancePickBefore")} <code className="rounded bg-background px-1 font-mono text-[11px] text-foreground">{FAL_BALANCE_PERMISSION}</code>
+          {tr("settings.yourKeys.falBalancePickAfter")}
         </li>
-        <li>{steps.save}</li>
+        <li>{tr("settings.yourKeys.falBalanceSave")}</li>
       </ol>
-      <p className="mt-1.5 max-w-prose text-muted-foreground">{why}</p>
+      <p className="mt-1.5 max-w-prose text-muted-foreground">{tr("settings.yourKeys.falBalanceWhy")}</p>
     </details>
   );
 }
@@ -103,6 +107,7 @@ export function KeyAccountDetails({
   emptyNoted?: boolean;
   className?: string;
 }) {
+  const { t: tr } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
@@ -143,22 +148,22 @@ export function KeyAccountDetails({
     body = (
       <>
         <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-1">
-          <Row label="Balance" figure>
+          <Row label={tr("settings.yourKeys.balanceLabel")} figure>
             {money(info.balance)}
           </Row>
-          {info.account && <Row label="Account">{accountWords(info.account)}</Row>}
+          {info.account && <Row label={tr("settings.yourKeys.accountLabel")}>{accountWords(info.account)}</Row>}
           {info.spentThisMonth && (
-            <Row label="Spent this month" figure>
+            <Row label={tr("settings.yourKeys.spentThisMonth")} figure>
               {money(info.spentThisMonth)}
             </Row>
           )}
         </dl>
         {info.state === "empty" && !emptyNoted && (
           <p className="mt-2">
-            Your {label} balance is empty. <Outbound href={BILLING_URL[provider]}>Top up on {label}</Outbound>
+            {tr("settings.yourKeys.balanceEmpty", { label })} <Outbound href={BILLING_URL[provider]}>{tr("settings.yourKeys.topUpOn", { label })}</Outbound>
           </p>
         )}
-        {footer(info.state !== "empty" && <Outbound href={BILLING_URL[provider]}>Open {label} billing</Outbound>)}
+        {footer(info.state !== "empty" && <Outbound href={BILLING_URL[provider]}>{tr("settings.yourKeys.openBilling", { label })}</Outbound>)}
       </>
     );
   } else if (info?.state === "empty") {
@@ -167,12 +172,12 @@ export function KeyAccountDetails({
       <>
         {info.account && (
           <dl className="mb-2 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-6">
-            <Row label="Account">{accountWords(info.account)}</Row>
+            <Row label={tr("settings.yourKeys.accountLabel")}>{accountWords(info.account)}</Row>
           </dl>
         )}
         {!emptyNoted && (
           <p>
-            Your {label} balance is empty. <Outbound href={BILLING_URL[provider]}>Top up on {label}</Outbound>
+            {tr("settings.yourKeys.balanceEmpty", { label })} <Outbound href={BILLING_URL[provider]}>{tr("settings.yourKeys.topUpOn", { label })}</Outbound>
           </p>
         )}
         {footer()}
@@ -184,11 +189,11 @@ export function KeyAccountDetails({
       <>
         {info?.account && (
           <dl className="mb-2 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-6">
-            <Row label="Account">{accountWords(info.account)}</Row>
+            <Row label={tr("settings.yourKeys.accountLabel")}>{accountWords(info.account)}</Row>
           </dl>
         )}
         <p>
-          {label} shows your balance on its billing page. <Outbound href={BILLING_URL[provider]}>See balance on {label}</Outbound>
+          {tr("settings.yourKeys.balanceOnBillingPage", { label })} <Outbound href={BILLING_URL[provider]}>{tr("settings.yourKeys.seeBalanceOn", { label })}</Outbound>
         </p>
         {provider === "fal" && info && <FalBalanceHow />}
         {footer()}
@@ -204,5 +209,6 @@ export function KeyAccountDetails({
 
 /** Your keys, a card with no key yet: what shows here once one is saved. */
 export function NoKeyYet({ provider }: { provider: CloudProvider }) {
+  useI18n(); // subscribe, so the switch re-renders the card with noKeyYetWords in the new language
   return <p className="rounded-lg border border-dashed px-3 py-2.5 text-[12px] text-muted-foreground">{noKeyYetWords(provider)}</p>;
 }

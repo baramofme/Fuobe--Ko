@@ -53,14 +53,18 @@ export interface YourKeys {
 /** Set on an account's refused run (its value: fal or replicate): the client opens "Add your key". */
 export const ADD_KEY_HEADER = "x-fuobe-add-key";
 
-export const addKeyMessage = (p: CloudProvider) => `Add your ${CLOUD_KEY[p].label} key to run this. Runs on ${CLOUD_KEY[p].label} are billed to your own ${CLOUD_KEY[p].label} account.`;
-export const keyRejectedMessage = (p: CloudProvider) => `${CLOUD_KEY[p].label} didn't accept your key. Check it in Settings → Your keys.`;
-export const balanceMessage = (p: CloudProvider) => `Your ${CLOUD_KEY[p].label} balance has run out. Top it up on ${CLOUD_KEY[p].label}, then run again.`;
+// The data strings below are resolved at call time (t() reads the active language). Their en.json values are
+// byte-identical to the original literals, so the tests bound to those literals (en under vitest, and the server, which
+// has no browser and reads English) stay green; under Korean they read in Korean.
+
+export const addKeyMessage = (p: CloudProvider) => t("settings.yourKeys.addKeyMessage", { label: CLOUD_KEY[p].label });
+export const keyRejectedMessage = (p: CloudProvider) => t("settings.yourKeys.keyRejected", { label: CLOUD_KEY[p].label });
+export const balanceMessage = (p: CloudProvider) => t("settings.yourKeys.balanceOut", { label: CLOUD_KEY[p].label });
 /** A key saved that works, on a provider account with nothing on it yet. */
-export const emptyBalanceNote = (p: CloudProvider) =>
-  `Your ${CLOUD_KEY[p].label} key works, but your ${CLOUD_KEY[p].label} balance is empty. Top it up on ${CLOUD_KEY[p].label} before you run.`;
-export const keyRemovedMessage = (p: CloudProvider) => `Your ${CLOUD_KEY[p].label} key was removed, so this run stopped.`;
-/** The owner (or anyone not signed in as an account) on /api/account/keys. */
+export const emptyBalanceNote = (p: CloudProvider) => t("settings.yourKeys.emptyBalance", { label: CLOUD_KEY[p].label });
+export const keyRemovedMessage = (p: CloudProvider) => t("settings.yourKeys.keyRemoved", { label: CLOUD_KEY[p].label });
+/** The owner (or anyone not signed in as an account) on /api/account/keys. Server-only (an API route's JSON error), so it
+ * stays the English original — there is no browser here to switch on, and no UI reads it. */
 export const NOT_ACCOUNT_KEYS = "Log in to add your keys.";
 
 // ---------------------------------------------------------------------------
@@ -128,17 +132,18 @@ export function cloudVersion(
 }
 
 /** "Add your fal.ai key": the words on a paid model an account can't run yet. */
-export const addKeyLabel = (p: CloudProvider) => `Add your ${CLOUD_KEY[p].label} key`;
+export const addKeyLabel = (p: CloudProvider) => t("settings.yourKeys.addKeyLabel", { label: CLOUD_KEY[p].label });
 
 /** "your fal.ai account": who pays for an account's paid run. */
-export const billedTo = (p: CloudProvider) => `your ${CLOUD_KEY[p].label} account`;
+export const billedTo = (p: CloudProvider) => t("settings.yourKeys.billedTo", { label: CLOUD_KEY[p].label });
 
 /**
  * The note after a key is saved. While hosted runs are on the studios stay on Open source (free there), so it says where
- * the paid models are. `who`: " (signed in as …)" or "".
+ * the paid models are. `who`: " (signed in as …)" or "". The tail is either "." (hosted off) or the "pick Cloud" note;
+ * both come from keys so the whole sentence reads in the active language, byte-identical under English.
  */
 export const keySavedText = (label: string, who: string, hosted: boolean) =>
-  `Your ${label} key works${who}. Paid models on ${label} are ready${hosted ? ": pick Cloud in the model list to use them." : "."}`;
+  t("settings.yourKeys.keySavedMain", { label, who, tail: hosted ? t("settings.yourKeys.keySavedHostedTail") : t("settings.yourKeys.keySavedTail") });
 
 /** "fal.ai and Replicate" */
 const names = (ps: readonly CloudProvider[]) => ps.map((p) => CLOUD_KEY[p].label).join(" and ");
