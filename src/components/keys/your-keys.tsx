@@ -18,11 +18,10 @@ import { engineAfterKeySave } from "@/lib/engine-pref";
 import { placeOf } from "@/lib/place-name";
 import { placeRows } from "@/lib/run-place";
 import { runsGoNowText } from "@/lib/run-on";
-import { useI18n } from "@/lib/i18n/use-i18n";
+import { useI18n } from "@/lib/i18n";
 import { t as tStore } from "@/lib/i18n/store";
 import { KeyAccountDetails, NoKeyYet } from "./key-account-details";
 import { cn } from "@/lib/utils";
-import { useI18n } from "@/lib/i18n";
 
 /**
  * "Your keys" (public sign-up): an account's own fal.ai key and Replicate token, so it runs paid models billed to its
