@@ -5,6 +5,7 @@
  */
 import { LLM_PROVIDERS } from "./catalog/llm-providers";
 import { offered, type AccessSummary } from "./model-access";
+import { t } from "./i18n/store";
 
 export type TestProvider = "fal" | "replicate" | "comfyui" | "llm" | "civitai" | "huggingface" | "ai-toolkit";
 
@@ -109,9 +110,9 @@ const KEY_PAIR = /^[^\s:]+:[^\s:]+$/;
 function addressProblem(v: string, example: string): string | null {
   try {
     const u = new URL(v);
-    return u.protocol === "http:" || u.protocol === "https:" ? null : `Use an http:// or https:// address, like ${example}`;
+    return u.protocol === "http:" || u.protocol === "https:" ? null : t("settings.connection.problem.useHttpLike", { example });
   } catch {
-    return /^[\w.-]+(:\d+)?(\/\S*)?$/.test(v) ? `Add http:// in front: http://${v}` : `That isn't a web address — try ${example}`;
+    return /^[\w.-]+(:\d+)?(\/\S*)?$/.test(v) ? t("settings.connection.problem.addHttpFront", { value: v }) : t("settings.connection.problem.notWebAddress", { example });
   }
 }
 
@@ -125,11 +126,13 @@ export function settingProblem(name: string, raw: string): string | null {
   switch (name) {
     case "falKey":
       if (KEY_PAIR.test(v)) return null;
-      return v.includes(":") ? "Both halves of key_id:key_secret are needed, without spaces — copy the key again" : "fal.ai keys look like key_id:key_secret — paste the whole key, with the part after the colon";
+      return v.includes(":")
+        ? t("settings.connection.problem.falBothHalves")
+        : t("settings.connection.problem.falWholeKey");
     case "replicateToken":
-      return /^r8_\S+$/.test(v) ? null : "Replicate tokens start with r8_";
+      return /^r8_\S+$/.test(v) ? null : t("settings.connection.problem.replicateR8");
     case "anthropicKey":
-      return /^sk-ant-\S+$/.test(v) ? null : "Anthropic keys start with sk-ant-";
+      return /^sk-ant-\S+$/.test(v) ? null : t("settings.connection.problem.anthropicSk");
     case "comfyUrl":
       return addressProblem(v, DEFAULT_COMFY_URL);
     case "comfyIsolatedUrl":
@@ -147,9 +150,9 @@ export function settingProblem(name: string, raw: string): string | null {
     case "aiToolkitUrl":
       return addressProblem(v, DEFAULT_AI_TOOLKIT_URL);
     case "aiToolkitDatasetDir":
-      return v.startsWith("/") || /^[A-Za-z]:[\\/]/.test(v) ? null : "Use a full path, like /mnt/shared/datasets";
+      return v.startsWith("/") || /^[A-Za-z]:[\\/]/.test(v) ? null : t("settings.connection.problem.fullPath");
     case "qwenWorkspace":
-      return /^[a-z0-9-]{1,64}$/.test(v) ? null : "Use the workspace id from Model Studio's Workspace page (lowercase letters, digits and hyphens), not an address";
+      return /^[a-z0-9-]{1,64}$/.test(v) ? null : t("settings.connection.problem.qwenWorkspace");
   }
   // An LLM provider's key: the format its docs give.
   const hint = LLM_PROVIDERS.find((p) => p.keySetting === name)?.keyHint;
@@ -188,7 +191,13 @@ export interface OwnerGpuView {
 
 /** "Online", "ComfyUI not running", "Needs a setting" or "Offline": a computer's ComfyUI in a few words. */
 export function computerWords(g: { online?: boolean; comfy?: "down" | "no-setting" }): string {
-  return g.online ? "Online" : g.comfy === "down" ? "ComfyUI not running" : g.comfy === "no-setting" ? "Needs a setting" : "Offline";
+  return g.online
+    ? t("settings.connection.text.online")
+    : g.comfy === "down"
+      ? t("settings.connection.computer.down")
+      : g.comfy === "no-setting"
+        ? t("settings.connection.computer.needsSetting")
+        : t("settings.connection.text.offline");
 }
 
 const CLOUD_PROVIDERS = ["fal", "replicate"] as const;
@@ -272,7 +281,12 @@ export const FIRST_RUN_KEY = "fuobe:first-run";
  */
 export const FIRST_RUN_SCRIPT = `(function(){try{var v=localStorage.getItem("${FIRST_RUN_KEY}");if(v==="0"||v==="1")document.documentElement.setAttribute("data-first-run",v)}catch(e){}})()`;
 
-export const ENGINE_MODE_LABEL: Record<EngineModeName, string> = { both: "Open source + paid", open: "Open source only", cloud: "Paid APIs only" };
+/** Each engine mode's words for Settings' strip, as i18n keys; the page resolves them at render (t(ENGINE_MODE_KEYS[mode])). */
+export const ENGINE_MODE_KEYS: Record<EngineModeName, string> = {
+  both: "settings.connection.engineLabel.both",
+  open: "settings.connection.engineLabel.open",
+  cloud: "settings.connection.engineLabel.cloud",
+};
 
 export interface ConnectionItem {
   id: "fal" | "replicate" | "comfyui" | "llm";
@@ -292,22 +306,22 @@ export interface ConnectionItem {
  * "Your GPU · Connect" (`place`: where the page is, lib/page-place.ts).
  */
 export function connectionSummary(s: ConnectionState, place?: "here" | "network" | "hosted" | null): ConnectionItem[] {
-  const key = (id: "fal" | "replicate", label: string): ConnectionItem => {
+  const key = (id: "fal" | "replicate"): ConnectionItem => {
     const ok = !!s.providers[id]?.configured;
-    return { id, label, ok, text: ok ? "Key set" : "Not set", href: `#${id}`, unused: s.engineMode === "open" };
+    return { id, label: t(`settings.connection.label.${id}`), ok, text: ok ? t("settings.connection.text.keySet") : t("settings.connection.text.notSet"), href: `#${id}`, unused: s.engineMode === "open" };
   };
   const comfy = !!s.providers.comfyui?.configured;
   const llm = !!s.providers.llm?.configured;
   const unused = s.engineMode === "cloud";
   const gpu: ConnectionItem = s.ownerGpu
-    ? { id: "comfyui", label: "Your GPU", ok: s.ownerGpu.online, text: `Your computer · ${computerWords(s.ownerGpu)}`, href: "#comfyui", unused }
+    ? { id: "comfyui", label: t("settings.gpu.title"), ok: s.ownerGpu.online, text: t("settings.connection.yourComputerWords", { words: computerWords(s.ownerGpu) }), href: "#comfyui", unused }
     : !comfy && place === "hosted"
-      ? { id: "comfyui", label: "Your GPU", ok: false, text: "Connect", href: "#comfyui", unused }
-      : { id: "comfyui", label: "ComfyUI", ok: comfy, text: comfy ? "Online" : "Offline", href: "#comfyui", unused };
+      ? { id: "comfyui", label: t("settings.gpu.title"), ok: false, text: t("settings.connection.text.connect"), href: "#comfyui", unused }
+      : { id: "comfyui", label: t("settings.connection.label.comfyui"), ok: comfy, text: comfy ? t("settings.connection.text.online") : t("settings.connection.text.offline"), href: "#comfyui", unused };
   return [
-    key("fal", "fal.ai"),
-    key("replicate", "Replicate"),
+    key("fal"),
+    key("replicate"),
     gpu,
-    { id: "llm", label: "AI helper", ok: llm, text: llm ? "On" : "Off", href: "#text-ai", unused: false },
+    { id: "llm", label: t("settings.connection.label.aiHelper"), ok: llm, text: llm ? t("settings.connection.text.on") : t("settings.connection.text.off"), href: "#text-ai", unused: false },
   ];
 }

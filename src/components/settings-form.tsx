@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { PLACEHOLDER_SETTING, placeholdersOn } from "@/lib/demo-mode";
+import { placeholdersOn } from "@/lib/demo-mode";
 import { AccountsChip } from "@/components/accounts-admin";
 import { ConnectField, useSettings, type PublicSetting } from "@/components/connect-field";
 import { KeyAccountDetails } from "@/components/keys/key-account-details";
@@ -24,8 +24,9 @@ import { LlmProviderSettings } from "@/components/llm-provider-settings";
 import { LoraSettings } from "@/components/lora-settings";
 import { useStatus, type StatusInfo } from "@/lib/api";
 import { WORKFLOWS_ON_GITHUB } from "@/lib/comfy-install";
-import { AI_TOOLKIT_REPO, connectionSummary, DEFAULT_AI_TOOLKIT_URL, ENGINE_MODE_LABEL, FAL_KEYS_URL, showFirstRun } from "@/lib/connections";
+import { AI_TOOLKIT_REPO, connectionSummary, DEFAULT_AI_TOOLKIT_URL, ENGINE_MODE_KEYS, FAL_KEYS_URL, showFirstRun } from "@/lib/connections";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { ConnectorSettings } from "@/components/assist/connectors-settings";
 import { NotificationSettings } from "@/components/notification-settings";
 import { SecuritySettings } from "@/components/security-settings";
@@ -47,12 +48,13 @@ function Section({
   inactive?: string;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-6 border-b py-8 last:border-b-0 md:scroll-mt-20 md:grid-cols-[260px_minmax(0,1fr)]">
       <div className="min-w-0">
         <h2 id={`${id}-title`} className="group flex items-center gap-1.5 text-[15px] font-semibold">
           {title}
-          <a href={`#${id}`} aria-label={`Link to ${title}`} className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100">
+          <a href={`#${id}`} aria-label={t("settings.form.linkToAria", { name: title })} className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100">
             <Link2 className="size-3.5" />
           </a>
         </h2>
@@ -67,30 +69,31 @@ function Section({
 const ENGINE_MODES = [
   {
     value: "both",
-    title: "Open source + paid APIs",
+    titleKey: "settings.form.engineMode.bothTitle",
     icon: Layers,
-    body: "Every studio gets a Cloud / Open source switch. Use frontier paid models when you want them, your own GPU when you don't.",
-    needs: "A fal.ai or Replicate key and/or a ComfyUI server",
+    bodyKey: "settings.form.engineMode.bothBody",
+    needsKey: "settings.form.engineMode.bothNeeds",
   },
   {
     value: "open",
-    title: "Open source only",
+    titleKey: "settings.form.engineMode.openTitle",
     icon: Cpu,
-    body: "Only open-weight models on your ComfyUI server. Paid models are hidden and blocked on the server, and nothing is sent to paid APIs.",
-    needs: "A ComfyUI server",
+    bodyKey: "settings.form.engineMode.openBody",
+    needsKey: "settings.form.engineMode.openNeeds",
   },
   {
     value: "cloud",
-    title: "Paid APIs only",
+    titleKey: "settings.form.engineMode.cloudTitle",
     icon: Cloud,
-    body: "Only hosted frontier models (Nano Banana, Seedance, Kling, Veo…). No GPU needed; open-source models are hidden.",
-    needs: "A fal.ai or Replicate key",
+    bodyKey: "settings.form.engineMode.cloudBody",
+    needsKey: "settings.form.engineMode.cloudNeeds",
   },
 ] as const;
 
 function EngineModePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useI18n();
   return (
-    <div role="radiogroup" aria-label="Engine mode" className="grid gap-2 lg:grid-cols-3">
+    <div role="radiogroup" aria-label={t("settings.form.engine.groupAria")} className="grid gap-2 lg:grid-cols-3">
       {ENGINE_MODES.map((m) => {
         const active = value === m.value;
         return (
@@ -108,11 +111,11 @@ function EngineModePicker({ value, onChange }: { value: string; onChange: (v: st
               <span className={cn("grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground", active && "bg-primary text-primary-foreground")}>
                 <m.icon className="size-4" />
               </span>
-              <span className="text-[14px] font-medium">{m.title}</span>
+              <span className="text-[14px] font-medium">{t(m.titleKey)}</span>
               {active && <CheckCircle2 className="ml-auto size-4 text-brand-text" />}
             </span>
-            <span className="text-[13px] leading-relaxed text-muted-foreground">{m.body}</span>
-            <span className="text-[12px] text-muted-foreground">Needs: {m.needs}</span>
+            <span className="text-[13px] leading-relaxed text-muted-foreground">{t(m.bodyKey)}</span>
+            <span className="text-[12px] text-muted-foreground">{t("settings.form.engine.needsLine", { needs: t(m.needsKey) })}</span>
           </button>
         );
       })}
@@ -168,9 +171,10 @@ function ChoiceField({
  */
 function StatusStrip({ status, onGuide, guideOpen }: { status?: StatusInfo; onGuide: () => void; guideOpen: boolean }) {
   const place = usePagePlace();
+  const { t } = useI18n();
   return (
     <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b bg-background/90 px-4 py-2.5 backdrop-blur sm:-mx-6 sm:px-6 md:top-chrome">
-      <nav aria-label="Connections" className="scrollbar-none -my-1 flex items-center gap-1.5 overflow-x-auto py-1">
+      <nav aria-label={t("settings.form.connectionsAria")} className="scrollbar-none -my-1 flex items-center gap-1.5 overflow-x-auto py-1">
         {status ? (
           <>
             {connectionSummary(status, place).map((c) => (
@@ -184,17 +188,17 @@ function StatusStrip({ status, onGuide, guideOpen }: { status?: StatusInfo; onGu
               >
                 <span aria-hidden className={cn("size-1.5 rounded-full", c.ok ? "bg-success" : "bg-muted-foreground/50")} />
                 <span className="font-medium">{c.label}</span>
-                <span className="text-muted-foreground">{c.unused ? "Not used" : c.text}</span>
+                <span className="text-muted-foreground">{c.unused ? t("settings.form.stripNotUsed") : c.text}</span>
               </a>
             ))}
             <a href="#engine" className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-secondary px-2.5 text-[12px] whitespace-nowrap transition-colors hover:bg-accent">
-              <span className="text-muted-foreground">Engine</span>
-              <span className="font-medium">{ENGINE_MODE_LABEL[status.engineMode]}</span>
+              <span className="text-muted-foreground">{t("settings.form.stripEngineChip")}</span>
+              <span className="font-medium">{t(ENGINE_MODE_KEYS[status.engineMode])}</span>
             </a>
             <AccountsChip />
             {!guideOpen && (
               <button type="button" onClick={onGuide} className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium whitespace-nowrap text-brand-text hover:bg-brand-faint">
-                Setup guide
+                {t("settings.form.stripSetupGuide")}
               </button>
             )}
           </>
@@ -238,83 +242,88 @@ interface LocalLlmInfo {
   servers: LocalServerStatus[];
 }
 
-const LOCAL_SERVERS: { value: "auto" | LocalKind; title: string }[] = [
-  { value: "auto", title: "Automatic" },
-  { value: "ollama", title: "Ollama" },
-  { value: "lmstudio", title: "LM Studio" },
-  { value: "unsloth", title: "Unsloth Studio" },
-  { value: "custom", title: "Other" },
+const LOCAL_SERVERS: { value: "auto" | LocalKind; titleKey: string }[] = [
+  { value: "auto", titleKey: "settings.form.llm.serverAutomatic" },
+  { value: "ollama", titleKey: "settings.form.llm.serverOllama" },
+  { value: "lmstudio", titleKey: "settings.form.llm.serverLmStudio" },
+  { value: "unsloth", titleKey: "settings.form.llm.serverUnsloth" },
+  { value: "custom", titleKey: "settings.form.llm.serverOther" },
 ];
 
-const code = (s: string) => <code className="font-mono text-[11px]">{s}</code>;
+/** Part of a setup line: a fragment's key, or a command to show in mono. */
+type SetupPart = { key: string } | { code: string };
 
 /** Each server's settings and how to get it running. */
 const LOCAL_FIELDS: Record<
   LocalKind,
-  { url: string; urlPlaceholder: string; urlHint: string; model: string; modelPlaceholder?: string; modelHint: string; key?: string; keyLabel?: string; keyPlaceholder?: string; setup: React.ReactNode }
+  { url: string; urlPlaceholder: string; urlHintKey: string; model: string; modelPlaceholder?: string; modelHintKey: string; key?: string; keyLabelKey?: string; keyPlaceholder?: string; setup: SetupPart[] }
 > = {
   ollama: {
     url: "ollamaUrl",
     urlPlaceholder: "http://127.0.0.1:11434",
-    urlHint: "Test checks Ollama answers and has the model.",
+    urlHintKey: "settings.form.llm.ollamaUrlHint",
     model: "ollamaModel",
     modelPlaceholder: "qwen3:8b",
-    modelHint: "A model with tool calling for Assist, such as qwen3:8b. Pull it first: ollama pull qwen3:8b",
-    setup: <>Install Ollama, then run {code("ollama pull qwen3:8b")}. Fuobe gives it the context below.</>,
+    modelHintKey: "settings.form.llm.ollamaModelHint",
+    setup: [{ key: "settings.form.llm.setupOllamaPre" }, { code: "ollama pull qwen3:8b" }, { key: "settings.form.llm.setupOllamaPost" }],
   },
   lmstudio: {
     url: "lmstudioUrl",
     urlPlaceholder: "http://127.0.0.1:1234",
-    urlHint: "Test checks LM Studio answers and has the model.",
+    urlHintKey: "settings.form.llm.lmstudioUrlHint",
     model: "lmstudioModel",
-    modelHint: "Empty: the loaded model, else one trained for tool use. A model that isn't loaded is loaded with the context below.",
+    modelHintKey: "settings.form.llm.lmstudioModelHint",
     key: "lmstudioToken",
-    keyLabel: "API token (only with Require Authentication on)",
-    setup: (
-      <>
-        In LM Studio, open Developer and start the server (or run {code("lms server start")}), and download a model in Discover (or {code("lms get qwen/qwen3-8b")}). Models without thinking (instruct models) answer faster. Without
-        Require Authentication, anyone on your network can use LM Studio&apos;s server.
-      </>
-    ),
+    keyLabelKey: "settings.form.llm.lmstudioTokenLabel",
+    setup: [
+      { key: "settings.form.llm.setupLmsPre" },
+      { code: "lms server start" },
+      { key: "settings.form.llm.setupLmsMid" },
+      { code: "lms get qwen/qwen3-8b" },
+      { key: "settings.form.llm.setupLmsPost" },
+    ],
   },
   unsloth: {
     url: "unslothUrl",
     urlPlaceholder: "http://127.0.0.1:8888",
-    urlHint: "Test checks Unsloth Studio answers and has a model loaded.",
+    urlHintKey: "settings.form.llm.unslothUrlHint",
     model: "unslothModel",
-    modelHint: "Empty: the model loaded in Unsloth Studio.",
+    modelHintKey: "settings.form.llm.unslothModelHint",
     key: "unslothKey",
-    keyLabel: "API key",
+    keyLabelKey: "settings.form.llm.apiKey",
     keyPlaceholder: "sk-unsloth-…",
-    setup: (
-      <>
-        Start Unsloth Studio and load a model on its Chat page (Select model), then make a key: avatar → Settings → API → Create. Fuobe always turns Unsloth&apos;s server-side tools (Python, terminal, web search) off.
-      </>
-    ),
+    setup: [{ key: "settings.form.llm.setupUnsloth" }],
   },
   custom: {
     url: "llmUrl",
     urlPlaceholder: "http://127.0.0.1:8080/v1",
-    urlHint: "Test checks the server answers with a model list.",
+    urlHintKey: "settings.form.llm.customUrlHint",
     model: "llmModel",
-    modelHint: "Empty: the first model the server lists.",
+    modelHintKey: "settings.form.llm.customModelHint",
     key: "llmKey",
-    keyLabel: "API key (optional)",
-    setup: <>Any OpenAI-compatible server: llama.cpp&apos;s llama-server, vLLM, Jan… Give its base URL as its docs do (it usually ends in {code("/v1")}).</>,
+    keyLabelKey: "settings.form.llm.apiKeyOptional",
+    setup: [{ key: "settings.form.llm.setupCustomPre" }, { code: "/v1" }, { key: "settings.form.llm.setupCustomPost" }],
   },
 };
 
 const k = (n: number) => `${Math.round(n / 1024)}k`;
 
 /** One line per server: the model it would use, or what's wrong. */
-function serverLine(s: LocalServerStatus): string {
-  if (!s.url) return "Not set up";
-  if (s.problem) return s.up ? s.problem : `Not running at ${s.url}`;
-  return [s.model, s.loaded ? "loaded" : s.loaded === false ? "loads on first use" : null, s.context ? `${k(s.context)} context` : null].filter(Boolean).join(" · ");
+function serverLine(s: LocalServerStatus, t: (key: string, params?: Record<string, string | number>) => string): string {
+  if (!s.url) return t("settings.form.llm.notSetUp");
+  if (s.problem) return s.up ? s.problem : t("settings.form.llm.notRunningAt", { url: s.url });
+  return [
+    s.model,
+    s.loaded ? t("settings.form.llm.loaded") : s.loaded === false ? t("settings.form.llm.loadsOnFirstUse") : null,
+    s.context ? t("settings.form.llm.contextCount", { k: k(s.context) }) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** A tiny chat call to a local server (POST /api/llm), timed: proves the model answers, not only that the server is up. */
 function TryReply({ kind }: { kind: LocalKind }) {
+  const { t } = useI18n();
   const [res, setRes] = useState<{ ok: boolean; detail: string } | null>(null);
   const m = useMutation({
     mutationFn: async () =>
@@ -333,7 +342,7 @@ function TryReply({ kind }: { kind: LocalKind }) {
         }}
         disabled={m.isPending}
       >
-        {m.isPending && <Loader2 className="animate-spin" />} Send a test message
+        {m.isPending && <Loader2 className="animate-spin" />} {t("settings.form.llm.sendTest")}
       </Button>
       <span role="status" aria-live="polite" className="min-w-0">
         {res && (
@@ -350,6 +359,7 @@ function TryReply({ kind }: { kind: LocalKind }) {
 /** Settings → AI helper → the local model server: pick one (or Automatic), see what each one answers, set its URL, model and key, and test it. */
 function LocalLlmSettings({ get, set }: { get: (n: string) => PublicSetting | undefined; set: (n: string) => (v: string) => void }) {
   const qc = useQueryClient();
+  const { t } = useI18n();
   const llm = useQuery({
     queryKey: ["llm"],
     queryFn: async () => (await (await fetch("/api/llm")).json()) as LocalLlmInfo,
@@ -385,7 +395,7 @@ function LocalLlmSettings({ get, set }: { get: (n: string) => PublicSetting | un
     <div className="min-w-0 space-y-4 rounded-xl border p-4">
       <div className="space-y-1.5">
         <p id="local-llm-label" className="text-[13px] font-medium">
-          Local model server
+          {t("settings.form.llm.serverLabel")}
         </p>
         <div role="radiogroup" aria-labelledby="local-llm-label" onKeyDown={radioKeys} className="flex flex-wrap gap-1 rounded-xl bg-muted p-1">
           {LOCAL_SERVERS.map((o) => (
@@ -398,20 +408,20 @@ function LocalLlmSettings({ get, set }: { get: (n: string) => PublicSetting | un
               onClick={() => provider !== o.value && set("llmProvider")(o.value)}
               className={cn("h-8 rounded-lg px-3 text-[13px] font-medium transition-colors", provider === o.value ? "bg-background text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground")}
             >
-              {o.title}
+              {t(o.titleKey)}
             </button>
           ))}
         </div>
         <p className="text-[12px] text-muted-foreground">
-          {provider === "auto" ? "Uses the first server that answers with a model, in this order: Ollama, LM Studio, Unsloth Studio, then the Other server." : "Only this server is used; the others are ignored."}
+          {provider === "auto" ? t("settings.form.llm.autoHint") : t("settings.form.llm.pinnedHint")}
         </p>
       </div>
 
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[13px] font-medium">Found on this machine</p>
+          <p className="text-[13px] font-medium">{t("settings.form.llm.foundOnMachine")}</p>
           <Button variant="ghost" size="sm" className="h-7 px-2 text-[12px]" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
-            {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Check again
+            {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} {t("settings.form.llm.checkAgain")}
           </Button>
         </div>
         {llm.isLoading && <Skeleton className="h-16 w-full rounded-lg" />}
@@ -425,9 +435,9 @@ function LocalLlmSettings({ get, set }: { get: (n: string) => PublicSetting | un
                 className={cn("flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] transition-colors hover:bg-accent", editing === s.kind && "bg-accent")}
               >
                 <span className={cn("size-2 shrink-0 rounded-full", !s.problem ? "bg-success" : s.up ? "bg-warning" : "bg-subtle-foreground")} />
-                <span className="shrink-0 font-medium">{s.kind === "custom" ? "Other" : s.label}</span>
-                <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{serverLine(s)}</span>
-                {llm.data?.active === s.kind && <span className="shrink-0 rounded-md bg-brand-faint px-1.5 py-0.5 text-[11px] text-brand-text">In use</span>}
+                <span className="shrink-0 font-medium">{s.kind === "custom" ? t("settings.form.llm.serverOther") : s.label}</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{serverLine(s, t)}</span>
+                {llm.data?.active === s.kind && <span className="shrink-0 rounded-md bg-brand-faint px-1.5 py-0.5 text-[11px] text-brand-text">{t("settings.form.llm.inUse")}</span>}
               </button>
             </li>
           ))}
@@ -435,22 +445,26 @@ function LocalLlmSettings({ get, set }: { get: (n: string) => PublicSetting | un
       </div>
 
       <div className="space-y-4 border-t pt-4">
-        <p className="text-[13px] font-medium">{editing === "custom" ? "Other server (OpenAI-compatible)" : (status?.label ?? LOCAL_SERVERS.find((o) => o.value === editing)?.title)}</p>
-        <p className="text-[12px] leading-relaxed text-muted-foreground">{f.setup}</p>
+        <p className="text-[13px] font-medium">{editing === "custom" ? t("settings.form.llm.otherServer") : (status?.label ?? t(LOCAL_SERVERS.find((o) => o.value === editing)!.titleKey))}</p>
+        <p className="text-[12px] leading-relaxed text-muted-foreground">
+          {f.setup.map((p, i) => {
+            return "key" in p ? <span key={i}>{t(p.key)}</span> : <code key={i} className="font-mono text-[11px]">{p.code}</code>;
+          })}
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <ConnectField key={`${editing}-url`} name={f.url} setting={get(f.url)} provider="llm" label="URL" placeholder={f.urlPlaceholder} hint={f.urlHint} />
+          <ConnectField key={`${editing}-url`} name={f.url} setting={get(f.url)} provider="llm" label={t("settings.form.llm.urlLabel")} placeholder={f.urlPlaceholder} hint={t(f.urlHintKey)} />
           <ConnectField
             key={`${editing}-model`}
             name={f.model}
             setting={get(f.model)}
             provider="llm"
-            label="Model"
+            label={t("settings.form.llm.modelLabel")}
             placeholder={f.modelPlaceholder}
-            hint={f.modelHint}
+            hint={t(f.modelHintKey)}
             options={status?.models.map((m) => m.id)}
           />
         </div>
-        {f.key && <ConnectField key={`${editing}-key`} name={f.key} setting={get(f.key)} provider="llm" label={f.keyLabel ?? "API key"} placeholder={f.keyPlaceholder} hint="Only sent to this server." />}
+        {f.key && <ConnectField key={`${editing}-key`} name={f.key} setting={get(f.key)} provider="llm" label={t(f.keyLabelKey!)} placeholder={f.keyPlaceholder} hint={t("settings.form.llm.keyHint")} />}
         {status?.problem && status.up && <p className="text-[12px] text-warning">{status.problem}</p>}
         {status?.problem && !status.up && <p className="text-[12px] text-muted-foreground">{status.problem}</p>}
         {status?.warning && !status.problem && <p className="text-[12px] text-warning">{status.warning}</p>}
@@ -458,7 +472,7 @@ function LocalLlmSettings({ get, set }: { get: (n: string) => PublicSetting | un
           <TryReply key={editing} kind={editing} />
           {smallContext && (
             <Button variant="outline" size="sm" onClick={() => reload.mutate(status?.model ?? null)} disabled={reload.isPending}>
-              {reload.isPending && <Loader2 className="animate-spin" />} Reload with {k(want)} context
+              {reload.isPending && <Loader2 className="animate-spin" />} {t("settings.form.llm.reloadWith", { n: k(want) })}
             </Button>
           )}
         </div>
@@ -469,31 +483,32 @@ function LocalLlmSettings({ get, set }: { get: (n: string) => PublicSetting | un
         setting={get("llmContext")}
         provider="llm"
         saveOnly
-        label="Context (tokens)"
+        label={t("settings.form.llm.contextLabel")}
         placeholder="16384"
-        hint="How much text the local model reads at once: Ollama gets it as num_ctx, and LM Studio loads models with it. Assist needs about 16,384. 0 leaves it to the server."
+        hint={t("settings.form.llm.contextHint")}
       />
-      <p className="text-[12px] text-muted-foreground">The local model shares the GPU with ComfyUI. A 4–8B model leaves room for generations.</p>
+      <p className="text-[12px] text-muted-foreground">{t("settings.form.llm.sharesGpu")}</p>
     </div>
   );
 }
 
 /** The studio's own ComfyUI on the server's machine or network: where it runs, then its address, token and isolated worker. */
 function LocalComfy({ get, onWhere }: { get: (n: string) => PublicSetting | undefined; onWhere: (v: "server" | "computer") => Promise<unknown> }) {
+  const { t } = useI18n();
   return (
     <>
       <OwnerComfyWhere value={get("comfyWhere")?.value || "server"} onChange={onWhere} />
-      {get("comfyWhere")?.value === "workers" && <p className="text-[13px] text-muted-foreground">ComfyUI jobs run on your workers now.</p>}
+      {get("comfyWhere")?.value === "workers" && <p className="text-[13px] text-muted-foreground">{t("settings.form.comfy.workersNote")}</p>}
       <WorkersChip />
-      <ConnectField name="comfyUrl" setting={get("comfyUrl")} provider="comfyui" label="ComfyUI server URL" placeholder="http://127.0.0.1:8188" hint="Where ComfyUI listens; a local install is http://127.0.0.1:8188." />
-      <ConnectField name="comfyToken" setting={get("comfyToken")} provider="comfyui" label="Auth token (optional)" hint="Sent as a Bearer token, for ComfyUI behind a proxy." />
+      <ConnectField name="comfyUrl" setting={get("comfyUrl")} provider="comfyui" label={t("settings.form.comfy.urlLabel")} placeholder="http://127.0.0.1:8188" hint={t("settings.form.comfy.urlHint")} />
+      <ConnectField name="comfyToken" setting={get("comfyToken")} provider="comfyui" label={t("settings.form.comfy.tokenLabel")} hint={t("settings.form.comfy.tokenHint")} />
       <ConnectField
         name="comfyIsolatedUrl"
         setting={get("comfyIsolatedUrl")}
         provider="comfyui"
-        label="Isolated worker URL (optional)"
+        label={t("settings.form.comfy.isoLabel")}
         placeholder="http://127.0.0.1:8189"
-        hint="A second ComfyUI for LatentSync 1.6 and ThinkSound, whose node packs can't share the main install. scripts/comfy/README.md shows how to start one."
+        hint={t("settings.form.comfy.isoHint")}
       />
       <WorldcastField get={get} />
     </>
@@ -502,6 +517,7 @@ function LocalComfy({ get, onWhere }: { get: (n: string) => PublicSetting | unde
 
 export function SettingsForm({ prices }: { prices?: string }) {
   const qc = useQueryClient();
+  const { t } = useI18n();
   const settings = useSettings();
   const status = useStatus().data;
   const place = usePagePlace();
@@ -513,7 +529,7 @@ export function SettingsForm({ prices }: { prices?: string }) {
       (await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) })).json(),
     onSuccess: (body: { error?: string }) => {
       if (body?.error) return toast.error(body.error);
-      toast.success("Saved");
+      toast.success(t("settings.form.savedToast"));
       void qc.invalidateQueries({ queryKey: ["settings"] });
       void qc.invalidateQueries({ queryKey: ["status"] });
       void qc.invalidateQueries({ queryKey: ["llm"] });
@@ -531,7 +547,7 @@ export function SettingsForm({ prices }: { prices?: string }) {
 
   if (settings.isLoading)
     return (
-      <div className="space-y-3" aria-busy="true" aria-label="Loading settings">
+      <div className="space-y-3" aria-busy="true" aria-label={t("settings.form.loadingAria")}>
         {[0, 1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-24 w-full rounded-xl" />
         ))}
@@ -564,29 +580,33 @@ export function SettingsForm({ prices }: { prices?: string }) {
 
       <Section
         id="engine"
-        title="Engine mode"
-        description="Choose what this install runs: fully open source, only paid APIs, or both side by side. The mode is enforced on the server, so a locked engine can't be used from the API either."
+        title={t("settings.form.engine.title")}
+        description={t("settings.form.engine.desc")}
       >
         <EngineModePicker value={mode} onChange={set("engineMode")} />
-        <p className="text-[12px] text-muted-foreground">Also settable with the <code className="font-mono">FUOBE_ENGINE_MODE</code> environment variable (both · open · cloud).</p>
+        <p className="text-[12px] text-muted-foreground">
+          {t("settings.form.engine.envPre")}
+          <code className="font-mono">FUOBE_ENGINE_MODE</code>
+          {t("settings.form.engine.envPost")}
+        </p>
       </Section>
 
       <Section
         id="cloud"
-        title="Paid API configuration"
-        description="One fal.ai key runs the Fuobe Originals in the cloud (Soul, DoP, Genjutsu, Cinema: open weights with their LoRAs) and the partner models: Nano Banana, Seedream, GPT Image, FLUX, Kling, Seedance, Veo 3.1, Wan, MiniMax, avatars and more. Replicate hosts a subset and is used as a fallback (or first, if you prefer it). Save & test checks a key before saving it."
-        inactive={mode === "open" ? "Not used in Open source only mode" : undefined}
+        title={t("settings.form.cloud.title")}
+        description={t("settings.form.cloud.desc")}
+        inactive={mode === "open" ? t("settings.form.inactiveOpenOnly") : undefined}
       >
         <ConnectField
           id="fal"
           name="falKey"
           setting={get("falKey")}
           provider="fal"
-          label="fal.ai API key"
+          label={t("settings.form.cloud.falLabel")}
           placeholder="key_id:key_secret"
           hint={
             <a href={FAL_KEYS_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-text hover:underline">
-              Get a key <ExternalLink className="size-3" />
+              {t("settings.form.cloud.getKey")} <ExternalLink className="size-3" />
             </a>
           }
         >
@@ -597,11 +617,11 @@ export function SettingsForm({ prices }: { prices?: string }) {
           name="replicateToken"
           setting={get("replicateToken")}
           provider="replicate"
-          label="Replicate API token"
+          label={t("settings.form.cloud.replicateLabel")}
           placeholder="r8_…"
           hint={
             <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-text hover:underline">
-              Get a token <ExternalLink className="size-3" />
+              {t("settings.form.cloud.getToken")} <ExternalLink className="size-3" />
             </a>
           }
         >
@@ -609,52 +629,42 @@ export function SettingsForm({ prices }: { prices?: string }) {
         </ConnectField>
         <ChoiceField
           id="setting-cloud-provider"
-          label="Preferred provider"
+          label={t("settings.form.cloud.providerLabel")}
           value={get("cloudProvider")?.value || "auto"}
           onChange={set("cloudProvider")}
           options={[
-            { value: "auto", label: "Automatic", hint: "Tries fal.ai, then Replicate when a model is on both. Models only one provider hosts always use that one." },
-            { value: "fal", label: "fal.ai first", hint: "fal.ai whenever it hosts the model. Models only one provider hosts always use that one." },
-            { value: "replicate", label: "Replicate first", hint: "Replicate whenever it hosts the model. Models only one provider hosts always use that one." },
+            { value: "auto", label: t("settings.form.provider.autoLabel"), hint: t("settings.form.provider.autoHint") },
+            { value: "fal", label: t("settings.form.provider.falLabel"), hint: t("settings.form.provider.falHint") },
+            { value: "replicate", label: t("settings.form.provider.replicateLabel"), hint: t("settings.form.provider.replicateHint") },
           ]}
         />
       </Section>
 
       <Section
         id="comfyui"
-        title="Open-source engine · ComfyUI"
+        title={t("settings.form.comfy.title")}
         description={
-          hosted ? (
-            <>
-              Run every open-source workflow on your own graphics card. See{" "}
-              <a href={WORKFLOWS_ON_GITHUB} target="_blank" rel="noopener" className="text-brand-text underline-offset-2 hover:underline">
-                the ComfyUI workflows
-              </a>{" "}
-              for the models each one needs.
-            </>
-          ) : (
-            <>
-              Run every open-source workflow on your own GPU (or a rented one). Fuobe talks to ComfyUI&apos;s HTTP API and uploads inputs for you. See{" "}
-              <a href={WORKFLOWS_ON_GITHUB} target="_blank" rel="noopener" className="text-brand-text underline-offset-2 hover:underline">
-                the ComfyUI workflows
-              </a>{" "}
-              for the models each one needs.
-            </>
-          )
+          <>
+            {hosted ? t("settings.form.comfy.hostedPre") : t("settings.form.comfy.localPre")}
+            <a href={WORKFLOWS_ON_GITHUB} target="_blank" rel="noopener" className="text-brand-text underline-offset-2 hover:underline">
+              {t("settings.form.comfy.workflowsLink")}
+            </a>
+            {t("settings.form.comfy.tail")}
+          </>
         }
-        inactive={mode === "cloud" ? "Not used in Paid APIs only mode" : undefined}
+        inactive={mode === "cloud" ? t("settings.form.inactiveCloudOnly") : undefined}
       >
         {hosted ? <ConnectChoice advanced /> : <LocalComfy get={get} onWhere={(v) => save.mutateAsync({ comfyWhere: v })} />}
       </Section>
 
       <Section
         id="loras"
-        title="LoRAs · looks, motions, effects and adapters"
-        description="Looks, camera moves and effects add LoRA files to open models, on your GPU and in the cloud; an adapter is the LoRA an Original always loads (Fuobe Try-On's). Fuobe fetches the pinned version a run needs and shows each file's licence; what may run where is your call in Models & licences."
+        title={t("settings.form.loras.title")}
+        description={t("settings.form.loras.desc")}
       >
         {onComputer && (
           <p className="flex items-start gap-1.5 text-[13px] text-muted-foreground">
-            <Info aria-hidden className="mt-0.5 size-3.5 shrink-0 text-brand-text" /> Your ComfyUI is on your computer: put LoRA files in its models/loras folder. Fuobe tells you which ones a run needs.
+            <Info aria-hidden className="mt-0.5 size-3.5 shrink-0 text-brand-text" /> {t("settings.form.loras.onComputer")}
           </p>
         )}
         <LoraSettings folder={get("comfyLorasDir")} civitaiKey={get("civitaiKey")} hfToken={get("huggingfaceDownloadToken")} />
@@ -662,65 +672,56 @@ export function SettingsForm({ prices }: { prices?: string }) {
 
       <Section
         id="training"
-        title="Training · AI-Toolkit"
+        title={t("settings.form.training.title")}
         description={
           <>
-            Train Soul IDs and Fuobe looks (LoRAs) on your own GPU with{" "}
+            {t("settings.form.training.pre")}
             <a href={AI_TOOLKIT_REPO} target="_blank" rel="noreferrer" className="text-brand-text underline-offset-2 hover:underline">
-              AI-Toolkit
+              {t("settings.form.training.link")}
             </a>
-            : free, and the file stays yours. Without it, train in the cloud on fal.ai, or download a training kit from the Train dialog.
+            {t("settings.form.training.post")}
           </>
         }
-        inactive={mode === "cloud" ? "Not used in Paid APIs only mode" : undefined}
+        inactive={mode === "cloud" ? t("settings.form.inactiveCloudOnly") : undefined}
       >
         <ConnectField
           name="aiToolkitUrl"
           setting={get("aiToolkitUrl")}
           provider="ai-toolkit"
-          label="AI-Toolkit URL"
+          label={t("settings.form.training.urlLabel")}
           placeholder={DEFAULT_AI_TOOLKIT_URL}
-          hint="Where AI-Toolkit's UI listens (in ai-toolkit/ui: npm run build_and_start). Test checks it answers."
+          hint={t("settings.form.training.urlHint")}
         />
-        <ConnectField name="aiToolkitToken" setting={get("aiToolkitToken")} provider="ai-toolkit" label="Auth token (optional)" hint="The AI_TOOLKIT_AUTH the trainer was started with, if any." />
+        <ConnectField name="aiToolkitToken" setting={get("aiToolkitToken")} provider="ai-toolkit" label={t("settings.form.training.tokenLabel")} hint={t("settings.form.training.tokenHint")} />
         <ConnectField
           name="aiToolkitDatasetDir"
           setting={get("aiToolkitDatasetDir")}
           provider="ai-toolkit"
-          label="Photos folder (optional)"
+          label={t("settings.form.training.dirLabel")}
           placeholder="/mnt/shared/datasets"
-          hint="Where Fuobe writes the training photos. Blank: Fuobe's data folder, for an AI-Toolkit on this machine; on another machine, a folder both can read."
+          hint={t("settings.form.training.dirHint")}
         />
       </Section>
 
       <Section
         id="text-ai"
-        title="AI helper · models and providers"
-        description="The LLMs that write for Fuobe. Use (below) picks the one for the Enhance toggle, storyboards, translations and scripts, ad copy and brand research: Claude, a local model (Ollama, LM Studio, Unsloth Studio or another OpenAI-compatible server: fully open source), or the built-in offline rewriter. The Assist agent can also plan with the providers you add a key for (OpenAI, Gemini, DeepSeek, Kimi, GLM, OpenRouter and more). In Open source only mode, Automatic skips Claude. Save & test checks a key or address before saving it."
+        title={t("settings.form.textAi.title")}
+        description={t("settings.form.textAi.desc")}
       >
         <ChoiceField
           id="setting-enhancer"
-          label="Use"
+          label={t("settings.form.textAi.useLabel")}
           // "ollama" is the old name of "local".
           value={(get("enhanceProvider")?.value || "auto").replace(/^ollama$/, "local")}
           onChange={set("enhanceProvider")}
           options={[
-            {
-              value: "auto",
-              label: "Automatic",
-              hint: status?.llm?.free?.known
-                ? `Claude when a key is set, then a local model, then ${status.llm.free.label} (free), then the offline rewriter.`
-                : "Claude when a key is set, then a local model, then the offline rewriter.",
-            },
-            ...(status?.llm?.free?.known || get("enhanceProvider")?.value === "free"
-              ? [{ value: "free", label: `${status?.llm?.free?.label ?? "Your workers"} (free)`, hint: "A small open model on your workers' text slots. Nothing goes to a paid API." }]
-              : []),
-            { value: "anthropic", label: "Claude", hint: "Claude through your Anthropic key (paid per use)." },
-            { value: "local", label: "Local model only", hint: "A local, open-source model (Ollama, LM Studio, Unsloth Studio or your own server). Claude is never called." },
-            { value: "none", label: "Offline rewriter", hint: "Built-in rules, no LLM. Text steps (translate, write) are off." },
+            { value: "auto", label: t("settings.form.llm.serverAutomatic"), hint: t("settings.form.enhancer.autoHint") },
+            { value: "anthropic", label: t("settings.form.enhancer.claudeLabel"), hint: t("settings.form.enhancer.claudeHint") },
+            { value: "local", label: t("settings.form.enhancer.localLabel"), hint: t("settings.form.enhancer.localHint") },
+            { value: "none", label: t("settings.form.enhancer.offlineLabel"), hint: t("settings.form.enhancer.offlineHint") },
           ]}
         />
-        <ConnectField name="anthropicKey" setting={get("anthropicKey")} provider="llm" label="Anthropic API key" placeholder="sk-ant-…" hint="Test checks the key with a free model list call." />
+        <ConnectField name="anthropicKey" setting={get("anthropicKey")} provider="llm" label={t("settings.form.textAi.anthropicLabel")} placeholder="sk-ant-…" hint={t("settings.form.textAi.anthropicHint")} />
         <div id="llm-providers" className="scroll-mt-28 md:scroll-mt-20">
           <LlmProviderSettings get={get} set={set} />
         </div>
@@ -729,24 +730,24 @@ export function SettingsForm({ prices }: { prices?: string }) {
 
       <Section
         id="assist-connectors"
-        title="Assist · connectors"
-        description="Give Claude in Assist the tools of your other apps — docs, tasks, CRM, analytics — through their MCP servers (a URL and, usually, a token). Only Claude chats use them."
+        title={t("settings.form.connectors.title")}
+        description={t("settings.form.connectors.desc")}
       >
         <ConnectorSettings claudeReady={!!get("anthropicKey")?.isSet} />
       </Section>
 
       <Section
         id="notifications"
-        title="Notifications"
-        description="Get a heads-up from your browser when something you started finishes while you're in another tab or app. Saved in this browser; nothing is sent anywhere."
+        title={t("settings.form.notifications.title")}
+        description={t("settings.form.notifications.desc")}
       >
         <NotificationSettings />
       </Section>
 
       <Section
         id="security"
-        title="Security"
-        description="Protect this studio with a password, and create API tokens for scripts and agents. Off by default for local use."
+        title={t("settings.form.security.title")}
+        description={t("settings.form.security.desc")}
       >
         <SecuritySettings />
       </Section>
@@ -761,15 +762,14 @@ export function SettingsForm({ prices }: { prices?: string }) {
 
       <Section
         id="demo"
-        title="Placeholder results"
-        description="Off unless you turn it on. For giving a tour of this studio without keys or a GPU: runs cost nothing and make stand-in media instead of the real thing."
+        title={t("settings.form.demo.title")}
+        description={t("settings.form.demo.desc")}
       >
         <label htmlFor="setting-demo" className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border bg-background p-4">
           <span className="min-w-0 space-y-1">
-            <span className="block text-[14px] font-medium">{PLACEHOLDER_SETTING}</span>
+            <span className="block text-[14px] font-medium">{t("settings.form.demo.settingName")}</span>
             <span className="block text-[13px] leading-relaxed text-muted-foreground">
-              While it&rsquo;s on, every run makes a placeholder labelled &ldquo;Placeholder&rdquo;, even with keys or ComfyUI connected, and the top bar says
-              &ldquo;Placeholders on&rdquo;. While it&rsquo;s off, a run with nothing connected asks you to connect ComfyUI or add a key.
+              {t("settings.form.demo.body")}
             </span>
           </span>
           <Switch
@@ -801,24 +801,24 @@ export function SettingsForm({ prices }: { prices?: string }) {
 
       <Section
         id="auto-image"
-        title="Auto image model"
-        description="Auto is the Image studio's first pick on the open engine: Krea 2 Realism for every picture, MOSS-Image first for lettering, posters and logos, and Qwen-Image 2.1 for edits. When the first model is switched off, can't run or fails, the other one makes the same run, at no extra charge. Prompts that match the lines below start on Krea 2 Realism too, and their run details name the line."
-        inactive={mode === "cloud" ? "Not used in Paid APIs only mode" : undefined}
+        title={t("settings.form.autoImage.title")}
+        description={t("settings.form.autoImage.desc")}
+        inactive={mode === "cloud" ? t("settings.form.inactiveCloudOnly") : undefined}
       >
         <AutoPatternsSetting setting={get("autoImagePatterns")} saving={save.isPending} onSave={set("autoImagePatterns")} />
       </Section>
 
       <Section
         id="models"
-        title="Models & licences"
-        description="Every model, LoRA and node pack with its licence, as information. Everything is on: switch off a model, a whole kind of licence (say, all non-commercial ones), a provider or a node pack, and it leaves the pickers and is refused on the server."
+        title={t("settings.about.modelsLicences")}
+        description={t("settings.form.models.desc")}
       >
         <Link href="/settings/models" className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-[13px] font-medium transition-colors hover:bg-accent">
-          <Scale className="size-4 text-muted-foreground" /> Open Models &amp; licences
+          <Scale className="size-4 text-muted-foreground" /> {t("settings.form.models.openLink")}
         </Link>
       </Section>
 
-      <Section id="about" title="About" description="The open models, LoRAs and code Fuobe is built on, who made them and their licences, and Fuobe's own source code.">
+      <Section id="about" title={t("settings.about.title")} description={t("settings.form.about.desc")}>
         <AboutLinks owner />
       </Section>
     </div>
