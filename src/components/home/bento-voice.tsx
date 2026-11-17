@@ -4,26 +4,27 @@ import { ArrowRight, Loader2, Pause, Play, RotateCcw, Volume2 } from "lucide-rea
 import { useRef, useState } from "react";
 import { useCleanVoiceDemo } from "@/components/audio-tools/use-clean-voice-demo";
 import { IntentLink } from "@/components/intent-link";
-import { isRunning, stateLabel, type DemoState } from "@/lib/av/clean-voice-demo";
+import { isRunning, type DemoState } from "@/lib/av/clean-voice-demo";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import type { BentoTile } from "@/lib/home-bento";
 import { cn } from "@/lib/utils";
 import { s } from "./home-bento-classes";
 
-/** The play button's words and icon in the tile, for each moment of the demo. */
-export function voiceButton(st: DemoState): { label: string; Icon: typeof Play; spin?: boolean } {
+/** The play button's locale key, icon and spin flag in the tile, for each moment of the demo. */
+export function voiceButton(st: DemoState): { label: string; labelKey: string; Icon: typeof Play; spin?: boolean } {
   switch (st.phase) {
     case "loading":
-      return { label: "Loading…", Icon: Loader2, spin: true };
+      return { label: "Loading…", labelKey: "home.bento.voice.loading", Icon: Loader2, spin: true };
     case "playing":
-      return { label: "Pause", Icon: Pause };
+      return { label: "Pause", labelKey: "home.bento.voice.pause", Icon: Pause };
     case "paused":
-      return { label: "Resume", Icon: Play };
+      return { label: "Resume", labelKey: "home.bento.voice.resume", Icon: Play };
     case "done":
-      return { label: "Play again", Icon: RotateCcw };
+      return { label: "Play again", labelKey: "home.bento.voice.playAgain", Icon: RotateCcw };
     case "failed":
-      return { label: "Try again", Icon: RotateCcw };
+      return { label: "Try again", labelKey: "home.bento.voice.tryAgain", Icon: RotateCcw };
     default:
-      return { label: "Tap to listen", Icon: Volume2 };
+      return { label: "Tap to listen", labelKey: "home.bento.voice.tapToListen", Icon: Volume2 };
   }
 }
 
@@ -41,6 +42,7 @@ export function voiceButton(st: DemoState): { label: string; Icon: typeof Play; 
 export function BentoVoice({ tile, area, room, quiet }: { tile: BentoTile; area: string; room: React.ReactNode; quiet: React.ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const { state, tap, choose, barRef } = useCleanVoiceDemo({ view: box });
+  const { t } = useI18n();
   // The softened photo is asked for once the visitor reaches for the tile (a pointer over it, a touch, the keyboard).
   const [armed, setArmed] = useState(false);
   const arm = () => setArmed(true);
@@ -50,7 +52,7 @@ export function BentoVoice({ tile, area, room, quiet }: { tile: BentoTile; area:
     <div
       ref={box}
       role="group"
-      aria-label="Clean up voice: a woman talking in a noisy restaurant"
+      aria-label={t("home.bento.voice.demoAria")}
       data-tile={tile.key}
       data-phase={state.phase}
       data-clean={state.clean || undefined}
@@ -74,23 +76,23 @@ export function BentoVoice({ tile, area, room, quiet }: { tile: BentoTile; area:
       <div className={s.voiceUi}>
         <span className={s.voiceChip} aria-live="polite">
           <i aria-hidden className={s.voiceDot} data-live={(playing && !state.clean) || undefined} />
-          <span data-demo-state>{stateLabel(state.clean)}</span>
+          <span data-demo-state>{t(state.clean ? "home.bento.voice.cleanState" : "home.bento.voice.noisyState")}</span>
         </span>
 
-        <span role="group" aria-label="Noise" className={s.voiceSwitch}>
+        <span role="group" aria-label={t("home.bento.voice.noiseGroup")} className={s.voiceSwitch}>
           {[
-            { clean: false, label: "Noise on" },
-            { clean: true, label: "Noise off" },
+            { clean: false, labelKey: "home.bento.voice.noiseOn" },
+            { clean: true,  labelKey: "home.bento.voice.noiseOff" },
           ].map((o) => (
-            <button key={o.label} type="button" aria-pressed={state.clean === o.clean} onClick={() => choose(o.clean)}>
-              <span>{o.label}</span>
+            <button key={o.labelKey} type="button" aria-pressed={state.clean === o.clean} onClick={() => choose(o.clean)}>
+              <span>{t(o.labelKey)}</span>
             </button>
           ))}
         </span>
 
         <button type="button" className={s.voicePlay} onClick={tap} aria-busy={state.phase === "loading" || undefined}>
           <button.Icon aria-hidden className={cn("size-4 shrink-0", button.spin && "animate-spin motion-reduce:animate-none", playing && "fill-current")} />
-          <span>{button.label}</span>
+          <span>{t(button.labelKey)}</span>
         </button>
 
         <IntentLink href={tile.href} aria-label={tile.label} className={s.voiceLink}>

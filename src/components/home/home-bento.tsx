@@ -6,6 +6,7 @@ import { PausePreviews, ScrollCue } from "@/components/home/home-islands";
 import { IntentLink } from "@/components/intent-link";
 import { CountUp } from "@/components/ui/count-up";
 import type { BentoPicture, BentoTile, HomeBento as Bento } from "@/lib/home-bento";
+import { keySnake, type Lang, type Params, translate, translateOr } from "@/lib/i18n/store";
 import { cn } from "@/lib/utils";
 import { translate, type Lang } from "@/lib/i18n/store";
 import { s } from "./home-bento-classes";
@@ -175,9 +176,92 @@ function CanvasBoard({ board }: { board: Bento["canvas"] }) {
  * in the HTML; the clips, the typing, the motion switch and the numbers tile's launcher are small islands
  * (bento-islands.tsx), and so is the Audio tile, Clean up voice's demo to play (bento-voice.tsx). Nothing in it depends
  * on who is looking.
+ *
+ * `lang`: the page's server language, forwarded from page.tsx (i18n/server-lang.ts). Under "en", every resolved
+ * string is byte-identical to the baked string it replaces (the English locale value equals the build-time literal);
+ * under "ko", it is Korean.
  */
 export function HomeBento({ bento, lang }: { bento: Bento; lang: Lang }) {
   const { tiles } = bento;
+  const facts = bento.facts;
+
+  /**
+   * Resolves a locale key for the current language. `params` for dynamic strings (e.g. model counts).
+   */
+  const t = (key: string, params?: Params): string => translate(lang, key, params);
+
+  /**
+   * Resolves a tile's meta/title/cta/label by deriving the locale key prefix from the tile's `key` field.
+   * For lang=en: the resolved value equals the baked string byte-for-byte (en locale value == build-time literal).
+   * For lang=ko: the resolved value is the Korean translation.
+   *
+   * For dynamic `meta` (video/image/audio/3d) params come from `facts`; for static meta (live/canvas/genjutsu)
+   * `translateOr` returns the locale value directly (fallback = baked string).
+   *
+   * The tile's `href`, `id`, `clips`, `key` and media fields are untouched (byte-identical).
+   */
+  const tileParams: Record<string, Params> = {
+    video:   { videoModels: facts.videoModels, motions: facts.motions },
+    image:   { imageModels: facts.imageModels },
+    audio:   { soundTools: facts.soundTools },
+    threeD:  { models3d: facts.models3d },
+  };
+
+  function resolveTile(tile: BentoTile): BentoTile {
+    const prefix = `home.bento.${tile.key}`;
+    const metaParams = tileParams[tile.key];
+    return {
+      ...tile,
+      meta:  metaParams ? translate(lang, `${prefix}.meta`, metaParams) : translateOr(lang, `${prefix}.meta`, tile.meta),
+      title: translateOr(lang, `${prefix}.title`, tile.title),
+      cta:   translateOr(lang, `${prefix}.cta`, tile.cta),
+      label: translateOr(lang, `${prefix}.label`, tile.label),
+    };
+  }
+
+  const videoTile   = resolveTile(tiles.video);
+  const liveTile    = resolveTile(tiles.live);
+  const genjutsuTile = resolveTile(tiles.genjutsu);
+  const imageTile   = resolveTile(tiles.image);
+  const threeDTile  = resolveTile(tiles.threeD);
+  const audioTile   = resolveTile(tiles.audio);
+  const canvasTile  = resolveTile(tiles.canvas);
+
+  /** Resolves each number's display label and the numbers line for the current language. */
+  const numbersResolved = bento.numbers.map((n) => ({
+    ...n,
+    label: translateOr(lang, `home.bento.numbers.${n.label.replace(/ & .*/, "")}`, n.label),
+  }));
+
+  const numbersLabel = translate(lang, "home.bento.numbers.label", {
+    studios: facts.studios, apps: facts.apps, effectsAndMotions: facts.effectsAndMotions,
+  });
+  const numbersLine = translate(lang, "home.bento.numbers.line", { openModels: facts.openModels });
+
+  /** Resolves the canvas board's node labels. */
+  const canvasBoard = {
+    ...bento.canvas,
+    photo: { ...bento.canvas.photo, label: translateOr(lang, "home.bento.canvas.photo", bento.canvas.photo.label) },
+    film:  { ...bento.canvas.film,  label: translateOr(lang, "home.bento.canvas.film",  bento.canvas.film.label) },
+    steps: bento.canvas.steps.map((n) => ({
+      ...n,
+      label: translateOr(lang, `home.bento.canvas.${n.id === "scene" ? "scene" : "earring"}`, n.label),
+    })),
+  };
+
+  /** Resolves the genjutsu wipe labels before passing to BentoReel. */
+  const wipesResolved = bento.genjutsu.wipes.map((w) => ({
+    ...w,
+    labels: [t("home.bento.wipe.original"), t("home.bento.wipe.swapped")],
+  }));
+
+  /**
+   * The live tile's typed phrases, in this render's language: each one's key is derived from its own words
+   * (`home.bento.live.phrase.<snake>`), and falls back to the phrase as authored when nobody translated it.
+   * Under "en" every value is byte-identical to the demo script's own text.
+   */
+  const livePhrases = bento.live.phrases.map((p) => translateOr(lang, `home.bento.live.phrase.${keySnake(p)}`, p));
+
   // The video tile's still is the first screen's biggest picture: asked for from the head, before the body's HTML.
   const still = bento.video.poster;
   preload(still.avif.at(-1)!.src, {
@@ -195,14 +279,14 @@ export function HomeBento({ bento, lang }: { bento: Bento; lang: Lang }) {
           stylesheet the second line's words have all arrived (home-bento.css).
         */}
         <h1 id="home-bento-title" className={s.h1}>
-          <span className={s.line1}>Make anything:</span>{" "}
+          <span className={s.line1}>{t("home.bento.h1a")}</span>{" "}
           <span className={s.line2}>
-            From an idea to a{" "}
+            {t("home.bento.h1b")}{" "}
             <span className={s.l2b}>
-              <span className={s.accent} data-glow={"finished film,"}>
-                finished&nbsp;film,
+              <span className={s.accent} data-glow={t("home.bento.accent")}>
+                {t("home.bento.accent")}
               </span>{" "}
-              in one&nbsp;place.
+              {t("home.bento.h1c")}
             </span>
             <span aria-hidden className={s.end} />
           </span>
@@ -210,50 +294,52 @@ export function HomeBento({ bento, lang }: { bento: Bento; lang: Lang }) {
         <p className={s.aside}>
           <span className={s.asideWords}>Film, live edits, swaps, stills, sound, 3D and whole pipelines. Each tile opens the studio that makes it.</span>
         </p>
+        <p className={s.aside}>{t("home.bento.aside")}</p>
       </div>
 
       <div className={s.grid}>
-        <Tile tile={tiles.video} area={s.video} bigMeta>
+        <Tile tile={videoTile} area={s.video} bigMeta>
           <Pic pic={still} sizes={SIZES.video} fetchPriority="high" decoding="sync" position={bento.video.reel[0].position} />
           <BentoReel id={bento.video.id} reel={bento.video.reel} progress />
           <span aria-hidden className={s.badge}>
             <Video className="size-3.5" /> {translate(lang, "gallery.cat.video")}
+            <Video className="size-3.5" /> {t("home.bento.badge")}
           </span>
         </Tile>
 
-        <Tile tile={tiles.live} area={s.live}>
-          <LiveTyping frames={bento.live.frames} phrases={bento.live.phrases} sizes={SIZES.live} />
+        <Tile tile={liveTile} area={s.live}>
+          <LiveTyping frames={bento.live.frames} phrases={livePhrases} sizes={SIZES.live} />
         </Tile>
 
         {/*
           Swaps shown as they happen: each clip opens on the original, then a divider sweeps the swapped take in across
           it, "Original" and "Swapped" riding either side of it. Under reduced motion, the first one at rest half way.
         */}
-        <Tile tile={tiles.genjutsu} area={s.genjutsu}>
+        <Tile tile={genjutsuTile} area={s.genjutsu}>
           <Pic pic={bento.genjutsu.poster} reduced={bento.genjutsu.still} sizes={SIZES.genjutsu} fetchPriority="low" />
-          <BentoReel id={bento.genjutsu.id} reel={bento.genjutsu.reel} wipes={bento.genjutsu.wipes} />
+          <BentoReel id={bento.genjutsu.id} reel={bento.genjutsu.reel} wipes={wipesResolved} />
         </Tile>
 
-        <Tile tile={tiles.image} area={s.image}>
+        <Tile tile={imageTile} area={s.image}>
           <Pic pic={bento.image} sizes={SIZES.square} className={s.kenburns} fetchPriority="low" />
         </Tile>
 
-        <Tile tile={tiles.threeD} area={s.three}>
+        <Tile tile={threeDTile} area={s.three}>
           <Pic pic={bento.threeD.poster} sizes={SIZES.square} fetchPriority="low" />
           <BentoClip id={bento.threeD.id} clips={bento.threeD.clips} />
         </Tile>
 
         {/* Clean up voice's demo, to hear right here: its words open the studio (bento-voice.tsx). */}
         <BentoVoice
-          tile={tiles.audio}
+          tile={audioTile}
           area={s.audio}
           room={<Pic pic={bento.voice.room} sizes={SIZES.voice} fetchPriority="low" />}
           quiet={<Pic pic={bento.voice.quiet} sizes={SIZES.voice} fetchPriority="low" />}
         />
 
-        <NumbersLink href={tiles.numbers.href} aria-label={tiles.numbers.label} aria-haspopup="dialog" data-tile="numbers" className={cn(s.tile, s.numbers)}>
+        <NumbersLink href={tiles.numbers.href} aria-label={numbersLabel} aria-haspopup="dialog" data-tile="numbers" className={cn(s.tile, s.numbers)}>
           <dl aria-hidden className={s.figures}>
-            {bento.numbers.map((n) => (
+            {numbersResolved.map((n) => (
               <div key={n.label}>
                 <dt>{n.label}</dt>
                 <dd>
@@ -263,15 +349,15 @@ export function HomeBento({ bento, lang }: { bento: Bento; lang: Lang }) {
             ))}
           </dl>
           <span aria-hidden className={s.numbersFoot}>
-            <span className={s.numbersLine}>{bento.numbersLine}</span>{" "}
+            <span className={s.numbersLine}>{numbersLine}</span>{" "}
             <span className={s.cta}>
-              {tiles.numbers.cta} <ArrowRight className="size-3.5" />
+              {t("home.bento.numbers.cta")} <ArrowRight className="size-3.5" />
             </span>
           </span>
         </NumbersLink>
 
-        <Tile tile={tiles.canvas} area={s.canvas}>
-          <CanvasBoard board={bento.canvas} />
+        <Tile tile={canvasTile} area={s.canvas}>
+          <CanvasBoard board={canvasBoard} />
         </Tile>
       </div>
 
@@ -279,6 +365,8 @@ export function HomeBento({ bento, lang }: { bento: Bento; lang: Lang }) {
         <p className="min-w-0">
           <span className="xl:hidden">{translate(lang, "home.wall.footShort")}</span>
           <span className="max-xl:hidden">{translate(lang, "home.wall.footFull")}</span>
+          <span className="sm:hidden">{t("home.bento.foot.sm")}</span>
+          <span className="max-sm:hidden">{t("home.bento.foot.lg")}</span>
         </p>
         <ScrollCue footId="home-bento-foot" />
         <PausePreviews className="justify-self-end [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11" />

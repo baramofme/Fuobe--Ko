@@ -218,8 +218,8 @@ describe("웨이브-2 잔여 동族 가격 24지점의 배선 판정(t_1fc245a0)
     const tail = NEW_KEYS.map(([k]) => k);
     expect(Object.keys(locales.en).slice(-3), "en tail is the three new keys in definition order").toEqual(tail);
     expect(Object.keys(locales.ko).slice(-3), "ko tail matches").toEqual(tail);
-    // 서수 일치·퍼테리: 기저 3748 + 신규 3 = 3751.
-    expect(Object.keys(locales.en).length, "en key count").toBe(3751);
+    // 서수 일치·퍼테리: 기저 3748 + 신규 3 = 3751, 거기에 홈 첫 화면 카드(t_6e2f3d4d)의 home.bento 64키가 뒤에서 붙어 3815.
+    expect(Object.keys(locales.en).length, "en key count").toBe(3815);
     expect(Object.keys(locales.ko).length, "ko parity").toBe(Object.keys(locales.en).length);
     expect(Object.keys(locales.en), "key order is identical in both files").toEqual(Object.keys(locales.ko));
     // ko 전체에서 한자·중문 0(형제 레인이 꼬리에 흘린 한자 선례).
