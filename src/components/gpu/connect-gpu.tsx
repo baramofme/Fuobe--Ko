@@ -22,13 +22,16 @@ import { useGpuCheck, useGpuReadiness } from "@/hooks/use-gpu";
 import { signInHref, useStatus, useViewer } from "@/lib/api";
 import { ownerSteer } from "@/lib/page-place";
 import { safeNext } from "@/lib/safe-redirect";
+import { translateOr } from "@/lib/i18n/store";
+import { useI18n } from "@/lib/i18n/use-i18n";
 
 /**
  * "Connect your GPU" (UX §4): where ComfyUI runs (an account's Your GPU form; the owner's is the studio's own
  * ComfyUI), the live check, then the readiness board. A board older than a minute checks again by itself.
  */
 function Step({ n, of = 3, done }: { n: number; of?: number; done?: boolean }) {
-  return <span className="text-[12px] text-muted-foreground">{done ? "Done" : `Step ${n} of ${of}`}</span>;
+  const { t } = useI18n();
+  return <span className="text-[12px] text-muted-foreground">{done ? t("settings.gpu.connectChoice.stepDone") : t("settings.gpu.connectChoice.stepOf", { n, of })}</span>;
 }
 
 function Card({ children }: { children: React.ReactNode }) {
@@ -36,6 +39,7 @@ function Card({ children }: { children: React.ReactNode }) {
 }
 
 export function ConnectGpu() {
+  const { t, lang } = useI18n();
   const params = useSearchParams();
   const router = useRouter();
   const welcome = params.get("welcome") === "1";
@@ -93,15 +97,15 @@ export function ConnectGpu() {
     }
   }, [view, check, url, ownerSetup, owner, steer]);
 
-  const title = welcome && !guest ? "Welcome! Connect your GPU" : "Connect your GPU";
-  const lead = "Make things on your own graphics card with ComfyUI. It's free, private and has no run limit. Fuobe checks what your ComfyUI has, and shows what each studio still needs.";
+  const title = welcome && !guest ? t("settings.gpu.connectChoice.titleWelcome") : t("settings.gpu.connectChoice.titleConnect");
+  const lead = t("settings.gpu.connectChoice.lead");
   // One way on, to where the person was going: "Not now" while nothing runs their work, "Start creating" once a GPU is
   // connected or a fal.ai or Replicate key is saved.
   const hasKey = !!useStatus().data?.viewer?.keys?.length;
   const done = (connected: boolean) => (
     <div className="flex justify-end">
       <Button asChild variant={connected ? "default" : "outline"} className="h-11 sm:h-9">
-        <Link href={next}>{connected ? "Start creating" : "Not now"}</Link>
+        <Link href={next}>{connected ? t("settings.gpu.connectChoice.startCreating") : t("settings.gpu.connectChoice.notNow")}</Link>
       </Button>
     </div>
   );
@@ -134,21 +138,21 @@ export function ConnectGpu() {
           <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
             <Cpu aria-hidden className="size-5" />
           </span>
-          <h1 className="font-heading text-[30px] leading-tight">Connect your ComfyUI</h1>
+          <h1 className="font-heading text-[30px] leading-tight">{t("settings.gpu.connectChoice.pairH1")}</h1>
           <p className="max-w-2xl text-[15px] text-muted-foreground">
-            Type the code that your own ComfyUI shows, check the computer, then approve it. Approve only a code you see on your own screen.
+            {t("settings.gpu.connectChoice.pairLead")}
           </p>
         </div>
         <Card>
           {guest ? (
             <div className="space-y-3">
-              <p className="text-[14px]">Sign in to approve this ComfyUI. Its runs will be yours.</p>
+              <p className="text-[14px]">{t("settings.gpu.connectChoice.pairSignIn")}</p>
               <div className="flex flex-wrap gap-2">
                 <Button asChild className="h-11 sm:h-9">
-                  <Link href={signInHref("login", "/connect?pair=1")}>Log in</Link>
+                  <Link href={signInHref("login", "/connect?pair=1")}>{t("settings.gpu.connectChoice.login")}</Link>
                 </Button>
                 <Button asChild variant="secondary" className="h-11 sm:h-9">
-                  <Link href={signInHref("signup", "/connect?pair=1")}>Sign up free</Link>
+                  <Link href={signInHref("signup", "/connect?pair=1")}>{t("settings.gpu.connectChoice.signUpFree")}</Link>
                 </Button>
               </div>
             </div>
@@ -170,14 +174,14 @@ export function ConnectGpu() {
           <div className="flex items-start gap-3">
             <BotMessageSquare aria-hidden className="mt-0.5 size-5 shrink-0 text-brand-text" />
             <div className="min-w-0 space-y-3">
-              <p className="text-[14px] font-medium">Set it up with your AI</p>
-              <p className="text-[13px] text-muted-foreground">Started on your phone? Log in with the same account, and the setup goes on here.</p>
+              <p className="text-[14px] font-medium">{t("settings.gpu.connectChoice.aiSetUpTitle")}</p>
+              <p className="text-[13px] text-muted-foreground">{t("settings.gpu.connectChoice.aiPhoneNote")}</p>
               <div className="flex flex-wrap gap-2">
                 <Button asChild className="h-11 sm:h-9">
-                  <Link href={signInHref("login", aiHref)}>Log in</Link>
+                  <Link href={signInHref("login", aiHref)}>{t("settings.gpu.connectChoice.login")}</Link>
                 </Button>
                 <Button asChild variant="secondary" className="h-11 sm:h-9">
-                  <Link href={signInHref("signup", aiHref)}>Sign up free</Link>
+                  <Link href={signInHref("signup", aiHref)}>{t("settings.gpu.connectChoice.signUpFree")}</Link>
                 </Button>
               </div>
             </div>
@@ -194,20 +198,19 @@ export function ConnectGpu() {
           <div className="flex items-start gap-3">
             <Sparkles aria-hidden className="mt-0.5 size-5 shrink-0 text-brand-text" />
             <div className="min-w-0 space-y-3">
-              <p className="text-[14px] font-medium">Run every studio on your own graphics card.</p>
+              <p className="text-[14px] font-medium">{t("settings.gpu.connectChoice.guestLead")}</p>
               <p className="text-[13px] text-muted-foreground">
-                Create a free account, then connect the ComfyUI on your computer. Fuobe checks your graphics card, models and add-ons, and shows which studios are ready,
-                which need one more step, and which need a bigger GPU.
+                {t("settings.gpu.connectChoice.guestBody")}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button asChild className="h-11 sm:h-9">
-                  <Link href={signInHref("signup", "/connect")}>Sign up free</Link>
+                  <Link href={signInHref("signup", "/connect")}>{t("settings.gpu.connectChoice.signUpFree")}</Link>
                 </Button>
                 <Button asChild variant="secondary" className="h-11 sm:h-9">
-                  <Link href={signInHref("login", "/connect")}>Log in</Link>
+                  <Link href={signInHref("login", "/connect")}>{t("settings.gpu.connectChoice.login")}</Link>
                 </Button>
                 <Button asChild variant="secondary" className="h-11 sm:h-9">
-                  <Link href={signInHref("signup", AI_SETUP_HREF)}>Set it up with my AI</Link>
+                  <Link href={signInHref("signup", AI_SETUP_HREF)}>{t("settings.gpu.connectChoice.aiSetUpButton")}</Link>
                 </Button>
               </div>
             </div>
@@ -238,7 +241,7 @@ export function ConnectGpu() {
       <div className="space-y-6">
         {header(1)}
         <Card>
-          <h2 className="mb-3 text-[16px] font-semibold">Where is ComfyUI running?</h2>
+          <h2 className="mb-3 text-[16px] font-semibold">{t("settings.gpu.connectChoice.whereRunning")}</h2>
           <ConnectChoice className="sm:max-w-none" />
         </Card>
         {done(false)}
@@ -255,7 +258,7 @@ export function ConnectGpu() {
             <ConnectChoice className="sm:max-w-none" />
           </Card>
         ) : (
-          <p className="text-[14px] text-muted-foreground">The GPU check is switched off on this studio (FUOBE_GPU_PREFLIGHT=0).</p>
+          <p className="text-[14px] text-muted-foreground">{t("settings.gpu.connectChoice.checkOff")}</p>
         )}
       </div>
     );
@@ -267,8 +270,8 @@ export function ConnectGpu() {
         {/* Most people have no ComfyUI to hand: their own fal.ai or Replicate key runs paid models now. */}
         <KeyInstead className="bg-background" />
         <Card>
-          <h2 className="mb-1 text-[16px] font-semibold">Where is ComfyUI running?</h2>
-          {reason === "refused" && <p className="mb-3 text-[13px] text-destructive">Fuobe can&apos;t use this address. Connect your own ComfyUI.</p>}
+          <h2 className="mb-1 text-[16px] font-semibold">{t("settings.gpu.connectChoice.whereRunning")}</h2>
+          {reason === "refused" && <p className="mb-3 text-[13px] text-destructive">{t("settings.gpu.connectChoice.refusedAddress")}</p>}
           <ConnectChoice className="sm:max-w-none" />
         </Card>
         {done(hasKey)}
@@ -284,9 +287,9 @@ export function ConnectGpu() {
   const computerFix =
     view?.target === "computer" && support === "ok"
       ? problem === "cors-off"
-        ? { label: "Show me how", go: () => openFinder("setting") }
+        ? { label: "settings.gpu.connectChoice.showHowAction", go: () => openFinder("setting") }
         : problem === "unreachable" || problem === "timeout"
-          ? { label: "Find my ComfyUI", go: () => openFinder("find") }
+          ? { label: "settings.gpu.connectChoice.findComfyAction", go: () => openFinder("find") }
           : null
       : null;
   return (
@@ -294,14 +297,14 @@ export function ConnectGpu() {
       {header(report && !check.running ? 3 : 2, !!report && !check.running)}
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[16px] font-semibold">{check.running ? "Checking your setup" : "Your ComfyUI"}</h2>
+          <h2 className="text-[16px] font-semibold">{check.running ? t("settings.gpu.connectChoice.checkingSetup") : t("settings.gpu.connectChoice.yourComfyUIFallback")}</h2>
           {isAccount ? (
             <Link href="/settings#your-gpu" className="text-[13px] text-brand-text underline-offset-2 hover:underline">
-              {view?.target === "computer" ? "Change where it runs" : "Change the link"}
+              {view?.target === "computer" ? t("settings.gpu.connectChoice.changeWhereRuns") : t("settings.gpu.connectChoice.changeLink")}
             </Link>
           ) : (
             <Link href="/settings#comfyui" className="text-[13px] text-brand-text underline-offset-2 hover:underline">
-              {view?.target === "computer" ? "Change where it runs" : "The studio's ComfyUI"}
+              {view?.target === "computer" ? t("settings.gpu.connectChoice.changeWhereRuns") : t("settings.gpu.connectChoice.studioComfy")}
             </Link>
           )}
         </div>
@@ -312,10 +315,10 @@ export function ConnectGpu() {
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           ) : view.checkedAt == null ? (
             <Button className="h-11 sm:h-9" onClick={() => void check.start()}>
-              Check my GPU
+              {t("settings.gpu.connectChoice.checkMyGpu")}
             </Button>
           ) : (
-            <p className="text-[13px] text-muted-foreground">{report ? "Checked. The board below says what runs." : ""}</p>
+            <p className="text-[13px] text-muted-foreground">{report ? t("settings.gpu.connectChoice.checkedBoard") : ""}</p>
           )}
           {check.error && (
             <p className="mt-3 flex items-start gap-2 text-[13px]">
@@ -337,11 +340,11 @@ export function ConnectGpu() {
               {/* ComfyUI on this computer without Fuobe's setting, or closed: the finder gives the one fix and goes on by itself. */}
               {computerFix && (
                 <Button className="mr-2 h-11 sm:h-9" onClick={computerFix.go}>
-                  {computerFix.label}
+                  {translateOr(lang, computerFix.label, computerFix.label)}
                 </Button>
               )}
               <Button variant="secondary" className="h-11 sm:h-9" onClick={() => void check.start()}>
-                Check again
+                {t("settings.gpu.yourGpu.checkAgainAction")}
               </Button>
             </div>
           )}

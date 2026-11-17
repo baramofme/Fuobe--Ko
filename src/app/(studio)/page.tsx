@@ -66,6 +66,7 @@ async function StudiosWithLang(props: Pick<HomeShowcase, "facts" | "studios" | "
  * page out of the prerender (Cache Components), which is why the language is read inside the boundaries instead.
  */
 export default async function Page() {
+  const lang = await getServerLang();
   const home = await homeShowcase();
   return (
     <HomeView

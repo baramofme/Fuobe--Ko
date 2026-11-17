@@ -13,16 +13,18 @@ import { Label } from "@/components/ui/label";
 import { useHashAnchor } from "@/components/use-hash-anchor";
 import { announceAuthChange, leaveNotice, rememberViewer, signInHref, signOut, useHydrated, useViewer } from "@/lib/api";
 import { FUOBE_REPO } from "@/lib/connections";
+import { useI18n } from "@/lib/i18n/use-i18n";
 import { cn } from "@/lib/utils";
 
 /** Settings' line under its title: what this viewer finds on the page. Nothing until the viewer is known (as below). */
 export function SettingsIntro() {
+  const { t } = useI18n();
   const hydrated = useHydrated();
   const v = useViewer().data;
   if (!hydrated || !v) return null;
   if (v.owner)
-    return "Choose open source, paid APIs or both, connect providers, point Fuobe at your ComfyUI server, and choose how prompts get enhanced. Keys stay on this server.";
-  return v.account ? "Your account, your GPU and your keys." : "Connect your GPU, and see the open models and code Fuobe is built on.";
+    return t("settings.intro.owner");
+  return v.account ? t("settings.intro.account") : t("settings.intro.guest");
 }
 
 /**
@@ -31,6 +33,7 @@ export function SettingsIntro() {
  * Both can read Thanks & licences.
  */
 export function OwnerSettings({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   // The server renders nothing here (it doesn't know the viewer), so hydration must too, even when the browser's
   // viewer query has already answered (a component outside this page's boundary asked first).
   const hydrated = useHydrated();
@@ -43,16 +46,16 @@ export function OwnerSettings({ children }: { children: React.ReactNode }) {
         <AccountSection email={v.account.email} />
       ) : (
         <section className="space-y-3 border-b py-8">
-          <h2 className="text-[15px] font-semibold">Run Fuobe on your own GPU</h2>
+          <h2 className="text-[15px] font-semibold">{t("settings.signup.title")}</h2>
           <p className="max-w-xl text-[13px] text-pretty text-muted-foreground">
-            Create a free account, connect the ComfyUI on your computer, and make as much as you like, free.
+            {t("settings.signup.blurb")}
           </p>
           <div className="flex gap-2">
             <Button asChild size="sm">
-              <Link href={signInHref("signup", "/settings#your-gpu")}>Sign up free</Link>
+              <Link href={signInHref("signup", "/settings#your-gpu")}>{t("settings.signup.signUpFree")}</Link>
             </Button>
             <Button asChild size="sm" variant="secondary">
-              <Link href={signInHref("login", "/settings#your-gpu")}>Log in</Link>
+              <Link href={signInHref("login", "/settings#your-gpu")}>{t("settings.signup.logIn")}</Link>
             </Button>
           </div>
         </section>
@@ -69,18 +72,19 @@ const linkCard = "inline-flex items-center gap-2 rounded-xl border px-4 py-3 tex
  * switches; also its own section of the settings form).
  */
 export function AboutLinks({ owner }: { owner?: boolean }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-wrap content-start gap-2">
       <Link href="/settings/licences" className={linkCard}>
-        <Heart className="size-4 text-muted-foreground" /> Thanks &amp; licences
+        <Heart className="size-4 text-muted-foreground" /> {t("settings.about.thanksLicences")}
       </Link>
       {owner && (
         <Link href="/settings/models" className={linkCard}>
-          <Scale className="size-4 text-muted-foreground" /> Models &amp; licences
+          <Scale className="size-4 text-muted-foreground" /> {t("settings.about.modelsLicences")}
         </Link>
       )}
       <a href={FUOBE_REPO} target="_blank" rel="noreferrer" className={linkCard}>
-        <GitHubMark className="size-4 text-muted-foreground" /> Source on GitHub
+        <GitHubMark className="size-4 text-muted-foreground" /> {t("settings.about.source")}
       </a>
     </div>
   );
@@ -88,13 +92,14 @@ export function AboutLinks({ owner }: { owner?: boolean }) {
 
 /** About, which everyone may read (the owner finds it in the settings form). */
 function Licences() {
+  const { t } = useI18n();
   return (
     <section id="about" aria-labelledby="about-title" className="grid grid-cols-[minmax(0,1fr)] gap-4 py-8 md:grid-cols-[260px_minmax(0,1fr)]">
       <div className="min-w-0">
         <h2 id="about-title" className="text-[15px] font-semibold">
-          About
+          {t("settings.about.title")}
         </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">The open models, LoRAs and code Fuobe is built on, who made them and their licences, and Fuobe&rsquo;s own source code.</p>
+        <p className="mt-1 text-[13px] text-muted-foreground">{t("settings.about.blurb")}</p>
       </div>
       <AboutLinks />
     </section>
@@ -106,6 +111,7 @@ function Licences() {
  * which takes its runs, files and GPU with it.
  */
 function AccountSection({ email }: { email: string }) {
+  const { t } = useI18n();
   const id = useId();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -138,17 +144,17 @@ function AccountSection({ email }: { email: string }) {
         setBusy(false);
         setOpen(false);
         setPassword("");
-        toast("You were signed out", { description: "Log in again to delete your account." });
+        toast(t("settings.account.signedOut"), { description: t("settings.account.loginAgainToDelete") });
         void qc.invalidateQueries({ queryKey: ["viewer"] });
         void qc.invalidateQueries({ queryKey: ["status"] });
         announceAuthChange();
         return;
       }
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(body.error ?? `The account wasn't deleted (${res.status})`);
+      setError(body.error ?? t("settings.account.deleteFailed", { status: res.status }));
       setWrong(res.status === 403);
     } catch {
-      setError("We couldn't reach Fuobe. Check your connection and try again.");
+      setError(t("settings.account.cantReach"));
     }
     setBusy(false);
   };
@@ -156,26 +162,25 @@ function AccountSection({ email }: { email: string }) {
     <section id="account" aria-labelledby="account-title" className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-4 border-b py-8 md:scroll-mt-20 md:grid-cols-[260px_minmax(0,1fr)]">
       <div className="min-w-0">
         <h2 id="account-title" className="text-[15px] font-semibold">
-          Account
+          {t("settings.account.title")}
         </h2>
         <p className="mt-1 text-[13px] [overflow-wrap:anywhere] text-muted-foreground">{email}</p>
       </div>
       <div className="min-w-0 space-y-6">
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={() => setChanging(true)}>
-            <KeyRound /> Change password
+            <KeyRound /> {t("settings.account.changePassword")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => void signOut()}>
-            <LogOut /> Sign out
+            <LogOut /> {t("settings.account.signOut")}
           </Button>
         </div>
         <div className="space-y-2">
           <p className="max-w-xl text-[13px] text-pretty text-muted-foreground">
-            Deleting your account removes your uploads, your runs and their files, your GPU connection and your saved fal.ai and Replicate keys, and signs you out. It can&apos;t
-            be undone.
+            {t("settings.account.deleteWarning")}
           </p>
           <Button size="sm" variant="outline" className="text-destructive" onClick={() => setOpen(true)}>
-            <Trash2 /> Delete account
+            <Trash2 /> {t("settings.account.deleteAccount")}
           </Button>
         </div>
       </div>
@@ -193,14 +198,14 @@ function AccountSection({ email }: { email: string }) {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={remove} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Delete your account?</DialogTitle>
+              <DialogTitle>{t("settings.account.deleteTitle")}</DialogTitle>
               <DialogDescription>
-                {email} and everything you made with it go for good. Enter your password to confirm.
+                {t("settings.account.deleteConfirm", { email })}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-1.5">
               <Label htmlFor={`${id}-password`} className="text-[13px]">
-                Password
+                {t("settings.account.password")}
               </Label>
               <Input
                 id={`${id}-password`}
@@ -221,12 +226,12 @@ function AccountSection({ email }: { email: string }) {
             <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="ghost" disabled={busy}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               </DialogClose>
               <Button type="submit" variant="destructive" disabled={busy || !password}>
                 {busy && <Loader2 className="animate-spin" />}
-                Delete account
+                {t("settings.account.deleteAccount")}
               </Button>
             </DialogFooter>
           </form>
@@ -238,13 +243,14 @@ function AccountSection({ email }: { email: string }) {
 
 /** A password field with a button that shows what was typed (as on the sign-in page). */
 function PasswordInput({ id, shown, onShow, ...props }: React.ComponentProps<typeof Input> & { id: string; shown: boolean; onShow: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="relative">
       <Input id={id} type={shown ? "text" : "password"} className="pr-10" {...props} />
       <button
         type="button"
         onClick={onShow}
-        aria-label="Show password"
+        aria-label={t("settings.account.showPassword")}
         aria-pressed={shown}
         aria-controls={id}
         className="absolute top-1/2 right-1 grid size-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -260,6 +266,7 @@ function PasswordInput({ id, shown, onShow, ...props }: React.ComponentProps<typ
  * browser signed in to the account is signed out; this one stays signed in.
  */
 function ChangePassword({ email, open, onOpenChange }: { email: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { t } = useI18n();
   const id = useId();
   const qc = useQueryClient();
   const [current, setCurrent] = useState("");
@@ -285,7 +292,7 @@ function ChangePassword({ email, open, onOpenChange }: { email: string; open: bo
     try {
       const res = await fetch("/api/auth/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ current, next }) });
       if (res.ok) {
-        toast.success("Password changed", { description: "You're still signed in here. Any other browser signed in to your account is signed out." });
+        toast.success(t("settings.account.changed"), { description: t("settings.account.changedDesc") });
         reset();
         onOpenChange(false);
       } else if (res.status === 401) {
@@ -293,18 +300,18 @@ function ChangePassword({ email, open, onOpenChange }: { email: string; open: bo
         setBusy(false);
         reset();
         onOpenChange(false);
-        toast("You were signed out", { description: "Log in again to change your password." });
+        toast(t("settings.account.signedOut"), { description: t("settings.account.loginAgainToChange") });
         void qc.invalidateQueries({ queryKey: ["viewer"] });
         void qc.invalidateQueries({ queryKey: ["status"] });
         announceAuthChange();
         return;
       } else {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `The password wasn't changed (${res.status})`);
+        setError(body.error ?? t("settings.account.changeFailed", { status: res.status }));
         setWrong(res.status === 403);
       }
     } catch {
-      setError("We couldn't reach Fuobe. Check your connection and try again.");
+      setError(t("settings.account.cantReach"));
     }
     setBusy(false);
   };
@@ -320,14 +327,14 @@ function ChangePassword({ email, open, onOpenChange }: { email: string; open: bo
       <DialogContent className="sm:max-w-md">
         <form onSubmit={save} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>Change your password</DialogTitle>
-            <DialogDescription>Changing your password signs out every other browser where you&apos;re signed in. You stay signed in here.</DialogDescription>
+            <DialogTitle>{t("settings.account.changeTitle")}</DialogTitle>
+            <DialogDescription>{t("settings.account.changeDescription")}</DialogDescription>
           </DialogHeader>
           {/* The account's email, for password managers: they update its saved login rather than save a new one. */}
           <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
           <div className="space-y-1.5">
             <Label htmlFor={`${id}-current`} className="text-[13px]">
-              Current password
+              {t("settings.account.currentPassword")}
             </Label>
             <PasswordInput
               id={`${id}-current`}
@@ -343,7 +350,7 @@ function ChangePassword({ email, open, onOpenChange }: { email: string; open: bo
           </div>
           <div className="space-y-1.5">
             <Label htmlFor={`${id}-new`} className="text-[13px]">
-              New password
+              {t("settings.account.newPassword")}
             </Label>
             <PasswordInput
               id={`${id}-new`}
@@ -356,7 +363,7 @@ function ChangePassword({ email, open, onOpenChange }: { email: string; open: bo
               aria-describedby={`${id}-hint`}
             />
             <p id={`${id}-hint`} className={cn("text-[12px]", short ? "text-destructive" : "text-muted-foreground")}>
-              {short ? `At least 8 characters (${8 - next.length} more)` : "At least 8 characters"}
+              {short ? t("settings.account.minLengthMore", { more: 8 - next.length }) : t("settings.account.minLength")}
             </p>
           </div>
           {error && (
@@ -367,12 +374,12 @@ function ChangePassword({ email, open, onOpenChange }: { email: string; open: bo
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="ghost" disabled={busy}>
-                Cancel
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button type="submit" disabled={busy || !current || next.length < 8}>
               {busy && <Loader2 className="animate-spin" />}
-              Change password
+              {t("settings.account.changePassword")}
             </Button>
           </DialogFooter>
         </form>

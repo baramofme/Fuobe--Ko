@@ -10,6 +10,10 @@ const form = fs.readFileSync(path.join(root, "components/settings-form.tsx"), "u
 /** The anchors Settings has: its sections' and fields' ids (id="…", or a Section's id prop on its own line), the form's and the sections around it (Settings → LoRAs' keys too). */
 const page = [form, ...["components/gpu/account-gpu-section.tsx", "components/keys/your-keys.tsx", "components/owner-settings.tsx", "components/accounts-admin.tsx", "components/lora-settings.tsx"].map((f) => fs.readFileSync(path.join(root, f), "utf8"))].join("\n");
 const anchors = new Set([...page.matchAll(/\bid="([a-z0-9-]+)"/g)].map((m) => m[1]));
+// A wired section or field renders its name via t("key"): the literal regexes above can no longer see it, so
+// resolve those keys to their English words (byte-identical to the pre-wiring literal) to keep the names populated.
+const words = JSON.parse(fs.readFileSync(path.join(root, "lib/i18n/locales/en.json"), "utf8")) as Record<string, string>;
+const resolve = (key: string) => words[key] ?? key;
 
 describe("Settings deep links", () => {
   it("every /settings#… link in the app has its anchor", () => {
@@ -21,8 +25,12 @@ describe("Settings deep links", () => {
   it("every \"Settings → …\" the app tells people names a section or field Settings has", () => {
     // Section titles ("Prompt enhancement · Claude or Ollama": the whole, or either side of the "·") and field labels.
     // (An account's own sections, Your GPU and Your keys, are titled by their heading.)
-    const titles = [...page.matchAll(/\btitle="([^"]+)"/g), ...page.matchAll(/<h2\b[^>]*>\s*([^<{]+?)\s*<\/h2>/g)].map((m) => m[1]);
-    const labels = [...page.matchAll(/\blabel="([^"]+)"/g)].map((m) => m[1]);
+    const literalTitles = [...page.matchAll(/\btitle="([^"]+)"/g), ...page.matchAll(/<h2\b[^>]*>\s*([^<{]+?)\s*<\/h2>/g)].map((m) => m[1]);
+    const wiredTitles = [...page.matchAll(/\btitle=\{(?:t|tr)\("([^"]+)"\)/g), ...page.matchAll(/<h2\b[^>]*>\s*\{(?:t|tr)\("([^"]+)"\)\}\s*<\/h2>/g)].map((m) => resolve(m[1]));
+    const titles = [...literalTitles, ...wiredTitles];
+    const literalLabels = [...page.matchAll(/\blabel="([^"]+)"/g)].map((m) => m[1]);
+    const wiredLabels = [...page.matchAll(/\blabel=\{(?:t|tr)\("([^"]+)"\)/g)].map((m) => resolve(m[1]));
+    const labels = [...literalLabels, ...wiredLabels];
     const norm = (x: string) => x.replace(/&amp;/g, "&").replace(/\s*·\s*/g, " ").toLowerCase();
     const names = [...titles, ...titles.flatMap((t) => t.split("·").map((x) => x.trim())), ...labels].map(norm);
     const places = files(root).flatMap((f) =>
