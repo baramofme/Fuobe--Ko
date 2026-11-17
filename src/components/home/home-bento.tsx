@@ -8,7 +8,6 @@ import { CountUp } from "@/components/ui/count-up";
 import type { BentoPicture, BentoTile, HomeBento as Bento } from "@/lib/home-bento";
 import { keySnake, type Lang, type Params, translate, translateOr } from "@/lib/i18n/store";
 import { cn } from "@/lib/utils";
-import { translate, type Lang } from "@/lib/i18n/store";
 import { s } from "./home-bento-classes";
 import "./home-bento.css";
 
@@ -291,9 +290,6 @@ export function HomeBento({ bento, lang }: { bento: Bento; lang: Lang }) {
             <span aria-hidden className={s.end} />
           </span>
         </h1>
-        <p className={s.aside}>
-          <span className={s.asideWords}>Film, live edits, swaps, stills, sound, 3D and whole pipelines. Each tile opens the studio that makes it.</span>
-        </p>
         <p className={s.aside}>{t("home.bento.aside")}</p>
       </div>
 

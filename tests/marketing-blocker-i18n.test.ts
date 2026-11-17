@@ -79,14 +79,17 @@ describe("marketing run blockers switch to Korean with the rest of the chrome", 
     }
     // 정렬 순서로 붙어 있다(앵커 뒤 연속 삽입): 앞뒤가 직전 블록의 마지막·다음 블록의 첫 키다.
     // 4키로 늘었다(t_41c3ee86의 Option A 서버 키 noProductImages가 badUrl 뒤로 붙었다).
-    expect(positions[3] - positions[0]).toBe(3);
+    // 병합 결정(t_3913855f): main의 파일 순서에서는 마케팅 블록 꼬리가 studio 블록과 인접하지 않다 —
+    // unavailableNote가 badUrl과 noProductImages 사이에 끼므로 간격은 3이 아니라 4다.
+    // 인접 단언은 main 순서의 실제 다음 키(marketing.format.title)로 맞췄다. 런더는 순서 무관.
+    expect(positions[3] - positions[0]).toBe(4);
     expect(enKeys[positions[0] - 1]).toBe("marketing.output.model");
-    expect(enKeys[positions[3] + 1]).toBe("studio.shots.addShot");
+    expect(enKeys[positions[3] + 1]).toBe("marketing.format.title");
     // 정렬 순서로 붙어 있다(앵커 뒤 연속 삽입): 앞이 직전 블록의 마지막, 뒤가 후속 카드의 note 키다.
     expect(positions[2] - positions[0]).toBe(2);
     expect(enKeys[positions[0] - 1]).toBe("marketing.output.model");
     expect(enKeys[positions[2] + 1]).toBe("marketing.blocker.unavailableNote"); // 같은 블록 안에서 이어 붙였다
-    expect(enKeys[positions[2] + 2]).toBe("studio.shots.addShot");
+    expect(enKeys[positions[2] + 2]).toBe("marketing.blocker.noProductImages");
   });
 });
 
@@ -127,7 +130,7 @@ describe("the SelfHostNote keeps its period byte and reads Korean", () => {
     const i = enKeys.indexOf(NOTE.key);
     expect(i, `${NOTE.key} present in en`).toBeGreaterThan(-1);
     expect(enKeys[i - 1]).toBe("marketing.blocker.badUrl"); // 차단 블록의 꼬리 — 계보 순서
-    expect(enKeys[i + 1]).toBe("studio.shots.addShot"); // 다음 블록의 첫 키
+    expect(enKeys[i + 1]).toBe("marketing.blocker.noProductImages"); // 후속 Option A 키가 곧바로 이어 붙었다(main 순서)
     expect(Object.keys(locales.ko)[i], `ko ${NOTE.key} shares the position`).toBe(NOTE.key);
   });
 });

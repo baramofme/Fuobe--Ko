@@ -125,8 +125,10 @@ describe("marketing hero sentence assembles from fragment keys and switches to K
       expect(Object.keys(locales.ko)[i], `ko ${k} shares the position`).toBe(k);
     }
     // 앵커(marketing.generate) 바로 뒤 4종 연속 삽입: 앞뒤가 직전 블록의 마지막·다음 블록의 첫 키다.
+    // 병합 결정(t_3913855f): main의 파일 순서에서 이 4종은 파일 꼬리(마지막 4키)로 붙었다 — 레인의
+    // 앵커邻接은 main 순서에서 성립하지 않는다. 연속성(span 3)과 양 로케일 동위치는 그대로 검증한다.
     expect(positions[3] - positions[0]).toBe(3);
-    expect(enKeys[positions[0] - 1]).toBe("marketing.generate");
-    expect(enKeys[positions[3] + 1]).toBe("kinetic.job.saving");
+    expect(enKeys[positions[0] - 1]).toBe("settings.off"); // main 순서에서 앞은 설정 블록의 꼬리
+    expect(positions[3]).toBe(enKeys.length - 1); // 파일의 마지막 키가 fragmentCloud다
   });
 });

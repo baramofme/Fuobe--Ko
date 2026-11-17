@@ -313,6 +313,7 @@ export const START_CREATING_ID = "start-creating";
  */
 export function ScrollCue({ footId }: { footId: string }) {
   const [float, setFloat] = useState(false);
+  const { t } = useI18n();
   useEffect(() => {
     const foot = document.getElementById(footId);
     if (!foot) return;
@@ -359,7 +360,7 @@ export function ScrollCue({ footId }: { footId: string }) {
 
   const label = (
     <>
-      Start creating
+      {t("settings.gpu.connectChoice.startCreating")}
       <ArrowDown aria-hidden className="hb-cue-arrow size-3.5" />
     </>
   );

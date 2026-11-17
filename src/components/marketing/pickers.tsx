@@ -16,7 +16,6 @@ import { UGC_HOOKS, UGC_SETTINGS, type Product } from "@/lib/catalog/marketing";
 import type { ModelDef } from "@/lib/catalog/types";
 import { cn } from "@/lib/utils";
 import { keySnake, translateOr, useI18n } from "@/lib/i18n";
-import { useI18n } from "@/lib/i18n";
 import type { ModelInfo } from "./model-info";
 import { useProducts } from "./hooks";
 import { pictureSource, stillLine } from "@/lib/clip-thumb";

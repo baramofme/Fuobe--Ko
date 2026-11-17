@@ -27,16 +27,12 @@ export const refusalShown = (e: unknown): boolean => !!(e as { refusalShown?: bo
 export type NextStep = { label: string; run: () => void };
 
 /**
- * The error toast for a failed upload or run (its message, else `fallback`), unless its refusal shows its own card. A
- * refusal with a next step offers it on the toast.
+ * The error toast for a failed upload or run (its message, else `fallback`), unless its refusal shows its own card.
+ * A blocker the server sent as a stable key (Option A) reads in the current language; a plain-word message passes
+ * through as-is, so nothing that was never a key changes. A refusal with a next step offers it on the toast.
  */
 export function toastError(e: unknown, fallback?: string): void {
   if (refusalShown(e)) return;
   const next = (e as { next?: NextStep } | null)?.next;
-  toast.error((e as Error).message || fallback, next ? { action: { label: next.label, onClick: next.run } } : undefined);
-/** The error toast for a failed upload or run (its message, else `fallback`), unless its refusal shows its own card.
- * A blocker the server sent as a stable key (Option A) reads in the current language; a plain-word message passes
- * through as-is, so nothing that was never a key changes. */
-export function toastError(e: unknown, fallback?: string): void {
-  if (!refusalShown(e)) toast.error(resolveServerBlocker((e as Error).message) || fallback);
+  toast.error(resolveServerBlocker((e as Error).message) || fallback, next ? { action: { label: next.label, onClick: next.run } } : undefined);
 }

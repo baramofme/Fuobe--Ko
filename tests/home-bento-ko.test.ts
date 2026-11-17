@@ -118,6 +118,11 @@ describe("HomeBento lang=ko: Korean rendering", () => {
       "Clean", "up", "voice", "a", "woman", "talking", "in", "noisy", "restaurant",
       // The Pause-previews button is a client island too: it reads English until hydration picks the language.
       "previews",
+      // ScrollCue("Start creating")는 useI18n()으로 SSR에서는 기본 언어(영문)로 렌더되고 하이드레이션 후
+      // t("settings.gpu.connectChoice.startCreating")("만들기 시작")로 바뀐다 — Pause와 같은 클래스의
+      // 클라이언트 섬이라 SSR 스냅샷에서 영문으로 보이는 것이 정상이다(t_3913855f 병합에서 배선).
+      "start",
+      "creating",
     ]);
     const unexpected = words.filter(
       (w) => !ALLOWED_EN_TERMS.has(w) && !SSR_CLIENT_VOICE_WORDS.has(w) && !SSR_CLIENT_VOICE_WORDS.has(w.toLowerCase()),
