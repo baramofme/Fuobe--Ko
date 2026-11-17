@@ -347,7 +347,6 @@ export function AccountKeysSection({ prices }: { prices?: string }) {
   const { t: tr } = useI18n();
   // Nothing until hydrated, as in the server's HTML, even when the viewer query has already answered.
   const hydrated = useHydrated();
-  const { t: tr } = useI18n();
   const account = useViewer().data?.account;
   const q = useYourKeys(!!account);
   // A studio with paid models off takes no keys: the section isn't shown.
