@@ -1003,6 +1003,69 @@ step("marketing: the hero sentence under the title follows the switch");
   const en1 = await heroLine();
   check("switching back to English gives the same bytes", EN_HERO.includes(en1 ?? ""), String(en1));
   await page.keyboard.press("Escape");
+step("catalog: Home's rails speak Korean in one render (t_52bfd11a)");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "catalog");
+  await openRoute(page, `${app}/`);
+  // English first: the rails' card names read the catalog's own words byte for byte (the pre-wiring invariant).
+  const namesEn = await page.evaluate(() => [...document.querySelectorAll("[data-preset-name]")].map((x) => x.textContent.trim()).filter(Boolean));
+  check("the rails show the catalog's names", namesEn.length > 20, `count=${namesEn.length}`);
+  check(
+    "the rails' names are English first",
+    namesEn.every((n) => /[A-Za-z]/.test(n) && !/[\uac00-\ud7a3]/.test(n)),
+    JSON.stringify(namesEn.slice(0, 8)),
+  );
+
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(300);
+  check("still the same page (no reload happened)", page.url().endsWith("/"), page.url());
+  const namesKo = await page.evaluate(() => [...document.querySelectorAll("[data-preset-name]")].map((x) => x.textContent.trim()).filter(Boolean));
+  check("the rails kept their card count through the switch", namesKo.length === namesEn.length, `en=${namesEn.length} ko=${namesKo.length}`);
+  check("every rail card name reads Korean after the switch", namesKo.every((n) => /[\uac00-\ud7a3]/.test(n)), JSON.stringify(namesKo.filter((n) => !/[\uac00-\ud7a3]/.test(n))));
+  check("no rail name kept its English words", !namesKo.some((n, i) => n === namesEn[i]), JSON.stringify(namesKo.filter((n, i) => n === namesEn[i])));
+
+  // Back to English: the names must come back byte for byte (the English locale value IS the catalog literal).
+  const menuBack = await openSelector(page);
+  await menuBack.getByRole("menuitem", { name: "English" }).click();
+  await page.waitForTimeout(300);
+  const namesBack = await page.evaluate(() => [...document.querySelectorAll("[data-preset-name]")].map((x) => x.textContent.trim()).filter(Boolean));
+  check("the English names come back byte for byte", JSON.stringify(namesBack) === JSON.stringify(namesEn), JSON.stringify(namesBack.filter((n, i) => n !== namesEn[i]).slice(0, 6)));
+  await page.close();
+}
+
+step("catalog: a gallery's names and descriptions switch too (t_52bfd11a)");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "gallery");
+  await openRoute(page, `${app}/effects`);
+  // The gallery's first page, read before the switch: names and the two-line descriptions.
+  const readCards = async (p) =>
+    p.evaluate(() => ({
+      names: [...document.querySelectorAll("[data-preset-name]")].map((x) => x.textContent.trim()).filter(Boolean),
+      descs: [...document.querySelectorAll("[data-preset-desc]")].map((x) => x.textContent.trim()).filter(Boolean),
+    }));
+  const enCards = await readCards(page);
+  check("the gallery shows names and descriptions", enCards.names.length > 10 && enCards.descs.length > 10, `names=${enCards.names.length} descs=${enCards.descs.length}`);
+  check("both read English first", enCards.names.every((n) => /[A-Za-z]/.test(n) && !/[\uac00-\ud7a3]/.test(n)) && enCards.descs.every((d) => /[A-Za-z]/.test(d) && !/[\uac00-\ud7a3]/.test(d)), "");
+
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(300);
+  check("still the gallery page (no reload happened)", page.url().endsWith("/effects"), page.url());
+  const koCards = await readCards(page);
+  check("the names and descriptions kept their counts", koCards.names.length === enCards.names.length && koCards.descs.length === enCards.descs.length, "");
+  check("every card name is Korean after the switch", koCards.names.every((n) => /[\uac00-\ud7a3]/.test(n)), JSON.stringify(koCards.names.filter((n) => !/[\uac00-\ud7a3]/.test(n))));
+  check("every card description is Korean after the switch", koCards.descs.every((d) => /[\uac00-\ud7a3]/.test(d)), JSON.stringify(koCards.descs.filter((d) => !/[\uac00-\ud7a3]/.test(d)).slice(0, 6)));
+  check("no card text kept its English words", !koCards.names.some((n, i) => n === enCards.names[i]) && !koCards.descs.some((d, i) => d === enCards.descs[i]), "");
+
+  const menuBack = await openSelector(page);
+  await menuBack.getByRole("menuitem", { name: "English" }).click();
+  await page.waitForTimeout(300);
+  const backCards = await readCards(page);
+  check("the English names come back byte for byte", JSON.stringify(backCards.names) === JSON.stringify(enCards.names), JSON.stringify(backCards.names.filter((n, i) => n !== enCards.names[i]).slice(0, 6)));
+  check("the English descriptions come back byte for byte", JSON.stringify(backCards.descs) === JSON.stringify(enCards.descs), JSON.stringify(backCards.descs.filter((d, i) => d !== enCards.descs[i]).slice(0, 4)));
   await page.close();
 }
 

@@ -20,6 +20,8 @@ import { useHydrated } from "@/lib/api";
 import { categoryFrom, skippedInAll } from "@/lib/gallery-category";
 import { matchesSearch, previewFlip, readMoreTap, searchText, TAP_TO_READ, type PresetCardData } from "@/lib/preset-cards";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { keySnake, translateOr } from "@/lib/i18n/store";
 
 /** A tiny label shown on hover/focus (CSS only: a gallery has hundreds of these). */
 function EngineChip({ engine }: { engine: "cloud" | "open" }) {
@@ -74,6 +76,13 @@ export const PresetCard = memo(function PresetCard({
   // Hosted runs on, and this preset runs on this studio's GPUs for the viewer: the card says it can be tried there.
   const card = useTryFree();
   const tryFree = card && card.runs(preset) && !badge && !setup ? card.text : null;
+  const { lang } = useI18n();
+  // Catalog data reads its words through keys derived from the words themselves — the same scheme the launcher's
+  // names use (`preset.<snake(name)>.name`, and `…<snake(description)>.description`). English puts the item's own
+  // words back byte for byte (the key's English value is the catalog literal); an item nobody translated reads
+  // exactly as authored, with no warning, since catalog data is meant to fall back silently.
+  const nameTr = translateOr(lang, `preset.${keySnake(preset.name)}.name`, preset.name);
+  const descTr = translateOr(lang, `preset.${keySnake(preset.description)}.description`, preset.description);
   const Icon = PRESET_ICONS[preset.icon] ?? Sparkles;
   const { ref, playing, asked, handlers } = usePreviewPlayback<HTMLAnchorElement>(preset.id, preset.preview);
   const [more, setMore] = useState(false);
@@ -121,13 +130,14 @@ export const PresetCard = memo(function PresetCard({
         <CardPending />
       </div>
       <div className="min-w-0 px-0.5">
-        <p className="truncate text-[13px] font-medium">{preset.name}</p>
+        <p data-preset-name={preset.name} className="truncate text-[13px] font-medium">{nameTr}</p>
         {!compact && (
           // Two lines hold the card's place in the grid and stay inside the card on hover (a panel over the next
           // row read as broken); the full text is the tooltip and the preset's own page. A phone has no tooltip: a
           // tap on the text opens it in place (readMoreTap), so the gallery stays even until someone asks.
           <p
-            title={preset.description}
+            title={descTr}
+            data-preset-desc
             data-more={more || undefined}
             onClick={(e) => {
               const next = readMoreTap(e.currentTarget, more, window.matchMedia(TAP_TO_READ).matches);
@@ -137,7 +147,7 @@ export const PresetCard = memo(function PresetCard({
             }}
             className={cn("text-[12px] leading-snug text-muted-foreground", !more && "line-clamp-2")}
           >
-            {caption ?? preset.description}
+            {caption ?? descTr}
           </p>
         )}
       </div>
