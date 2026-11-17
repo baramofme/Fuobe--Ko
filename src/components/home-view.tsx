@@ -25,15 +25,16 @@ import { placeholdersOn } from "@/lib/demo-mode";
 import { userTitle } from "@/lib/library";
 import { NEW_CREATION_PARAM } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 // The viewer is only needed once a recent result is opened.
 const Viewer = lazy(() => import("@/components/studio/viewer").then((m) => ({ default: m.Viewer })));
 
 const MODES = [
-  { id: "image", label: "Image", icon: ImageIcon, href: "/image", placeholder: "Describe an image…" },
-  { id: "video", label: "Video", icon: Video, href: "/video", placeholder: "Describe a shot…" },
-  { id: "edit", label: "Edit", icon: Wand2, href: "/edit", placeholder: "Describe a change (you'll add the image next)…" },
-  { id: "live", label: "Live", icon: Zap, href: "/live-edit", placeholder: "Type a change, then open Live edit…" },
+  { id: "image", label: "Image", labelKey: "nav.image", icon: ImageIcon, href: "/image", placeholder: "Describe an image…" },
+  { id: "video", label: "Video", labelKey: "nav.video", icon: Video, href: "/video", placeholder: "Describe a shot…" },
+  { id: "edit", label: "Edit", labelKey: "nav.edit", icon: Wand2, href: "/edit", placeholder: "Describe a change (you'll add the image next)…" },
+  { id: "live", label: "Live", labelKey: "gallery.cat.live", icon: Zap, href: "/live-edit", placeholder: "Type a change, then open Live edit…" },
 ];
 
 /** A Try chip under the composer: it picks the mode and fills in the prompt; Start still runs it. */
@@ -123,12 +124,13 @@ function RecentWaiting({ g, title, failed }: { g: Generation; title: string; fai
 }
 
 function Row({ title, href, children, className }: { title: string; href: string; children: React.ReactNode; className?: string }) {
+  const { t } = useI18n();
   return (
     <section className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-[24px]">{title}</h2>
         <Link href={href} className="inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground">
-          See all <ArrowRight className="size-3.5" />
+          {t("nav.seeAll")} <ArrowRight className="size-3.5" />
         </Link>
       </div>
       {children}
@@ -192,6 +194,7 @@ export function HomeView({
 }) {
   const router = useRouter();
   const [mode, setMode] = useState(MODES[0]);
+  const { t } = useI18n();
   const [prompt, setPrompt] = useState("");
   const box = useRef<HTMLTextAreaElement>(null);
   // Bumped by a Try chip: the composer's ring brightens once.
@@ -353,7 +356,7 @@ export function HomeView({
                     mode.id === m.id ? "bg-brand-faint text-brand-text" : "text-muted-foreground hover:bg-accent",
                   )}
                 >
-                  <m.icon className="size-3.5" /> {m.label}
+                  <m.icon className="size-3.5" /> {t(m.labelKey)}
                 </button>
               ))}
             </div>

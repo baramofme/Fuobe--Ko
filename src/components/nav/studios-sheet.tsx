@@ -9,9 +9,10 @@ import { useNavUi, useViewerKind } from "@/components/nav/nav-ui";
 import { IntentLink } from "@/components/intent-link";
 import { onAttr, TAB_PILL, TabRow, useSwapFade } from "@/components/ui/tab-row";
 import { MEGA_AREAS, type MegaId, type MegaItem, type MegaModel } from "@/lib/mega-menus";
-import { isNew, studioSubs, subLabel, subParent, type ViewerKind } from "@/lib/nav-model";
+import { isNew, labelKeyOf, pillLabelKeyOf, studioSubs, subLabel, subParent, type ViewerKind } from "@/lib/nav-model";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { keySnake, translateOr, type Lang } from "@/lib/i18n/store";
 import { megaCurrent } from "./mega-launcher";
 import { useMegaMenu, warmMenu } from "./mega-data";
 
@@ -21,7 +22,15 @@ export const SHEET_FAMILIES: readonly MegaId[] = ["studios", "fx", "apps", "moti
 /** How many of each column a fetched menu's "All" shows (so the whole set fits a 390 x 844 phone). */
 const ALL_PER_COLUMN = 4;
 
+/** A tile's name in this render's language: the preset's own name key, else the entry's, else its words (the bar's rule). */
+const nameIn = (lang: Lang, e: MegaItem): string =>
+  translateOr(lang, `preset.${keySnake(e.label)}.name`, translateOr(lang, labelKeyOf(e.id), e.label));
+
+/** The short name under a tile, where the entry has one: its `.short` key, else the tile's full name, else its words. */
+const shortIn = (lang: Lang, e: MegaItem): string => (e.short ? translateOr(lang, `${labelKeyOf(e.id)}.short`, nameIn(lang, e)) : nameIn(lang, e));
+
 function Tile({ entry, current }: { entry: MegaItem; current: boolean }) {
+  const { t, lang } = useI18n();
   const fresh = isNew(entry);
   return (
     <li className="min-w-0">
@@ -34,12 +43,12 @@ function Tile({ entry, current }: { entry: MegaItem; current: boolean }) {
           <CoverThumb id={entry.navCover} cover={entry.cover} icon={entry.icon} size="tile" eager className="size-12" />
           {fresh && (
             <span aria-hidden className="absolute -top-1 -right-1.5 rounded-full bg-highlight px-1 py-px text-[9px] leading-none font-semibold text-highlight-foreground">
-              New
+              {t("nav.newBadge")}
             </span>
           )}
         </span>
         <span aria-hidden className="line-clamp-3 min-h-[26px] text-[11px] leading-[13px] text-foreground/85 group-aria-[current=page]/tile:font-semibold group-aria-[current=page]/tile:text-foreground">
-          {entry.short ?? entry.label}
+          {shortIn(lang, entry)}
         </span>
         <span className="sr-only">
           {entry.label}
@@ -56,6 +65,7 @@ function Tile({ entry, current }: { entry: MegaItem; current: boolean }) {
  * one screen of tiles). A feature that is a tile here already (Ads Studio) isn't listed again.
  */
 function SheetSubs({ items, kind, current }: { items: MegaItem[]; kind: ViewerKind | undefined; current?: string }) {
+  const { lang } = useI18n();
   const tiles = new Set(items.map((e) => e.id));
   const groups = items.map((e) => ({ e, subs: studioSubs(e.id, kind, "sheet").filter((s) => !tiles.has(s.id)) })).filter((g) => g.subs.length > 0);
   if (!groups.length) return null;
@@ -64,14 +74,14 @@ function SheetSubs({ items, kind, current }: { items: MegaItem[]; kind: ViewerKi
       {groups.map(({ e, subs }) => (
         <section key={e.id} aria-labelledby={`sheet-subs-${e.id}`}>
           <p id={`sheet-subs-${e.id}`} className="text-[11px] leading-4 font-semibold tracking-[.08em] text-brand-text uppercase">
-            {e.label}
+            {nameIn(lang, e)}
           </p>
           {/* 32 px pills whose touch area reaches 6 px past each edge (44 px): rows 12 px apart, so no two overlap. */}
           <ul aria-labelledby={`sheet-subs-${e.id}`} className="mt-2 flex flex-wrap gap-x-2 gap-y-3">
             {subs.map((s) => (
               <li key={s.id}>
                 <IntentLink data-sub="" href={s.href} aria-current={current === s.id ? "page" : undefined} title={s.what} className={SUB_PILL}>
-                  {subLabel(s)}
+                  {translateOr(lang, pillLabelKeyOf(s), subLabel(s))}
                 </IntentLink>
               </li>
             ))}
@@ -125,19 +135,20 @@ const SHORTCUT =
  */
 function Shortcuts({ onSearch }: { onSearch: () => void }) {
   const { setSheet } = useNavUi();
+  const { t } = useI18n();
   return (
     <div className="hidden shrink-0 grid-cols-4 gap-2 px-4 [html[data-fullscreen-studio]_&]:grid">
       <IntentLink href="/" eager className={SHORTCUT}>
-        <House className="size-4" aria-hidden /> Home
+        <House className="size-4" aria-hidden /> {t("nav.home")}
       </IntentLink>
       <IntentLink href="/library" eager className={SHORTCUT}>
-        <Library className="size-4" aria-hidden /> Library
+        <Library className="size-4" aria-hidden /> {t("nav.library")}
       </IntentLink>
       <button type="button" className={SHORTCUT} onClick={() => setSheet("you")}>
-        <CircleUserRound className="size-4" aria-hidden /> You
+        <CircleUserRound className="size-4" aria-hidden /> {t("nav.you")}
       </button>
       <button type="button" className={SHORTCUT} onClick={onSearch}>
-        <Search className="size-4" aria-hidden /> Search
+        <Search className="size-4" aria-hidden /> {t("nav.searchAria")}
       </button>
     </div>
   );
@@ -177,7 +188,7 @@ function chipItems(model: MegaModel, chip: string | null): MegaItem[] {
  */
 export function StudiosSheet({ family = "studios", group: initial, onSearch }: { family?: MegaId; group?: string; onSearch: () => void }) {
   const kind = useViewerKind();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const pathname = usePathname() ?? "";
   const [group, setGroup] = useState<string | null>(initial ?? null);
   const { model, failed, retry } = useMegaMenu(family, kind);
@@ -188,6 +199,16 @@ export function StudiosSheet({ family = "studios", group: initial, onSearch }: {
   // Canvas: its "Start here" column is the desktop's; on a phone the boards are the grid.
   const columns = model?.columns.filter((c) => !(family === "canvas" && c.id === "start")) ?? [];
   const chips: { id: string | null; label: string }[] = [{ id: null, label: "All" }, ...columns.map((c) => ({ id: c.id, label: c.chip }))];
+  // A chip's name in this render's language: "All" under its own key, a group's under the chip's key, Canvas' sections
+  // under their titles' keys. A fetched menu's category is nobody's key: the chip keeps its words.
+  const chipIn = (c: { id: string | null; label: string }): string => {
+    if (!c.id) return translateOr(lang, "search.chipAll", c.label);
+    if (family === "canvas") {
+      const key = columns.find((x) => x.id === c.id)?.titleKey;
+      return key ? translateOr(lang, key, c.label) : c.label;
+    }
+    return translateOr(lang, `search.chip.${c.id}`, c.label);
+  };
   // Canvas' "What's a canvas?" (a finished board's scene, which the sections leave out) opens its All grid.
   const intro = family === "canvas" && !group ? model?.columns.find((c) => c.id === "start")?.lead : undefined;
   const items = model ? [...(intro ? [intro] : []), ...chipItems({ ...model, columns }, group)] : [];
@@ -201,7 +222,7 @@ export function StudiosSheet({ family = "studios", group: initial, onSearch }: {
           const f = families.find((x) => x.id === columns.find((c) => c.id === group)?.family);
           return f && { href: f.href, label: `All ${f.count}`, name: `See all ${f.label.toLowerCase()}` };
         })()
-      : { href: area.href, label: model ? `See all ${model.count}` : "See all", name: model?.seeAll.name ?? `See all ${area.label.toLowerCase()}` };
+      : { href: area.href, label: model ? translateOr(lang, "nav.sub.seeAll", "See all {count}", { count: model.count }) : t("nav.seeAll"), name: model?.seeAll.name ?? `See all ${area.label.toLowerCase()}` };
   // A group tapped: its tiles fade in (they are there at once).
   const tilesRef = useSwapFade<HTMLDivElement>(model ? `${family}/${group ?? ""}` : null);
   return (
@@ -221,7 +242,7 @@ export function StudiosSheet({ family = "studios", group: initial, onSearch }: {
           chips.length > (family === "canvas" ? 1 : 2) &&
           chips.map((c) => (
             <button key={c.id ?? "all"} type="button" aria-pressed={group === c.id} className={TAB_PILL} {...onAttr(group === c.id)} onClick={() => setGroup(c.id)}>
-              {c.label}
+              {chipIn(c)}
             </button>
           ))}
       </TabRow>
@@ -230,7 +251,7 @@ export function StudiosSheet({ family = "studios", group: initial, onSearch }: {
           <p className="flex items-center gap-2 py-6 text-[14px] text-muted-foreground">
             Couldn&apos;t load this.
             <button type="button" onClick={retry} className="nav-row inline-flex h-11 items-center gap-1.5 rounded-full px-3 font-medium text-foreground">
-              <RotateCw className="size-4" aria-hidden /> Try again
+              <RotateCw className="size-4" aria-hidden /> {t("nav.tryAgain")}
             </button>
           </p>
         ) : !model ? (
@@ -270,7 +291,7 @@ export function StudiosSheet({ family = "studios", group: initial, onSearch }: {
                 <Tile key={e.id} entry={e} current={e.id === currentTile} />
               ))}
               {seeAll && family !== "studios" && <SeeAllTile {...seeAll} />}
-              {family === "studios" && <SeeAllTile href={area.href} label="See all" name="See all studios" />}
+              {family === "studios" && <SeeAllTile href={area.href} label={t("nav.seeAll")} name="See all studios" />}
             </ul>
             {family === "studios" && group && <SheetSubs items={items} kind={kind} current={current} />}
           </>

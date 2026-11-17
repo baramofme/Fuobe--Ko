@@ -97,6 +97,12 @@ export interface MegaColumn {
   id: string;
   /** The column's name over it. */
   label: string;
+  /**
+   * The column's name as a locale key, where one exists (the bar's group names are the areas' section titles;
+   * Canvas' sections carry their own titleKey). Where it is absent (a fetched menu's category, nobody's key), the
+   * render falls back to `label` byte-identical — the fallback rule, like countLineKey's sibling.
+   */
+  titleKey?: string;
   /** Its filter chip on a phone. */
   chip: string;
   /** The family it belongs to (Motions & effects). */
@@ -245,6 +251,8 @@ export function studiosMenu(kind: ViewerKind | undefined): MegaModel {
     columns: launcherColumns(kind).map((c) => ({
       id: c.group.id,
       label: c.group.label,
+      // The group's name is the area's section title under the same id (LAUNCHER_GROUPS ids = area.section ids).
+      titleKey: `area.section.${c.group.id}.title`,
       chip: c.group.chip,
       lead: withSubs(c.lead, kind),
       rows: c.rest.map((e) => withSubs(e, kind)),
@@ -277,7 +285,16 @@ export function createMenu(kind: ViewerKind | undefined): MegaModel {
     const items = c.ids.map((id) => entry(id)).filter((e): e is NavEntry => !!e && visibleTo(e, kind))
       .map((e) => (CREATE_COVERS[e.id] ? { ...studioItem(e), cover: CREATE_COVERS[e.id] } : studioItem(e)));
     const [lead, ...rows] = items;
-    return { id: c.label.toLowerCase().replace(/[^a-z]+/g, "-"), label: c.label, chip: c.label, ...(lead && { lead }), rows };
+    const id = c.label.toLowerCase().replace(/[^a-z]+/g, "-");
+    return {
+      id,
+      label: c.label,
+      // The two Create columns' names are the area's section titles (the ids' spellings differ for the second).
+      titleKey: c.label === "Make" ? "area.section.make.title" : c.label === "Edit a picture" ? "area.section.edit-picture.title" : undefined,
+      chip: c.label,
+      ...(lead && { lead }),
+      rows,
+    };
   });
   const n = columns.reduce((sum, c) => sum + (c.lead ? 1 : 0) + c.rows.length, 0);
   const model: MegaModel = {

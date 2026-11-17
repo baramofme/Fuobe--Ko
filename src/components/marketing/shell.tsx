@@ -10,14 +10,15 @@ import type { Engine } from "@/lib/catalog/types";
 import { useIdlePrefetch } from "@/lib/idle-prefetch";
 import { onAttr, TAB_PILL, TabRow } from "@/components/ui/tab-row";
 import { isPlainClick, useTappedTab } from "@/lib/use-tapped-tab";
+import { useI18n } from "@/lib/i18n";
 
 export type SuiteTab = "studio" | "click" | "ads" | "multiplier";
 
-const TABS: { id: SuiteTab; href: string; label: string; icon: typeof Target }[] = [
-  { id: "studio", href: "/marketing", label: "Marketing Studio", icon: LayoutTemplate },
-  { id: "click", href: "/marketing/click-to-ad", label: "Click to Ad", icon: MousePointerClick },
-  { id: "ads", href: "/ads", label: "Ads Studio", icon: Target },
-  { id: "multiplier", href: "/ads/multiplier", label: "Ad Multiplier", icon: Copy },
+const TABS: { id: SuiteTab; href: string; label: string; labelKey: string; icon: typeof Target }[] = [
+  { id: "studio", href: "/marketing", label: "Marketing Studio", labelKey: "nav.marketing", icon: LayoutTemplate },
+  { id: "click", href: "/marketing/click-to-ad", label: "Click to Ad", labelKey: "preset.click_to_ad.name", icon: MousePointerClick },
+  { id: "ads", href: "/ads", label: "Ads Studio", labelKey: "nav.ads", icon: Target },
+  { id: "multiplier", href: "/ads/multiplier", label: "Ad Multiplier", labelKey: "nav.ads-multiplier", icon: Copy },
 ];
 
 /**
@@ -39,6 +40,7 @@ export function MarketingHeader({
   right?: React.ReactNode;
   selfHostedOnly?: boolean;
 }) {
+  const { t: tr } = useI18n();
   const nav = useRef<HTMLElement>(null);
   // Each tool's page draws this header: the tab tapped here is the current one from the next frame on, until the new page
   // (with its own header) replaces this one.
@@ -78,7 +80,7 @@ export function MarketingHeader({
             {...onAttr(t.id === current)}
           >
             <t.icon />
-            {t.label}
+            {tr(t.labelKey)}
           </Link>
         ))}
       </TabRow>

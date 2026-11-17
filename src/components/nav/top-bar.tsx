@@ -203,7 +203,7 @@ function BarLinks({ active, onTap }: { active: Active; onTap?: (href: string) =>
       <MegaLauncher id="motions" active={active.motions || active.page === "motions"} className="hidden xl:inline-flex" />
       <MegaLauncher id="canvas" active={active.canvas || active.canvasHome} className="hidden min-[1440px]:inline-flex" />
       <IntentLink href="/chat" eager data-bar-item="" onClick={tap("/chat")} aria-current={cur(active.chat)} className={cn(BAR_ITEM, "hidden min-[1440px]:inline-flex")}>
-        Chat
+        {t("nav.chat")}
       </IntentLink>
       <IntentLink href="/library" eager data-bar-item="" onClick={tap("/library")} aria-current={cur(active.library)} className={BAR_ITEM}>
         {t("nav.library")}

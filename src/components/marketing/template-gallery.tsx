@@ -8,9 +8,24 @@ import { useCoverPlayback } from "@/components/template-cover";
 import { CATEGORIES, FORMATS, interleaved, isCodeTemplate, templatesFor, type MarketingCategory, type MarketingTemplate } from "@/lib/catalog/marketing";
 import { templateCover } from "@/lib/template-covers";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { TemplatePreview } from "./template-preview";
 
 export type MediaFilter = "all" | "image" | "video";
+
+/**
+ * Categories whose chip says a name somebody already keyed (byte-identical in English): the chip reads that key, so it
+ * changes with the language. "Posters" is nobody's — it stays as authored.
+ */
+const CATEGORY_KEYS: Readonly<Partial<Record<string, string>>> = {
+  all: "search.chipAll",
+  "product-shot": "marketing.format.card.product_shot",
+  motion: "search.kind.motion",
+  ugc: "gallery.cat.ugc",
+  tiktok: "marketing.format.card.tiktok",
+  ads: "nav.ads.short",
+  marketplace: "marketing.format.card.marketplace",
+};
 
 export function TemplateCard({ t, selected, onPick }: { t: MarketingTemplate; selected: boolean; onPick: (t: MarketingTemplate) => void }) {
   const f = FORMATS[t.format];
@@ -56,6 +71,7 @@ export function TemplateGallery({ category, onCategory, media, onMedia, selected
   const query = useDeferredValue(q.trim().toLowerCase());
   const [show, setShow] = useState(30);
   const owner = useIsOwner();
+  const { t } = useI18n();
   const list = useMemo(() => {
     const base = templatesFor(category, media, owner);
     const found = query ? base.filter((t) => `${t.name} ${FORMATS[t.format].cardLabel} ${FORMATS[t.format].name} ${t.prompt}`.toLowerCase().includes(query)) : base;
@@ -78,7 +94,7 @@ export function TemplateGallery({ category, onCategory, media, onMedia, selected
           <div role="radiogroup" aria-label="Media" className="inline-flex rounded-full bg-muted p-0.5">
             {(["all", "image", "video"] as const).map((m) => (
               <button key={m} role="radio" aria-checked={media === m} onClick={() => onMedia(m)} className={cn("h-7 rounded-full px-3 text-[12px] font-medium text-muted-foreground", media === m && "bg-background text-foreground shadow-soft")}>
-                {m === "all" ? "All" : m === "image" ? "Images" : "Videos"}
+                {m === "all" ? t("search.chipAll") : m === "image" ? t("studio.media.tabImages") : t("studio.media.tabVideos")}
               </button>
             ))}
           </div>
@@ -96,7 +112,7 @@ export function TemplateGallery({ category, onCategory, media, onMedia, selected
             }}
             className={cn("inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-colors", category === c.id ? "bg-foreground text-background" : "bg-secondary text-secondary-foreground hover:bg-accent")}
           >
-            {c.label}
+            {CATEGORY_KEYS[c.id] ? t(CATEGORY_KEYS[c.id]!) : c.label}
           </button>
         ))}
       </div>

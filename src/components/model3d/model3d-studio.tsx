@@ -56,6 +56,7 @@ import { OwnSetupChip, useOwnSetupPress } from "@/components/own-setup";
 import { RunPlaceChip, useOpenRunPlace } from "@/components/studio/run-place-chip";
 import { Model3dSetupsProvider, useModel3dSetup, type Model3dSetups } from "./own-setups";
 import { useI18n } from "@/lib/i18n";
+import { translateOr } from "@/lib/i18n/store";
 import { toastError } from "@/lib/refusals";
 import { priceLine, useCreate3d, useRunPreview } from "./hooks";
 import { ModelCard } from "./model-card";
@@ -206,6 +207,7 @@ function IdolSettings({
 
 /** The five modes as one row of pills (wrapping on a phone); arrow keys move between them. */
 function ModePicker({ mode, onChange }: { mode: Model3dMode; onChange: (m: Model3dMode) => void }) {
+  const { lang } = useI18n();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const move = (from: number, by: number) => {
     const i = (from + by + MODEL3D_MODES.length) % MODEL3D_MODES.length;
@@ -240,7 +242,8 @@ function ModePicker({ mode, onChange }: { mode: Model3dMode; onChange: (m: Model
             mode === m.id ? "border-foreground bg-foreground text-background" : "bg-background text-muted-foreground hover:border-border-strong hover:text-foreground",
           )}
         >
-          {m.label}
+          {/* Every mode's words are keyed under the studio (byte-identical in English); they read that key. */}
+          {translateOr(lang, `nav.image-to-3d-${m.id}`, m.label)}
         </button>
       ))}
     </div>
