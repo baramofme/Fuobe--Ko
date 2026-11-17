@@ -946,7 +946,9 @@ export { normalizeWebsite };
 /** Start a brand from a website: the row exists at once, the research runs in the background. */
 export function createBrandFromWebsite(website: string): { brand: BrandKit; run: Promise<void> } {
   const url = normalizeWebsite(website);
-  if (!url) throw new Error("Enter a valid website URL");
+  // A stable key, not the words: the browser checks the same rule first (src/lib/website.ts), so reaching here is the
+  // rare link that passed the client's check and failed the server's. The client reads it as marketing.blocker.badUrl.
+  if (!url) throw new Error("badUrl");
   const id = nanoid(10);
   const now = Date.now();
   const name = hostName(new URL(url).hostname.replace(/^www\./, ""));

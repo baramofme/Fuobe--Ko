@@ -5190,6 +5190,9 @@
       "fragmentOpenSource": "오픈소스 모델로",
       "fragmentOwnGpu": "본인 GPU에서 무료로",
       "fragmentCloud": "클라우드의 Fuobe Marketing Image 또는 파트너 모델로"
+    },
+    "blocker": {
+      "noProductImages": "이 제품에는 아직 이미지가 없습니다"
     }
   }
 }

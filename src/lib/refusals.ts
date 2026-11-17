@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { resolveServerBlocker } from "./i18n/store";
 
 /**
  * Refusals that open their own card (watchGuestRefusals in ./api: "Create a free account", "Connect your GPU"). The
@@ -33,4 +34,9 @@ export function toastError(e: unknown, fallback?: string): void {
   if (refusalShown(e)) return;
   const next = (e as { next?: NextStep } | null)?.next;
   toast.error((e as Error).message || fallback, next ? { action: { label: next.label, onClick: next.run } } : undefined);
+/** The error toast for a failed upload or run (its message, else `fallback`), unless its refusal shows its own card.
+ * A blocker the server sent as a stable key (Option A) reads in the current language; a plain-word message passes
+ * through as-is, so nothing that was never a key changes. */
+export function toastError(e: unknown, fallback?: string): void {
+  if (!refusalShown(e)) toast.error(resolveServerBlocker((e as Error).message) || fallback);
 }

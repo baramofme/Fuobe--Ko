@@ -316,8 +316,9 @@ export function planMarketing(input: MarketingInput, ctx: PlanContext): RunPlan 
   const hasProduct = productImages.length > 0;
   const prompt = input.prompt?.trim() ?? "";
   const website = input.website?.trim() || brand?.website || "";
-  // Required inputs, in the parity research's words.
-  if (f.product === "required" && !hasProduct) throw new PlanError(product ? `${product.name} has no images` : "Attach a product to generate");
+  // Required inputs, in the parity research's words — the keys are stable, the words are the client's. A product with
+  // no pictures is named by a key too: which product it is is already on screen, so the blocker carries no product name.
+  if (f.product === "required" && !hasProduct) throw new PlanError(product ? "noProductImages" : "attachProduct");
   if (f.oneOf?.length) {
     const has = { product: hasProduct, avatar: !!input.avatar, prompt: !!prompt, website: !!website };
     if (!f.oneOf.some((k) => has[k])) {
@@ -464,7 +465,8 @@ export function planMarketing(input: MarketingInput, ctx: PlanContext): RunPlan 
     const shots = range && want <= range[1] ? [Math.max(range[0], Math.round(want))] : open ? shotPlan(want, plannedDurations(model)) : [snapDuration(want, model.options.durations)];
     if (shots.length === 1 && shots[0] !== want) notes.push(`${model.name} makes ${shots[0]} s clips — the closest to ${want} s`);
     const op: Operation = refs.length > 1 && supportsOp(model, "ref2v") ? "ref2v" : refs.length ? "i2v" : "t2v";
-    if (op === "t2v" && !supportsOp(model, "t2v")) throw new PlanError("Attach a product to generate");
+    // A text-to-video run needs a product's picture and the model can't take one: same key as the required-input rule.
+    if (op === "t2v" && !supportsOp(model, "t2v")) throw new PlanError("attachProduct");
     const VARIATIONS = ["Wide establishing shot that introduces the product", "Slow push-in to a close-up of the product's details", "Graceful orbit around the product that ends on its hero angle", "Macro detail pass over the texture and label"];
     // MiniMax H3 on your GPU keeps the photo's shape: a photo of another shape is grown to the format's first.
     const steps: Step[] = [];

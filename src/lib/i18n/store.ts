@@ -137,6 +137,19 @@ export function t(key: string, params?: Params): string {
 }
 
 /**
+ * A run blocker the server emits as a stable key (Option A): resolve it through the `marketing.blocker.*` family so it
+ * switches with the language. The server's contract is a camelCase identifier — "attachProduct", "noProductImages",
+ * "badUrl" — so the client can name it without importing server-only words. Anything the server still says as plain
+ * English passes through untouched (reverse compatibility, and no missing-key note for a message that was never a key).
+ * Only a key that exists in English is looked up, so a plain-word blocker never calls t() and never warns.
+ */
+export function resolveServerBlocker(raw: string | undefined): string {
+  if (!raw) return "";
+  const key = `marketing.blocker.${raw}`;
+  return locales.en[key] !== undefined ? t(key) : raw;
+}
+
+/**
  * A data string (a catalog name, a description, a category, a caption) whose words may exist under a derived key.
  * Order: the language's own value, else English (byte-identical to the catalog), else the item's own words — so an
  * item nobody translated reads exactly as authored, with no warning (catalog data is meant to fall back silently).
