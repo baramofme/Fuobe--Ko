@@ -5183,5 +5183,13 @@
       "noticeDelete": "Delete the file to clear this note, or see “Sign-in data” in the self-hosting guide to use it instead."
     },
     "off": "off"
+  },
+  "marketing": {
+    "studio": {
+      "productLine": "Product shots, motion, UGC presenters, ads, posters and listings — from Fuobe's templates, on {fragment}.",
+      "fragmentOpenSource": "open-source models",
+      "fragmentOwnGpu": "your own GPU, free",
+      "fragmentCloud": "Fuobe Marketing Image or partner models in the cloud"
+    }
   }
 }

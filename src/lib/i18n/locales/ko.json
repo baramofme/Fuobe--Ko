@@ -5183,5 +5183,13 @@
       "noticeDelete": "이 알림을 지위려면 파일을 삭제하거나, 자체 호스팅 안내의 “로그인 데이터”를 참고해 그 파일을 그대로 사용하세요."
     },
     "off": "끔"
+  },
+  "marketing": {
+    "studio": {
+      "productLine": "제품 사진, 모션, UGC 프리젠터, 광고, 포스터, 리스팅까지 — {fragment}, Fuobe 템플릿으로 만듭니다.",
+      "fragmentOpenSource": "오픈소스 모델로",
+      "fragmentOwnGpu": "본인 GPU에서 무료로",
+      "fragmentCloud": "클라우드의 Fuobe Marketing Image 또는 파트너 모델로"
+    }
   }
 }

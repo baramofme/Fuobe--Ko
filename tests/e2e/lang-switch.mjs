@@ -956,6 +956,56 @@ step("settings: the GPU deep panel and the account section speak Korean");
 }
 
 
+step("marketing: the hero sentence under the title follows the switch");
+{
+  const page = await browser.newPage({ ...DESKTOP });
+  listen(page, "marketing-hero");
+  await openRoute(page, `${app}/marketing`);
+
+  // The hero <p> composes one sentence and drops the condition branch's words into {fragment}. It is the only
+  // <p> that carries "templates, on" (English) or "템플릿으로 만듭니다" (Korean) — the words panel never does.
+  const heroLine = () => page.evaluate(() => {
+    const p = [...document.querySelectorAll("p")].find(
+      (el) => (el.textContent || "").includes("templates, on") || (el.textContent || "").includes("템플릿으로 만듭니다"),
+    );
+    return p ? p.textContent.trim() : null;
+  });
+
+  // The three branch sentences the code printed before wiring, and their Korean restructurings.
+  const EN_HERO = [
+    "Product shots, motion, UGC presenters, ads, posters and listings — from Fuobe's templates, on open-source models.",
+    "Product shots, motion, UGC presenters, ads, posters and listings — from Fuobe's templates, on your own GPU, free.",
+    "Product shots, motion, UGC presenters, ads, posters and listings — from Fuobe's templates, on Fuobe Marketing Image or partner models in the cloud.",
+  ];
+  const KO_HERO = [
+    "제품 사진, 모션, UGC 프리젠터, 광고, 포스터, 리스팅까지 — 오픈소스 모델로, Fuobe 템플릿으로 만듭니다.",
+    "제품 사진, 모션, UGC 프리젠터, 광고, 포스터, 리스팅까지 — 본인 GPU에서 무료로, Fuobe 템플릿으로 만듭니다.",
+    "제품 사진, 모션, UGC 프리젠터, 광고, 포스터, 리스팅까지 — 클라우드의 Fuobe Marketing Image 또는 파트너 모델로, Fuobe 템플릿으로 만듭니다.",
+  ];
+  const forbidden = /(open-source models|your own GPU, free|or partner models in the cloud|Product shots|UGC presenters|from Fuobe)/;
+
+  const en0 = await heroLine();
+  check("the hero <p> reads one of the three English source sentences", EN_HERO.includes(en0 ?? ""), String(en0));
+
+  const menu = await openSelector(page);
+  await menu.getByRole("menuitem", { name: "한국어" }).click();
+  await page.waitForTimeout(400);
+  check("still the same page (no reload happened)", page.url().endsWith("/marketing"), page.url());
+
+  const ko0 = await heroLine();
+  check("the hero <p> is now one of the three Korean sentences", KO_HERO.includes(ko0 ?? ""), String(ko0));
+  check("no English fragment survived in the Korean hero", !forbidden.test(ko0 ?? ""), String(ko0));
+
+  // 영어로 되돌리면 바이트가 그대로 돌아온다(왕복 보존 — lang-switch 2-stage의 두 번째 단계).
+  const menu2 = await openSelector(page);
+  await menu2.getByRole("menuitem", { name: "English" }).click();
+  await page.waitForTimeout(400);
+  const en1 = await heroLine();
+  check("switching back to English gives the same bytes", EN_HERO.includes(en1 ?? ""), String(en1));
+  await page.keyboard.press("Escape");
+  await page.close();
+}
+
 step("nothing was missed on the way");
 {
   const i18nNoise = noise.filter((l) => /\[i18n\]/.test(l));
