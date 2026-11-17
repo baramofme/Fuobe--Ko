@@ -41,6 +41,7 @@ import { chainState, clipLengthProblem } from "@/lib/catalog/shorts";
 import type { RestyleModelInfo } from "@/lib/catalog/shorts-models";
 import type { Engine, Generation } from "@/lib/catalog/types";
 import { downloadHref, downloadName } from "@/lib/library";
+import { rowPriceOf } from "@/lib/row-price";
 import type { TrimRange } from "@/lib/trim-range";
 import { cn } from "@/lib/utils";
 import { onAttr, TAB_PILL, TabRow, useSwapFade } from "@/components/ui/tab-row";
@@ -355,7 +356,7 @@ function Editor({
   const [pickedModel, setModel] = useState<Record<string, string>>({});
   const modelId = (models.some((m) => m.id === pickedModel[slot]) && pickedModel[slot]) || models[0]?.id;
   const model = models.find((m) => m.id === modelId);
-  const priceOf = (m?: RestyleModelInfo) => m?.price;
+  const priceOf = (m?: RestyleModelInfo) => rowPriceOf(m?.price, tr);
   const original = modelId === MIXED_ORIGINAL;
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Every main step of the latest render (cut → frames or restyle → sound), so a failed step shows its own error.

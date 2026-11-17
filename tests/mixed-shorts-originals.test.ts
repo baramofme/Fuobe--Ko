@@ -29,6 +29,7 @@ const mm = await import("@/lib/catalog/mixed-media");
 const { mixedLoras } = await import("@/lib/catalog/mixed-media-looks");
 const sh = await import("@/lib/catalog/shorts");
 const { maxRefsFor, modelInfos, reframes, resolutionFor } = await import("@/lib/catalog/shorts-models");
+const { rowPriceOf } = await import("@/lib/row-price");
 const { MIXED_MEDIA_LOOK_LORAS, LORA_LIBRARY } = await import("@/lib/catalog/lora-library.generated");
 
 beforeAll(() => setSetting("demoMode", "auto"));
@@ -108,7 +109,8 @@ describe("Fuobe Mixed Media and Fuobe Shorts in the catalog", () => {
     // As each runs per engine: free on your GPU, priced in the cloud; refs go to the first frame's edit on both.
     const [open] = modelInfos(["fuobe-shorts"], "open");
     const [cloud] = modelInfos(["fuobe-shorts"], "cloud");
-    expect(open).toMatchObject({ engine: "open", price: "Free · your GPU", refs: 2, reframes: true });
+    expect(open).toMatchObject({ engine: "open", price: { key: "studio.composer.freeYourGpu", params: {} }, refs: 2, reframes: true });
+    expect(rowPriceOf(open.price), "open row: the default read gives the en source bytes (e2e·coupled binding)").toBe("Free · your GPU");
     expect(cloud).toMatchObject({ engine: "cloud", price: "$0.19 / s at 30 fps", refs: 2, reframes: false });
     expect([maxRefsFor("fuobe-shorts", "cloud"), reframes("fuobe-shorts", "cloud"), resolutionFor("fuobe-shorts", "cloud"), resolutionFor("fuobe-shorts", "open")]).toEqual([2, false, "720p", undefined]);
     expect(modelInfos(["fuobe-mixed-media"], "cloud")[0].price).toBe("$0.01 / MP");

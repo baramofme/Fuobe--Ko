@@ -29,6 +29,7 @@ import {
 } from "@/lib/catalog/shorts";
 import type { RestyleModelInfo } from "@/lib/catalog/shorts-models";
 import type { Engine } from "@/lib/catalog/types";
+import { rowPriceOf } from "@/lib/row-price";
 import type { TrimRange } from "@/lib/trim-range";
 import { keepOffered, offered } from "@/lib/model-access";
 import { cn } from "@/lib/utils";
@@ -335,7 +336,7 @@ function SetupPanel({
   const pickedOn = models.some((m) => m.id === pickedModel[engine]) ? pickedModel[engine] : "";
   const modelId = pickedOn || (customRefs > 0 && engine === "cloud" && refModel ? refModel : models[0]?.id);
   const model = models.find((m) => m.id === modelId);
-  const priceOf = (m?: ModelChoice) => m?.price;
+  const priceOf = (m?: ModelChoice) => rowPriceOf(m?.price, tr);
   const duration = clipDuration(clip);
   const actions = useShortsActions();
   const presetType = SHORTS_PRESETS.find((p) => p.id === presetId)?.type;

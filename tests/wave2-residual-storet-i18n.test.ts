@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { locales, translate } from "@/lib/i18n/store";
 import { placeRows, runPlace, type RunPlaceInput } from "@/lib/run-place";
 import { modelInfos } from "@/lib/catalog/shorts-models";
+import { rowPriceOf } from "@/lib/row-price";
 
 /**
  * 2차 잔여(t_96d00226)의 배선 기계 판정 — 판정 원형은 레인 선례(inline-cluster-b·
@@ -31,6 +32,9 @@ const KEYS: Record<keyof typeof SOURCE_LITERALS, string> = {
 const CHIP = "src/components/studio/run-place-chip.tsx";
 const M3D_FILES = ["src/components/model3d/model3d-studio.tsx", "src/components/model3d/other-sides.tsx", "src/components/model3d/retexture-dialog.tsx"];
 const SHORTS = "src/lib/catalog/shorts-models.ts";
+const ROW_PRICE = "src/lib/row-price.ts";
+const SHORTS_STUDIO = "src/components/shorts/shorts-studio.tsx";
+const MIXED_STUDIO = "src/components/mixed-media/mixed-studio.tsx";
 
 const HANGUL = /[\uAC00-\uD7A3]/;
 const HANJA = /[\u4e00-\u9fff]/;
@@ -86,22 +90,45 @@ describe("2차 잔여의 렌더 시점 배선(t_96d00226 레인)", () => {
     expect(codeOf("src/components/model3d/hooks.ts")).toContain("tr: (key: string, params?: Params) => string = storeT");
   });
 
-  it("shorts-models의 trio 생존 지점은 기존 키를 tr로 부르며 원 리터럴이 코드에서 사라진다(신규 키 0·로케일 무접촉)", () => {
+  it("shorts-models의 open 지점은 키+params 페이로드를 싣고, 해석은 렌더 시점 fn(row-price)이 한다(신규 키 0·로케일 무접촉)", () => {
     const code = codeOf(SHORTS);
-    expect(code, "shorts: tr(\"studio.composer.freeYourGpu\")").toContain('tr("studio.composer.freeYourGpu")');
+    expect(code, "shorts: the payload carries the existing key").toContain('key: "studio.composer.freeYourGpu"');
+    // 베크 시점의 eager 해석 0 — 언어를 import·module 스코프에 고정하던 그 tr 호출이 페이로드로 대체됐다(구 조건의 후속).
+    expect(code, "shorts: no eager tr read at bake time").not.toContain('tr("studio.composer.freeYourGpu")');
     expect(code, "shorts: no leftover trio literal").not.toContain(SOURCE_LITERALS.freeYourGpu);
-    expect(code, "shorts: fn 기본값 storeT(모듈 상수 스냅샷 아님)").toContain("tr: (key: string, params?: Params) => string = storeT");
-    expect(code, "shorts: storeT 근원").toContain("storeT");
+    // 해석의 원형은 렌더 시점 fn으로 이사갔다: 마지막 인자 tr의 기본값 storeT·근원 storeT·모듈 상수 스냅샷 0.
+    const rp = codeOf(ROW_PRICE);
+    expect(rp, "row-price: fn 기본값 storeT(모듈 상수 스냅샷 아님)").toContain("tr: (key: string, params?: Params) => string = storeT");
+    expect(rp, "row-price: storeT 근원").toContain("storeT");
+    expect(rp, "row-price: no module const snapshot").not.toMatch(/\b(?:export )?const \w+ = (?:t|tr)\(/);
     // 모듈 스코프의 t() 스냅샷(언어를 import 시점에 고정)이 0(twin 선례의 슬라이스 판정).
     expect(code, "shorts: no module const snapshot").not.toMatch(/\b(?:export )?const \w+ = (?:t|tr)\(/);
+  });
+
+  it("스튜디오 2파일의 priceOf가 훅의 tr로 rowPriceOf를 건네 렌더 시점 해석한다(알리아스 구독·기본값 call-site 잔존 0)", () => {
+    for (const rel of [SHORTS_STUDIO, MIXED_STUDIO]) {
+      const code = codeOf(rel);
+      expect(code, `${rel}: imports useI18n`).toContain("useI18n");
+      expect(code, `${rel}: subscribes t as tr`).toContain("const { t: tr } = useI18n();");
+      expect(code, `${rel}: priceOf passes its tr to rowPriceOf`).toContain("rowPriceOf(m?.price, tr)");
+      // 기본값 storeT로 부르는 잔여 call-site 0(모듈 스코프 bake 경로의 회귀 방지).
+      expect(code, `${rel}: bare rowPriceOf(m?.price) residue 0`).not.toMatch(/rowPriceOf\(m\?\.price\)(?!,)/);
+      expect(code, `${rel}: the raw row read is gone`).not.toContain("=> m?.price");
+    }
+    // openFree 래퍼 원형 유지(규칙 5): mixed-studio의 래퍼 사용부는 이 레인도 건드리지 않는다.
+    expect(codeOf(MIXED_STUDIO), "mixed: the openFree wrapper is still used as it was").toContain("useOpenFree()");
   });
 
   it("기본값 storeT의 en 바이트가 결속을 지킨다(호출 실측)과 ko 호출이 실제로 ko로 바뀐다", () => {
     // vitest는 node 환경: localStorage 없음 → getLang()은 en → 기본값 호출은 en 원 바이트.
     const [open] = modelInfos(["fuobe-shorts"], "open");
-    expect(open.price, "modelInfos 기본값은 en 원 바이트(mixed-shorts-originals:111 결속)").toBe(SOURCE_LITERALS.freeYourGpu);
+    expect(open.price, "the open row carries the key+params payload, not a baked string").toMatchObject({ key: KEYS.freeYourGpu });
+    expect(rowPriceOf(open.price), "rowPriceOf 기본값은 en 원 바이트(mixed-shorts-originals:111 결속)").toBe(SOURCE_LITERALS.freeYourGpu);
 
     const koTr = (k: string) => translate("ko", k);
+    expect(rowPriceOf(open.price, koTr), "같은 행을 ko tr로 읽으면 ko로 바뀐다(언어 전환 재번역의 실증)").toBe(translate("ko", KEYS.freeYourGpu));
+    // cloud의 $ 줄은 언어에 묶이지 않은 숫자 포매터다: 평문 문자열로 선재 바이트를 그대로 지킨다(결속은 아래 문자열로 잠긴다).
+    expect(modelInfos(["fuobe-shorts"], "cloud")[0].price, "the $ line stays a plain en string").toBe("$0.19 / s at 30 fps");
     const input: RunPlaceInput = { audience: "account", engine: "open", models: ["Some model"], gpu: false, hosted: false, format: (n) => `$${n.toFixed(2)}` };
     expect(runPlace(input).price, "runPlace default is en").toBe("Free");
     expect(runPlace(input, koTr).price, "runPlace with ko tr is ko").toBe("무료");
