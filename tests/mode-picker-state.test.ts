@@ -91,6 +91,29 @@ describe("what a remembered browser sees", () => {
     const host = mount(createElement(Harness, { defaultMode: "free" }));
     expect(show(host)).toBe(JSON.stringify({ mode: "free" }));
   });
+
+  // Regression for E1 (t_06240b78): a tampered LS value whose mode is not in ASSIST_MODES
+  // must fall through to the server default, not crash <Icon /> in the chip.
+  it("drops an unknown saved mode and uses the server default instead", () => {
+    localStorage.setItem(KEY, JSON.stringify({ mode: "weird-mode" }));
+    const host = mount(createElement(Harness, { defaultMode: "free" }));
+    expect(show(host)).toBe(JSON.stringify({ mode: "free" }));
+  });
+
+  it("drops an unknown saved mode and falls through to null without a default", () => {
+    localStorage.setItem(KEY, JSON.stringify({ mode: "weird-mode", agent: "local", model: "Dense" }));
+    const host = mount(createElement(Harness));
+    expect(show(host)).toBe("none");
+  });
+
+  it("accepts every valid ASSIST_MODES id as a saved value", () => {
+    // Guard against a regression that also rejects the *good* modes.
+    for (const valid of ["smart", "free", "manual"] as const) {
+      localStorage.setItem(KEY, JSON.stringify({ mode: valid }));
+      const host = mount(createElement(Harness, { defaultMode: "smart" }));
+      expect(show(host)).toBe(JSON.stringify({ mode: valid }));
+    }
+  });
 });
 
 describe("picking", () => {
