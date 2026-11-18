@@ -301,6 +301,29 @@ pnpm typecheck && pnpm lint && pnpm test
 
 Browser checks, catalog generation, the evaluation harness and the project layout are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Issues and pull requests are welcome: see [Contributing](docs/DEVELOPMENT.md#contributing).
 
+## Upstream sync
+
+If you maintain a fork and want to pull the latest from the upstream repo, run:
+
+```bash
+./sync-upstream.sh
+```
+
+The script fetches from `upstream`, merges into your current branch (merge, not rebase, so local commits are preserved), and pushes to `origin`. On merge conflict it stops with clear instructions.
+
+**One-time remote setup** (if `upstream`/`origin` remotes are missing):
+
+```bash
+git remote add upstream https://github.com/workingprototype/Fuobe
+git remote add origin   https://github.com/baramofme/Fuobe--Ko.git
+```
+
+The manual equivalent:
+
+```bash
+git fetch upstream && git merge upstream/main && git push origin main
+```
+
 ## Documentation
 
 | Guide | What it covers |
