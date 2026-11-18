@@ -53,7 +53,10 @@ export function useModeChoice(defaultMode?: AssistModeChoice["mode"]): [AssistMo
     try {
       const saved = JSON.parse(raw ?? "null") as AssistModeChoice | null;
       // A choice saved when the local agent was called "ollama" reads as "local".
-      if (saved?.mode) return saved.agent ? { ...saved, agent: normalizeAgent(saved.agent) } : saved;
+      // Only a mode ASSIST_MODES actually renders may pass through — an unknown value
+      // would index MODE_ICON[mode] as undefined and crash <Icon /> in the chip.
+      if (saved?.mode && ASSIST_MODES.some((m) => m.id === saved.mode))
+        return saved.agent ? { ...saved, agent: normalizeAgent(saved.agent) } : saved;
     } catch {}
     return defaultMode ? { mode: defaultMode } : null;
   }, [raw, defaultMode]);
@@ -175,7 +178,8 @@ export function ModePicker({
   // The label, its aria-label and the icon all come from this one resolved value.
   const resolved: AssistModeChoice = { ...(shown ?? {}), mode };
   const label = modeChipLabel(resolved, can);
-  const Icon = MODE_ICON[mode];
+  // Unknown modes are filtered out upstream; this ?? keeps the chip safe if one ever leaks through.
+  const Icon = MODE_ICON[mode] ?? MODE_ICON.manual;
   const agent: AssistAgent = shown?.agent ?? "claude";
   const set = (patch: Partial<AssistModeChoice>) => {
     const next = { ...resolved, ...patch } as AssistModeChoice;
