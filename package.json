@@ -88,7 +88,8 @@
     "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "jsdom": "31.0.1"
   },
   "packageManager": "pnpm@10.34.9"
 }
